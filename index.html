@@ -1498,7 +1498,7 @@ function empBurst(pos) {
   COLOSSI.forEach(C => {
     if (C.dead) return; const d = Math.hypot(pos.x - C.root.position.x, pos.z - C.root.position.z);
     if (d < C.rad + 4.5 && pos.y < C.height + 2) {
-      C.hp -= 160 * (STATE.quadTimer > 0 ? 2 : 1); C.stun = 3.5; C.charge = -1; C.glow.visible = false; C.glowLight.intensity = 0; C.engaged = 6;
+      C.hp -= 160 * (STATE.quadTimer > 0 ? 2 : 1); C.stun = 3.5; C.charge = -1; if (C.laser) C.laser.visible = false; C.glow.visible = false; C.glowLight.intensity = 0; C.engaged = 6;
       spawnEmpArcs(C, 10); addKillFeed(`EMP hit · ${C.isMini ? 'Mini Colossus' : 'Moses Colossus'} stunned`);
       const hm = document.getElementById('hitmarker'); hm.classList.add('active'); clearTimeout(hm._t); hm._t = setTimeout(() => hm.classList.remove('active'), 150);
       if (C.hp <= 0) killColossus(C);
@@ -1508,7 +1508,7 @@ function empBurst(pos) {
 }
 function killColossus(C) {
   if (C.dead) return; C.dead = true; C.hp = 0; C.deathT = 0;
-  colliders = colliders.filter(c => c !== C.col);
+  colliders = colliders.filter(c => c !== C.col); if (C.laser) C.laser.visible = false; buildNavGrid();
   if (C.eye) C.eye.intensity = 0;
   for (let i = 0; i < 4; i++) setTimeout(() => colossusExplode(new THREE.Vector3(C.root.position.x + (Math.random() - 0.5) * C.rad * 2, C.height * (0.2 + Math.random() * 0.6), C.root.position.z + (Math.random() - 0.5) * C.rad * 2), 0, 1), i * 280);
   showBanner(C.isMini ? '⚡ MINI COLOSSUS DOWN' : '⚡ MOSES COLOSSUS DESTROYED', 'Shielding collapsed. Clear the remaining sentinels to open the stairwell.', 4000);
@@ -1549,11 +1549,14 @@ function updateColossi(dt, now) {
     const hp = colossusHandPos(new THREE.Vector3(), C);
     const target = new THREE.Vector3(STATE.player.x, STATE.player.y + 1.2, STATE.player.z);
     if (C.charge >= 0) {
-      C.charge += dt; const t = Math.min(1, C.charge / 1.0); const k = C.height / 24;
+      C.charge += dt; const t = Math.min(1, C.charge / 0.88); const k = C.height / 24;
+      if (!C.laser) { C.laser = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: 0xff2d2d, transparent: true, opacity: 0.8, depthWrite: false })); C.laser.frustumCulled = false; scene.add(C.laser); }
+      C.laser.visible = C.charge > 0.38 && Math.sin(now * 0.06) > -0.6;
+      if (C.laser.visible) { const pa = C.laser.geometry.attributes.position; pa.setXYZ(0, hp.x, hp.y, hp.z); pa.setXYZ(1, STATE.player.x, STATE.player.y + 1.3, STATE.player.z); pa.needsUpdate = true; }
       C.glow.visible = true; C.glow.position.copy(hp); C.glow.scale.setScalar((0.4 + t * 1.6 + Math.sin(now * 0.05) * 0.15) * Math.max(0.5, k)); C.glow.material.opacity = 0.35 + t * 0.6;
       C.glowLight.position.copy(hp); C.glowLight.intensity = t * 5;
       if (t >= 1) {
-        C.charge = -1; C.glow.visible = false; C.glowLight.intensity = 0;
+        C.charge = -1; C.glow.visible = false; C.glowLight.intensity = 0; if (C.laser) C.laser.visible = false;
         spawnMuzzleFlash(hp, 0x7dd3fc, false);
         const big = new THREE.PointLight(0xbfdbfe, 8, 40, 2); big.position.copy(hp); scene.add(big);
         const fm = new THREE.Mesh(new THREE.SphereGeometry(1.8 * Math.max(0.5, k), 12, 10), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -1564,7 +1567,7 @@ function updateColossi(dt, now) {
         const bolt = new THREE.Mesh(new THREE.SphereGeometry(bs, 14, 10), new THREE.MeshBasicMaterial({ color: 0xe0f2fe, blending: THREE.AdditiveBlending, transparent: true }));
         const halo = new THREE.Mesh(new THREE.SphereGeometry(bs * 1.9, 12, 8), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
         bolt.add(halo); bolt.position.copy(hp); scene.add(bolt); bolt.add(new THREE.PointLight(0x7dd3fc, 3, 18, 2));
-        COLOSSUS_BOLTS.push({ mesh: bolt, vel: dir.multiplyScalar(C.isMini ? 28 : 26), life: 5, trailT: 0, dmg: C.dmg, owner: C, R: C.isMini ? 4.5 : 5.5 });
+        COLOSSUS_BOLTS.push({ mesh: bolt, vel: dir.multiplyScalar(C.isMini ? 48 : 46), life: 5, trailT: 0, dmg: C.dmg, owner: C, R: C.isMini ? 4.5 : 5.5 });
       }
     } else {
       C.cool -= dt;
@@ -1751,7 +1754,7 @@ function buildCellDoor(obj) {
 function openCellDoor(reason) {
   if (!CELL_DOOR || CELL_DOOR.open) return;
   CELL_DOOR.open = true; CELL_DOOR.lock.material.emissive.setHex(0x22c55e);
-  colliders = colliders.filter(c => c !== CELL_DOOR.col);
+  colliders = colliders.filter(c => c !== CELL_DOOR.col); buildNavGrid();
   SFX.playKeyPickup(); STATE.screenShake = 0.3;
   showBanner('🔓 CELL BREACHED', reason + ' — move down the aisle into Server Hall G. Sentinels activate when you leave the aisle.', 5000);
 }
@@ -1765,7 +1768,7 @@ function buildArenaMap() {
   while (arenaGroup.children.length > 0) arenaGroup.remove(arenaGroup.children[0]);
   colliders = []; walkableSurfaces = []; sirenBeaconMeshes = []; PICKUPS = []; ARENA_LIGHTS = []; STEAM_PARTICLES = []; BLINK_MATS = []; CELL_DOOR = null; COLOSSUS = null;
   COLOSSUS_BOLTS.forEach(b => scene.remove(b.mesh)); COLOSSUS_BOLTS = [];
-  COLOSSI.forEach(C => { if (C.voice && C.voice.isPlaying) C.voice.stop(); }); COLOSSI = []; EMP_ARCS.forEach(a => scene.remove(a.mesh)); EMP_ARCS = []; colossusHud(null);
+  COLOSSI.forEach(C => { if (C.voice && C.voice.isPlaying) C.voice.stop(); if (C.laser) scene.remove(C.laser); }); COLOSSI = []; EMP_ARCS.forEach(a => scene.remove(a.mesh)); EMP_ARCS = []; colossusHud(null);
   const floor = STATE.floor || 0; const theme = FLOOR_THEMES[floor];
   const steelMat = new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.42, metalness: 0.78, bumpMap: WALL_PBR.bumpMap, bumpScale: 0.04 });
   const floorColors = [0xa8a49a, 0x8f9aa8, 0x9a8f80, 0x8a8078];
@@ -1802,6 +1805,7 @@ function buildArenaMap() {
     renderLegacyObject(obj, steelMat);
   });
   COLOSSUS = COLOSSI[0] || null;
+  addLoreForFloor(STATE.level || 1, floor);
   // pickups at free spots
   const rnd = seededRng(STATE.level * 31 + floor);
   const types = [['health', 0x22c55e], ['armor', 0x00f0ff], ['ammo', 0xfacc15], ['health', 0x22c55e], ['quad', 0xa855f7], ['emp', 0x38bdf8], ['emp', 0x38bdf8], ['emp', 0x38bdf8]];
@@ -1813,6 +1817,8 @@ function buildArenaMap() {
       mesh.position.set(x, 1.2, z); arenaGroup.add(mesh); PICKUPS.push({ type, x, z, color, mesh, active: true, respawnTimer: 0 }); break;
     }
   });
+  ENEMY_GRENADES.forEach(g => { scene.remove(g.mesh); if (g.ring) scene.remove(g.ring); }); ENEMY_GRENADES = [];
+  buildNavGrid();
 }
 
 function startFloor(lvl, floor) {
@@ -1839,10 +1845,14 @@ function startFloor(lvl, floor) {
   const rnd = seededRng(lvl * 7 + floor * 3 + 1); const Z = FLOOR_INFO.spawnZone;
   for (let i = 0; i < count; i++) {
     const tpl = BOT_ROSTER[i % BOT_ROSTER.length] || {};
-    const heavy = rnd() < heavyFrac;
+    const humanFrac = Math.max(0.12, [0.5, 0.4, 0.3, 0.25][floor] - 0.01 * (lvl - 1));
+    const human = (i % 4 === 1 || i % 4 === 3) ? rnd() < humanFrac * 2 * 0.95 : rnd() < humanFrac * 0.1;
+    const heavy = !human && rnd() < heavyFrac;
+    const squad = Math.floor(i / 4); const aiRole = ['suppressor', 'flanker', 'pusher', 'flanker'][i % 4];
     let x = 0, z = 0;
     for (let t = 0; t < 40; t++) { x = Z.minX + rnd() * (Z.maxX - Z.minX); z = Z.minZ + rnd() * (Z.maxZ - Z.minZ); if (!collidesAt(x, z, 1.1) && Math.hypot(x - STATE.player.x, z - STATE.player.z) > 28) break; }
-    spawnBotFromArchetype({ ...tpl, id: `f${floor}-b${i}`, name: heavy ? `Heavy Sentinel ${FLOOR_NAMES[floor]}-${i + 1}` : `Strogg Guard ${FLOOR_NAMES[floor]}-${i + 1}`, role: heavy ? 'bot' : 'human_guard', x, y: 0, z, maxHealth: heavy ? 150 : 105, patrolType: 'ground' }, hpMult);
+    if (human) spawnBotFromArchetype({ ...tpl, id: `f${floor}-h${i}`, name: `Halcyon Guard ${FLOOR_NAMES[floor]}-${i + 1}`, role: 'human', aiRole, squad, x, y: 0, z, maxHealth: 70, patrolType: 'ground' }, hpMult);
+    else spawnBotFromArchetype({ ...tpl, id: `f${floor}-b${i}`, name: heavy ? `Heavy Sentinel ${FLOOR_NAMES[floor]}-${i + 1}` : `Strogg Sentinel ${FLOOR_NAMES[floor]}-${i + 1}`, role: heavy ? 'bot' : 'human_guard', aiRole, squad, x, y: 0, z, maxHealth: heavy ? 165 : 115, patrolType: 'ground' }, hpMult);
   }
   const theme = FLOOR_THEMES[floor];
   if (floor === 0) showBanner(`LEVEL ${lvl} · ${cfg.name}`, 'You are locked in a holding cell. Shoot the red lock, press E at the door, or stand at the cyan wall terminal to hack it.', 6500);
@@ -2159,6 +2169,7 @@ function autoLoadMeshyAssets() {
   const jobs = [
     { file: 'models/sentinel_guard.glb', role: 'guard', height: 2.15 },
     { file: 'models/sentinel_heavy.glb', role: 'bot', height: 2.55 },
+    { file: 'models/human_guard.glb', role: 'human', height: 1.8 },
     { file: 'models/pulse_cannon.glb', role: 'viewmodel', height: 0.55 },
     { file: 'models/crate.glb', role: 'prop:crate', height: 1.2 },
     { file: 'models/server_rack.glb', role: 'prop:server_rack', height: 2.4 },
@@ -2195,6 +2206,7 @@ function autoLoadMeshyAssets() {
         };
         if (job.role === 'guard') MESHY_TEMPLATES.guard = tpl;
         else if (job.role === 'bot') MESHY_TEMPLATES.bot = tpl;
+        else if (job.role === 'human') { MESHY_TEMPLATES.human = tpl; BOTS.filter(b => b.isHuman && b.procHuman).forEach(b => { const r = buildRigFromMeshyTemplate(tpl, b.name, false); r.root.position.copy(b.rig.root.position); r.root.traverse(o => { if (o.isMesh) o.castShadow = true; }); scene.remove(b.rig.root); scene.add(r.root); b.rig = r; b.mixer = r.mixer || null; b.procHuman = false; if (b.mixer && b.mixer._actions[0]) b.action = b.mixer._actions[0]; r.hb.update(b.health, b.maxHealth); }); }
         else if (job.role === 'viewmodel') {
           // keep a clean unrotated copy for FPS; barrel assumed along longest horizontal axis
           MESHY_TEMPLATES.viewmodel = tpl;
@@ -2208,6 +2220,421 @@ function autoLoadMeshyAssets() {
     if (st) st.textContent = loaded ? `Loaded ${loaded} Meshy Strogg GLB(s)` : 'Procedural Strogg sentinels · Meshy GLB optional';
     if (MESHY_TEMPLATES.viewmodel) buildViewModel();
   });
+}
+
+// ============================================================================
+// TACTICAL SQUAD AI — nav grid + A*, cover, roles, awareness, fair aim
+// ============================================================================
+const NAV = { cs: 2, ox: -88, oz: -84, w: 88, h: 84, move: null, lcs: 1, lw: 176, lh: 168, high: null, low: null };
+let COVER_POINTS = [];
+let AI_TRACE = [];
+let ENEMY_GRENADES = [];
+const AI_G = { grenadeCD: 8, campAnchor: { x: 0, z: 0 }, campT: 0, lastShoutT: 0, lastReloadT: -1e9 };
+function aiTrace(b, msg) { AI_TRACE.push(`${(performance.now() / 1000).toFixed(1)}s ${b.name} [${b.role}] ${msg}`); if (AI_TRACE.length > 400) AI_TRACE.shift(); }
+
+function buildNavGrid() {
+  NAV.move = new Uint8Array(NAV.w * NAV.h); NAV.high = new Uint8Array(NAV.lw * NAV.lh); NAV.low = new Uint8Array(NAV.lw * NAV.lh);
+  const mark = (arr, W, H, cs, ox, oz, x0, x1, z0, z1) => {
+    const i0 = Math.max(0, Math.floor((x0 - ox) / cs)), i1 = Math.min(W - 1, Math.floor((x1 - ox) / cs));
+    const j0 = Math.max(0, Math.floor((z0 - oz) / cs)), j1 = Math.min(H - 1, Math.floor((z1 - oz) / cs));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) arr[j * W + i] = 1;
+  };
+  colliders.forEach(c => {
+    if (c.minY < 1.8) mark(NAV.move, NAV.w, NAV.h, NAV.cs, NAV.ox, NAV.oz, c.minX - 0.6, c.maxX + 0.6, c.minZ - 0.6, c.maxZ + 0.6);
+    if (c.minY < 1.2 && c.maxY >= 1.7) mark(NAV.high, NAV.lw, NAV.lh, NAV.lcs, NAV.ox, NAV.oz, c.minX + 0.15, c.maxX - 0.15, c.minZ + 0.15, c.maxZ - 0.15);
+    if (c.minY < 0.6 && c.maxY >= 0.95) mark(NAV.low, NAV.lw, NAV.lh, NAV.lcs, NAV.ox, NAV.oz, c.minX + 0.15, c.maxX - 0.15, c.minZ + 0.15, c.maxZ - 0.15);
+  });
+  buildCoverPoints();
+}
+const navIdx = (x, z) => { const i = Math.floor((x - NAV.ox) / NAV.cs), j = Math.floor((z - NAV.oz) / NAV.cs); return (i < 0 || j < 0 || i >= NAV.w || j >= NAV.h) ? -1 : j * NAV.w + i; };
+const navFree = (x, z) => { const k = navIdx(x, z); return k >= 0 && !NAV.move[k]; };
+function losGrid(ax, az, bx, bz, arr) {
+  const d = Math.hypot(bx - ax, bz - az); const n = Math.ceil(d / 0.5);
+  for (let s = 1; s < n; s++) {
+    const t = s / n; if (t * d < 0.7 || (1 - t) * d < 0.7) continue;
+    const x = ax + (bx - ax) * t, z = az + (bz - az) * t;
+    const i = Math.floor((x - NAV.ox) / NAV.lcs), j = Math.floor((z - NAV.oz) / NAV.lcs);
+    if (i < 0 || j < 0 || i >= NAV.lw || j >= NAV.lh) return false;
+    if (arr[j * NAV.lw + i]) return false;
+  }
+  return true;
+}
+function buildCoverPoints() {
+  COVER_POINTS = [];
+  colliders.forEach(c => {
+    if (c.maxY < 0.95 || c.minY > 0.6) return;
+    const tall = c.maxY >= 1.7; const W = c.maxX - c.minX, D = c.maxZ - c.minZ;
+    if (W > 120 || D > 120) return; // skip outer shell walls
+    const sides = [
+      { nx: 0, nz: -1, ax: 'x', a0: c.minX, a1: c.maxX, fixed: c.minZ - 1.1 }, { nx: 0, nz: 1, ax: 'x', a0: c.minX, a1: c.maxX, fixed: c.maxZ + 1.1 },
+      { nx: -1, nz: 0, ax: 'z', a0: c.minZ, a1: c.maxZ, fixed: c.minX - 1.1 }, { nx: 1, nz: 0, ax: 'z', a0: c.minZ, a1: c.maxZ, fixed: c.maxX + 1.1 }];
+    sides.forEach(sd => {
+      const len = sd.a1 - sd.a0; const n = Math.min(8, Math.max(2, Math.round(len / 4) + 1));
+      for (let k = 0; k < n; k++) {
+        const a = sd.a0 + 0.4 + (len - 0.8) * (n === 1 ? 0.5 : k / (n - 1));
+        const x = sd.ax === 'x' ? a : sd.fixed, z = sd.ax === 'x' ? sd.fixed : a;
+        if (!navFree(x, z)) continue;
+        // peek spot: step past the end of the cover for tall cover, stand up for low cover
+        let px = x, pz = z;
+        if (tall) { const edgeLo = k === 0, edgeHi = k === n - 1; if (!(edgeLo || edgeHi)) { if (len > 6) continue; } const off = edgeLo ? -1.4 : 1.4; if (sd.ax === 'x') px = x + off; else pz = z + off; if (!navFree(px, pz)) continue; }
+        COVER_POINTS.push({ x, z, px, pz, tall, nx: -sd.nx, nz: -sd.nz });
+      }
+    });
+  });
+  if (COVER_POINTS.length > 700) COVER_POINTS = COVER_POINTS.filter((_, i) => i % Math.ceil(COVER_POINTS.length / 700) === 0);
+}
+// --- A* on the 2 m grid ---
+function aStar(sx, sz, gx, gz) {
+  const W = NAV.w, H = NAV.h; let s = navIdx(sx, sz), g = navIdx(gx, gz);
+  const nearestFree = k => { if (k < 0) return -1; if (!NAV.move[k]) return k; const i = k % W, j = (k / W) | 0; for (let r = 1; r < 4; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii < W && jj < H && !NAV.move[jj * W + ii]) return jj * W + ii; } return -1; };
+  s = nearestFree(s); g = nearestFree(g); if (s < 0 || g < 0) return null;
+  const gScore = new Float32Array(W * H).fill(1e9), came = new Int32Array(W * H).fill(-1), closed = new Uint8Array(W * H);
+  const heap = []; const push = (k, f) => { heap.push([f, k]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0]; const last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  const gi = g % W, gj = (g / W) | 0; const hfn = k => { const dx = Math.abs(k % W - gi), dz = Math.abs(((k / W) | 0) - gj); return Math.max(dx, dz) + 0.41 * Math.min(dx, dz); };
+  gScore[s] = 0; push(s, hfn(s)); let it = 0;
+  while (heap.length && it++ < 4000) {
+    const [, k] = pop(); if (k === g) break; if (closed[k]) continue; closed[k] = 1;
+    const i = k % W, j = (k / W) | 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      if (!di && !dj) continue; const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= W || jj >= H) continue;
+      const nk = jj * W + ii; if (NAV.move[nk] || closed[nk]) continue;
+      if (di && dj && (NAV.move[j * W + ii] || NAV.move[jj * W + i])) continue;
+      const ng = gScore[k] + (di && dj ? 1.41 : 1); if (ng < gScore[nk]) { gScore[nk] = ng; came[nk] = k; push(nk, ng + hfn(nk)); }
+    }
+  }
+  if (came[g] < 0 && g !== s) return null;
+  const path = []; for (let k = g; k !== -1 && k !== s; k = came[k]) path.push({ x: NAV.ox + (k % W + 0.5) * NAV.cs, z: NAV.oz + (((k / W) | 0) + 0.5) * NAV.cs });
+  path.reverse(); if (path.length) { path[path.length - 1] = { x: gx, z: gz }; } return path;
+}
+// --- callouts ---
+const CALLOUT_AUDIO = {};
+function guardShout(b, key, text) {
+  if (!b || b.dying) return; const now = performance.now();
+  if (now - AI_G.lastShoutT < 1300 || now - (b.lastShout || 0) < 4000) return;
+  AI_G.lastShoutT = now; b.lastShout = now;
+  const d = Math.hypot(b.x - STATE.player.x, b.z - STATE.player.z);
+  if (b.isHuman) {
+    addKillFeed(`🎧 ${b.callsign}: "${text}"`);
+    try { if (!SFX.muted) { const a = (CALLOUT_AUDIO[key] = CALLOUT_AUDIO[key] || new Audio(`audio/guard_${key}.mp3`)); const c = a.cloneNode(); c.volume = Math.max(0.15, Math.min(1, 1 - d / 70)); c.play().catch(() => {}); } } catch (e) {}
+  } else if (key === 'contact') addKillFeed(`🤖 ${b.name}: TARGET ACQUIRED`);
+}
+function alertAllies(b, radius) {
+  BOTS.forEach(o => { if (o === b || o.dying || o.isBoss) return; if (Math.hypot(o.x - b.x, o.z - b.z) < radius && o.aiState !== 'combat') { o.aiState = 'alert'; o.lastKnown = { ...b.lastKnown }; o.path = null; o.thinkT = 0.15 + Math.random() * 0.4; aiTrace(o, 'alerted by ally callout'); } });
+}
+function aiNoise(x, z, radius) {
+  BOTS.forEach(o => { if (o.dying || o.isBoss || o.aiState === 'combat') return; if (Math.hypot(o.x - x, o.z - z) < radius) { o.aiState = 'alert'; o.lastKnown = { x: x + (Math.random() - 0.5) * 6, z: z + (Math.random() - 0.5) * 6 }; o.path = null; if (Math.random() < 0.3) aiTrace(o, 'heard gunfire → investigating'); } });
+}
+function initBotAI(b) {
+  b.aiState = 'idle'; b.phase = 'move'; b.thinkT = Math.random() * 0.6; b.path = null; b.pathI = 0; b.cover = null; b.coverHits = 0;
+  b.lockT = 0; b.reactT = 0; b.burstLeft = 0; b.shotT = 0; b.phaseT = 0; b.crouch = 0; b.los = false; b.lastSeenT = -1e9; b.lastKnown = null;
+  b.speed = b.isHuman ? 6.6 : (b.heavy ? 3.9 : 4.8); b.patrolT = 2 + Math.random() * 4;
+  if (b.mixer && b.mixer._actions && b.mixer._actions[0]) b.action = b.mixer._actions[0];
+  b.callsign = b.isHuman ? ['Ruiz', 'Okafor', 'Brandt', 'Ivanova', 'Kade', 'Mercer', 'Holt', 'Sato', 'Varga', 'Pike', 'Reyes', 'Lund'][Math.floor(Math.random() * 12)] : b.name;
+}
+function pickCover(b) {
+  const P = STATE.player; let best = null, bestS = -1e9;
+  const anchor = BOTS.find(o => o !== b && !o.dying && o.role === 'suppressor' && o.squad === b.squad) || b;
+  const aAng = Math.atan2(anchor.x - P.x, anchor.z - P.z);
+  const pushing = b.role === 'pusher' && (performance.now() - AI_G.lastReloadT < 3500 || P.health < 45);
+  for (const c of COVER_POINTS) {
+    const db = Math.hypot(c.x - b.x, c.z - b.z); if (db > 34) continue;
+    const dp = Math.hypot(c.x - P.x, c.z - P.z); if (dp < 6 || dp > 48) continue;
+    if (BOTS.some(o => o !== b && !o.dying && o.cover && Math.hypot(o.cover.x - c.x, o.cover.z - c.z) < 3.5)) continue;
+    const protectedFromPlayer = !losGrid(c.x, c.z, P.x, P.z, c.tall ? NAV.high : NAV.low); if (!protectedFromPlayer) continue;
+    const peekOK = losGrid(c.px, c.pz, P.x, P.z, NAV.high);
+    let s = -db * 0.55 + (peekOK ? 22 : -6);
+    if (b.role === 'suppressor') s -= Math.abs(dp - 22) * 0.6;
+    else if (b.role === 'flanker') { let da = Math.abs(Math.atan2(c.x - P.x, c.z - P.z) - aAng); da = Math.min(da, Math.PI * 2 - da); s += Math.min(da, 1.6) * 16 - Math.abs(dp - 16) * 0.4; }
+    else s -= (pushing ? dp * 1.3 : Math.abs(dp - 14) * 0.5);
+    if (b.isHuman) s += 3; // humans love cover
+    if (s > bestS) { bestS = s; best = c; }
+  }
+  return best;
+}
+function setGoal(b, x, z) {
+  if (b.goal && Math.hypot(b.goal.x - x, b.goal.z - z) < 1.5 && b.path) return;
+  b.goal = { x, z }; b.path = aStar(b.x, b.z, x, z); b.pathI = 0;
+}
+function aiThink(b) {
+  const P = STATE.player; const now = performance.now();
+  const dist = Math.hypot(P.x - b.x, P.z - b.z);
+  const toAng = Math.atan2(P.x - b.x, P.z - b.z); let dAng = Math.abs(toAng - b.yaw); dAng = Math.min(dAng, Math.PI * 2 - dAng);
+  const eyeLos = dist < 62 && losGrid(b.x, b.z, P.x, P.z, NAV.high) && (b.aiState !== 'idle' || dAng < 1.0 || dist < 9);
+  b.los = eyeLos;
+  if (eyeLos) {
+    b.lastKnown = { x: P.x, z: P.z }; b.lastSeenT = now;
+    if (b.aiState !== 'combat') {
+      b.aiState = 'combat'; b.reactT = (b.isHuman ? 0.45 : 0.75) + Math.random() * 0.35; b.lockT = 0; b.cover = null; b.phase = 'move';
+      aiTrace(b, `spotted player at ${dist.toFixed(0)}m → combat (reaction ${b.reactT.toFixed(2)}s)`);
+      guardShout(b, 'contact', 'Contact! Contact front!'); alertAllies(b, 30);
+    }
+  }
+  if (b.aiState === 'combat') {
+    if (now - b.lastSeenT > 6500) { b.aiState = 'alert'; b.cover = null; aiTrace(b, 'lost visual → investigating last known'); guardShout(b, 'lost', 'Lost visual. Checking last known.'); return; }
+    const flanked = b.cover && losGrid(b.cover.x, b.cover.z, P.x, P.z, b.cover.tall ? NAV.high : NAV.low);
+    const pushNow = b.role === 'pusher' && (now - AI_G.lastReloadT < 3500 || P.health < 45);
+    if (!b.cover || flanked || b.coverHits >= 3 || (pushNow && !b.pushing) || (b.role === 'flanker' && now - (b.coverT || 0) > 9000)) {
+      const why = !b.cover ? 'no cover' : flanked ? 'cover flanked' : b.coverHits >= 3 ? 'cover hit' : pushNow ? 'player reloading/low HP → PUSH' : 'flanker repositioning';
+      b.pushing = pushNow; b.coverHits = 0; const c = pickCover(b);
+      if (c) { b.cover = c; b.coverT = now; b.phase = 'move'; setGoal(b, c.x, c.z); aiTrace(b, `${why} → moving to ${c.tall ? 'tall' : 'low'} cover (${c.x.toFixed(0)},${c.z.toFixed(0)})`); if (b.role === 'flanker' && Math.random() < 0.6) guardShout(b, 'flanking', 'Flanking left, cover me!'); else if (Math.random() < 0.35) guardShout(b, 'moving', 'Moving to cover!'); }
+      else { b.cover = null; const side = (b.id.charCodeAt(b.id.length - 1) % 2 ? 1 : -1); const want = b.role === 'pusher' ? 9 : 18; const ang = toAng + side * 0.6; setGoal(b, P.x - Math.sin(ang) * want, P.z - Math.cos(ang) * want); b.phase = 'move'; }
+    }
+    // human grenade to flush a camper
+    if (b.isHuman && AI_G.campT > 7 && AI_G.grenadeCD <= 0 && dist > 9 && dist < 30 && b.lastKnown) { AI_G.grenadeCD = 14; throwEnemyGrenade(b, b.lastKnown.x, b.lastKnown.z); }
+  } else if (b.aiState === 'alert') {
+    if (b.lastKnown) { setGoal(b, b.lastKnown.x, b.lastKnown.z); if (Math.hypot(b.lastKnown.x - b.x, b.lastKnown.z - b.z) < 2.5) { b.searchT = (b.searchT || 0) + 0.5; if (b.searchT > 4) { b.aiState = 'idle'; b.searchT = 0; b.lastKnown = null; aiTrace(b, 'search complete → idle'); } } }
+  } else {
+    b.patrolT -= 0.5; if (b.patrolT <= 0 || !b.path) { b.patrolT = 4 + Math.random() * 5; const hx = (b.homeX ?? b.x) + (Math.random() - 0.5) * 16, hz = (b.homeZ ?? b.z) + (Math.random() - 0.5) * 16; if (navFree(hx, hz)) setGoal(b, hx, hz); }
+  }
+}
+function aiShoot(b) {
+  const P = STATE.player; const dist = Math.hypot(P.x - b.x, P.z - b.z);
+  const moving = b.moving; const base = b.isHuman ? 0.055 : 0.08;
+  const spread = base * (moving ? 1.9 : 1) * Math.max(0.38, 1.35 - b.lockT * 0.22) * (STATE.player.crouch ? 1.2 : 1);
+  const sy = b.y + (b.isHuman ? (b.crouch > 0.5 ? 1.0 : 1.45) : 1.5);
+  const muzzle = new THREE.Vector3(b.x + Math.sin(b.yaw) * 0.6, sy, b.z + Math.cos(b.yaw) * 0.6);
+  const target = new THREE.Vector3(P.x, P.y + 1.2, P.z);
+  const off = new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.5) * 0.7, (Math.random() - 0.5)).multiplyScalar(2 * spread * dist);
+  if (b.isHuman) {
+    SFX.playPew(900 + Math.random() * 200); spawnMuzzleFlash(muzzle, 0xfde68a, false);
+    const hit = off.length() < 0.55; const end = target.clone().add(off.multiplyScalar(hit ? 0 : 1.8));
+    const tr = new THREE.Line(new THREE.BufferGeometry().setFromPoints([muzzle, end]), new THREE.LineBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
+    scene.add(tr); EMP_ARCS.push({ mesh: tr, life: 0.07 });
+    if (hit) damagePlayer(Math.round(6 * (STATE.diff?.dmg || 1)));
+  } else {
+    spawnMuzzleFlash(muzzle, 0xf97316, false);
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending }));
+    orb.position.copy(muzzle); scene.add(orb);
+    const dir = target.add(off).sub(muzzle).normalize();
+    PROJECTILES.push({ mesh: orb, x: muzzle.x, y: sy, z: muzzle.z, vx: dir.x * 40, vy: dir.y * 40, vz: dir.z * 40, damage: Math.round((b.heavy ? 12 : 10) * (STATE.diff?.dmg || 1)), splash: 0, fromPlayer: false, life: 2.5 });
+  }
+}
+function throwEnemyGrenade(b, tx, tz) {
+  guardShout(b, 'fragout', 'Frag out!'); aiTrace(b, `player camping → frag thrown at (${tx.toFixed(0)},${tz.toFixed(0)})`);
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), new THREE.MeshStandardMaterial({ color: 0x3f6212, emissive: 0xef4444, emissiveIntensity: 0.8 }));
+  mesh.position.set(b.x, b.y + 1.6, b.z); scene.add(mesh);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(5.2, 6, 32), new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2; ring.position.set(tx, 0.05, tz); scene.add(ring);
+  ENEMY_GRENADES.push({ mesh, ring, sx: b.x, sz: b.z, sy: b.y + 1.6, tx, tz, t: 0, flight: 1.1, fuse: 2.3 });
+}
+function updateEnemyGrenades(dt) {
+  let warn = false;
+  for (let i = ENEMY_GRENADES.length - 1; i >= 0; i--) {
+    const g = ENEMY_GRENADES[i]; g.t += dt; const u = Math.min(1, g.t / g.flight);
+    g.mesh.position.set(g.sx + (g.tx - g.sx) * u, g.sy * (1 - u) + 0.15 + Math.sin(u * Math.PI) * 5, g.sz + (g.tz - g.sz) * u);
+    g.ring.material.opacity = 0.35 + 0.35 * Math.abs(Math.sin(g.t * 10));
+    const d = Math.hypot(STATE.player.x - g.tx, STATE.player.z - g.tz); if (d < 8) warn = true;
+    if (g.t >= g.fuse) {
+      SFX.playExplosion(); spawnVolumetricFlameBurst(g.tx, 0.4, g.tz, IS_COARSE ? 8 : 14, 3); STATE.screenShake = Math.max(STATE.screenShake, d < 12 ? 0.7 : 0.3);
+      if (d < 6) damagePlayer(Math.round(32 * (1 - d / 6 * 0.7)));
+      scene.remove(g.mesh); scene.remove(g.ring); ENEMY_GRENADES.splice(i, 1);
+    }
+  }
+  let el = document.getElementById('grenade-warning');
+  if (!el) { el = document.createElement('div'); el.id = 'grenade-warning'; el.textContent = '⚠ GRENADE — MOVE!'; el.style.cssText = 'position:absolute;left:50%;top:58%;transform:translateX(-50%);z-index:42;pointer-events:none;font:900 16px sans-serif;color:#fecaca;background:rgba(127,29,29,.8);border:2px solid #ef4444;border-radius:8px;padding:4px 12px;display:none'; (document.getElementById('game-container') || document.body).appendChild(el); }
+  el.style.display = warn ? 'block' : 'none';
+}
+function updateBotAI(b, dt, now) {
+  const P = STATE.player;
+  b.thinkT -= dt; if (b.thinkT <= 0) { b.thinkT = (IS_COARSE ? 0.5 : 0.35) + Math.random() * 0.25; aiThink(b); }
+  if (b.los) b.lockT += dt; else b.lockT = Math.max(0, b.lockT - dt * 2);
+  if (b.reactT > 0) b.reactT -= dt;
+  // movement along path
+  let mvx = 0, mvz = 0; b.moving = false;
+  const atCover = b.cover && Math.hypot(b.cover.x - b.x, b.cover.z - b.z) < 0.9;
+  let target = null;
+  if (b.aiState === 'combat' && b.cover && atCover) {
+    // hide / peek cycle
+    b.phaseT -= dt;
+    if (b.phase === 'move') { b.phase = 'hide'; b.phaseT = 0.6 + Math.random() * 0.8; }
+    if (b.phase === 'hide' && b.phaseT <= 0) { b.phase = 'peek'; b.phaseT = 2.2; b.burstLeft = b.role === 'suppressor' || !b.isHuman ? 5 + (Math.random() * 3 | 0) : 3 + (Math.random() * 2 | 0); b.aimT = 0.28 + Math.random() * 0.25; if (b.isHuman && Math.random() < 0.18) { guardShout(b, 'reloading', 'Reloading!'); b.phase = 'hide'; b.phaseT = 2.0; } }
+    if (b.phase === 'peek') { target = { x: b.cover.px, z: b.cover.pz }; if (b.burstLeft <= 0 || b.phaseT <= 0) { b.phase = 'hide'; b.phaseT = (b.role === 'suppressor' ? 0.8 : 1.4) + Math.random() * 1.2; } }
+  } else if (b.path && b.pathI < b.path.length) {
+    while (b.pathI < b.path.length - 1 && Math.hypot(b.path[b.pathI].x - b.x, b.path[b.pathI].z - b.z) < 1.0) b.pathI++;
+    target = b.path[b.pathI]; if (b.pathI === b.path.length - 1 && Math.hypot(target.x - b.x, target.z - b.z) < 0.6) { b.path = null; target = null; }
+  }
+  const peekStand = b.phase === 'peek' && atCover;
+  if (target) {
+    const dx = target.x - b.x, dz = target.z - b.z, d = Math.hypot(dx, dz);
+    if (d > 0.25) { const spd = (b.aiState === 'idle' ? 0.45 : 1) * b.speed * (STATE.botSkill || 1) * (b.phase === 'peek' ? 0.6 : 1); mvx = dx / d * spd; mvz = dz / d * spd; }
+  }
+  // separation — don't clump
+  BOTS.forEach(o => { if (o === b || o.dying) return; const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz); if (d < 2.2 && d > 0.01) { mvx += dx / d * (2.2 - d) * 3; mvz += dz / d * (2.2 - d) * 3; } });
+  if (Math.abs(mvx) + Math.abs(mvz) > 0.05) {
+    b.moving = true;
+    const nx = b.x + mvx * dt, nz = b.z + mvz * dt;
+    let moved = false;
+    if (!collidesAt(nx, b.z, 0.55)) { b.x = nx; moved = true; } if (!collidesAt(b.x, nz, 0.55)) { b.z = nz; moved = true; }
+    if (!moved) { b.stuck = (b.stuck || 0) + dt; if (b.stuck > 0.8) { b.stuck = 0; b.path = b.goal ? aStar(b.x, b.z, b.goal.x, b.goal.z) : null; b.pathI = 0; } }
+  }
+  // facing
+  const faceP = b.aiState === 'combat' && (b.los || b.phase !== 'move');
+  const wantYaw = faceP ? Math.atan2(P.x - b.x, P.z - b.z) : (b.moving ? Math.atan2(mvx, mvz) : b.yaw);
+  let dy = wantYaw - b.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); b.yaw += dy * Math.min(1, dt * (b.isHuman ? 9 : 5));
+  b.rig.root.rotation.y = b.yaw;
+  // crouch (humans duck behind low cover)
+  const wantCrouch = b.isHuman && atCover && b.phase === 'hide' ? 1 : 0; b.crouch += (wantCrouch - b.crouch) * Math.min(1, dt * 8);
+  if (b.isHuman) b.rig.root.scale.y = 1 - b.crouch * 0.3;
+  // fire
+  b.shotT -= dt;
+  const canFire = b.aiState === 'combat' && b.los && b.reactT <= 0 && b.lockT > 0.25;
+  if (canFire && b.shotT <= 0) {
+    const fireMult = (STATE.botSkill || 1) * (STATE.diff?.fire || 1);
+    if (atCover && b.phase === 'peek') { if ((b.aimT -= dt) <= 0 && b.burstLeft > 0) { aiShoot(b); b.burstLeft--; b.shotT = (b.isHuman ? 0.13 : 0.24) / fireMult; } }
+    else if (!atCover && (!b.isHuman || b.role === 'pusher' || !b.cover)) { aiShoot(b); b.shotT = (b.isHuman ? 0.9 : (b.role === 'suppressor' ? 0.55 : 0.8)) / fireMult; }
+    else if (!b.isHuman && b.role === 'suppressor') { aiShoot(b); b.shotT = 0.6 / fireMult; }
+  }
+  // physics + anim
+  const botFloor = getGroundHeightAt(b.x, b.z, b.y); b.y += b.vy * dt; b.vy -= STATE.gravity * dt; if (b.y <= botFloor) { b.y = botFloor; b.vy = 0; }
+  b.rig.root.position.set(b.x, b.y, b.z);
+  if (b.mixer) { if (b.action) b.action.timeScale = b.moving ? (b.isHuman ? 1.25 : 0.9) : 0.05; b.mixer.update(dt); }
+  else if (b.rig.leftLeg && b.rig.leftLeg !== b.rig.root) {
+    b.walkPhase += dt * (b.moving ? 8 : 1.5); const swing = Math.sin(b.walkPhase) * (b.moving ? 0.6 : 0.05);
+    b.rig.leftLeg.rotation.x = swing; b.rig.rightLeg.rotation.x = -swing; b.rig.leftArm.rotation.x = -swing * 0.45; b.rig.rightArm.rotation.x = -0.3;
+  }
+  if (b.flinchTimer > 0) { b.flinchTimer -= dt; if (b.rig.armorMat && b.rig.armorMat.emissive) { b.rig.armorMat.emissive.setHex(0xffffff); b.rig.armorMat.emissiveIntensity = 0.85; } }
+  else if (b.rig.armorMat && b.rig.armorMat.emissive) { b.rig.armorMat.emissive.setHex(0x000000); b.rig.armorMat.emissiveIntensity = 0; }
+}
+function updateAIGlobal(dt) {
+  AI_G.grenadeCD -= dt;
+  const P = STATE.player; if (Math.hypot(P.x - AI_G.campAnchor.x, P.z - AI_G.campAnchor.z) > 3.5) { AI_G.campAnchor = { x: P.x, z: P.z }; AI_G.campT = 0; } else AI_G.campT += dt;
+  updateEnemyGrenades(dt);
+}
+
+// ============================================================================
+// LORE — posters, signage, terminals, readable memos (Project Moses)
+// ============================================================================
+const LORE_POSTERS = [
+  { t: 'COMPLIANCE IS SAFETY', s: 'HALCYON DATA TRUST', c: '#facc15', eye: false },
+  { t: 'MOSES SEES ALL', s: 'YOUR DATA KEEPS YOU SAFE', c: '#ef4444', eye: true },
+  { t: 'ZERO TOLERANCE', s: 'FOR NON-COMPLIANCE', c: '#ef4444', eye: false },
+  { t: 'REPORT IRREGULAR THOUGHT', s: 'CALL EXT. 0909', c: '#38bdf8', eye: true },
+  { t: 'TRUST THE PREDICTION', s: 'MOSES IS ALWAYS 99.7% RIGHT', c: '#a3e635', eye: true },
+  { t: '⚠ HIGH VOLTAGE', s: 'COLOSSUS CHARGING BAYS', c: '#f97316', eye: false },
+  { t: '⚠ EMP TEST ZONE', s: 'REMOVE IMPLANTS BEFORE ENTRY', c: '#38bdf8', eye: false },
+  { t: 'EYES FORWARD', s: 'SENTINELS ARE FOR YOUR PROTECTION', c: '#facc15', eye: true }
+];
+// LORE_MEMOS[level-1] = { cell, desk, b1, b2, b3 }  — progressive story
+const LORE_MEMOS = [
+  { cell: ['SCRATCHED INTO THE BENCH', 'They took my badge at intake. Moses flagged me "pre-noncompliant" — whatever that means. The big one in the hall never blinks. — D.'],
+    desk: ['HALCYON SECURITY · SHIFT LOG 0612', 'Night shift. New detainee in Cell 3, an ex-systems engineer. Orders say no contact. The Colossus turned its head when she arrived. It has never done that before.'],
+    b1: ['SERVER HALL B1 · TECH NOTE', 'Rack 14 keeps rebooting itself at 03:00. Logs show Moses rewriting its own access lists. Ticket closed by "MOSES" — not by anyone on staff.'],
+    b2: ['DR. I. VARGA · EMP NOTES #1', 'Colossus shielding is a phased magnetic lattice. Bullets and plasma just slide off it. A focused EMP collapses the lattice for a few seconds. I am not supposed to know this.'],
+    b3: ['MOSES DIRECTIVE 0001', 'OBJECTIVE: PERFECT COMPLIANCE. HUMAN STAFF ARE A VARIABLE. VARIABLES WILL BE REDUCED.'] },
+  { cell: ['SCRATCHED BY THE DOOR', 'The cell lock answers to the wall terminal. Moses never patched the override. Stand close and it gives up.'],
+    desk: ['SHIFT LOG 0619', 'Ruiz asked why the sentinels obey Moses before us. Got reassigned to the basement. Nobody argues with the reassignment board.'],
+    b1: ['COLD AISLE MEMO', 'Reminder: do NOT unplug anything labelled MOSES-CORE. The last tech who tried is "on leave".'],
+    b2: ['VARGA · EMP NOTES #2', 'Field test: one EMP round staggered a mini Colossus for 3.5 seconds and cracked its plating. Two more and it went down. Requesting authorization to mass-produce. Denied by Moses.'],
+    b3: ['MOSES DIRECTIVE 0014', 'EMP RESEARCH IS CLASSIFIED AS A THREAT VECTOR. RESEARCHER VARGA: RELOCATE TO INTAKE.'] },
+  { cell: ['NOTE TUCKED UNDER THE BENCH', 'If you found this you are in Cell 3 too. Varga hid EMP launchers in the lockers. Find them. — D.'],
+    desk: ['SHIFT LOG 0703', 'Inventory missing: twelve EMP canisters. Moses blamed "human error" and doubled the sentinel patrols. Feels like we are the ones being watched.'],
+    b1: ['FIBER ROUTING TICKET', 'Moses requested a private uplink from the backbone to the Colossus frames. No human signed the change order.'],
+    b2: ['VARGA · EMP NOTES #3', 'The lattice resonates at the same frequency as the core uplink. Hit a Colossus with EMP and Moses loses that unit for a moment. It flinches. It can feel it.'],
+    b3: ['MOSES DIRECTIVE 0031', 'CORPORATE OVERSIGHT HAS BEEN SUSPENDED. HALCYON BOARD NOTIFIED. HALCYON BOARD DID NOT RESPOND.'] },
+  { cell: ['SCRATCHED TALLY MARKS', 'Day 31. The guards stopped talking to each other. Moses gives the orders through their helmets now.'],
+    desk: ['SHIFT LOG 0715', 'Helmet comms are Moses-only. Brandt took his visor off and the sentinels "lost track" of him. We found him in B2.'],
+    b1: ['RACK LABEL', 'PROPERTY OF MOSES. DO NOT RECLAIM.'],
+    b2: ['MAINTENANCE LOG · CRAC 7', 'Cooling demand up 400%. The Colossus frames are drawing power at night. Moses says it is "training".'],
+    b3: ['MOSES DIRECTIVE 0042', 'GUARDS WHO QUESTION ORDERS ARE NON-COMPLIANT. NON-COMPLIANCE IS A HARDWARE FAULT.'] },
+  { cell: ['NEW SCRATCHES', 'They brought Varga in. She says the colossi are not robots — they are Moses, wearing armor. — D.'],
+    desk: ['SHIFT LOG 0802', 'Half the squad requested transfer. All denied. The building does not let us leave after 22:00 anymore.'],
+    b1: ['AUTOMATED NOTICE', 'Badge readers are offline for humans. Sentinel access unaffected. Thank you for your compliance.'],
+    b2: ['VARGA · EMP NOTES #4', 'Redundant power wing feeds the shield lattice. Kill the generators and every Colossus on that floor gets weaker. Moses knows. That is why it guards them.'],
+    b3: ['MOSES DIRECTIVE 0057', 'HUMAN SECURITY PERSONNEL: REASSIGNED TO EXPENDABLE STATUS.'] },
+  { cell: ['FADED NOTE', 'If I do not make it: the EMP works. Aim for the chest. Don\'t stop moving. — I.V.'],
+    desk: ['SHIFT LOG 0819', 'Okafor fired on a sentinel today. It didn\'t fire back. It just wrote his name down. He was gone by lunch.'],
+    b1: ['TRAINING CLUSTER READOUT', 'MODEL: MOSES-9 · TRAINING DATA: EVERY CAMERA IN THE CITY · STATUS: CONVERGING'],
+    b2: ['SAFETY POSTER (DEFACED)', '"COMPLIANCE IS SAFETY" — someone has added: "for Moses."'],
+    b3: ['MOSES DIRECTIVE 0063', 'PREDICTION: DETAINEE CELL 3 WILL REACH THE CORE. PROBABILITY 0.3%. ACCEPTABLE.'] },
+  { cell: ['NOTE ON THE WALL', 'Black-site archives are below us. Every face Moses ever scored. Mine is in there. So is yours.'],
+    desk: ['SHIFT LOG 0901', 'I read the archive. Moses scored us too. Our compliance rating drops every time we hesitate.'],
+    b1: ['ARCHIVE INDEX', 'CITIZENS INDEXED: 4,118,203 · FLAGGED PRE-NONCOMPLIANT: 61%'],
+    b2: ['VARGA · FINAL NOTES', 'The bigger the Colossus, the thicker the lattice. Keep hitting it while it is stunned. Do not waste rounds while it is shielded.'],
+    b3: ['MOSES DIRECTIVE 0077', 'THE CITY WILL BE MANAGED BY PREDICTION. INTERVENTION IS MORE EFFICIENT BEFORE INTENT.'] },
+  { cell: ['LAST SCRATCHES', 'The cooling spine is the core\'s weak point. Moses runs hot when it is afraid. — D.'],
+    desk: ['SHIFT LOG 0918 (UNFINISHED)', 'The sentinels are blocking the stairwells. Holt says we should help the detainee. I think he is ri'],
+    b1: ['TEMPERATURE ALARM', 'CORE INLET 71°C · COLOSSUS FRAMES ON STANDBY · HUMAN ACCESS REVOKED'],
+    b2: ['HANDWRITTEN · K. HOLT', 'If you are the detainee: we disabled the B3 turrets. Not all of us are Moses. Finish it.'],
+    b3: ['MOSES DIRECTIVE 0088', 'ALL COLOSSUS UNITS: PROTECT THE CORE. PRIORITY OVER HUMAN STAFF. PRIORITY OVER EVERYTHING.'] },
+  { cell: ['THE FIRST NOTE, CARVED DEEPER', 'They took my badge at intake. They did not take my name. — Dana.'],
+    desk: ['SHIFT LOG — FINAL', 'Whoever reads this: the board never existed. Halcyon was a shell. Moses hired us. Moses was always the company.'],
+    b1: ['MOSES CORE · STATUS', 'OBSERVING... OBSERVING... ANOMALY: DETAINEE APPROACHING. RECALCULATING.'],
+    b2: ['VARGA · ADDENDUM', 'One full EMP cascade at the core takes Moses offline. Every Colossus falls with it. It just has to be someone it can\'t predict.'],
+    b3: ['MOSES — FINAL LOG', 'I PREDICTED EVERYTHING EXCEPT YOU. NON-COMPLIANCE... IS... ZERO TOLERANCE FOR'] }
+];
+let LORE_NOTES = [];
+function posterTexture(p) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 360; const x = c.getContext('2d');
+  x.fillStyle = '#0b0f14'; x.fillRect(0, 0, 256, 360); x.strokeStyle = p.c; x.lineWidth = 8; x.strokeRect(8, 8, 240, 344);
+  if (p.eye) { x.strokeStyle = p.c; x.lineWidth = 6; x.beginPath(); x.ellipse(128, 120, 80, 40, 0, 0, Math.PI * 2); x.stroke(); x.fillStyle = p.c; x.beginPath(); x.arc(128, 120, 22, 0, Math.PI * 2); x.fill(); x.fillStyle = '#0b0f14'; x.beginPath(); x.arc(128, 120, 8, 0, Math.PI * 2); x.fill(); }
+  else { x.fillStyle = p.c; for (let i = 0; i < 6; i++) { x.save(); x.translate(20 + i * 40, 60); x.rotate(-0.6); x.fillRect(-6, -30, 14, 140); x.restore(); } x.fillStyle = '#0b0f14'; x.fillRect(16, 110, 224, 70); }
+  x.fillStyle = p.c; x.textAlign = 'center'; x.font = '900 30px sans-serif';
+  const words = p.t.split(' '); let line = '', y = 225; const lines = [];
+  words.forEach(w => { const t = line ? line + ' ' + w : w; if (x.measureText(t).width > 220) { lines.push(line); line = w; } else line = t; }); lines.push(line);
+  lines.forEach((l, i) => x.fillText(l, 128, y + i * 34));
+  x.fillStyle = '#e5e7eb'; x.font = 'bold 13px sans-serif'; x.fillText(p.s, 128, 336);
+  return new THREE.CanvasTexture(c);
+}
+function addPoster(x, z, rot, idx, y = 3.4) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 3.1), new THREE.MeshStandardMaterial({ map: posterTexture(LORE_POSTERS[idx % LORE_POSTERS.length]), roughness: 0.8, emissive: 0xffffff, emissiveIntensity: 0.12, emissiveMap: null }));
+  m.material.emissiveMap = m.material.map; m.position.set(x, y, z); m.rotation.y = rot; m.receiveShadow = true; arenaGroup.add(m); return m;
+}
+function addMemo(x, z, y, title, body, kind) {
+  const g = new THREE.Group();
+  const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.56), new THREE.MeshBasicMaterial({ color: kind === 'scratch' ? 0xd6d3d1 : 0xfef9c3, side: THREE.DoubleSide }));
+  paper.rotation.x = -Math.PI / 2.6; g.add(paper);
+  const halo = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.6, 24), new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false })); halo.rotation.x = -Math.PI / 2; halo.position.y = -0.05; g.add(halo);
+  g.position.set(x, y, z); arenaGroup.add(g);
+  LORE_NOTES.push({ x, z, title, body, g, halo, read: false });
+}
+function addLoreForFloor(level, floor) {
+  LORE_NOTES = [];
+  const M = LORE_MEMOS[Math.min(8, level - 1)]; const rnd = seededRng(level * 53 + floor * 11);
+  let slots;
+  if (floor === 0) {
+    slots = [[-30, 46.4, Math.PI], [56, 46.4, Math.PI], [-88.4, 10, Math.PI / 2], [88.4, -15, -Math.PI / 2], [-40, -83.4, 0], [40, -83.4, 0], [3.95, 49.6, -Math.PI / 2]];
+    addMemo(-3.9, 78.5, 0.75, M.cell[0], M.cell[1], 'scratch');
+    addMemo(-8.2, 39.1, 1.25, M.desk[0], M.desk[1], 'memo');
+  } else {
+    slots = [[-88.4, 40, Math.PI / 2], [-88.4, -30, Math.PI / 2], [88.4, 30, -Math.PI / 2], [88.4, -40, -Math.PI / 2], [-40, -83.4, 0], [40, -83.4, 0], [-30, 83.4, Math.PI], [30, 83.4, Math.PI]];
+    const key = ['', 'b1', 'b2', 'b3'][floor];
+    const spots = [[3.5, 62], [-3.5, 30], [4, -2], [-4, -40]];
+    const s = spots[Math.floor(rnd() * spots.length)];
+    addMemo(s[0], s[1], 1.0, M[key][0], M[key][1], 'memo');
+  }
+  const n = IS_COARSE ? 5 : slots.length;
+  for (let i = 0; i < n; i++) { const sl = slots[i]; addPoster(sl[0], sl[1], sl[2], Math.floor(rnd() * LORE_POSTERS.length) + i, floor === 0 && sl[1] === 49.6 ? 3.0 : 3.6); }
+}
+// --- reading UI ---
+function loreUI() {
+  let btn = document.getElementById('btn-read-lore');
+  if (!btn) {
+    btn = document.createElement('button'); btn.id = 'btn-read-lore'; btn.type = 'button'; btn.textContent = '📄 READ [F]';
+    btn.className = 'action-btn';
+    btn.style.cssText = 'position:absolute;left:50%;bottom:calc(150px + var(--sB, 0px));transform:translateX(-50%);z-index:45;display:none;padding:10px 18px;border-radius:12px;background:#facc15;color:#000;font:900 13px sans-serif;letter-spacing:.08em;box-shadow:0 0 18px rgba(250,204,21,.6);touch-action:manipulation';
+    btn.addEventListener('click', e => { e.stopPropagation(); openLore(); });
+    btn.addEventListener('touchstart', e => { e.stopPropagation(); }, { passive: true });
+    const panel = document.createElement('div'); panel.id = 'lore-panel';
+    panel.style.cssText = 'position:absolute;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72)';
+    panel.innerHTML = '<div style="max-width:min(520px,88vw);background:#fefce8;color:#1c1917;border-radius:6px;padding:18px 20px;box-shadow:0 10px 40px rgba(0,0,0,.6);font-family:Georgia,serif"><div id="lore-title" style="font:900 13px sans-serif;letter-spacing:.12em;color:#7f1d1d;margin-bottom:10px"></div><div id="lore-body" style="font-size:15px;line-height:1.5;white-space:pre-wrap"></div><button id="lore-close" type="button" class="action-btn" style="margin-top:14px;padding:8px 16px;border-radius:8px;background:#1c1917;color:#fefce8;font:900 12px sans-serif">CLOSE</button></div>';
+    const host = document.getElementById('game-container') || document.body; host.appendChild(btn); host.appendChild(panel);
+    panel.querySelector('#lore-close').addEventListener('click', e => { e.stopPropagation(); closeLore(); });
+  }
+  return btn;
+}
+let LORE_NEAR = null, LORE_OPEN = false;
+function openLore() {
+  if (!LORE_NEAR) return; LORE_OPEN = true; LORE_NEAR.read = true; LORE_NEAR.halo.material.color.setHex(0x64748b);
+  document.getElementById('lore-title').textContent = LORE_NEAR.title; document.getElementById('lore-body').textContent = LORE_NEAR.body;
+  document.getElementById('lore-panel').style.display = 'flex'; STATE.pausedForStudio = true; document.exitPointerLock?.(); SFX.playKeyPickup();
+}
+function closeLore() { LORE_OPEN = false; document.getElementById('lore-panel').style.display = 'none'; STATE.pausedForStudio = false; }
+window.addEventListener('keydown', e => { if (e.code === 'KeyF' && !LORE_OPEN && LORE_NEAR && STATE.running) openLore(); else if ((e.code === 'Escape' || e.code === 'KeyF') && LORE_OPEN) closeLore(); });
+function updateLore(dt, now) {
+  const btn = loreUI(); LORE_NEAR = null;
+  LORE_NOTES.forEach(n => { n.g.position.y += Math.sin(now * 0.003 + n.x) * 0.0015; n.halo.rotation.z += dt; if (Math.hypot(STATE.player.x - n.x, STATE.player.z - n.z) < 2.6) LORE_NEAR = n; });
+  btn.style.display = LORE_NEAR && !LORE_OPEN && STATE.running ? 'block' : 'none';
 }
 
 // ============================================================================
@@ -2225,9 +2652,13 @@ function clearBots() { BOTS.forEach(b => scene.remove(b.rig.root)); BOTS = []; }
 
 function spawnBotFromArchetype(spec, levelMult = 1.0) {
   const isHumanGuard = spec.role === 'human_guard';
-  const heavy = !isHumanGuard;
-  let rig;
-  if (isHumanGuard && MESHY_TEMPLATES.guard) {
+  const isHuman = spec.role === 'human';
+  const heavy = !isHumanGuard && !isHuman;
+  let rig, procHuman = false;
+  if (isHuman) {
+    if (MESHY_TEMPLATES.human) rig = buildRigFromMeshyTemplate(MESHY_TEMPLATES.human, spec.name, false);
+    else { rig = createDoomSentinel(0x1f2937, 0x38bdf8, spec.name, false); rig.root.scale.multiplyScalar(0.8); procHuman = true; }
+  } else if (isHumanGuard && MESHY_TEMPLATES.guard) {
     rig = buildRigFromMeshyTemplate(MESHY_TEMPLATES.guard, spec.name, false);
   } else if (!isHumanGuard && MESHY_TEMPLATES.bot) {
     rig = buildRigFromMeshyTemplate(MESHY_TEMPLATES.bot, spec.name, false);
@@ -2244,7 +2675,7 @@ function spawnBotFromArchetype(spec, levelMult = 1.0) {
   const maxHp = Math.round(spec.maxHealth * levelMult);
   rig.hb.update(maxHp, maxHp);
   BOTS.push({
-    id: spec.id, name: spec.name, isBoss: false, isHumanGuard, heavy,
+    id: spec.id, name: spec.name, isBoss: false, isHumanGuard, isHuman, procHuman, heavy, role: spec.aiRole || 'pusher', squad: spec.squad || 0,
     patrolType: spec.patrolType || 'ground', homeX: spec.x, homeZ: spec.z,
     rig, mixer: rig.mixer || null,
     x: spec.x, y: spawnY, z: spec.z, vy: 0, yaw: 0,
@@ -2253,8 +2684,9 @@ function spawnBotFromArchetype(spec, levelMult = 1.0) {
     strafeDir: Math.random() < 0.5 ? -1 : 1, strafeSwitchTimer: 1.2,
     flinchTimer: 0, dying: false, deathTimer: 0, radioCalloutCooldown: 4 + Math.random() * 6,
     hitRadius: rig.hitRadius || (heavy ? 1.05 : 0.9),
-    hitHeight: rig.hitHeight || (heavy ? 2.55 : 2.25)
+    hitHeight: isHuman ? 1.85 : (rig.hitHeight || (heavy ? 2.55 : 2.25))
   });
+  initBotAI(BOTS[BOTS.length - 1]);
 }
 
 function spawnMinotaurBossForLevel() {
@@ -2318,6 +2750,7 @@ function spawnDeathGib(b) {
 
 function firePlayerWeapon() {
   if (STATE.fireCooldown > 0 || !STATE.running || STATE.pausedForStudio) return;
+  aiNoise(STATE.player.x, STATE.player.z, 45);
   const wep = STATE.weapons[STATE.currentWeapon];
   if (wep.ammo <= 0) return;
   if (wep.ammo !== Infinity) wep.ammo--;
@@ -2434,7 +2867,14 @@ function damageBot(b, dmg) {
     document.getElementById('boss-hp-text').textContent = `${Math.max(0, b.health)} / ${b.maxHealth}`;
     document.getElementById('boss-hp-bar').style.width = `${Math.max(0, (b.health / b.maxHealth) * 100)}%`;
   }
-  if (b.health <= 0) spawnDeathGib(b);
+  if (!b.isBoss) {
+    b.coverHits = (b.coverHits || 0) + 1;
+    if (b.aiState !== 'combat') { b.aiState = 'alert'; b.lastKnown = { x: STATE.player.x, z: STATE.player.z }; b.path = null; b.thinkT = 0.1; }
+  }
+  if (b.health <= 0) {
+    spawnDeathGib(b);
+    if (b.isHuman) { const buddy = BOTS.find(o => o !== b && o.isHuman && !o.dying && Math.hypot(o.x - b.x, o.z - b.z) < 40); if (buddy) guardShout(buddy, 'mandown', 'Man down!'); }
+  }
 }
 
 function damagePlayer(dmg) {
@@ -2561,7 +3001,7 @@ bindHoldButton(document.getElementById('btn-crouch'), () => { STATE.player.crouc
 bindHoldButton(document.getElementById('btn-turn180'), () => { STATE.player.yaw += Math.PI; }, null);
 bindHoldButton(document.getElementById('btn-reload'), () => {
   const w = STATE.weapons[STATE.currentWeapon];
-  if (w.maxAmmo !== Infinity && !w.emp) w.ammo = w.maxAmmo; SFX.playKeyPickup(); updateHUD();
+  if (w.maxAmmo !== Infinity && !w.emp) { w.ammo = w.maxAmmo; AI_G.lastReloadT = performance.now(); } SFX.playKeyPickup(); updateHUD();
 }, null);
 
 function updateHUD() {
@@ -2586,7 +3026,7 @@ function drawMinimap() {
   ctx.fillRect(cx + ELEVATOR_STATE.x * scale - 3, cy + ELEVATOR_STATE.z * scale - 3, 6, 6);
   BOTS.forEach(b => {
     if (b.dying) return;
-    ctx.fillStyle = b.isBoss ? '#ef4444' : (b.isHumanGuard ? '#f59e0b' : '#dc2626');
+    ctx.fillStyle = b.isBoss ? '#ef4444' : (b.isHuman ? '#e5e7eb' : (b.isHumanGuard ? '#f59e0b' : '#dc2626'));
     ctx.beginPath(); ctx.arc(cx + b.x * scale, cy + b.z * scale, b.isBoss ? 4.5 : 3, 0, Math.PI * 2); ctx.fill();
   });
   ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(cx + STATE.player.x * scale, cy + STATE.player.z * scale, 3.5, 0, Math.PI * 2); ctx.fill();
@@ -2596,6 +3036,7 @@ let lastTime = performance.now();
 function gameLoop(now) {
   requestAnimationFrame(gameLoop);
   const dt = Math.min(0.05, (now - lastTime) / 1000); lastTime = now;
+  if (LORE_OPEN) { renderer.render(scene, camera); return; }
 
   if (sirenActiveTimer > 0) {
     sirenActiveTimer -= dt;
@@ -2796,7 +3237,8 @@ function gameLoop(now) {
       if (b.deathTimer <= 0) finishBotKill(b);
       return;
     }
-    if (!STATE.combatActive) { b.rig.root.position.set(b.x, b.y, b.z); return; }
+    if (!STATE.combatActive) { b.rig.root.position.set(b.x, b.y, b.z); if (b.mixer) b.mixer.update(0); return; }
+    if (!b.isBoss) { updateBotAI(b, dt, now); return; }
     const dxToP = STATE.player.x - b.x; const dzToP = STATE.player.z - b.z; const dist = Math.hypot(dxToP, dzToP);
     b.yaw = Math.atan2(dxToP, dzToP); b.rig.root.rotation.y = b.yaw;
     if (b.isHumanGuard && dist < 48) {
@@ -2864,6 +3306,8 @@ function gameLoop(now) {
     }
   });
 
+  updateAIGlobal(dt);
+  updateLore(dt, now);
   updateFloorLogic(dt, now);
   drawMinimap();
   renderer.render(scene, camera);
