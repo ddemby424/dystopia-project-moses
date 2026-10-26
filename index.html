@@ -11,6 +11,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
@@ -106,7 +107,7 @@
   <div class="flex flex-col gap-1.5 max-w-[290px] sm:max-w-xs">
     <div class="bg-slate-950/85 border border-cyan-500/50 px-3 py-1.5 rounded-lg backdrop-blur-md flex items-center gap-3 shadow-[0_0_15px_rgba(0,240,255,0.15)]">
       <div class="flex flex-col">
-        <span id="level-badge" class="text-[9px] uppercase text-amber-400 tracking-widest font-black">SECTOR 1 / 3</span>
+        <span id="level-badge" class="text-[9px] uppercase text-amber-400 tracking-widest font-black">LEVEL 1 · FLOOR G</span>
         <div class="flex items-baseline gap-2">
           <span class="text-[10px] text-gray-300 font-semibold">HOSTILES:</span>
           <span id="bots-remaining" class="text-xl font-black text-cyan-300">8</span>
@@ -207,7 +208,7 @@
       <div class="grid grid-cols-2 gap-3 text-xs">
         <div><label class="text-[10px] text-gray-400 font-bold block mb-1">STARTING SECTOR</label>
           <select id="select-level" class="w-full bg-slate-900 border border-cyan-500/50 rounded-lg p-1.5 text-xs font-bold text-cyan-200">
-            <option value="1" selected>1 · Intake</option><option value="2">2 · EMP Bays</option><option value="3">3 · Reactor</option>
+            <option value="1" selected>Level 1</option><option value="2">Level 2</option><option value="3">Level 3</option><option value="4">Level 4</option><option value="5">Level 5</option><option value="6">Level 6</option><option value="7">Level 7</option><option value="8">Level 8</option><option value="9">Level 9</option>
           </select></div>
         <div><label class="text-[10px] text-gray-400 font-bold block mb-1">AI COMBAT SKILL</label>
           <select id="select-bot-diff" class="w-full bg-slate-900 border border-amber-500/50 rounded-lg p-1.5 text-xs font-bold text-amber-300">
@@ -424,11 +425,14 @@
 let IS_RELEASE_BUILD = false;
 let GAME_BRAND_TITLE = "DYSTOPIA";
 
-const LEVEL_CONFIGS = {
-  1: { name: 'SUB-LEVEL 1: DETENTION & INTAKE DECK', sub: 'Clear Doom Sentinels, slay the Minotaur for the keycard, take the North Elevator.', botCount: 8, bossHp: 550, fogColor: 0x050911, hemiTop: 0xddeeff, speedMult: 1.0 },
-  2: { name: 'SUB-LEVEL 2: EMP FABRICATION BAYS', sub: 'Clear catwalk overwatch. Seize EMP turbines and the elevator keycard.', botCount: 9, bossHp: 800, fogColor: 0x04111d, hemiTop: 0x7dd3fc, speedMult: 1.15 },
-  3: { name: 'SUB-LEVEL 3: REACTOR & BROADCAST CORE', sub: 'Neutralize the watchtower garrison and final Minotaur Overlord.', botCount: 10, bossHp: 1100, fogColor: 0x160509, hemiTop: 0xfca5a5, speedMult: 1.3 }
-};
+const LEVEL_CONFIGS = (() => {
+  const names = ['INTAKE & DETENTION', 'COLD AISLE CONTAINMENT', 'EMP FABRICATION ANNEX', 'FIBER BACKBONE VAULT', 'REDUNDANT POWER WING', 'NEURAL TRAINING CLUSTER', 'BLACK-SITE ARCHIVES', 'REACTOR COOLING SPINE', 'MOSES CORE'];
+  const fogs = [0x050911, 0x04111d, 0x0a0f0a, 0x0b0716, 0x120c04, 0x04121a, 0x100508, 0x0c0c12, 0x160509];
+  const hemis = [0xddeeff, 0xbfe3ff, 0xd9f99d, 0xddd6fe, 0xfde68a, 0xa5f3fc, 0xfecaca, 0xe5e7eb, 0xfca5a5];
+  const o = {};
+  for (let i = 1; i <= 9; i++) o[i] = { name: `DATA CENTER 09 · ${names[i - 1]}`, sub: 'Escape the cell, then descend G → B1 → B2 → B3.', botCount: 8, bossHp: 420 + 160 * i, fogColor: fogs[i - 1], hemiTop: hemis[i - 1], speedMult: 1 + 0.06 * (i - 1) };
+  return o;
+})();
 
 let BOT_ROSTER = [
   { id: 'guard-1', name: 'Unit Vance [Doom Sentinel]', role: 'human_guard', armorColor: 0x1e293b, tint: 0xfacc15, weapon: 0, x: -32, y: 0, z: 38, maxHealth: 110, patrolType: 'ground' },
@@ -484,7 +488,7 @@ let MAP_OBJECTS = [
 ];
 
 const STATE = {
-  running: false, pausedForStudio: false, level: 1, maxLevels: 3, botSkill: 1.0, sens: 1.25, aimAssist: 0.80,
+  running: false, pausedForStudio: false, level: 1, floor: 0, combatActive: false, floorCleared: false, diff: { dmg: 1, fire: 1 }, maxLevels: 9, botSkill: 1.0, sens: 1.25, aimAssist: 0.80,
   walkSpeed: 14, jumpVel: 8.5, gravity: 22, bossScale: 1.75, bossSpeedMult: 1.0, hasAccessKey: false, bossSpawned: false,
   currentWeapon: 0, fireCooldown: 0, grenades: 3, quadTimer: 0, screenShake: 0, spinUp: 0,
   player: { x: 0, y: 0, z: 62, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, health: 100, maxHealth: 100, armor: 50, maxArmor: 100, crouch: false },
@@ -872,12 +876,13 @@ function createMinotaurBoss() {
 
 function buildRigFromMeshyTemplate(tpl, labelName, isBoss = false) {
   const root = new THREE.Group();
-  const clone = tpl.scene.clone(true);
+  const clone = (THREE.SkeletonUtils && THREE.SkeletonUtils.clone) ? THREE.SkeletonUtils.clone(tpl.scene) : tpl.scene.clone(true);
   root.add(clone);
   let primaryMat = new THREE.MeshStandardMaterial({ color: 0x5c4030 });
   clone.traverse(c => {
+    if (c.isMesh) c.frustumCulled = false;
     if (c.isMesh && c.material) {
-      c.material = c.material.clone();
+      c.material = c.material.clone(); brightenMat(c.material);
       if (!c.material.emissive) c.material.emissive = new THREE.Color(0x000000);
       primaryMat = c.material; c.castShadow = true; c.receiveShadow = true;
     }
@@ -1077,66 +1082,9 @@ function addPuddle(x, z, r = 1.8) {
   puddle.rotation.x = -Math.PI / 2; puddle.position.set(x, 0.02, z); arenaGroup.add(puddle);
 }
 
-function buildArenaMap() {
-  while (arenaGroup.children.length > 0) arenaGroup.remove(arenaGroup.children[0]);
-  colliders = []; walkableSurfaces = []; sirenBeaconMeshes = []; PICKUPS = []; ARENA_LIGHTS = []; STEAM_PARTICLES = [];
-
-  const steelMat = new THREE.MeshStandardMaterial({ color: 0x3a3228, roughness: 0.42, metalness: 0.78, bumpMap: WALL_PBR.bumpMap, bumpScale: 0.04 });
+function renderLegacyObject(obj, steelMat) {
   const hazardMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.45, metalness: 0.5 });
-
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(220, 190),
-    new THREE.MeshStandardMaterial({
-      map: FLOOR_PBR.map, bumpMap: FLOOR_PBR.bumpMap, bumpScale: 0.06,
-      color: 0xa89880, roughness: 0.58, metalness: 0.32
-    })
-  );
-  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; arenaGroup.add(floor);
-
-  createWall(0, -85, 180, 3, 12); createWall(0, 85, 180, 3, 12);
-  createWall(-90, 0, 3, 170, 12); createWall(90, 0, 3, 170, 12);
-  createWall(-38, 25, 42, 2.5, 9); createWall(38, 25, 42, 2.5, 9);
-  createWall(-38, -25, 42, 2.5, 9); createWall(38, -25, 42, 2.5, 9);
-
-  for (let tz = -72; tz <= 72; tz += 24) {
-    const truss = new THREE.Mesh(new THREE.BoxGeometry(176, 0.8, 0.9), steelMat);
-    truss.position.set(0, 14.6, tz); arenaGroup.add(truss);
-    [-36, 0, 36].forEach(bx => {
-      const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.5, 10), new THREE.MeshBasicMaterial({ color: 0x330a0a }));
-      beacon.position.set(bx, 14.0, tz); arenaGroup.add(beacon); sirenBeaconMeshes.push(beacon);
-    });
-  }
-  createSecurityElevator(0, -76);
-
-  // grimy biomech environment dressing (gated on desktop density)
-  addPipeRun(-80, 40, -40, 40, 7.5, 0.22, 0x5c4030);
-  addPipeRun(40, -20, 80, -20, 8.2, 0.2, 0x4a3b2a);
-  addPipeRun(-20, 70, 20, 70, 11.5, 0.28, 0x3a3228);
-  if (!IS_COARSE) {
-    addPipeRun(-70, -40, -70, 10, 6.5, 0.16, 0x6b4e31);
-    addHangingLight(-20, 11, 40, 0xffb070, 1.15, 22);
-    addHangingLight(20, 11, 40, 0xffb070, 1.0, 20);
-    addHangingLight(-30, 11, -10, 0xff8866, 1.2, 20);
-    addHangingLight(30, 11, -10, 0xffaa66, 1.05, 20);
-    addHangingLight(0, 12, -40, 0xff6644, 1.35, 24);
-    addHangingLight(-50, 10, 20, 0xcc8844, 0.9, 16);
-    addHangingLight(50, 10, 20, 0xcc8844, 0.9, 16);
-    addPuddle(-18, 50, 2.2); addPuddle(16, -30, 1.6); addPuddle(0, 20, 1.4); addPuddle(-40, -10, 1.8);
-    addBarrel(-20, 50); addBarrel(22, 48); addBarrel(-10, -35); addBarrel(12, -50);
-    addDebris(-25, 45); addDebris(28, -42); addDebris(5, 30);
-    addSteamVent(-45, 35); addSteamVent(48, -15); addSteamVent(-8, -55);
-    // wall cables
-    for (let i = 0; i < 8; i++) {
-      const cx = (Math.random() - 0.5) * 140; const cz = (Math.random() - 0.5) * 120;
-      addPipeRun(cx, cz, cx + (Math.random() - 0.5) * 12, cz + (Math.random() - 0.5) * 12, 2 + Math.random() * 6, 0.08, 0x2a2018);
-    }
-  } else {
-    addHangingLight(0, 11, 30, 0xffaa66, 1.0, 24);
-    addHangingLight(0, 11, -30, 0xff8866, 1.1, 24);
-    addBarrel(-20, 50); addBarrel(22, 48);
-  }
-
-  MAP_OBJECTS.forEach(obj => {
+  {
     const col = new THREE.Color(obj.color || '#f59e0b');
     const w = obj.w || 3, d = obj.d || 3, h = obj.h || 4;
     const x = obj.x, z = obj.z;
@@ -1207,21 +1155,482 @@ function buildArenaMap() {
     }
     group.position.set(x, 0, z); group.rotation.y = obj.rot || 0; arenaGroup.add(group);
     registerCollider(x - w / 2, x + w / 2, 0, h, z - d / 2, z + d / 2);
-  });
+  
+  }
+}
 
-  const pickupSpecs = [
-    { type: 'health', x: -22, z: 42, color: 0x22c55e },
-    { type: 'health', x: 22, z: -42, color: 0x22c55e },
-    { type: 'armor', x: 22, z: 42, color: 0x00f0ff },
-    { type: 'ammo', x: -22, z: -42, color: 0xfacc15 },
-    { type: 'quad', x: 0, z: 0, color: 0xa855f7 }
-  ];
-  pickupSpecs.forEach(p => {
-    const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.65, 0), new THREE.MeshStandardMaterial({ color: p.color, emissive: p.color, emissiveIntensity: 1.8 }));
-    mesh.position.set(p.x, 1.2, p.z); arenaGroup.add(mesh);
-    PICKUPS.push({ ...p, mesh, active: true, respawnTimer: 0 });
+// ============================================================================
+// DATA CENTER 09 — FLOOR SYSTEM (9 levels × G + B1..B3)
+// ============================================================================
+const FLOOR_NAMES = ['G', 'B1', 'B2', 'B3'];
+const FLOOR_THEMES = [
+  { key: 'lobby', title: 'GROUND · SECURITY & SERVER HALL G', light: 0xdfe8ff },
+  { key: 'farm', title: 'B1 · SERVER FARM', light: 0x9fd8ff },
+  { key: 'plant', title: 'B2 · COOLING & GENERATOR PLANT', light: 0xffc48a },
+  { key: 'vault', title: 'B3 · ARCHIVE VAULT & CORE', light: 0xff9a9a }
+];
+let FLOOR_INFO = { start: { x: 0, z: 78, yaw: 0 }, exit: { x: 0, z: -76 }, spawnZone: { minX: -80, maxX: 80, minZ: -70, maxZ: 30 } };
+let CELL_DOOR = null;
+let BLINK_MATS = [];
+let COLOSSUS = null;
+let HACK_TIMER = 0;
+
+function seededRng(seed) {
+  let s = (seed * 2654435761) >>> 0;
+  return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return (s % 100000) / 100000; };
+}
+
+const RACK_TEX = (() => {
+  // two LED states stacked vertically -> blink by toggling offset.y
+  const c = document.createElement('canvas'); c.width = 128; c.height = 256;
+  const x = c.getContext('2d');
+  for (let half = 0; half < 2; half++) {
+    const oy = half * 128;
+    x.fillStyle = '#15191f'; x.fillRect(0, oy, 128, 128);
+    x.strokeStyle = '#3b4250'; x.lineWidth = 3; x.strokeRect(2, oy + 2, 124, 124);
+    for (let u = 0; u < 14; u++) {
+      const y = oy + 6 + u * 8.6;
+      x.fillStyle = u % 4 === 0 ? '#2a303a' : '#1f242c'; x.fillRect(8, y, 112, 7);
+      for (let l = 0; l < 6; l++) {
+        const on = ((u * 7 + l * 3 + half * 5) % 5) < 2;
+        x.fillStyle = on ? (l % 3 === 0 ? '#34d399' : (l % 3 === 1 ? '#38bdf8' : '#fbbf24')) : '#0b0d10';
+        x.fillRect(84 + l * 5, y + 2, 3, 3);
+      }
+    }
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+})();
+const CABINET_TEX = (() => {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128; const x = c.getContext('2d');
+  x.fillStyle = '#8b8f86'; x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 4; i++) { x.fillStyle = '#767a72'; x.fillRect(6, 6 + i * 30, 116, 26); x.fillStyle = '#e5e7eb'; x.fillRect(52, 14 + i * 30, 24, 8); x.fillStyle = '#3f3f46'; x.fillRect(56, 24 + i * 30, 16, 3); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+})();
+
+function signTexture(title, sub, accent, bg = '#0f141b') {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 160; const x = c.getContext('2d');
+  x.fillStyle = bg; x.fillRect(0, 0, 512, 160);
+  x.strokeStyle = accent; x.lineWidth = 8; x.strokeRect(6, 6, 500, 148);
+  x.fillStyle = accent; x.font = '900 52px sans-serif'; x.textAlign = 'center'; x.fillText(title, 256, 74);
+  if (sub) { x.fillStyle = '#e5e7eb'; x.font = 'bold 26px sans-serif'; x.fillText(sub, 256, 124); }
+  return new THREE.CanvasTexture(c);
+}
+function addSign(x, y, z, rotY, title, sub, accent = '#facc15', w = 6) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w * 0.3125), new THREE.MeshBasicMaterial({ map: signTexture(title, sub, accent), side: THREE.DoubleSide }));
+  m.position.set(x, y, z); m.rotation.y = rotY; arenaGroup.add(m); return m;
+}
+
+function cloneProp(key) {
+  const tpl = MESHY_TEMPLATES.props[key];
+  if (!tpl) return null;
+  const c = tpl.scene.clone(true);
+  c.traverse(o => { if (o.isMesh) { o.castShadow = !IS_COARSE; o.receiveShadow = true; } });
+  return c;
+}
+function placeObject(group, x, y, z, rot) { group.position.set(x, y || 0, z); group.rotation.y = rot || 0; arenaGroup.add(group); return group; }
+function aabbCollider(x, z, w, d, h, rot, y0 = 0) {
+  const swap = Math.abs(Math.sin(rot || 0)) > 0.7; const W = swap ? d : w, D = swap ? w : d;
+  registerCollider(x - W / 2, x + W / 2, y0, y0 + h, z - D / 2, z + D / 2);
+}
+function boxMesh(w, h, d, color, opts = {}) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, roughness: opts.rough ?? 0.6, metalness: opts.metal ?? 0.35, emissive: opts.emissive || 0x000000, emissiveIntensity: opts.ei || 0 }));
+  m.castShadow = !IS_COARSE; m.receiveShadow = true; return m;
+}
+
+// --- prop builders (Meshy first, procedural fallback) ---
+const PROP_BUILDERS = {
+  rackrow(o) {
+    const len = o.w, dep = o.d || 1.2, h = o.h || 2.4;
+    const g = new THREE.Group();
+    const tex = RACK_TEX.clone(); tex.needsUpdate = true; tex.repeat.set(Math.max(1, Math.round(len / 0.75)), 0.5);
+    const mat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.5, metalness: 0.5 });
+    const side = new THREE.MeshStandardMaterial({ color: 0x1b2028, roughness: 0.5, metalness: 0.6 });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(len, h, dep), [side, side, side, side, mat, mat]);
+    m.position.y = h / 2; m.castShadow = !IS_COARSE; m.receiveShadow = true; g.add(m);
+    const top = boxMesh(len, 0.12, dep + 0.1, 0x2b3240, { metal: 0.7 }); top.position.y = h + 0.06; g.add(top);
+    BLINK_MATS.push({ tex, phase: Math.random() * 10, rate: 0.6 + Math.random() * 1.4 });
+    // Meshy rack caps at row ends
+    [-1, 1].forEach(s => {
+      const r = cloneProp('server_rack');
+      if (r) { r.position.set(s * (len / 2 + 0.45), 0, 0); r.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2; g.add(r); }
+    });
+    // overhead cable tray
+    if (o.tray) { const tray = boxMesh(len, 0.12, 0.7, 0x6b7280, { metal: 0.8 }); tray.position.y = h + 1.1; g.add(tray); const cab = boxMesh(len, 0.1, 0.5, 0x1f2937); cab.position.y = h + 1.2; g.add(cab); }
+    return { g, collide: [len + (MESHY_TEMPLATES.props.server_rack ? 1.6 : 0), dep, h] };
+  },
+  desk(o) {
+    const g = new THREE.Group(); const p = cloneProp('security_desk');
+    if (p) g.add(p); else {
+      const top = boxMesh(3.2, 0.1, 1.2, 0x9ca3af, { metal: 0.5 }); top.position.y = 1.05; g.add(top);
+      const front = boxMesh(3.2, 1.05, 0.12, 0x4b5563); front.position.set(0, 0.52, 0.55); g.add(front);
+      const s1 = boxMesh(0.12, 1.05, 1.2, 0x4b5563); s1.position.set(-1.55, 0.52, 0); const s2 = s1.clone(); s2.position.x = 1.55; g.add(s1, s2);
+    }
+    return { g, collide: [3.2, 1.4, 1.1] };
+  },
+  chair(o) {
+    const g = new THREE.Group(); const p = cloneProp('office_chair');
+    if (p) g.add(p); else {
+      const seat = boxMesh(0.6, 0.1, 0.6, 0x111827); seat.position.y = 0.5; const back = boxMesh(0.6, 0.7, 0.08, 0x111827); back.position.set(0, 0.9, -0.28);
+      const post = boxMesh(0.06, 0.45, 0.06, 0x6b7280); post.position.y = 0.25; g.add(seat, back, post);
+    }
+    return { g, collide: null };
+  },
+  monitors(o) {
+    const g = new THREE.Group(); const p = cloneProp('desk_monitors');
+    if (p) g.add(p);
+    // always add glowing CCTV screens so it reads as security at a glance
+    const scr = new THREE.MeshStandardMaterial({ color: 0x0b1220, emissive: 0x60a5fa, emissiveIntensity: 0.9 });
+    for (let i = -1; i <= 1; i++) { const s = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.34), scr); s.position.set(i * 0.6, 0.45 + (p ? 0.05 : 0), 0.18); s.rotation.y = -i * 0.25; g.add(s); if (!p) { const b = boxMesh(0.6, 0.4, 0.06, 0x111111); b.position.set(i * 0.6, 0.45, 0.14); b.rotation.y = -i * 0.25; g.add(b); } }
+    return { g, collide: null };
+  },
+  cabinet(o) {
+    const g = new THREE.Group(); const p = cloneProp('filing_cabinet');
+    if (p) g.add(p); else { const b = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.3, 0.7), new THREE.MeshStandardMaterial({ map: CABINET_TEX, roughness: 0.6, metalness: 0.4 })); b.position.y = 0.65; g.add(b); }
+    return { g, collide: [1.0, 0.8, 1.3] };
+  },
+  cabinetrow(o) {
+    const len = o.w, g = new THREE.Group();
+    const tex = CABINET_TEX.clone(); tex.needsUpdate = true; tex.repeat.set(Math.max(1, Math.round(len / 0.9)), 1);
+    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, metalness: 0.4 });
+    const side = new THREE.MeshStandardMaterial({ color: 0x6b6f68, roughness: 0.6, metalness: 0.4 });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(len, o.h || 2.0, o.d || 0.9), [side, side, side, side, mat, mat]);
+    m.position.y = (o.h || 2.0) / 2; m.castShadow = !IS_COARSE; m.receiveShadow = true; g.add(m);
+    const c = cloneProp('filing_cabinet'); if (c) { c.position.set(len / 2 + 0.6, 0, 0); g.add(c); }
+    return { g, collide: [len + (c ? 1.2 : 0), o.d || 0.9, o.h || 2.0] };
+  },
+  crac(o) {
+    const g = new THREE.Group(); const p = cloneProp('cooling_unit');
+    if (p) g.add(p); else {
+      const b = boxMesh(2.2, 2.1, 1.0, 0xd1d5db, { metal: 0.3 }); b.position.y = 1.05; g.add(b);
+      for (let i = 0; i < 3; i++) { const gr = boxMesh(1.8, 0.35, 0.04, 0x1f2937); gr.position.set(0, 0.5 + i * 0.5, 0.52); g.add(gr); }
+      const disp = boxMesh(0.4, 0.2, 0.03, 0x0b1220, { emissive: 0x22d3ee, ei: 1.2 }); disp.position.set(0.6, 1.85, 0.52); g.add(disp);
+    }
+    return { g, collide: [2.4, 1.2, 2.1] };
+  },
+  ups(o) {
+    const g = new THREE.Group(); const p = cloneProp('ups_cabinet');
+    if (p) g.add(p); else {
+      const b = boxMesh(1.2, 1.9, 0.9, 0x374151, { metal: 0.5 }); b.position.y = 0.95; g.add(b);
+      const lab = boxMesh(0.5, 0.25, 0.02, 0xfacc15); lab.position.set(0, 1.4, 0.46); const led = boxMesh(0.3, 0.06, 0.02, 0x22c55e, { emissive: 0x22c55e, ei: 2 }); led.position.set(0, 1.7, 0.46); g.add(lab, led);
+    }
+    return { g, collide: [1.3, 1.0, 1.9] };
+  },
+  celldoorprop(o) {
+    const g = new THREE.Group(); const p = cloneProp('cell_door');
+    if (p) g.add(p); else { for (let i = 0; i < 9; i++) { const b = boxMesh(0.08, 3.6, 0.08, 0x4b5563, { metal: 0.85 }); b.position.set(-1.2 + i * 0.3, 1.8, 0); g.add(b); } }
+    return { g, collide: null };
+  },
+  bench(o) {
+    const g = new THREE.Group(); const p = cloneProp('cell_bench');
+    if (p) g.add(p); else { const s = boxMesh(2.0, 0.1, 0.6, 0x6b7280, { metal: 0.7 }); s.position.y = 0.5; const l1 = boxMesh(0.08, 0.5, 0.5, 0x4b5563); l1.position.set(-0.85, 0.25, 0); const l2 = l1.clone(); l2.position.x = 0.85; g.add(s, l1, l2); }
+    return { g, collide: [2.0, 0.7, 0.6] };
+  },
+  terminal(o) {
+    const g = new THREE.Group(); const p = cloneProp('wall_terminal');
+    if (p) { p.position.y = 0.9; g.add(p); }
+    const scr = boxMesh(0.5, 0.4, 0.06, 0x0b1220, { emissive: o.color ? new THREE.Color(o.color) : 0x22d3ee, ei: 1.6 }); scr.position.set(0, 1.5, 0.12); g.add(scr);
+    if (!p) { const h = boxMesh(0.62, 0.9, 0.16, 0x1f2937, { metal: 0.6 }); h.position.y = 1.35; g.add(h); }
+    return { g, collide: null };
+  },
+  extinguisher(o) {
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.6, 10), new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35, metalness: 0.3 })); b.position.y = 1.1; g.add(b);
+    const n = boxMesh(0.06, 0.12, 0.06, 0x111111); n.position.y = 1.46; g.add(n);
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), new THREE.MeshBasicMaterial({ map: signTexture('FIRE', 'EXTINGUISHER', '#ef4444') })); tag.position.set(0, 1.75, 0.02); g.add(tag);
+    return { g, collide: null };
+  },
+  generator(o) {
+    const g = new THREE.Group(); const w = o.w || 5, h = o.h || 4;
+    const body = boxMesh(w, h, w * 0.6, 0x3f4a3c, { metal: 0.6 }); body.position.y = h / 2; g.add(body);
+    const fan = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.22, w * 0.22, 0.2, 18), new THREE.MeshStandardMaterial({ color: 0x111827, metalness: 0.7 })); fan.rotation.x = Math.PI / 2; fan.position.set(0, h * 0.55, w * 0.3 + 0.1); g.add(fan);
+    const stripe = boxMesh(w + 0.02, 0.25, w * 0.6 + 0.02, 0xfacc15); stripe.position.y = 0.5; g.add(stripe);
+    const lamp = boxMesh(0.3, 0.3, 0.3, 0xf97316, { emissive: 0xf97316, ei: 2 }); lamp.position.set(w / 2 - 0.4, h + 0.15, 0); g.add(lamp);
+    return { g, collide: [w, w * 0.6, h] };
+  },
+  colossus(o) { return { g: buildColossus(o.h || 24), collide: [6, 6, 30] }; },
+  pipevent(o) {
+    const g = new THREE.Group(); const p = cloneProp('pipe_vent'); if (p) g.add(p); else { const b = boxMesh(0.8, 1.2, 0.8, 0x4a3b2a, { metal: 0.7 }); b.position.y = 0.6; g.add(b); }
+    STEAM_PARTICLES.push({ x: o.x, z: o.z, y: 1.3, t: Math.random() * 10, meshes: [] });
+    return { g, collide: [1.0, 1.0, 1.3] };
+  }
+};
+
+function buildColossus(height) {
+  const g = new THREE.Group();
+  const tpl = MESHY_TEMPLATES.bot || MESHY_TEMPLATES.guard;
+  if (tpl && THREE.SkeletonUtils) {
+    const c = THREE.SkeletonUtils.clone(tpl.scene);
+    c.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; if (o.material) { o.material = o.material.clone(); brightenMat(o.material); } } });
+    const s = height / (tpl.targetHeight || 2.5);
+    const holder = new THREE.Group(); holder.scale.setScalar(s); holder.add(c); g.add(holder);
+    if (tpl.animations && tpl.animations.length) {
+      const mx = new THREE.AnimationMixer(c); const a = mx.clipAction(tpl.animations[0]); a.play(); a.timeScale = 0.08;
+      COLOSSUS = { mixer: mx };
+    }
+  } else {
+    const r = createDoomSentinel(0x3f2a1a, 0xef4444, 'MOSES COLOSSUS', true); r.root.scale.multiplyScalar(height / 2.6);
+    if (r.hb && r.hb.sprite) r.hb.sprite.visible = false; g.add(r.root);
+  }
+  const eye = new THREE.PointLight(0xff3300, 2.5, 40, 2); eye.position.set(0, height * 0.92, 2); g.add(eye);
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(5, 5.6, 0.6, 24), new THREE.MeshStandardMaterial({ color: 0x2b3240, metalness: 0.7, roughness: 0.4 })); plate.position.y = 0.3; g.add(plate);
+  return g;
+}
+
+// --- per-floor layout generators: return MAP_OBJECTS + floor info ---
+function genFloorLayout(level, floor) {
+  const rnd = seededRng(level * 97 + floor * 13 + 7);
+  const O = []; let id = 0;
+  const add = (type, x, z, extra = {}) => O.push({ id: `${type}-${id++}`, type, x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10, rot: 0, color: '#facc15', ...extra });
+  const info = { start: { x: 0, z: 70, yaw: 0 }, exit: { x: 0, z: -76 }, spawnZone: { minX: -80, maxX: 80, minZ: -68, maxZ: 30 }, activateZ: null };
+  const mirror = level % 2 === 0 ? -1 : 1;
+  const fl = FLOOR_NAMES[floor];
+  if (floor === 0) {
+    info.start = { x: 0, z: 79, yaw: 0 }; info.activateZ = 46; info.spawnZone = { minX: -78, maxX: 78, minZ: -66, maxZ: 26 };
+    // holding cell
+    add('wall', -5.5, 77, { w: 1, d: 10, h: 5, color: '#64748b' }); add('wall', 5.5, 77, { w: 1, d: 10, h: 5, color: '#64748b' });
+    add('wall', 0, 82.5, { w: 12, d: 1, h: 5, color: '#64748b' });
+    add('celldoor', 0, 72, { w: 10, d: 0.4, h: 4.2 });
+    add('bench', -3.9, 78.5, { rot: Math.PI / 2 });
+    add('terminal', 4.9, 75.5, { rot: -Math.PI / 2, color: '#22d3ee', hack: true });
+    add('sign', 0, 81.9, { y: 3.4, rot: Math.PI, title: 'HOLDING CELL 3', sub: 'DETAINEE · DC-09 INTAKE', color: '#ef4444', w: 5 });
+    add('sign', 0, 71.6, { y: 4.7, rot: Math.PI, title: 'HOLDING CELL 3', sub: '', color: '#ef4444', w: 3.5 });
+    // aisle to main warehouse
+    add('wall', -4.5, 59.5, { w: 1, d: 25, h: 6, color: '#475569' }); add('wall', 4.5, 59.5, { w: 1, d: 25, h: 6, color: '#475569' });
+    add('wall', -46.25, 47, { w: 83.5, d: 1, h: 10, color: '#475569' }); add('wall', 46.25, 47, { w: 83.5, d: 1, h: 10, color: '#475569' });
+    add('sign', 3.95, 64, { y: 3.2, rot: -Math.PI / 2, title: 'DATA CENTER 09', sub: '▲ SERVER HALL G · SECURITY', color: '#38bdf8', w: 4.5 });
+    add('sign', -3.95, 56, { y: 3.2, rot: Math.PI / 2, title: 'RESTRICTED', sub: 'AUTHORIZED PERSONNEL ONLY', color: '#ef4444', w: 4.5 });
+    add('sign', 0, 47.6, { y: 5.3, rot: 0, title: 'SERVER HALL G', sub: 'DATA CENTER 09 · LEVEL ' + level, color: '#facc15', w: 7 });
+    add('celldoorprop', -4.0, 62, { rot: Math.PI / 2 }); add('celldoorprop', 4.0, 57, { rot: -Math.PI / 2 });
+    add('sign', -3.95, 66.5, { y: 4.2, rot: Math.PI / 2, title: 'CELL 2', sub: '', color: '#ef4444', w: 2.4 }); add('sign', 3.95, 52.5, { y: 4.2, rot: -Math.PI / 2, title: 'CELL 4', sub: '', color: '#ef4444', w: 2.4 });
+    add('extinguisher', -3.9, 69, { rot: Math.PI / 2 }); add('extinguisher', 3.9, 52, { rot: -Math.PI / 2 });
+    // security checkpoint
+    add('desk', -9, 39, { rot: 0 }); add('monitors', -9, 38.9, { y: 1.1, rot: 0 }); add('chair', -9, 37.2, { rot: Math.PI });
+    add('desk', 9, 39, { rot: 0 }); add('monitors', 9, 38.9, { y: 1.1, rot: 0 }); add('chair', 9, 37.2, { rot: Math.PI });
+    add('cabinet', -16, 45.5, { rot: Math.PI }); add('cabinet', -17.2, 45.5, { rot: Math.PI }); add('cabinet', 16, 45.5, { rot: Math.PI });
+    add('terminal', 5.2, 46.4, { rot: Math.PI, color: '#a3e635' });
+    add('sign', -9, 46.4, { y: 4.2, rot: Math.PI, title: 'SECURITY DESK', sub: 'ALL VISITORS MUST SIGN IN', color: '#38bdf8', w: 5 });
+    add('sign', 30, 46.4, { y: 5, rot: Math.PI, title: 'DATA CENTER 09', sub: 'PROJECT MOSES · TIER IV', color: '#facc15', w: 8 });
+    // server rack rows west/east of the colossus
+    for (let r = 0; r < 7; r++) {
+      const z = 28 - r * 12 + (rnd() - 0.5) * 2;
+      [-1, 1].forEach(s => {
+        const gap = 6 + rnd() * 10;
+        const segA = 20 + rnd() * 10;
+        add('rackrow', s * (24 + segA / 2), z, { w: segA, d: 1.2, h: 2.4, tray: true });
+        const segB = 60 - segA - gap; if (segB > 6) add('rackrow', s * (24 + segA + gap + segB / 2), z, { w: segB, d: 1.2, h: 2.4, tray: true });
+      });
+    }
+    add('colossus', 0, -6, { h: 24 });
+    add('sign', 0, -83.4, { y: 8, rot: 0, title: 'STAIRWELL ▼ B1', sub: 'CLEAR FLOOR TO UNLOCK', color: '#22c55e', w: 8 });
+    add('ups', -10, -72); add('ups', -12, -72); add('ups', 10, -72); add('ups', 12, -72);
+    add('crac', -87, 0, { rot: Math.PI / 2 }); add('crac', 87, 0, { rot: -Math.PI / 2 }); add('crac', -87, -30, { rot: Math.PI / 2 }); add('crac', 87, -30, { rot: -Math.PI / 2 });
+  } else if (floor === 1) {
+    // dense server farm: rows along Z with cross-aisles
+    const cross = [44 + (rnd() - 0.5) * 8, 4 + (rnd() - 0.5) * 10, -40 + (rnd() - 0.5) * 8];
+    const pitch = 7 + Math.floor(rnd() * 3);
+    for (let x = -80; x <= 80; x += pitch) {
+      if (Math.abs(x) < 6) continue;
+      let zs = [64, ...cross.flatMap(c => [c + 3.5, c - 3.5]), -66];
+      for (let i = 0; i < zs.length; i += 2) {
+        const a = zs[i], b = zs[i + 1]; const len = a - b; if (len < 5) continue;
+        add('rackrow', x, (a + b) / 2, { w: len, d: 1.2, h: 2.6, rot: Math.PI / 2, tray: rnd() < 0.6 });
+      }
+    }
+    cross.forEach((c, i) => add('sign', -6.2, c, { y: 3.6, rot: Math.PI / 2, title: 'SERVER HALL B1', sub: `AISLE ${String.fromCharCode(65 + i)} · HOT/COLD`, color: '#38bdf8', w: 5 }));
+    add('sign', 0, -83.4, { y: 6, rot: 0, title: 'STAIRWELL ▼ B2', sub: 'COOLING PLANT', color: '#22c55e', w: 7 });
+    add('sign', 0, 83.4, { y: 6, rot: Math.PI, title: 'FLOOR B1', sub: 'SERVER FARM · LEVEL ' + level, color: '#facc15', w: 7 });
+    for (let i = 0; i < 6; i++) add('extinguisher', mirror * (-5.8), 60 - i * 24, { rot: Math.PI / 2 });
+    for (let i = 0; i < 4; i++) add('crac', (i % 2 ? 87 : -87), -60 + i * 38, { rot: i % 2 ? -Math.PI / 2 : Math.PI / 2 });
+  } else if (floor === 2) {
+    // cooling / generator plant
+    const gx = [-58, -30, 30, 58], gz = [40, 6, -30];
+    gx.forEach(x => gz.forEach(z => { if (rnd() < 0.8) add('generator', x * mirror + (rnd() - 0.5) * 6, z + (rnd() - 0.5) * 6, { w: 6 + rnd() * 3, h: 3.5 + rnd() * 2, rot: rnd() < 0.5 ? 0 : Math.PI / 2 }); }));
+    for (let i = 0; i < 9; i++) { add('crac', -86.5, 70 - i * 17, { rot: Math.PI / 2 }); add('crac', 86.5, 70 - i * 17, { rot: -Math.PI / 2 }); }
+    for (let r = 0; r < 3; r++) { const z = 58 - r * 44 + (rnd() - 0.5) * 6; for (let i = 0; i < 6; i++) add('ups', -14 + i * 1.4 + (r - 1) * 4 * mirror, z); }
+    for (let i = 0; i < 8; i++) add('pillar', (i % 2 ? 16 : -16), 66 - i * 18, { w: 1.6, d: 1.6, h: 12, color: '#facc15' });
+    for (let i = 0; i < 5; i++) add('pipevent', (rnd() - 0.5) * 140, (rnd() - 0.5) * 130);
+    add('sign', 0, -83.4, { y: 6, rot: 0, title: 'STAIRWELL ▼ B3', sub: 'ARCHIVE VAULT · CORE', color: '#22c55e', w: 7 });
+    add('sign', -86, 20, { y: 5, rot: Math.PI / 2, title: '⚠ HIGH VOLTAGE', sub: 'GENERATOR PLANT B2', color: '#f97316', w: 7 });
+    add('sign', 86, -20, { y: 5, rot: -Math.PI / 2, title: 'COOLING LOOP', sub: 'CRAC UNITS 1-18', color: '#38bdf8', w: 7 });
+  } else {
+    // archive vault + core: cabinet stacks + vault walls with door gaps
+    for (let r = 0; r < 5; r++) {
+      const z = 60 - r * 11;
+      for (let s = -1; s <= 1; s += 2) {
+        const gap = 4 + rnd() * 8; const len = 22 + rnd() * 18;
+        add('cabinetrow', s * (8 + gap + len / 2), z, { w: len, d: 0.9, h: 2.2 });
+      }
+    }
+    // vault walls around core with 3 doorways
+    [[-30, 0, 1, 34], [30, 0, 1, 34]].forEach(([x, z, w, d]) => add('wall', x, z, { w, d, h: 8, color: '#7f1d1d' }));
+    add('wall', -19, 17, { w: 22, d: 1, h: 8, color: '#7f1d1d' }); add('wall', 19, 17, { w: 22, d: 1, h: 8, color: '#7f1d1d' });
+    add('emp', 0, 0, { w: 5, d: 5, h: 9, color: '#ef4444' });
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; add('cryo', Math.cos(a) * 11, Math.sin(a) * 11, { w: 2.4, d: 2.4, h: 4.6, color: '#22c55e' }); }
+    for (let i = 0; i < 4; i++) add('cabinet', -60 + i * 1.1, -40, { rot: 0 });
+    add('sign', 0, 17.6, { y: 6, rot: 0, title: 'CORE VAULT', sub: '⚠ RESTRICTED · LEVEL 5 CLEARANCE', color: '#ef4444', w: 8 });
+    add('sign', 0, 83.4, { y: 6, rot: Math.PI, title: 'FLOOR B3', sub: 'ARCHIVE · LEVEL ' + level, color: '#facc15', w: 7 });
+    add('sign', 0, -83.4, { y: 6, rot: 0, title: level < 9 ? 'EXIT ▲ LEVEL ' + (level + 1) : 'EXIT', sub: 'MINOTAUR KEYCARD REQUIRED', color: '#22c55e', w: 7 });
+  }
+  return { objects: O, info };
+}
+
+function renderMapObject(obj) {
+  const b = PROP_BUILDERS[obj.type];
+  if (!b) return false;
+  const res = b(obj);
+  placeObject(res.g, obj.x, obj.y || 0, obj.z, obj.rot || 0);
+  if (res.collide) aabbCollider(obj.x, obj.z, res.collide[0], res.collide[1], res.collide[2], obj.rot || 0);
+  return true;
+}
+
+function buildCellDoor(obj) {
+  const g = new THREE.Group(); const p = null; // see-through procedural bars read better than a solid mesh
+  const barMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, metalness: 0.85, roughness: 0.35 });
+  const bars = new THREE.Group();
+  if (p) { for (let i = -1; i <= 1; i++) { const c = p.clone(true); const tb = new THREE.Box3().setFromObject(c); const wdt = Math.max(0.5, tb.max.x - tb.min.x); c.scale.multiplyScalar(Math.min(1.5, 3.3 / wdt)); c.position.x = i * 3.3; bars.add(c); } }
+  else {
+    for (let i = 0; i < 21; i++) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, obj.h, 6), barMat); b.position.set(-obj.w / 2 + 0.25 + i * (obj.w - 0.5) / 20, obj.h / 2, 0); bars.add(b); }
+    [0.2, obj.h / 2, obj.h - 0.1].forEach(y => { const r = new THREE.Mesh(new THREE.BoxGeometry(obj.w, 0.12, 0.12), barMat); r.position.y = y; bars.add(r); });
+  }
+  const lock = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.25), new THREE.MeshStandardMaterial({ color: 0x111827, emissive: 0xef4444, emissiveIntensity: 2 }));
+  lock.position.set(1.2, 1.3, 0.15); bars.add(lock);
+  g.add(bars); g.position.set(obj.x, 0, obj.z); arenaGroup.add(g);
+  const col = { minX: obj.x - obj.w / 2, maxX: obj.x + obj.w / 2, minY: 0, maxY: obj.h, minZ: obj.z - 0.4, maxZ: obj.z + 0.4 };
+  colliders.push(col);
+  CELL_DOOR = { group: g, bars, lock, col, x: obj.x, z: obj.z, w: obj.w, hp: 70, open: false, lift: 0 };
+}
+
+function openCellDoor(reason) {
+  if (!CELL_DOOR || CELL_DOOR.open) return;
+  CELL_DOOR.open = true; CELL_DOOR.lock.material.emissive.setHex(0x22c55e);
+  colliders = colliders.filter(c => c !== CELL_DOOR.col);
+  SFX.playKeyPickup(); STATE.screenShake = 0.3;
+  showBanner('🔓 CELL BREACHED', reason + ' — move down the aisle into Server Hall G. Sentinels activate when you leave the aisle.', 5000);
+}
+function damageCellDoor(dmg) {
+  if (!CELL_DOOR || CELL_DOOR.open) return;
+  CELL_DOOR.hp -= dmg; spawnImpact(CELL_DOOR.x + 1.2, 1.3, CELL_DOOR.z + 0.2, 0xfacc15);
+  if (CELL_DOOR.hp <= 0) openCellDoor('Lock shot out');
+}
+
+function buildArenaMap() {
+  while (arenaGroup.children.length > 0) arenaGroup.remove(arenaGroup.children[0]);
+  colliders = []; walkableSurfaces = []; sirenBeaconMeshes = []; PICKUPS = []; ARENA_LIGHTS = []; STEAM_PARTICLES = []; BLINK_MATS = []; CELL_DOOR = null; COLOSSUS = null;
+  const floor = STATE.floor || 0; const theme = FLOOR_THEMES[floor];
+  const steelMat = new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.42, metalness: 0.78, bumpMap: WALL_PBR.bumpMap, bumpScale: 0.04 });
+  const floorColors = [0xa8a49a, 0x8f9aa8, 0x9a8f80, 0x8a8078];
+  const fm = new THREE.Mesh(new THREE.PlaneGeometry(220, 190), new THREE.MeshStandardMaterial({ map: FLOOR_PBR.map, bumpMap: FLOOR_PBR.bumpMap, bumpScale: 0.06, color: floorColors[floor], roughness: 0.58, metalness: 0.32 }));
+  fm.rotation.x = -Math.PI / 2; fm.receiveShadow = true; arenaGroup.add(fm);
+  // raised-floor tile lines for server floors
+  if (floor === 1) { const grid = new THREE.GridHelper(180, 90, 0x64748b, 0x475569); grid.position.y = 0.02; grid.material.opacity = 0.35; grid.material.transparent = true; arenaGroup.add(grid); }
+  createWall(0, -85, 180, 3, 12); createWall(0, 85, 180, 3, 12);
+  createWall(-90, 0, 3, 170, 12); createWall(90, 0, 3, 170, 12);
+  // ceiling trusses (skip centre on G so the colossus can tower)
+  for (let tz = -72; tz <= 72; tz += 24) {
+    const segs = floor === 0 ? [[-56, 64], [56, 64]] : [[0, 176]];
+    segs.forEach(([cx, len]) => { const t = new THREE.Mesh(new THREE.BoxGeometry(len, 0.8, 0.9), steelMat); t.position.set(cx, floor === 0 ? 14.6 : 10.5, tz); arenaGroup.add(t); });
+    [-36, 36].forEach(bx => { const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.5, 10), new THREE.MeshBasicMaterial({ color: 0x330a0a })); beacon.position.set(bx, floor === 0 ? 14.0 : 9.9, tz); arenaGroup.add(beacon); sirenBeaconMeshes.push(beacon); });
+  }
+  createSecurityElevator(FLOOR_INFO.exit.x, FLOOR_INFO.exit.z - 1.2);
+  // lighting per theme
+  const lh = floor === 0 ? 11 : 9;
+  const spots = IS_COARSE ? [[0, 40], [0, -20], [-50, 0], [50, 0]] : [[-50, 50], [0, 60], [50, 50], [-50, 10], [0, 20], [50, 10], [-50, -30], [0, -40], [50, -30], [0, -70]];
+  spots.forEach(([x, z], i) => addHangingLight(x, lh, z, theme.light, 1.1, 26));
+  MAP_OBJECTS.forEach(obj => {
+    if (obj.type === 'celldoor') { buildCellDoor(obj); return; }
+    if (obj.type === 'sign') { addSign(obj.x, obj.y || 5.2, obj.z, obj.rot || 0, obj.title || 'SECTOR', obj.sub || '', obj.color || '#f59e0b', obj.w || 7); return; }
+    if (renderMapObject(obj)) return;
+    renderLegacyObject(obj, steelMat);
+  });
+  // pickups at free spots
+  const rnd = seededRng(STATE.level * 31 + floor);
+  const types = [['health', 0x22c55e], ['armor', 0x00f0ff], ['ammo', 0xfacc15], ['health', 0x22c55e], ['quad', 0xa855f7]];
+  types.forEach(([type, color]) => {
+    for (let t = 0; t < 30; t++) {
+      const x = (rnd() - 0.5) * 150, z = FLOOR_INFO.spawnZone.minZ + rnd() * (FLOOR_INFO.spawnZone.maxZ - FLOOR_INFO.spawnZone.minZ);
+      if (collidesAt(x, z, 1.2)) continue;
+      const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.65, 0), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.8 }));
+      mesh.position.set(x, 1.2, z); arenaGroup.add(mesh); PICKUPS.push({ type, x, z, color, mesh, active: true, respawnTimer: 0 }); break;
+    }
   });
 }
+
+function startFloor(lvl, floor) {
+  STATE.level = lvl; STATE.floor = floor; STATE.bossSpawned = false; STATE.hasAccessKey = false; STATE.combatActive = false; HACK_TIMER = 0;
+  STATE.floorCleared = false;
+  if (ACCESS_KEY) { arenaGroup.remove(ACCESS_KEY.group); ACCESS_KEY = null; }
+  PROJECTILES.forEach(p => scene.remove(p.mesh)); PROJECTILES = [];
+  document.getElementById('boss-hud').classList.add('hidden');
+  const ks = document.getElementById('keycard-status');
+  ks.textContent = floor === 0 ? '🔒 ESCAPE THE HOLDING CELL' : '🔒 STAIRWELL LOCKED · CLEAR FLOOR';
+  ks.className = 'text-[10px] text-amber-300 font-bold block';
+  const cfg = LEVEL_CONFIGS[lvl] || LEVEL_CONFIGS[1];
+  { const fc = liftFog(cfg.fogColor); scene.background.copy(fc); scene.fog.color.copy(fc); } hemiLight.color.setHex(cfg.hemiTop);
+  const layout = genFloorLayout(lvl, floor);
+  MAP_OBJECTS = layout.objects; FLOOR_INFO = layout.info;
+  buildArenaMap(); clearBots();
+  STATE.player.x = FLOOR_INFO.start.x; STATE.player.y = 0; STATE.player.z = FLOOR_INFO.start.z; STATE.player.yaw = FLOOR_INFO.start.yaw; STATE.player.pitch = 0; STATE.player.vy = 0;
+  // difficulty curve
+  const count = Math.min(IS_COARSE ? 11 : 14, 4 + floor * 2 + Math.floor((lvl - 1) / 2));
+  const heavyFrac = Math.min(0.75, 0.15 + floor * 0.15 + lvl * 0.03);
+  const hpMult = (1 + 0.12 * (lvl - 1) + 0.12 * floor) * STATE.botSkill;
+  STATE.diff = { dmg: 1 + 0.08 * (lvl - 1) + 0.06 * floor, fire: 1 + 0.06 * (lvl - 1) + 0.05 * floor };
+  const rnd = seededRng(lvl * 7 + floor * 3 + 1); const Z = FLOOR_INFO.spawnZone;
+  for (let i = 0; i < count; i++) {
+    const tpl = BOT_ROSTER[i % BOT_ROSTER.length] || {};
+    const heavy = rnd() < heavyFrac;
+    let x = 0, z = 0;
+    for (let t = 0; t < 40; t++) { x = Z.minX + rnd() * (Z.maxX - Z.minX); z = Z.minZ + rnd() * (Z.maxZ - Z.minZ); if (!collidesAt(x, z, 1.1) && Math.hypot(x - STATE.player.x, z - STATE.player.z) > 28) break; }
+    spawnBotFromArchetype({ ...tpl, id: `f${floor}-b${i}`, name: heavy ? `Heavy Sentinel ${FLOOR_NAMES[floor]}-${i + 1}` : `Strogg Guard ${FLOOR_NAMES[floor]}-${i + 1}`, role: heavy ? 'bot' : 'human_guard', x, y: 0, z, maxHealth: heavy ? 150 : 105, patrolType: 'ground' }, hpMult);
+  }
+  const theme = FLOOR_THEMES[floor];
+  if (floor === 0) showBanner(`LEVEL ${lvl} · ${cfg.name}`, 'You are locked in a holding cell. Shoot the red lock, press E at the door, or stand at the cyan wall terminal to hack it.', 6500);
+  else { showBanner(`LEVEL ${lvl} · FLOOR ${FLOOR_NAMES[floor]}`, theme.title + (floor === 3 ? ' — kill the Minotaur for the exit keycard.' : ' — clear all sentinels to unlock the stairwell.'), 5000); setTimeout(() => { if (STATE.floor === floor) STATE.combatActive = true; }, 1800); }
+  updateHUD();
+}
+function startCampaignLevel(lvl) { startFloor(lvl, 0); }
+
+function unlockExit() {
+  if (STATE.floorCleared) return;
+  STATE.floorCleared = true; ELEVATOR_STATE.doorsOpen = true; ELEVATOR_STATE.doorMat.color.setHex(0x10b981);
+  const ks = document.getElementById('keycard-status');
+  ks.textContent = '🔓 STAIRWELL OPEN — HEAD NORTH'; ks.className = 'text-[10px] text-emerald-400 font-black block animate-pulse';
+  showBanner(`FLOOR ${FLOOR_NAMES[STATE.floor]} CLEARED`, `Stairwell unlocked — descend to ${FLOOR_NAMES[STATE.floor + 1] || 'next level'}.`, 4500);
+}
+function advanceFloor() {
+  if (STATE.floor < 3) return startFloor(STATE.level, STATE.floor + 1);
+  if (STATE.level < STATE.maxLevels) return startFloor(STATE.level + 1, 0);
+  STATE.running = false; document.exitPointerLock?.();
+  document.getElementById('modal-title').textContent = `⚡ ${GAME_BRAND_TITLE}: DATA CENTER 09 LIBERATED ⚡`;
+  document.getElementById('modal-desc').innerHTML = `<b class="text-emerald-400">All 9 levels and 36 floors cleared.</b> Moses Protocol terminated.`;
+  document.getElementById('game-modal').classList.remove('hidden');
+}
+
+function updateFloorLogic(dt, now) {
+  // blinking rack LEDs
+  BLINK_MATS.forEach(b => { b.phase += dt * b.rate; b.tex.offset.y = (Math.floor(b.phase) % 2) * 0.5; });
+  if (COLOSSUS && COLOSSUS.mixer) COLOSSUS.mixer.update(dt);
+  if (CELL_DOOR) {
+    if (CELL_DOOR.open && CELL_DOOR.lift < 1) { CELL_DOOR.lift = Math.min(1, CELL_DOOR.lift + dt * 0.8); CELL_DOOR.bars.position.y = CELL_DOOR.lift * 4.4; }
+    if (!CELL_DOOR.open) {
+      const term = MAP_OBJECTS.find(o => o.hack);
+      if (term && Math.hypot(STATE.player.x - term.x, STATE.player.z - term.z) < 2.2) {
+        HACK_TIMER += dt;
+        const ks = document.getElementById('keycard-status'); ks.textContent = `💻 HACKING LOCK ${Math.min(100, Math.round(HACK_TIMER / 1.5 * 100))}%`;
+        if (HACK_TIMER >= 1.5) openCellDoor('Lock terminal hacked');
+      } else HACK_TIMER = 0;
+      if (KEYS['KeyE'] && Math.hypot(STATE.player.x - CELL_DOOR.x, STATE.player.z - CELL_DOOR.z) < 4) openCellDoor('Door forced open');
+    }
+  }
+  if (!STATE.combatActive && FLOOR_INFO.activateZ != null && STATE.player.z < FLOOR_INFO.activateZ) {
+    STATE.combatActive = true;
+    const ks = document.getElementById('keycard-status'); ks.textContent = '🔒 STAIRWELL LOCKED · CLEAR FLOOR'; ks.className = 'text-[10px] text-amber-300 font-bold block';
+    sirenActiveTimer = 4; SFX.playSiren && SFX.playSiren(3);
+    showBanner('⚠ INTRUDER ALERT', 'Server Hall G sentinels are active. Clear the floor to unlock the stairwell to B1.', 4000);
+    SFX.playRadioChatter('Detainee escaped holding! All Strogg units converge on Server Hall G!', 'SECTOR COMMAND');
+  }
+}
+
 
 /** Detailed grimy biomechanical pulse cannon viewmodel */
 function buildProceduralPulseCannon() {
@@ -1289,23 +1698,39 @@ function findMuzzleLocalOffset(root) {
   return best;
 }
 
+// Meshy weapon: find long axis + which end is the (thinner) barrel, return yaw so the barrel points down -Z
+function gunYawToForward(model) {
+  model.updateMatrixWorld(true);
+  const pts = []; const v = new THREE.Vector3();
+  model.traverse(c => { if (!c.isMesh || !c.geometry?.attributes?.position) return; const pa = c.geometry.attributes.position; const step = Math.max(1, Math.floor(pa.count / 4000)); for (let i = 0; i < pa.count; i += step) { v.fromBufferAttribute(pa, i); c.localToWorld(v); model.parent ? model.parent.worldToLocal(v) : null; pts.push(v.clone()); } });
+  if (!pts.length) return 0;
+  const bb = new THREE.Box3().setFromPoints(pts); const sz = new THREE.Vector3(); bb.getSize(sz);
+  const axis = sz.x > sz.z ? 'x' : 'z'; const lo = bb.min[axis], len = bb.max[axis] - lo;
+  const spread = end => { let mn = Infinity, mx = -Infinity; pts.forEach(p => { const t = (p[axis] - lo) / len; if ((end < 0 && t < 0.15) || (end > 0 && t > 0.85)) { mn = Math.min(mn, p.y); mx = Math.max(mx, p.y); } }); return mx - mn; };
+  const barrelAtMax = spread(1) < spread(-1);
+  if (axis === 'z') return barrelAtMax ? Math.PI : 0;
+  return barrelAtMax ? Math.PI / 2 : -Math.PI / 2;
+}
+
 function buildViewModel() {
   while (viewModelGroup.children.length > 0) viewModelGroup.remove(viewModelGroup.children[0]);
   weaponGlowMats = [];
   if (MESHY_TEMPLATES.viewmodel && STATE.currentWeapon === 0) {
+    const wrap = new THREE.Group();
     const clone = MESHY_TEMPLATES.viewmodel.scene.clone(true);
-    // already normalized to ~0.55m; place as FPS gun (right-hand)
-    clone.position.set(0.28, -0.26, -0.42);
-    // Meshy props often face +Z; FPS looks down -Z — rotate 180° yaw
-    clone.rotation.set(0.04, Math.PI, 0);
-    viewModelGroup.add(clone);
-    gunMesh = clone;
+    const inner = new THREE.Group(); inner.add(clone); wrap.add(inner);
+    inner.rotation.y = gunYawToForward(clone);
+    // scale so the weapon is ~0.62m long and centre it on the grip point
+    wrap.updateMatrixWorld(true);
+    let bb = meshOnlyBounds(inner); const sz = new THREE.Vector3(); bb.getSize(sz);
+    const sc = 0.56 / Math.max(0.05, sz.z); inner.scale.setScalar(sc);
+    wrap.updateMatrixWorld(true); bb = meshOnlyBounds(inner);
+    const ctr = new THREE.Vector3(); bb.getCenter(ctr);
+    inner.position.set(-ctr.x, -ctr.y, -ctr.z - 0.2);
+    viewModelGroup.add(wrap); gunMesh = wrap;
     muzzleAnchor = new THREE.Object3D();
-    const tip = findMuzzleLocalOffset(clone);
-    // tip is in clone local space after rotation; if tip.z is positive after 180 rot, flip
-    muzzleAnchor.position.copy(tip);
-    if (muzzleAnchor.position.z > -0.15) muzzleAnchor.position.z = -Math.abs(muzzleAnchor.position.z) - 0.2;
-    clone.add(muzzleAnchor);
+    muzzleAnchor.position.copy(findMuzzleLocalOffset(wrap));
+    wrap.add(muzzleAnchor);
   } else if (STATE.currentWeapon === 0) {
     gunMesh = buildProceduralPulseCannon();
     viewModelGroup.add(gunMesh);
@@ -1412,6 +1837,16 @@ function normalizeMeshyScene(model, targetHeight, opts = {}) {
   model.rotation.set(0, 0, 0);
   model.scale.set(1, 1, 1);
   model.updateMatrixWorld(true);
+  let skinned = false; model.traverse(c => { if (c.isSkinnedMesh) skinned = true; });
+  if (skinned) {
+    // skinned meshes render through bones; geometry bind-space bounds are the true size (matrixWorld of the mesh is ignored by skinning)
+    const sb = new THREE.Box3(); let any = false;
+    model.traverse(c => { if (c.isSkinnedMesh) { c.frustumCulled = false; c.geometry.computeBoundingBox(); if (!any) { sb.copy(c.geometry.boundingBox); any = true; } else sb.union(c.geometry.boundingBox); } });
+    const sz = new THREE.Vector3(); sb.getSize(sz);
+    const sc = targetHeight / Math.max(0.01, sz.y);
+    model.scale.setScalar(sc); model.position.y = -sb.min.y * sc; model.updateMatrixWorld(true);
+    return { height: targetHeight, radius: Math.max(0.55, Math.max(sz.x, sz.z) * sc * 0.35), size: sz.multiplyScalar(sc) };
+  }
   let box = meshOnlyBounds(model);
   const size = new THREE.Vector3(); box.getSize(size);
   const h = Math.max(0.01, size.y);
@@ -1441,7 +1876,16 @@ function autoLoadMeshyAssets() {
     { file: 'models/crate.glb', role: 'prop:crate', height: 1.2 },
     { file: 'models/server_rack.glb', role: 'prop:server_rack', height: 2.4 },
     { file: 'models/barrel.glb', role: 'prop:barrel', height: 1.1 },
-    { file: 'models/pipe_vent.glb', role: 'prop:pipe_vent', height: 1.4 }
+    { file: 'models/pipe_vent.glb', role: 'prop:pipe_vent', height: 1.4 },
+    { file: 'models/security_desk.glb', role: 'prop:security_desk', height: 1.1 },
+    { file: 'models/office_chair.glb', role: 'prop:office_chair', height: 1.1 },
+    { file: 'models/desk_monitors.glb', role: 'prop:desk_monitors', height: 0.6 },
+    { file: 'models/filing_cabinet.glb', role: 'prop:filing_cabinet', height: 1.3 },
+    { file: 'models/cooling_unit.glb', role: 'prop:cooling_unit', height: 2.1 },
+    { file: 'models/ups_cabinet.glb', role: 'prop:ups_cabinet', height: 1.9 },
+    { file: 'models/cell_door.glb', role: 'prop:cell_door', height: 4.2 },
+    { file: 'models/cell_bench.glb', role: 'prop:cell_bench', height: 0.6 },
+    { file: 'models/wall_terminal.glb', role: 'prop:wall_terminal', height: 0.8 }
   ];
   let loaded = 0;
   return Promise.all(jobs.map(job => new Promise(async resolve => {
@@ -1454,6 +1898,7 @@ function autoLoadMeshyAssets() {
         const model = gltf.scene || gltf.scenes?.[0];
         if (!model) { resolve(); return; }
         const metrics = normalizeMeshyScene(model, job.height);
+        model.traverse(c => { if (c.isMesh && c.material) (Array.isArray(c.material) ? c.material : [c.material]).forEach(brightenMat); });
         const tpl = {
           scene: model,
           animations: gltf.animations || [],
@@ -1533,7 +1978,7 @@ function spawnMinotaurBossForLevel() {
   const rig = MESHY_TEMPLATES.boss
     ? buildRigFromMeshyTemplate(MESHY_TEMPLATES.boss, '👹 CYBER-MINOTAUR OVERLORD', true)
     : createMinotaurBoss();
-  rig.root.position.set(0, 0, -54); scene.add(rig.root);
+  rig.root.position.set(0, 0, -54); scene.add(rig.root); STATE.combatActive = true;
   const maxHp = Math.round(cfg.bossHp * STATE.botSkill);
   rig.hb.update(maxHp, maxHp);
   BOTS.push({
@@ -1544,23 +1989,6 @@ function spawnMinotaurBossForLevel() {
   });
   document.getElementById('boss-hud').classList.remove('hidden');
   showBanner('⚠ MINOTAUR OVERLORD AWAKENED ⚠', 'Slay the Cyber-Minotaur to drop the North Elevator Keycard!', 5000);
-  updateHUD();
-}
-
-function startCampaignLevel(lvl) {
-  STATE.level = lvl; STATE.bossSpawned = false; STATE.hasAccessKey = false;
-  if (ACCESS_KEY) { arenaGroup.remove(ACCESS_KEY.group); ACCESS_KEY = null; }
-  document.getElementById('boss-hud').classList.add('hidden');
-  document.getElementById('keycard-status').textContent = '🔒 ELEVATOR LOCKED';
-  document.getElementById('keycard-status').className = 'text-[10px] text-amber-300 font-bold block';
-  const cfg = LEVEL_CONFIGS[lvl] || LEVEL_CONFIGS[1];
-  { const fc = liftFog(cfg.fogColor); scene.background.copy(fc); scene.fog.color.copy(fc); } hemiLight.color.setHex(cfg.hemiTop);
-  buildArenaMap(); clearBots();
-  STATE.player.x = 0; STATE.player.y = 0; STATE.player.z = 64; STATE.player.yaw = 0; STATE.player.pitch = 0;
-  const count = Math.min(cfg.botCount, BOT_ROSTER.length);
-  for (let i = 0; i < count; i++) spawnBotFromArchetype(BOT_ROSTER[i], cfg.speedMult * STATE.botSkill);
-  showBanner(cfg.name, cfg.sub, 4500);
-  SFX.playRadioChatter('All Strogg sentinel units: intruder detected in Data Center 09!', 'SECTOR COMMAND');
   updateHUD();
 }
 
@@ -1700,10 +2128,10 @@ function finishBotKill(b) {
     document.getElementById('boss-hud').classList.add('hidden');
     spawnAccessKey(b.x, b.z);
     SFX.playRadioChatter("Alert! The Minotaur Enforcer is down. Lock the north elevator!", 'CENTRAL AI COMMAND');
-    showBanner('🔑 ACCESS KEYCARD DROPPED!', 'Collect the golden keycard and enter the North Core Elevator!', 5000);
+    showBanner('🔑 EXIT KEYCARD DROPPED!', 'Grab the golden keycard and take the north exit to the next level!', 5000);
   } else {
     SFX.playRadioChatter(`${b.name} eliminated! All Strogg sentinels converge!`, 'OVERWATCH COMMS');
-    if (BOTS.filter(x => !x.dying).length === 0 && !STATE.bossSpawned) setTimeout(() => spawnMinotaurBossForLevel(), 900);
+    if (BOTS.filter(x => !x.dying).length === 0) { if (STATE.floor === 3) { if (!STATE.bossSpawned) setTimeout(() => spawnMinotaurBossForLevel(), 900); } else unlockExit(); }
   }
   updateHUD();
 }
@@ -1728,7 +2156,7 @@ function damagePlayer(dmg) {
   const flash = document.getElementById('damage-flash'); flash.style.opacity = '1'; setTimeout(() => (flash.style.opacity = '0'), 160);
   updateHUD();
   if (STATE.player.health <= 0) {
-    STATE.player.health = 100; STATE.player.armor = 50; startCampaignLevel(STATE.level);
+    STATE.player.health = 100; STATE.player.armor = 50; startFloor(STATE.level, STATE.floor || 0);
   }
 }
 function addKillFeed(msg) {
@@ -1848,7 +2276,7 @@ bindHoldButton(document.getElementById('btn-reload'), () => {
 }, null);
 
 function updateHUD() {
-  document.getElementById('level-badge').textContent = `SECTOR ${STATE.level} / ${STATE.maxLevels}`;
+  document.getElementById('level-badge').textContent = `LEVEL ${STATE.level} · FLOOR ${FLOOR_NAMES[STATE.floor || 0]}`;
   document.getElementById('bots-remaining').textContent = BOTS.filter(b => !b.dying).length;
   document.getElementById('hud-health').textContent = Math.max(0, Math.round(STATE.player.health));
   document.getElementById('bar-health').style.width = `${Math.max(0, STATE.player.health)}%`;
@@ -1966,13 +2394,7 @@ function gameLoop(now) {
     ELEVATOR_STATE.doorRight.position.x = ELEVATOR_STATE.x + 1.6 + ELEVATOR_STATE.progress * 2.2;
     if (Math.hypot(STATE.player.x - ELEVATOR_STATE.x, STATE.player.z - ELEVATOR_STATE.z) < 3.4) {
       SFX.playKeyPickup();
-      if (STATE.level < STATE.maxLevels) startCampaignLevel(STATE.level + 1);
-      else {
-        STATE.running = false; document.exitPointerLock?.();
-        document.getElementById('modal-title').textContent = `⚡ ${GAME_BRAND_TITLE}: EMP PERIMETER SECURED! ⚡`;
-        document.getElementById('modal-desc').innerHTML = `<b class="text-emerald-400">Moses Protocol Terminated.</b> Strogg sentinel grid offline. EMP lines under Human Resistance command!`;
-        document.getElementById('game-modal').classList.remove('hidden');
-      }
+      advanceFloor();
     }
   }
 
@@ -2035,6 +2457,7 @@ function gameLoop(now) {
         damagePlayer(p.damage); spawnImpact(p.x, p.y, p.z, 0xef4444); hit = true;
       }
     }
+    if (hit && p.fromPlayer && CELL_DOOR && !CELL_DOOR.open && Math.abs(p.z - CELL_DOOR.z) < 1.3 && Math.abs(p.x - CELL_DOOR.x) < CELL_DOOR.w / 2 + 0.5) damageCellDoor(p.damage);
     if (hit) {
       if (p.fromPlayer && p.splash > 0) triggerExplosion(p.x, Math.max(0.1, p.y), p.z, p.splash, p.damage);
       else if (p.fromPlayer) spawnImpact(p.x, Math.max(0.05, p.y), p.z, 0xfbbf24);
@@ -2073,6 +2496,7 @@ function gameLoop(now) {
       if (b.deathTimer <= 0) finishBotKill(b);
       return;
     }
+    if (!STATE.combatActive) { b.rig.root.position.set(b.x, b.y, b.z); return; }
     const dxToP = STATE.player.x - b.x; const dzToP = STATE.player.z - b.z; const dist = Math.hypot(dxToP, dzToP);
     b.yaw = Math.atan2(dxToP, dzToP); b.rig.root.rotation.y = b.yaw;
     if (b.isHumanGuard && dist < 48) {
@@ -2129,17 +2553,18 @@ function gameLoop(now) {
 
     b.fireCooldown -= dt;
     if (b.fireCooldown <= 0 && dist < 58) {
-      b.fireCooldown = b.isBoss ? 0.95 : (1.15 / STATE.botSkill);
+      b.fireCooldown = b.isBoss ? 0.95 : (1.15 / (STATE.botSkill * (STATE.diff?.fire || 1)));
       const sy = b.y + (b.isBoss ? 2.1 : 1.5);
       const muzzle = new THREE.Vector3(b.x + Math.sin(b.yaw) * 0.8, sy, b.z + Math.cos(b.yaw) * 0.8);
       spawnMuzzleFlash(muzzle, b.isBoss ? 0xff3300 : 0xf97316, false);
       const orb = new THREE.Mesh(new THREE.SphereGeometry(b.isBoss ? 0.24 : 0.11, 8, 8), new THREE.MeshBasicMaterial({ color: b.isBoss ? 0xff3300 : 0xf97316, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending }));
       orb.position.copy(muzzle); scene.add(orb);
       const aimDir = new THREE.Vector3(STATE.player.x - b.x, (STATE.player.y + 1.2) - sy, STATE.player.z - b.z).normalize();
-      PROJECTILES.push({ mesh: orb, x: muzzle.x, y: sy, z: muzzle.z, vx: aimDir.x * 38, vy: aimDir.y * 38, vz: aimDir.z * 38, damage: b.isBoss ? 22 : 11, splash: 0, fromPlayer: false, life: 2.5 });
+      PROJECTILES.push({ mesh: orb, x: muzzle.x, y: sy, z: muzzle.z, vx: aimDir.x * 38, vy: aimDir.y * 38, vz: aimDir.z * 38, damage: Math.round((b.isBoss ? 22 : 11) * (STATE.diff?.dmg || 1)), splash: 0, fromPlayer: false, life: 2.5 });
     }
   });
 
+  updateFloorLogic(dt, now);
   drawMinimap();
   renderer.render(scene, camera);
 }
@@ -2588,10 +3013,11 @@ window.addEventListener('orientationchange', () => setTimeout(fitGameViewport, 1
 if (window.visualViewport) { window.visualViewport.addEventListener('resize', fitGameViewport); window.visualViewport.addEventListener('scroll', fitGameViewport); }
 
 // Boot — load Meshy GLBs first so arena props / viewmodel / sentinels use them
+{ const L0 = genFloorLayout(1, 0); MAP_OBJECTS = L0.objects; FLOOR_INFO = L0.info; }
 buildArenaMap(); buildViewModel(); renderWeaponBar(); fitGameViewport();
 requestAnimationFrame(gameLoop);
 autoLoadMeshyAssets().then(() => {
-  buildArenaMap();
+  if (!STATE.running) buildArenaMap();
   buildViewModel();
   const bar = document.getElementById('splash-bar'); if (bar) bar.style.width = '100%';
   const st = document.getElementById('splash-status');
