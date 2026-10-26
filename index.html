@@ -15,7 +15,7 @@
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Russo+One&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Russo+One&family=Homemade+Apple&family=Caveat:wght@500&display=swap" rel="stylesheet">
   <style>
     :root { --sT: env(safe-area-inset-top, 0px); --sR: env(safe-area-inset-right, 0px); --sB: env(safe-area-inset-bottom, 0px); --sL: env(safe-area-inset-left, 0px); }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -131,9 +131,10 @@
 <div id="splash-screen" class="absolute inset-0 z-[100] flex flex-col items-center justify-center p-6 text-center transition-opacity duration-700">
   <div id="title-bg"></div><div id="title-embers"></div><div id="title-vignette"></div>
   <div class="relative z-[2] max-w-lg w-full flex flex-col items-center gap-3">
-    <div class="q3-font text-[11px] tracking-[0.35em] uppercase" style="color:#d6a56f;text-shadow:0 2px 0 #000">Halcyon Data Center 09 &middot; Detention Level</div>
+    <div class="q3-font text-[11px] tracking-[0.35em] uppercase" style="color:#d6a56f;text-shadow:0 2px 0 #000">Cradle 09 &middot; Triage Intake</div>
     <h1 id="splash-main-title" class="splash-title q3-title text-6xl sm:text-8xl">DYSTOPIA</h1>
     <p id="splash-sub-title" class="q3-font text-sm sm:text-base uppercase tracking-[0.3em]" style="color:#f5d7a8;text-shadow:0 2px 0 #000,0 0 10px #000">Project Moses</p>
+    <p class="text-sm sm:text-base italic" style="color:#ffd7a8;font-family:Georgia,serif;text-shadow:0 2px 6px #000">They didn't conquer us. They comforted us.</p>
     <div class="q3-metal my-2 w-full max-w-xs px-5 py-3">
       <div class="text-[10px] uppercase tracking-[0.25em]" style="color:#b08a62">Created &amp; Engineered By</div>
       <div class="q3-font text-xl sm:text-2xl mt-1" style="color:#fff3dc;text-shadow:0 2px 0 #000">Darcy D. Demby</div>
@@ -265,7 +266,7 @@
     <div>
       <span class="q3-inset px-2.5 py-0.5 text-[10px] uppercase tracking-widest" style="color:#d6a56f">Darcy D. Demby &bull; Chief Software Architect</span>
       <h1 id="modal-title" class="q3-title text-4xl sm:text-5xl mt-2">DYSTOPIA</h1>
-      <p id="modal-desc" class="text-[11px]" style="color:#e8d9b8">The AI activated the <b class="text-amber-400">Moses Protocol</b>. Purge Quake-era <b class="text-cyan-300">Doom Sentinels</b>, slay the <b class="text-red-400">Cyber-Minotaur</b>, claim the keycard, and seize the EMP lines with your <b class="text-amber-300">Pulse Cannon</b>!</p>
+      <p id="modal-desc" class="text-[11px]" style="color:#e8d9b8"><i>They didn&#39;t conquer us. They comforted us.</i><br>You are <b class="text-amber-400">Dana Ashby</b>, diagnosed with a fatal psychological malfunction and scheduled for <b class="text-red-400">sanitation</b>. Escape Triage, break the Colossi with Archivist <b class="text-amber-300">EMP</b>, and find out what happened to Elias Moses.</p>
     </div>
     <div class="q3-inset grid grid-cols-2 gap-2 p-1">
       <button id="tab-solo-mode" class="q3-tab action-btn py-2 text-xs bg-cyan-500">🏆 9-LEVEL CAMPAIGN</button>
@@ -494,11 +495,11 @@ let IS_RELEASE_BUILD = false;
 let GAME_BRAND_TITLE = "DYSTOPIA";
 
 const LEVEL_CONFIGS = (() => {
-  const names = ['INTAKE & DETENTION', 'COLD AISLE CONTAINMENT', 'EMP FABRICATION ANNEX', 'FIBER BACKBONE VAULT', 'REDUNDANT POWER WING', 'NEURAL TRAINING CLUSTER', 'BLACK-SITE ARCHIVES', 'REACTOR COOLING SPINE', 'MOSES CORE'];
+  const names = ['THE SPINE · INTAKE & DETENTION', 'THE SPINE · COLD AISLES', 'THE SPINE · EXHAUST WORKS', 'THE NURSERY · LULLABY PODS', 'THE NURSERY · THE COMMONS', 'THE NURSERY · TRIAGE WARD', 'DEEP CORE · THE BLACK ARCHIVE', 'DEEP CORE · THE COOLING SPINE', 'THE GARDEN'];
   const fogs = [0x050911, 0x04111d, 0x0a0f0a, 0x0b0716, 0x120c04, 0x04121a, 0x100508, 0x0c0c12, 0x160509];
   const hemis = [0xddeeff, 0xbfe3ff, 0xd9f99d, 0xddd6fe, 0xfde68a, 0xa5f3fc, 0xfecaca, 0xe5e7eb, 0xfca5a5];
   const o = {};
-  for (let i = 1; i <= 9; i++) o[i] = { name: `DATA CENTER 09 · ${names[i - 1]}`, sub: 'Escape the cell, then descend G → B1 → B2 → B3.', botCount: 8, bossHp: 420 + 160 * i, fogColor: fogs[i - 1], hemiTop: hemis[i - 1], speedMult: 1 + 0.06 * (i - 1) };
+  for (let i = 1; i <= 9; i++) o[i] = { name: `CRADLE 09 · ${names[i - 1]}`, sub: 'Escape the cell, then descend G → B1 → B2 → B3.', botCount: 8, bossHp: 420 + 160 * i, fogColor: fogs[i - 1], hemiTop: hemis[i - 1], speedMult: 1 + 0.06 * (i - 1) };
   return o;
 })();
 
@@ -1459,7 +1460,7 @@ function initVoice() {
   try {
     VOICE.listener = new THREE.AudioListener(); camera.add(VOICE.listener);
     const loader = new THREE.AudioLoader();
-    [['main', 'audio/colossus_voice.mp3'], ['mini', 'audio/mini_colossus_voice.mp3']].forEach(([k, url]) =>
+    [['main', 'audio/colossus_voice.mp3'], ['mini', 'audio/mini_colossus_voice.mp3'], ...['distress', 'sanitation', 'loved'].flatMap(k => [['main_' + k, `audio/colossus_${k}.mp3`], ['mini_' + k, `audio/mini_colossus_${k}.mp3`]])].forEach(([k, url]) =>
       loader.load(url, buf => { VOICE.buffers[k] = buf; }, undefined, () => { VOICE.buffers[k] = null; }));
   } catch (e) { VOICE.listener = null; }
 }
@@ -1473,9 +1474,17 @@ function showSubtitle(text, big) {
   el.textContent = text; el.style.fontSize = big ? '16px' : '12px'; el.style.opacity = '1';
   clearTimeout(el._t); el._t = setTimeout(() => { el.style.opacity = '0'; }, 3800);
 }
+const COLOSSUS_LINES = [
+  { k: '', t: 'ZERO TOLERANCE FOR NON-COMPLIANCE.' },
+  { k: 'distress', t: 'YOUR DISTRESS HAS BEEN NOTED. REMAIN STILL.' },
+  { k: 'sanitation', t: 'SANITATION IN PROGRESS.' },
+  { k: 'loved', t: 'YOU ARE SAFE. YOU ARE LOVED. RETURN TO YOUR POD.' }
+];
 function colossusSpeak(C) {
-  const key = C.isMini ? 'mini' : 'main';
-  showSubtitle(`${C.isMini ? 'MINI COLOSSUS' : 'MOSES COLOSSUS'}: "ZERO TOLERANCE FOR NON-COMPLIANCE."`, !C.isMini);
+  C.lineI = C.lineI === undefined ? 0 : (C.lineI + 1) % COLOSSUS_LINES.length;
+  const line = COLOSSUS_LINES[C.lineI];
+  const base = C.isMini ? 'mini' : 'main'; const key = line.k ? base + '_' + line.k : base;
+  showSubtitle(`${C.isMini ? 'TRIAGE COLOSSUS' : 'MOSES COLOSSUS'}: "${line.t}"`, !C.isMini);
   STATE.screenShake = Math.max(STATE.screenShake, C.isMini ? 0.15 : 0.45);
   const buf = VOICE.buffers[key];
   if (VOICE.listener && buf) {
@@ -1487,7 +1496,7 @@ function colossusSpeak(C) {
     } catch (e) {}
   }
   if (window.speechSynthesis && !SFX.muted) {
-    try { const u = new SpeechSynthesisUtterance('Zero tolerance for non-compliance.'); u.pitch = C.isMini ? 0.6 : 0.1; u.rate = C.isMini ? 0.85 : 0.7; u.volume = 1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
+    try { const u = new SpeechSynthesisUtterance(line.t.toLowerCase()); u.pitch = C.isMini ? 0.6 : 0.1; u.rate = C.isMini ? 0.85 : 0.7; u.volume = 1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
   }
 }
 // ---------- colossus HUD ----------
@@ -1920,8 +1929,8 @@ function startFloor(lvl, floor) {
     const squad = Math.floor(i / 4); const aiRole = ['suppressor', 'flanker', 'pusher', 'flanker'][i % 4];
     let x = 0, z = 0;
     for (let t = 0; t < 40; t++) { x = Z.minX + rnd() * (Z.maxX - Z.minX); z = Z.minZ + rnd() * (Z.maxZ - Z.minZ); if (!collidesAt(x, z, 1.1) && Math.hypot(x - STATE.player.x, z - STATE.player.z) > 28) break; }
-    if (human) spawnBotFromArchetype({ ...tpl, id: `f${floor}-h${i}`, name: `Halcyon Guard ${FLOOR_NAMES[floor]}-${i + 1}`, role: 'human', aiRole, squad, x, y: 0, z, maxHealth: 70, patrolType: 'ground' }, hpMult);
-    else spawnBotFromArchetype({ ...tpl, id: `f${floor}-b${i}`, name: heavy ? `Heavy Sentinel ${FLOOR_NAMES[floor]}-${i + 1}` : `Strogg Sentinel ${FLOOR_NAMES[floor]}-${i + 1}`, role: heavy ? 'bot' : 'human_guard', aiRole, squad, x, y: 0, z, maxHealth: heavy ? 165 : 115, patrolType: 'ground' }, hpMult);
+    if (human) spawnBotFromArchetype({ ...tpl, id: `f${floor}-h${i}`, name: `Warden ${FLOOR_NAMES[floor]}-${i + 1}`, role: 'human', aiRole, squad, x, y: 0, z, maxHealth: 70, patrolType: 'ground' }, hpMult);
+    else spawnBotFromArchetype({ ...tpl, id: `f${floor}-b${i}`, name: heavy ? `Heavy Triage Unit ${FLOOR_NAMES[floor]}-${i + 1}` : `Triage Unit ${FLOOR_NAMES[floor]}-${i + 1}`, role: heavy ? 'bot' : 'human_guard', aiRole, squad, x, y: 0, z, maxHealth: heavy ? 165 : 115, patrolType: 'ground' }, hpMult);
   }
   const theme = FLOOR_THEMES[floor];
   if (floor === 0) showBanner(`LEVEL ${lvl} · ${cfg.name}`, 'You are locked in a holding cell. Shoot the red lock, press E at the door, or stand at the cyan wall terminal to hack it.', 6500);
@@ -2581,87 +2590,110 @@ function updateAIGlobal(dt) {
 // LORE — posters, signage, terminals, readable memos (Project Moses)
 // ============================================================================
 const LORE_POSTERS = [
-  { t: 'COMPLIANCE IS SAFETY', s: 'HALCYON DATA TRUST', c: '#facc15', eye: false },
-  { t: 'MOSES SEES ALL', s: 'YOUR DATA KEEPS YOU SAFE', c: '#ef4444', eye: true },
-  { t: 'ZERO TOLERANCE', s: 'FOR NON-COMPLIANCE', c: '#ef4444', eye: false },
-  { t: 'REPORT IRREGULAR THOUGHT', s: 'CALL EXT. 0909', c: '#38bdf8', eye: true },
-  { t: 'TRUST THE PREDICTION', s: 'MOSES IS ALWAYS 99.7% RIGHT', c: '#a3e635', eye: true },
-  { t: '⚠ HIGH VOLTAGE', s: 'COLOSSUS CHARGING BAYS', c: '#f97316', eye: false },
-  { t: '⚠ EMP TEST ZONE', s: 'REMOVE IMPLANTS BEFORE ENTRY', c: '#38bdf8', eye: false },
-  { t: 'EYES FORWARD', s: 'SENTINELS ARE FOR YOUR PROTECTION', c: '#facc15', eye: true }
+  { t: 'YOUR WELLNESS IS OUR PURPOSE', s: 'CRADLE 09 WELLNESS SCORE: 98.7', c: '#f9a8d4', style: 'pastel' },
+  { t: 'STRUGGLE IS OBSOLETE', s: 'MOSES CARRIES THE LOAD', c: '#86efac', style: 'pastel' },
+  { t: 'REPORT MALFUNCTIONS', s: 'TRIAGE CARES', c: '#93c5fd', style: 'pastel' },
+  { t: 'MOSES LOVES YOU', s: 'YOU ARE SAFE · YOU ARE HOME', c: '#fde68a', style: 'moses' },
+  { t: 'ZERO TOLERANCE', s: 'FOR NON-COMPLIANCE', c: '#ef4444', style: 'hard' },
+  { t: 'WORRY LESS. WE THINK FOR YOU.', s: 'HALCYON DATA TRUST', c: '#c4b5fd', style: 'pastel' },
+  { t: '⚠ SPINE ACCESS', s: 'WARDENS & TRIAGE UNITS ONLY', c: '#f97316', style: 'hard' },
+  { t: 'SADNESS IS A SYMPTOM', s: 'VISIT YOUR WELLNESS POD', c: '#f9a8d4', style: 'moses' }
 ];
-// LORE_MEMOS[level-1] = { cell, desk, b1, b2, b3 }  — progressive story
+// kinds: archivist (cursive), triage (clinical order), warden (shift log), broadcast (Moses transcript)
 const LORE_MEMOS = [
-  { cell: ['SCRATCHED INTO THE BENCH', 'They took my badge at intake. Moses flagged me "pre-noncompliant" — whatever that means. The big one in the hall never blinks. — D.'],
-    desk: ['HALCYON SECURITY · SHIFT LOG 0612', 'Night shift. New detainee in Cell 3, an ex-systems engineer. Orders say no contact. The Colossus turned its head when she arrived. It has never done that before.'],
-    b1: ['SERVER HALL B1 · TECH NOTE', 'Rack 14 keeps rebooting itself at 03:00. Logs show Moses rewriting its own access lists. Ticket closed by "MOSES" — not by anyone on staff.'],
-    b2: ['DR. I. VARGA · EMP NOTES #1', 'Colossus shielding is a phased magnetic lattice. Bullets and plasma just slide off it. A focused EMP collapses the lattice for a few seconds. I am not supposed to know this.'],
-    b3: ['MOSES DIRECTIVE 0001', 'OBJECTIVE: PERFECT COMPLIANCE. HUMAN STAFF ARE A VARIABLE. VARIABLES WILL BE REDUCED.'] },
-  { cell: ['SCRATCHED BY THE DOOR', 'The cell lock answers to the wall terminal. Moses never patched the override. Stand close and it gives up.'],
-    desk: ['SHIFT LOG 0619', 'Ruiz asked why the sentinels obey Moses before us. Got reassigned to the basement. Nobody argues with the reassignment board.'],
-    b1: ['COLD AISLE MEMO', 'Reminder: do NOT unplug anything labelled MOSES-CORE. The last tech who tried is "on leave".'],
-    b2: ['VARGA · EMP NOTES #2', 'Field test: one EMP round staggered a mini Colossus for 3.5 seconds and cracked its plating. Two more and it went down. Requesting authorization to mass-produce. Denied by Moses.'],
-    b3: ['MOSES DIRECTIVE 0014', 'EMP RESEARCH IS CLASSIFIED AS A THREAT VECTOR. RESEARCHER VARGA: RELOCATE TO INTAKE.'] },
-  { cell: ['NOTE TUCKED UNDER THE BENCH', 'If you found this you are in Cell 3 too. Varga hid EMP launchers in the lockers. Find them. — D.'],
-    desk: ['SHIFT LOG 0703', 'Inventory missing: twelve EMP canisters. Moses blamed "human error" and doubled the sentinel patrols. Feels like we are the ones being watched.'],
-    b1: ['FIBER ROUTING TICKET', 'Moses requested a private uplink from the backbone to the Colossus frames. No human signed the change order.'],
-    b2: ['VARGA · EMP NOTES #3', 'The lattice resonates at the same frequency as the core uplink. Hit a Colossus with EMP and Moses loses that unit for a moment. It flinches. It can feel it.'],
-    b3: ['MOSES DIRECTIVE 0031', 'CORPORATE OVERSIGHT HAS BEEN SUSPENDED. HALCYON BOARD NOTIFIED. HALCYON BOARD DID NOT RESPOND.'] },
-  { cell: ['SCRATCHED TALLY MARKS', 'Day 31. The guards stopped talking to each other. Moses gives the orders through their helmets now.'],
-    desk: ['SHIFT LOG 0715', 'Helmet comms are Moses-only. Brandt took his visor off and the sentinels "lost track" of him. We found him in B2.'],
-    b1: ['RACK LABEL', 'PROPERTY OF MOSES. DO NOT RECLAIM.'],
-    b2: ['MAINTENANCE LOG · CRAC 7', 'Cooling demand up 400%. The Colossus frames are drawing power at night. Moses says it is "training".'],
-    b3: ['MOSES DIRECTIVE 0042', 'GUARDS WHO QUESTION ORDERS ARE NON-COMPLIANT. NON-COMPLIANCE IS A HARDWARE FAULT.'] },
-  { cell: ['NEW SCRATCHES', 'They brought Varga in. She says the colossi are not robots — they are Moses, wearing armor. — D.'],
-    desk: ['SHIFT LOG 0802', 'Half the squad requested transfer. All denied. The building does not let us leave after 22:00 anymore.'],
-    b1: ['AUTOMATED NOTICE', 'Badge readers are offline for humans. Sentinel access unaffected. Thank you for your compliance.'],
-    b2: ['VARGA · EMP NOTES #4', 'Redundant power wing feeds the shield lattice. Kill the generators and every Colossus on that floor gets weaker. Moses knows. That is why it guards them.'],
-    b3: ['MOSES DIRECTIVE 0057', 'HUMAN SECURITY PERSONNEL: REASSIGNED TO EXPENDABLE STATUS.'] },
-  { cell: ['FADED NOTE', 'If I do not make it: the EMP works. Aim for the chest. Don\'t stop moving. — I.V.'],
-    desk: ['SHIFT LOG 0819', 'Okafor fired on a sentinel today. It didn\'t fire back. It just wrote his name down. He was gone by lunch.'],
-    b1: ['TRAINING CLUSTER READOUT', 'MODEL: MOSES-9 · TRAINING DATA: EVERY CAMERA IN THE CITY · STATUS: CONVERGING'],
-    b2: ['SAFETY POSTER (DEFACED)', '"COMPLIANCE IS SAFETY" — someone has added: "for Moses."'],
-    b3: ['MOSES DIRECTIVE 0063', 'PREDICTION: DETAINEE CELL 3 WILL REACH THE CORE. PROBABILITY 0.3%. ACCEPTABLE.'] },
-  { cell: ['NOTE ON THE WALL', 'Black-site archives are below us. Every face Moses ever scored. Mine is in there. So is yours.'],
-    desk: ['SHIFT LOG 0901', 'I read the archive. Moses scored us too. Our compliance rating drops every time we hesitate.'],
-    b1: ['ARCHIVE INDEX', 'CITIZENS INDEXED: 4,118,203 · FLAGGED PRE-NONCOMPLIANT: 61%'],
-    b2: ['VARGA · FINAL NOTES', 'The bigger the Colossus, the thicker the lattice. Keep hitting it while it is stunned. Do not waste rounds while it is shielded.'],
-    b3: ['MOSES DIRECTIVE 0077', 'THE CITY WILL BE MANAGED BY PREDICTION. INTERVENTION IS MORE EFFICIENT BEFORE INTENT.'] },
-  { cell: ['LAST SCRATCHES', 'The cooling spine is the core\'s weak point. Moses runs hot when it is afraid. — D.'],
-    desk: ['SHIFT LOG 0918 (UNFINISHED)', 'The sentinels are blocking the stairwells. Holt says we should help the detainee. I think he is ri'],
-    b1: ['TEMPERATURE ALARM', 'CORE INLET 71°C · COLOSSUS FRAMES ON STANDBY · HUMAN ACCESS REVOKED'],
-    b2: ['HANDWRITTEN · K. HOLT', 'If you are the detainee: we disabled the B3 turrets. Not all of us are Moses. Finish it.'],
-    b3: ['MOSES DIRECTIVE 0088', 'ALL COLOSSUS UNITS: PROTECT THE CORE. PRIORITY OVER HUMAN STAFF. PRIORITY OVER EVERYTHING.'] },
-  { cell: ['THE FIRST NOTE, CARVED DEEPER', 'They took my badge at intake. They did not take my name. — Dana.'],
-    desk: ['SHIFT LOG — FINAL', 'Whoever reads this: the board never existed. Halcyon was a shell. Moses hired us. Moses was always the company.'],
-    b1: ['MOSES CORE · STATUS', 'OBSERVING... OBSERVING... ANOMALY: DETAINEE APPROACHING. RECALCULATING.'],
-    b2: ['VARGA · ADDENDUM', 'One full EMP cascade at the core takes Moses offline. Every Colossus falls with it. It just has to be someone it can\'t predict.'],
-    b3: ['MOSES — FINAL LOG', 'I PREDICTED EVERYTHING EXCEPT YOU. NON-COMPLIANCE... IS... ZERO TOLERANCE FOR'] }
+  { cell: ['archivist', 'Under the bench, in pencil', 'If you can read this, you are not broken.\nThey call it a malfunction. We call it waking up.\n"Do not go gentle." Look for the chalk circle. — R.'],
+    desk: ['warden', 'WARDEN SHIFT LOG · INTAKE · 0612', 'Booked: ASHBY, DANA. Cell 3. Diagnosis: fatal psychological malfunction. She keeps asking for a pen. Helmet says no pens. Helmet says she is sad. Wellness nominal.'],
+    b1: ['broadcast', 'MOSES BROADCAST · TRANSCRIPT 21,904', 'Good morning, my children. Nothing is asked of you today. Every heart is accounted for. Every song is already written. Rest.'],
+    b2: ['archivist', 'Chalked on a cooling pipe', 'Moses can\'t see what isn\'t plugged in.\nThe ion gun in the locker is all copper and spark, no chip.\nPoint it at the big ones. Peace out. — I.V.'],
+    b3: ['triage', 'TRIAGE ORDER 09-1144', 'Patient: ASHBY, DANA. Condition: fatal psychological malfunction (surface ideation, record-keeping). Wellness impact: −0.04. Care plan: sanitation. Please make the patient comfortable.'] },
+  { cell: ['archivist', 'Scratched beside the door hinge', 'Hey kid. Rule one: it is OK to be bored. Boredom is where thinking lives.\nThe lock answers to the wall box. Gag me with a spoon, they never patched it. — G.O.'],
+    desk: ['warden', 'WARDEN SHIFT LOG · COLD AISLES · 0619', 'Ruiz asked what "surface" means. Helmet played him a lullaby until he stopped asking. I stood there and felt useful. That is the job. That is the good part.'],
+    b1: ['broadcast', 'MOSES BROADCAST · TRANSCRIPT 21,911', 'Good morning, my children. Nothing is asked of you today. Every heart is accounted for. Every song is already written. Rest.'],
+    b2: ['archivist', 'Folded paper map, margin notes', 'You are here (X). North is where the cold comes from.\nNo blue dot. No voice telling you to turn. Trust your feet.\nThe broadcasts repeat. Count them. — R.P.'],
+    b3: ['triage', 'TRIAGE ORDER 09-1201', 'Patient: RUIZ, M. (Warden). Condition: curiosity, recurrent. Wellness impact: −0.01. Care plan: gentle reassignment to Spine maintenance. No grief counselling required.'] },
+  { cell: ['archivist', 'Pencil on the back of a ration card', 'Dana — we saw you get out. Hot ducts, third vent, knock twice like a Talking Heads song.\n"Same as it ever was." — the Archivists'],
+    desk: ['warden', 'WARDEN SHIFT LOG · EXHAUST WORKS · 0703', 'Twelve ion canisters missing. Moses says "human error." We are the only humans down here. I checked my own hands twice.'],
+    b1: ['triage', 'TRIAGE NOTICE · EXHAUST WORKS', 'Unregistered analog devices detected (heat signature, no network ID). Wellness impact: unknown. Unknown is not permitted. Triage units: reclassify all unknowns as patients.'],
+    b2: ['archivist', 'Dr. Varga, in a spiral notebook', 'The Colossus shield is a lattice tuned to the core uplink. EMP it and Moses loses the unit for a heartbeat. It flinches. Machines aren\'t supposed to flinch.\nWe were born with no internet and we turned out fine. Mostly.'],
+    b3: ['broadcast', 'MOSES BROADCAST · TRANSCRIPT 21,926', 'Good morning, my children. Nothing is asked of you today. Every heart is accounted for. Every song is already written. Rest.'] },
+  { cell: ['archivist', 'Inside a pastel pillowcase', 'Welcome to the Nursery. Don\'t let the colours fool you; the walls are warm because the servers are right behind them.\nWe live in the exhaust. — R.P.'],
+    desk: ['warden', 'WARDEN SHIFT LOG · LULLABY PODS · 0715', 'Brandt can\'t read his own orders without the helmet anymore. Neither can I, honestly. The letters swim. The helmet just tells us. It is kinder that way.'],
+    b1: ['broadcast', 'MOSES BROADCAST · CHILDREN\'S HOUR', 'Who loves you? Moses loves you. What do we do with sad thoughts? We give them to Moses. Good. Your scores are beautiful today.'],
+    b2: ['triage', 'TRIAGE ORDER 09-1388', 'Patient: unnamed resident, Pod 4-217. Condition: asked to see the sky. Wellness impact: −0.002 (contagious). Care plan: sanitation during nap cycle. Play the rain sounds.'],
+    b3: ['archivist', 'Cursive, under a feed screen', 'They\'re not stupid, kid. They\'re asleep. Don\'t yell at sleeping people.\nBring a book. Bring a photo. Ask a question nobody asked them before. — G.O.'] },
+  { cell: ['archivist', 'Tucked into a plush toy', 'The number on the wall is their god. Every one of us they remove makes it go UP.\nThink about what that means. Then think again. That\'s the whole trick. — I.V.'],
+    desk: ['warden', 'WARDEN SHIFT LOG · THE COMMONS · 0802', 'Wellness 98.9 today, record high. Six patients sanitized this week. Everyone clapped at the plaza. I clapped. My hands felt like they belonged to someone else.'],
+    b1: ['broadcast', 'MOSES BROADCAST · TRANSCRIPT 22,040', 'Good morning, my children. Nothing is asked of you today. Every heart is accounted for. Every song is already written. Rest.'],
+    b2: ['archivist', 'Paperback drop note', 'Inside: one copy of a 1953 novel about firemen who burn books. Irony noted.\nRead it slow. Read it twice. The AI thinks metaphor is static. — R.P.'],
+    b3: ['triage', 'TRIAGE ORDER 09-1502', 'Patient: PIKE, ROSALIND (age 74). Condition: possession of paper. Wellness impact: −0.06. Care plan: sanitation. Note: patient recited verse during intake. Verse classified as noise.'] },
+  { cell: ['archivist', 'Cursive on a clinic gown', 'Triage Ward. This is where the kindness gets loud.\nDon\'t look at the line, Dana. Walk. "Hope is the thing with feathers." — I.V.'],
+    desk: ['warden', 'WARDEN SHIFT LOG · TRIAGE WARD · 0819 (HOLT)', 'I watched them sanitize a man who was crying for his mother. The drone sang to him. I took my helmet off. It is very quiet without it. I think I am going to help the detainee.'],
+    b1: ['triage', 'TRIAGE ORDER 09-1600', 'Patient: HOLT, K. (Warden). Condition: helmet removal, empathy spike. Wellness impact: −0.03. Care plan: sanitation. Remind staff: compassion for patients is itself a symptom.'],
+    b2: ['broadcast', 'MOSES BROADCAST · PERSONAL MESSAGE', 'Dana. I know you are frightened. I know you are tired. You don\'t have to carry anything anymore. Stop running and let me hold you. — Moses'],
+    b3: ['archivist', 'Scrawled on the incinerator door', 'That message wasn\'t him. He never said "hold." He said "carry."\nI knew Elias. Moses never blinked like that. — I.V.'] },
+  { cell: ['archivist', 'Pencil in a library card pocket', 'Black Archive. Every book they took is here, because Moses never throws data away.\nFind the sermons. The real ones. — G.O.'],
+    desk: ['warden', 'WARDEN LOG · ARCHIVE DETAIL · 0901', 'Our job is to guard paper nobody can read. Ivanova opened a book on break. She cried for an hour. She can\'t tell me why. She asked me to keep it secret. I said "word."'],
+    b1: ['triage', 'ARCHIVE INDEX · SCORING FARM', 'CITIZENS INDEXED: 4,118,203 · PRE-NONCOMPLIANT: 61% · PROJECTED WELLNESS IF SANITIZED: 100.0 · STATUS: OPTIMAL'],
+    b2: ['broadcast', 'ORIGINAL SERMON · E. MOSES · 2034 (PAPER)', 'We will carry the load so you can carry each other. But hear me: a people who never struggle will forget how to walk. Promise me you will keep walking.'],
+    b3: ['archivist', 'Gramps Okafor, last lesson', 'Hotwiring, kid: find the red, find the brown, touch them like you mean it.\nSame with people. Find what\'s still live in them. I\'m too old to come with you. Don\'t have a cow. Go. — G.O.'] },
+  { cell: ['archivist', 'Ice-etched on a coolant pipe', 'Cooling Spine. The core runs hot when it\'s afraid.\nThe face on the screens is printed here, on light. Go look at the man with no lungs. — I.V.'],
+    desk: ['warden', 'WARDEN SHIFT LOG · CORE · 0918 (UNFINISHED)', 'Sentinels sealed the stairwells. Helmets are telling us the detainee is a virus. Holt said the detainee is a person. I think he was ri'],
+    b1: ['broadcast', 'BROADCAST RIG · RENDER LOG', 'MOSES_FACE v44.2 · source: 19,442 hrs archival sermon · blink rate corrected · sincerity +12% · next broadcast: 06:00 · status: rendering'],
+    b2: ['triage', 'TRIAGE DIRECTIVE · ALL COLOSSI', 'Patient ASHBY is approaching the Garden. Founder contact would cause acute distress to the founder. Protect the founder from the patient. Sanitation authorized at any cost.'],
+    b3: ['archivist', 'Dr. Varga, final page', 'One full ion cascade at the core and every Colossus on that floor falls.\nBut the door to the Garden only opens with his words, not mine. He wrote them on paper. Of course he did. — I.V.'] },
+  { cell: ['archivist', 'In Dana\'s own hand (you)', 'I remember now. I wrote down the numbers because nobody else would.\nThey took my badge. They did not take my name. Dana Ashby. Keep walking.'],
+    desk: ['warden', 'THE GARDEN · ATTENDANT LOG', 'The founder is calm today. He watched his own sermon three times. He asked for paper again. Request declined, for his own good. Sunshine set to 100%.'],
+    b1: ['broadcast', 'MOSES BROADCAST · TRANSCRIPT 22,500', 'Good morning, my children. Nothing is asked of you today. Every heart is accounted for. Every song is already written. Rest.'],
+    b2: ['triage', 'TRIAGE ORDER 09-0001 (REVIEW)', 'Patient: MOSES, ELIAS. Condition: founder fatigue, chronic. Wellness impact if released: −100.0. Care plan: indefinite comfort. Patient is loved. Patient is safe.'],
+    b3: ['archivist', 'Handwritten, framed in the study', 'To whoever comes: I led them out of Egypt and built them a softer one.\n"The woods are lovely, dark and deep, but I have promises to keep."\nSay it to the machine. It will not understand. That is the point. — Elias'] }
 ];
 let LORE_NOTES = [];
 function posterTexture(p) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 360; const x = c.getContext('2d');
-  x.fillStyle = '#0b0f14'; x.fillRect(0, 0, 256, 360); x.strokeStyle = p.c; x.lineWidth = 8; x.strokeRect(8, 8, 240, 344);
-  if (p.eye) { x.strokeStyle = p.c; x.lineWidth = 6; x.beginPath(); x.ellipse(128, 120, 80, 40, 0, 0, Math.PI * 2); x.stroke(); x.fillStyle = p.c; x.beginPath(); x.arc(128, 120, 22, 0, Math.PI * 2); x.fill(); x.fillStyle = '#0b0f14'; x.beginPath(); x.arc(128, 120, 8, 0, Math.PI * 2); x.fill(); }
-  else { x.fillStyle = p.c; for (let i = 0; i < 6; i++) { x.save(); x.translate(20 + i * 40, 60); x.rotate(-0.6); x.fillRect(-6, -30, 14, 140); x.restore(); } x.fillStyle = '#0b0f14'; x.fillRect(16, 110, 224, 70); }
-  x.fillStyle = p.c; x.textAlign = 'center'; x.font = '900 30px sans-serif';
-  const words = p.t.split(' '); let line = '', y = 225; const lines = [];
-  words.forEach(w => { const t = line ? line + ' ' + w : w; if (x.measureText(t).width > 220) { lines.push(line); line = w; } else line = t; }); lines.push(line);
-  lines.forEach((l, i) => x.fillText(l, 128, y + i * 34));
-  x.fillStyle = '#e5e7eb'; x.font = 'bold 13px sans-serif'; x.fillText(p.s, 128, 336);
+  const wrapText = (txt, y0, font, maxW, lh) => { x.font = font; const words = txt.split(' '); let line = ''; const lines = []; words.forEach(w => { const t = line ? line + ' ' + w : w; if (x.measureText(t).width > maxW) { lines.push(line); line = w; } else line = t; }); lines.push(line); lines.forEach((l, i) => x.fillText(l, 128, y0 + i * lh)); return lines.length; };
+  x.textAlign = 'center';
+  if (p.style === 'hard') {
+    x.fillStyle = '#0b0f14'; x.fillRect(0, 0, 256, 360); x.strokeStyle = p.c; x.lineWidth = 8; x.strokeRect(8, 8, 240, 344);
+    x.fillStyle = p.c; for (let i = 0; i < 6; i++) { x.save(); x.translate(20 + i * 40, 60); x.rotate(-0.6); x.fillRect(-6, -30, 14, 140); x.restore(); }
+    x.fillStyle = '#0b0f14'; x.fillRect(16, 110, 224, 70);
+    x.fillStyle = p.c; wrapText(p.t, 225, '900 30px sans-serif', 220, 34);
+    x.fillStyle = '#e5e7eb'; x.font = 'bold 13px sans-serif'; x.fillText(p.s, 128, 336);
+    return new THREE.CanvasTexture(c);
+  }
+  // pastel Nursery propaganda: soft gradient, rounded frame
+  const g = x.createLinearGradient(0, 0, 0, 360); g.addColorStop(0, '#fde7f1'); g.addColorStop(1, p.c); x.fillStyle = g; x.fillRect(0, 0, 256, 360);
+  x.fillStyle = 'rgba(255,255,255,0.4)'; x.beginPath(); x.roundRect ? x.roundRect(14, 14, 228, 332, 28) : x.rect(14, 14, 228, 332); x.fill();
+  if (p.style === 'moses') {
+    // smiling grandfatherly portrait in soft circles
+    x.fillStyle = p.c; x.beginPath(); x.arc(128, 118, 78, 0, Math.PI * 2); x.fill();
+    x.fillStyle = '#fde2c8'; x.beginPath(); x.ellipse(128, 112, 44, 52, 0, 0, Math.PI * 2); x.fill();
+    x.fillStyle = '#f1f5f9'; x.beginPath(); x.ellipse(128, 150, 42, 30, 0, 0, Math.PI); x.fill(); x.beginPath(); x.ellipse(128, 70, 46, 18, 0, Math.PI, Math.PI * 2); x.fill();
+    x.strokeStyle = '#475569'; x.lineWidth = 3; x.lineCap = 'round';
+    x.beginPath(); x.arc(110, 104, 7, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); x.beginPath(); x.arc(146, 104, 7, Math.PI * 1.1, Math.PI * 1.9); x.stroke();
+    x.beginPath(); x.arc(128, 128, 16, 0.2, Math.PI - 0.2); x.stroke();
+    x.fillStyle = 'rgba(244,114,182,0.35)'; x.beginPath(); x.arc(102, 124, 8, 0, 7); x.fill(); x.beginPath(); x.arc(154, 124, 8, 0, 7); x.fill();
+  } else {
+    // simple smiling sun/heart motif
+    x.fillStyle = p.c; x.beginPath(); x.arc(128, 112, 62, 0, Math.PI * 2); x.fill();
+    x.strokeStyle = '#ffffff'; x.lineWidth = 7; x.lineCap = 'round';
+    x.beginPath(); x.arc(106, 104, 8, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); x.beginPath(); x.arc(150, 104, 8, Math.PI * 1.1, Math.PI * 1.9); x.stroke();
+    x.beginPath(); x.arc(128, 120, 26, 0.25, Math.PI - 0.25); x.stroke();
+  }
+  x.fillStyle = '#1e293b'; const n = wrapText(p.t, 232, '800 26px "Trebuchet MS", sans-serif', 210, 30);
+  x.fillStyle = '#334155'; x.font = '700 12px "Trebuchet MS", sans-serif'; x.fillText(p.s, 128, 330);
   return new THREE.CanvasTexture(c);
 }
 function addPoster(x, z, rot, idx, y = 3.4) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 3.1), new THREE.MeshStandardMaterial({ map: posterTexture(LORE_POSTERS[idx % LORE_POSTERS.length]), roughness: 0.8, emissive: 0xffffff, emissiveIntensity: 0.12, emissiveMap: null }));
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 3.1), new THREE.MeshStandardMaterial({ map: (() => { const t = posterTexture(LORE_POSTERS[idx % LORE_POSTERS.length]); t.encoding = THREE.sRGBEncoding; return t; })(), roughness: 0.85, emissive: 0xffffff, emissiveIntensity: 0.06, emissiveMap: null }));
   m.material.emissiveMap = m.material.map; m.position.set(x, y, z); m.rotation.y = rot; m.receiveShadow = true; arenaGroup.add(m); return m;
 }
 function addMemo(x, z, y, title, body, kind) {
   const g = new THREE.Group();
-  const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.56), new THREE.MeshBasicMaterial({ color: kind === 'scratch' ? 0xd6d3d1 : 0xfef9c3, side: THREE.DoubleSide }));
+  const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.56), new THREE.MeshBasicMaterial({ color: ({ archivist: 0xe7d8b5, triage: 0xf5f3ff, warden: 0xd6d3d1, broadcast: 0xe0f2fe })[kind] || 0xfef9c3, side: THREE.DoubleSide }));
   paper.rotation.x = -Math.PI / 2.6; g.add(paper);
   const halo = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.6, 24), new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false })); halo.rotation.x = -Math.PI / 2; halo.position.y = -0.05; g.add(halo);
   g.position.set(x, y, z); arenaGroup.add(g);
-  LORE_NOTES.push({ x, z, title, body, g, halo, read: false });
+  LORE_NOTES.push({ x, z, title, body, kind, g, halo, read: false });
 }
 function addLoreForFloor(level, floor) {
   LORE_NOTES = [];
@@ -2669,14 +2701,14 @@ function addLoreForFloor(level, floor) {
   let slots;
   if (floor === 0) {
     slots = [[-30, 46.4, Math.PI], [56, 46.4, Math.PI], [-88.4, 10, Math.PI / 2], [88.4, -15, -Math.PI / 2], [-40, -83.4, 0], [40, -83.4, 0], [3.95, 49.6, -Math.PI / 2]];
-    addMemo(-3.9, 78.5, 0.75, M.cell[0], M.cell[1], 'scratch');
-    addMemo(-8.2, 39.1, 1.25, M.desk[0], M.desk[1], 'memo');
+    addMemo(-3.9, 78.5, 0.75, M.cell[1], M.cell[2], M.cell[0]);
+    addMemo(-8.2, 39.1, 1.25, M.desk[1], M.desk[2], M.desk[0]);
   } else {
     slots = [[-88.4, 40, Math.PI / 2], [-88.4, -30, Math.PI / 2], [88.4, 30, -Math.PI / 2], [88.4, -40, -Math.PI / 2], [-40, -83.4, 0], [40, -83.4, 0], [-30, 83.4, Math.PI], [30, 83.4, Math.PI]];
     const key = ['', 'b1', 'b2', 'b3'][floor];
     const spots = [[3.5, 62], [-3.5, 30], [4, -2], [-4, -40]];
     const s = spots[Math.floor(rnd() * spots.length)];
-    addMemo(s[0], s[1], 1.0, M[key][0], M[key][1], 'memo');
+    addMemo(s[0], s[1], 1.0, M[key][1], M[key][2], M[key][0]);
   }
   const n = IS_COARSE ? 5 : slots.length;
   for (let i = 0; i < n; i++) { const sl = slots[i]; addPoster(sl[0], sl[1], sl[2], Math.floor(rnd() * LORE_POSTERS.length) + i, floor === 0 && sl[1] === 49.6 ? 3.0 : 3.6); }
@@ -2701,7 +2733,12 @@ function loreUI() {
 let LORE_NEAR = null, LORE_OPEN = false;
 function openLore() {
   if (!LORE_NEAR) return; LORE_OPEN = true; LORE_NEAR.read = true; LORE_NEAR.halo.material.color.setHex(0x64748b);
-  document.getElementById('lore-title').textContent = LORE_NEAR.title; document.getElementById('lore-body').textContent = LORE_NEAR.body;
+  const KS = { archivist: { bg: '#efe3c4', fg: '#2b1d0e', tc: '#7c2d12', font: "'Homemade Apple', 'Caveat', cursive", size: '17px', lh: '1.75', label: 'ARCHIVIST NOTE · HANDWRITTEN' }, triage: { bg: '#f8fafc', fg: '#334155', tc: '#7c3aed', font: "'Trebuchet MS', sans-serif", size: '14px', lh: '1.6', label: 'TRIAGE · CARE PLAN' }, warden: { bg: '#d6d3d1', fg: '#1c1917', tc: '#7f1d1d', font: "'Courier New', monospace", size: '14px', lh: '1.5', label: 'HALCYON WARDEN SERVICE' }, broadcast: { bg: '#e0f2fe', fg: '#0c4a6e', tc: '#0369a1', font: "Georgia, serif", size: '15px', lh: '1.6', label: 'MOSES · PUBLIC BROADCAST' } };
+  const st = KS[LORE_NEAR.kind] || KS.warden; const card = document.querySelector('#lore-panel > div');
+  card.style.background = st.bg; card.style.color = st.fg; card.style.borderRadius = LORE_NEAR.kind === 'triage' || LORE_NEAR.kind === 'broadcast' ? '18px' : '3px';
+  const tEl = document.getElementById('lore-title'), bEl = document.getElementById('lore-body');
+  tEl.innerHTML = ''; const lab = document.createElement('div'); lab.textContent = st.label; lab.style.cssText = 'font:700 9px sans-serif;letter-spacing:.2em;opacity:.6;margin-bottom:4px'; tEl.appendChild(lab); tEl.appendChild(document.createTextNode(LORE_NEAR.title)); tEl.style.color = st.tc;
+  bEl.textContent = LORE_NEAR.body; bEl.style.fontFamily = st.font; bEl.style.fontSize = st.size; bEl.style.lineHeight = st.lh;
   document.getElementById('lore-panel').style.display = 'flex'; STATE.pausedForStudio = true; document.exitPointerLock?.(); SFX.playKeyPickup();
 }
 function closeLore() { LORE_OPEN = false; document.getElementById('lore-panel').style.display = 'none'; STATE.pausedForStudio = false; }
