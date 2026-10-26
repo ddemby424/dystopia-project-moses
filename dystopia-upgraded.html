@@ -233,6 +233,7 @@
     <div class="bg-black/60 border border-gray-700 rounded-xl p-2.5 text-left text-xs space-y-2">
       <div><div class="flex justify-between items-center"><span class="text-yellow-300 font-bold text-[10px]">☀️ BRIGHTNESS</span><span id="bright-value" class="text-amber-300 font-bold text-[10px]">100%</span></div>
         <input id="slider-bright" type="range" min="60" max="300" value="100" class="w-full accent-yellow-300 h-1.5 bg-gray-700 rounded-lg cursor-pointer" style="touch-action:none"></div>
+      <div class="flex justify-between items-center"><span class="text-yellow-300 font-bold text-[10px]">🌓 SHADOWS</span><button id="btn-shadows" type="button" class="action-btn px-3 py-1 rounded text-[10px] font-black bg-emerald-500 text-black">ON</button></div>
       <div><div class="flex justify-between items-center"><span class="text-cyan-400 font-bold text-[10px]">🎯 TURN SENSITIVITY</span><span id="sens-value" class="text-amber-300 font-bold text-[10px]">125%</span></div>
         <input id="slider-sens" type="range" min="50" max="250" value="125" class="w-full accent-cyan-400 h-1.5 bg-gray-700 rounded-lg cursor-pointer"></div>
       <div><div class="flex justify-between items-center"><span class="text-emerald-400 font-bold text-[10px]">🧲 MAGNETIC AIM-ASSIST</span><span id="assist-value" class="text-emerald-300 font-bold text-[10px]">80%</span></div>
@@ -495,7 +496,8 @@ const STATE = {
   weapons: [
     { name: 'Pulse Cannon', ammo: Infinity, maxAmmo: Infinity, damage: 28, pellets: 1, fireRate: 0.13, spread: 0.008, color: 0x38bdf8, speed: 92, splash: 0, recoil: 0.14 },
     { name: 'Combat Shotgun', ammo: 24, maxAmmo: 32, damage: 18, pellets: 8, fireRate: 0.56, spread: 0.062, color: 0xffaa00, speed: 88, splash: 0, recoil: 0.25 },
-    { name: 'Rocket Launcher', ammo: 12, maxAmmo: 15, damage: 155, pellets: 1, fireRate: 0.80, spread: 0.002, color: 0xff4400, speed: 46, splash: 14.0, recoil: 0.36 }
+    { name: 'Rocket Launcher', ammo: 12, maxAmmo: 15, damage: 155, pellets: 1, fireRate: 0.80, spread: 0.002, color: 0xff4400, speed: 46, splash: 14.0, recoil: 0.36 },
+    { name: 'Ion EMP', ammo: 6, maxAmmo: 10, damage: 0, pellets: 1, fireRate: 0.9, spread: 0.003, color: 0x38bdf8, speed: 48, splash: 0, recoil: 0.3, emp: true }
   ]
 };
 
@@ -614,8 +616,13 @@ function viewSize() {
   renderer.setSize(w, h, false);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, IS_COARSE ? 1.35 : 2));
 })();
-renderer.shadowMap.enabled = !IS_COARSE;
+const SHADOW_KEY = 'dystopia_shadows';
+let SHADOWS_ON = localStorage.getItem(SHADOW_KEY) !== '0';
+renderer.shadowMap.enabled = SHADOWS_ON;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.localClippingEnabled = true;
+const GUN_CLIP = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+const SHADOW_RES = IS_COARSE ? 1024 : 2048;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.outputEncoding = THREE.sRGBEncoding;
 const BRIGHTNESS_KEY = 'dystopia_brightness';
@@ -641,19 +648,35 @@ const viewModelGroup = new THREE.Group();
 camera.add(viewModelGroup);
 scene.add(camera);
 
-const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x3a4352, 0.75);
+const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x3a4352, 0.6);
 scene.add(hemiLight);
-const ambientLight = new THREE.AmbientLight(0xb8c4d6, 0.3);
+const ambientLight = new THREE.AmbientLight(0xb8c4d6, 0.22);
 scene.add(ambientLight);
 const fillLight = new THREE.DirectionalLight(0x9fc4ff, 0.45);
 fillLight.position.set(-50, 40, -40); scene.add(fillLight);
 const camFill = new THREE.PointLight(0xffffff, 0.45, 30, 1.5);
 camera.add(camFill);
 try { const pm = new THREE.PMREMGenerator(renderer); const envScene = new THREE.Scene(); envScene.background = new THREE.Color(0x8a96a8); const envRT = pm.fromScene(envScene, 0.04); scene.environment = envRT.texture; pm.dispose(); } catch (e) { console.warn('env', e); }
-const dirLight = new THREE.DirectionalLight(0xfff7ed, 0.9);
+const dirLight = new THREE.DirectionalLight(0xfff7ed, 1.35);
 dirLight.position.set(45, 85, 35);
-dirLight.castShadow = !IS_COARSE;
-if (!IS_COARSE) { dirLight.shadow.mapSize.width = 1024; dirLight.shadow.mapSize.height = 1024; }
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(SHADOW_RES, SHADOW_RES);
+{ const sc = dirLight.shadow.camera; sc.left = -45; sc.right = 45; sc.top = 45; sc.bottom = -45; sc.near = 10; sc.far = 220; sc.updateProjectionMatrix(); }
+dirLight.shadow.bias = -0.0004; dirLight.shadow.normalBias = 0.04; dirLight.shadow.radius = 3;
+scene.add(dirLight.target);
+function setShadows(on) {
+  SHADOWS_ON = !!on; try { localStorage.setItem(SHADOW_KEY, on ? '1' : '0'); } catch (e) {}
+  renderer.shadowMap.enabled = SHADOWS_ON; renderer.shadowMap.needsUpdate = true;
+  scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.needsUpdate = true); });
+  const b = document.getElementById('btn-shadows'); if (b) { b.textContent = SHADOWS_ON ? 'ON' : 'OFF'; b.className = 'action-btn px-3 py-1 rounded text-[10px] font-black ' + (SHADOWS_ON ? 'bg-emerald-500 text-black' : 'bg-gray-700 text-gray-300'); }
+}
+// keep the shadow frustum centred on the player (snapped to texels to avoid shimmer)
+function updateShadowCamera() {
+  if (!SHADOWS_ON) return;
+  const step = 90 / SHADOW_RES * 4;
+  const px = Math.round(STATE.player.x / step) * step, pz = Math.round(STATE.player.z / step) * step;
+  dirLight.position.set(px + 55, 70, pz + 40); dirLight.target.position.set(px, 0, pz); dirLight.target.updateMatrixWorld();
+}
 scene.add(dirLight);
 
 function makeNoiseTexture(size, base, variance, lines) {
@@ -1224,7 +1247,7 @@ function cloneProp(key) {
   const tpl = MESHY_TEMPLATES.props[key];
   if (!tpl) return null;
   const c = tpl.scene.clone(true);
-  c.traverse(o => { if (o.isMesh) { o.castShadow = !IS_COARSE; o.receiveShadow = true; } });
+  c.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return c;
 }
 function placeObject(group, x, y, z, rot) { group.position.set(x, y || 0, z); group.rotation.y = rot || 0; arenaGroup.add(group); return group; }
@@ -1234,7 +1257,7 @@ function aabbCollider(x, z, w, d, h, rot, y0 = 0) {
 }
 function boxMesh(w, h, d, color, opts = {}) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, roughness: opts.rough ?? 0.6, metalness: opts.metal ?? 0.35, emissive: opts.emissive || 0x000000, emissiveIntensity: opts.ei || 0 }));
-  m.castShadow = !IS_COARSE; m.receiveShadow = true; return m;
+  m.castShadow = true; m.receiveShadow = true; return m;
 }
 
 // --- prop builders (Meshy first, procedural fallback) ---
@@ -1246,7 +1269,7 @@ const PROP_BUILDERS = {
     const mat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.5, metalness: 0.5 });
     const side = new THREE.MeshStandardMaterial({ color: 0x1b2028, roughness: 0.5, metalness: 0.6 });
     const m = new THREE.Mesh(new THREE.BoxGeometry(len, h, dep), [side, side, side, side, mat, mat]);
-    m.position.y = h / 2; m.castShadow = !IS_COARSE; m.receiveShadow = true; g.add(m);
+    m.position.y = h / 2; m.castShadow = true; m.receiveShadow = true; g.add(m);
     const top = boxMesh(len, 0.12, dep + 0.1, 0x2b3240, { metal: 0.7 }); top.position.y = h + 0.06; g.add(top);
     BLINK_MATS.push({ tex, phase: Math.random() * 10, rate: 0.6 + Math.random() * 1.4 });
     // Meshy rack caps at row ends
@@ -1294,7 +1317,7 @@ const PROP_BUILDERS = {
     const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, metalness: 0.4 });
     const side = new THREE.MeshStandardMaterial({ color: 0x6b6f68, roughness: 0.6, metalness: 0.4 });
     const m = new THREE.Mesh(new THREE.BoxGeometry(len, o.h || 2.0, o.d || 0.9), [side, side, side, side, mat, mat]);
-    m.position.y = (o.h || 2.0) / 2; m.castShadow = !IS_COARSE; m.receiveShadow = true; g.add(m);
+    m.position.y = (o.h || 2.0) / 2; m.castShadow = true; m.receiveShadow = true; g.add(m);
     const c = cloneProp('filing_cabinet'); if (c) { c.position.set(len / 2 + 0.6, 0, 0); g.add(c); }
     return { g, collide: [len + (c ? 1.2 : 0), o.d || 0.9, o.h || 2.0] };
   },
@@ -1347,7 +1370,11 @@ const PROP_BUILDERS = {
     const lamp = boxMesh(0.3, 0.3, 0.3, 0xf97316, { emissive: 0xf97316, ei: 2 }); lamp.position.set(w / 2 - 0.4, h + 0.15, 0); g.add(lamp);
     return { g, collide: [w, w * 0.6, h] };
   },
-  colossus(o) { return { g: buildColossus(o.h || 24), collide: [6, 6, 30] }; },
+  colossus(o) {
+    const g = buildColossus(o.h || 24, { mini: !!o.mini }); const C = COLOSSI[COLOSSI.length - 1]; const rr = C.rad;
+    C.col = { minX: o.x - rr, maxX: o.x + rr, minY: 0, maxY: (o.h || 24) + 2, minZ: o.z - rr, maxZ: o.z + rr }; colliders.push(C.col);
+    return { g, collide: null };
+  },
   pipevent(o) {
     const g = new THREE.Group(); const p = cloneProp('pipe_vent'); if (p) g.add(p); else { const b = boxMesh(0.8, 1.2, 0.8, 0x4a3b2a, { metal: 0.7 }); b.position.y = 0.6; g.add(b); }
     STEAM_PARTICLES.push({ x: o.x, z: o.z, y: 1.3, t: Math.random() * 10, meshes: [] });
@@ -1355,24 +1382,241 @@ const PROP_BUILDERS = {
   }
 };
 
-function buildColossus(height) {
+let COLOSSUS_BOLTS = [];
+let COLOSSI = [];
+let EMP_ARCS = [];
+// ---------- voice ----------
+const VOICE = { listener: null, buffers: {}, loading: false };
+function initVoice() {
+  if (VOICE.listener || typeof THREE.AudioListener !== 'function') return;
+  try {
+    VOICE.listener = new THREE.AudioListener(); camera.add(VOICE.listener);
+    const loader = new THREE.AudioLoader();
+    [['main', 'audio/colossus_voice.mp3'], ['mini', 'audio/mini_colossus_voice.mp3']].forEach(([k, url]) =>
+      loader.load(url, buf => { VOICE.buffers[k] = buf; }, undefined, () => { VOICE.buffers[k] = null; }));
+  } catch (e) { VOICE.listener = null; }
+}
+function showSubtitle(text, big) {
+  let el = document.getElementById('colossus-subtitle');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'colossus-subtitle';
+    el.style.cssText = 'position:absolute;left:50%;bottom:22%;transform:translateX(-50%);z-index:40;pointer-events:none;padding:6px 14px;border-radius:8px;background:rgba(10,0,0,.72);border:1px solid #ef4444;color:#fecaca;font:900 15px sans-serif;letter-spacing:.12em;text-transform:uppercase;text-shadow:0 0 10px #ef4444;transition:opacity .4s;opacity:0;white-space:nowrap';
+    (document.getElementById('game-container') || document.body).appendChild(el);
+  }
+  el.textContent = text; el.style.fontSize = big ? '16px' : '12px'; el.style.opacity = '1';
+  clearTimeout(el._t); el._t = setTimeout(() => { el.style.opacity = '0'; }, 3800);
+}
+function colossusSpeak(C) {
+  const key = C.isMini ? 'mini' : 'main';
+  showSubtitle(`${C.isMini ? 'MINI COLOSSUS' : 'MOSES COLOSSUS'}: "ZERO TOLERANCE FOR NON-COMPLIANCE."`, !C.isMini);
+  STATE.screenShake = Math.max(STATE.screenShake, C.isMini ? 0.15 : 0.45);
+  const buf = VOICE.buffers[key];
+  if (VOICE.listener && buf) {
+    try {
+      if (VOICE.listener.context.state === 'suspended') VOICE.listener.context.resume();
+      if (!C.voice) { C.voice = new THREE.PositionalAudio(VOICE.listener); C.voice.setRefDistance(C.isMini ? 14 : 40); C.voice.setRolloffFactor(0.6); const head = new THREE.Object3D(); head.position.y = C.height * 0.85; C.root.add(head); head.add(C.voice); }
+      if (C.voice.isPlaying) C.voice.stop();
+      C.voice.setBuffer(buf); C.voice.setVolume(C.isMini ? 1.4 : 2.6); C.voice.play(); return;
+    } catch (e) {}
+  }
+  if (window.speechSynthesis && !SFX.muted) {
+    try { const u = new SpeechSynthesisUtterance('Zero tolerance for non-compliance.'); u.pitch = C.isMini ? 0.6 : 0.1; u.rate = C.isMini ? 0.85 : 0.7; u.volume = 1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
+  }
+}
+// ---------- colossus HUD ----------
+function colossusHud(C) {
+  let el = document.getElementById('colossus-hud');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'colossus-hud';
+    el.style.cssText = 'position:absolute;left:50%;top:calc(10px + var(--sT, 0px));transform:translateX(-50%);width:min(440px,62vw);z-index:35;pointer-events:none;background:rgba(8,20,40,.85);border:2px solid #38bdf8;border-radius:10px;padding:4px 10px;font:900 10px sans-serif;color:#e0f2fe;letter-spacing:.1em;display:none';
+    el.innerHTML = '<div style="display:flex;justify-content:space-between"><span id="colossus-hud-name"></span><span id="colossus-hud-hp"></span></div><div style="height:10px;background:#000;border-radius:6px;overflow:hidden;margin-top:3px;border:1px solid #38bdf866"><div id="colossus-hud-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#1d4ed8,#38bdf8,#e0f2fe)"></div></div><div id="colossus-hud-note" style="font-size:9px;color:#93c5fd;margin-top:2px">SHIELDED · ONLY EMP CAN BREACH</div>';
+    (document.getElementById('game-container') || document.body).appendChild(el);
+  }
+  if (!C) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  document.getElementById('colossus-hud-name').textContent = (C.isMini ? '⚡ MINI COLOSSUS' : '⚡ MOSES COLOSSUS') + (C.stun > 0 ? ' · STUNNED' : '');
+  document.getElementById('colossus-hud-hp').textContent = `${Math.max(0, Math.round(C.hp))} / ${C.maxHp}`;
+  document.getElementById('colossus-hud-bar').style.width = `${Math.max(0, C.hp / C.maxHp * 100)}%`;
+  document.getElementById('colossus-hud-note').textContent = `SHIELDED · ONLY EMP CAN BREACH · EMP ROUNDS: ${STATE.weapons[3] ? STATE.weapons[3].ammo : 0}`;
+}
+function flashImmune() {
+  let el = document.getElementById('immune-marker');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'immune-marker'; el.textContent = 'IMMUNE · USE EMP [4]';
+    el.style.cssText = 'position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);z-index:41;pointer-events:none;font:900 13px sans-serif;color:#7dd3fc;letter-spacing:.15em;text-shadow:0 0 8px #0ea5e9;opacity:0;transition:opacity .25s';
+    (document.getElementById('game-container') || document.body).appendChild(el);
+  }
+  el.style.opacity = '1'; clearTimeout(el._t); el._t = setTimeout(() => { el.style.opacity = '0'; }, 450);
+}
+// ---------- geometry helpers ----------
+function colossusHandPos(out, C = COLOSSI[0]) {
+  (C.hand || C.fallback).getWorldPosition(out);
+  if (C.hand) { const k = C.height / 24; out.x += Math.sin(C.root.rotation.y) * 0.8 * k; out.z += Math.cos(C.root.rotation.y) * 0.8 * k; }
+  return out;
+}
+function colossusAt(x, z, pad = 1.0) { return COLOSSI.find(C => !C.dead && Math.hypot(x - C.root.position.x, z - C.root.position.z) < C.rad + pad); }
+function segmentBlocked(a, b, ignoreX, ignoreZ, ignoreR = 4.5) {
+  const d = a.distanceTo(b); const n = Math.ceil(d / 0.8); const p = new THREE.Vector3();
+  for (let i = 1; i < n; i++) {
+    p.lerpVectors(a, b, i / n);
+    if (ignoreX != null && Math.hypot(p.x - ignoreX, p.z - ignoreZ) < ignoreR) continue;
+    for (const c of colliders) if (p.x > c.minX && p.x < c.maxX && p.z > c.minZ && p.z < c.maxZ && p.y > (c.minY || 0) && p.y < (c.maxY ?? 99)) return true;
+  }
+  return false;
+}
+function colossusChargeSfx(mini) {
+  try { SFX.init(); const ctx = SFX.ctx; if (!ctx || SFX.muted) return; const now = ctx.currentTime; const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(mini ? 110 : 70, now); o.frequency.exponentialRampToValueAtTime(mini ? 900 : 620, now + 1.0);
+    g.gain.setValueAtTime(0.02, now); g.gain.linearRampToValueAtTime(mini ? 0.12 : 0.2, now + 0.95); g.gain.linearRampToValueAtTime(0.0, now + 1.05);
+    o.connect(g); g.connect(ctx.destination); o.start(now); o.stop(now + 1.1); } catch (e) {}
+}
+function colossusExplode(pos, dmg, R = 5.5) {
+  SFX.playExplosion(); spawnVolumetricFlameBurst(pos.x, Math.max(0.2, pos.y), pos.z, IS_COARSE ? 8 : 16, R * 0.6); spawnImpact(pos.x, Math.max(0.1, pos.y), pos.z, 0x7dd3fc);
+  const fl = new THREE.PointLight(0x93c5fd, 6, 22, 2); fl.position.copy(pos); fl.position.y = Math.max(1, pos.y); scene.add(fl);
+  const ring = new THREE.Mesh(new THREE.SphereGeometry(R * 0.47, 14, 10), new THREE.MeshBasicMaterial({ color: 0xbfdbfe, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
+  ring.position.copy(pos); scene.add(ring); MUZZLE_FX.push({ mesh: ring, life: 0.25, max: 0.25, light: fl });
+  const d = Math.hypot(STATE.player.x - pos.x, STATE.player.z - pos.z, (STATE.player.y + 1) - pos.y);
+  if (d < R) damagePlayer(Math.round(dmg * (1 - d / R * 0.6)));
+  STATE.screenShake = Math.max(STATE.screenShake, d < 14 ? 0.9 : 0.4);
+}
+function spawnEmpArcs(C, n = 6) {
+  for (let k = 0; k < n; k++) {
+    const pts = []; const cx = C.root.position.x, cz = C.root.position.z;
+    let y = Math.random() * C.height * 0.9; let a = Math.random() * Math.PI * 2;
+    for (let i = 0; i < 7; i++) { const r = C.rad * (0.6 + Math.random() * 0.6); pts.push(new THREE.Vector3(cx + Math.cos(a) * r, y, cz + Math.sin(a) * r)); y += (Math.random() - 0.3) * C.height * 0.12; a += (Math.random() - 0.5) * 0.9; }
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: Math.random() < 0.5 ? 0x7dd3fc : 0xe0f2fe, transparent: true, opacity: 1, blending: THREE.AdditiveBlending }));
+    scene.add(line); EMP_ARCS.push({ mesh: line, life: 0.12 + Math.random() * 0.12 });
+  }
+}
+// ---------- EMP ----------
+function empBurst(pos) {
+  SFX.playExplosion();
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(3, 16, 12), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }));
+  shell.position.copy(pos); scene.add(shell); const L = new THREE.PointLight(0x38bdf8, 6, 26, 2); L.position.copy(pos); scene.add(L);
+  MUZZLE_FX.push({ mesh: shell, life: 0.35, max: 0.35, light: L });
+  for (let i = 0; i < (IS_COARSE ? 6 : 12); i++) spawnImpact(pos.x, Math.max(0.2, pos.y), pos.z, 0x7dd3fc);
+  COLOSSI.forEach(C => {
+    if (C.dead) return; const d = Math.hypot(pos.x - C.root.position.x, pos.z - C.root.position.z);
+    if (d < C.rad + 4.5 && pos.y < C.height + 2) {
+      C.hp -= 160 * (STATE.quadTimer > 0 ? 2 : 1); C.stun = 3.5; C.charge = -1; C.glow.visible = false; C.glowLight.intensity = 0; C.engaged = 6;
+      spawnEmpArcs(C, 10); addKillFeed(`EMP hit · ${C.isMini ? 'Mini Colossus' : 'Moses Colossus'} stunned`);
+      const hm = document.getElementById('hitmarker'); hm.classList.add('active'); clearTimeout(hm._t); hm._t = setTimeout(() => hm.classList.remove('active'), 150);
+      if (C.hp <= 0) killColossus(C);
+    }
+  });
+  BOTS.forEach(b => { if (!b.dying && Math.hypot(b.x - pos.x, b.z - pos.z) < 6) { damageBot(b, 55); b.fireCooldown = Math.max(b.fireCooldown, 2.5); } });
+}
+function killColossus(C) {
+  if (C.dead) return; C.dead = true; C.hp = 0; C.deathT = 0;
+  colliders = colliders.filter(c => c !== C.col);
+  if (C.eye) C.eye.intensity = 0;
+  for (let i = 0; i < 4; i++) setTimeout(() => colossusExplode(new THREE.Vector3(C.root.position.x + (Math.random() - 0.5) * C.rad * 2, C.height * (0.2 + Math.random() * 0.6), C.root.position.z + (Math.random() - 0.5) * C.rad * 2), 0, 1), i * 280);
+  showBanner(C.isMini ? '⚡ MINI COLOSSUS DOWN' : '⚡ MOSES COLOSSUS DESTROYED', 'Shielding collapsed. Clear the remaining sentinels to open the stairwell.', 4000);
+  SFX.playRadioChatter(`${C.isMini ? 'Mini Colossus' : 'Moses Colossus'} offline! EMP breach confirmed!`, 'SECTOR COMMAND');
+  colossusHud(null); checkFloorClear();
+}
+function checkFloorClear() {
+  if (BOTS.some(b => !b.dying)) return;
+  if (COLOSSI.some(C => !C.dead)) { showBanner('COLOSSUS STILL ACTIVE', 'The stairwell stays sealed until the Colossus falls. Use EMP rounds [4].', 3500); return; }
+  if (STATE.floor === 3) { if (!STATE.bossSpawned) setTimeout(() => spawnMinotaurBossForLevel(), 900); }
+  else unlockExit();
+}
+// ---------- per-frame ----------
+function updateColossi(dt, now) {
+  let hudC = null, hudD = 1e9;
+  COLOSSI.forEach(C => {
+    if (C.dead) {
+      C.deathT += dt; const t = Math.min(1, C.deathT / 3.5);
+      C.root.rotation.x = t * 0.45; C.root.position.y = -t * C.height * 0.7;
+      if (t >= 1) C.root.visible = false; return;
+    }
+    if (C.mixer && C.stun <= 0) C.mixer.update(dt);
+    const alertOn = STATE.combatActive && STATE.running && (STATE.floor > 0 || STATE.player.z < (FLOOR_INFO.activateZ ?? 46));
+    const pd = Math.hypot(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
+    if (alertOn && !C.alerted) { C.alerted = true; C.voiceT = 20 + Math.random() * 10; colossusSpeak(C); }
+    if (C.engaged > 0) C.engaged -= dt;
+    if (alertOn && (pd < 90 || C.engaged > 0) && pd < hudD) { hudD = pd; hudC = C; }
+    if (C.stun > 0) {
+      C.stun -= dt; if (Math.random() < dt * 25) spawnEmpArcs(C, 2);
+      if (C.eye) C.eye.intensity = Math.random() < 0.25 ? 1.5 : 0; return;
+    }
+    if (C.eye) C.eye.intensity = C.isMini ? 1.6 : 2.5;
+    if (!alertOn) return;
+    C.voiceT -= dt; if (C.voiceT <= 0) { C.voiceT = 20 + Math.random() * 10; if (!C.isMini || Math.random() < 0.5) colossusSpeak(C); }
+    const want = Math.atan2(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
+    let dy = want - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    const turn = (C.isMini ? 0.7 : 0.45) * dt; C.root.rotation.y += Math.max(-turn, Math.min(turn, dy)); C.facingErr = Math.abs(dy);
+    const hp = colossusHandPos(new THREE.Vector3(), C);
+    const target = new THREE.Vector3(STATE.player.x, STATE.player.y + 1.2, STATE.player.z);
+    if (C.charge >= 0) {
+      C.charge += dt; const t = Math.min(1, C.charge / 1.0); const k = C.height / 24;
+      C.glow.visible = true; C.glow.position.copy(hp); C.glow.scale.setScalar((0.4 + t * 1.6 + Math.sin(now * 0.05) * 0.15) * Math.max(0.5, k)); C.glow.material.opacity = 0.35 + t * 0.6;
+      C.glowLight.position.copy(hp); C.glowLight.intensity = t * 5;
+      if (t >= 1) {
+        C.charge = -1; C.glow.visible = false; C.glowLight.intensity = 0;
+        spawnMuzzleFlash(hp, 0x7dd3fc, false);
+        const big = new THREE.PointLight(0xbfdbfe, 8, 40, 2); big.position.copy(hp); scene.add(big);
+        const fm = new THREE.Mesh(new THREE.SphereGeometry(1.8 * Math.max(0.5, k), 12, 10), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
+        fm.position.copy(hp); scene.add(fm); MUZZLE_FX.push({ mesh: fm, life: 0.14, max: 0.14, light: big });
+        SFX.playPulse(); if (!C.isMini && SFX.playBossRoar) SFX.playBossRoar();
+        if (!C.firedOnce) { C.firedOnce = true; if (!C.isMini) colossusSpeak(C); }
+        const dir = target.clone().sub(hp).normalize(); const bs = C.isMini ? 0.5 : 0.75;
+        const bolt = new THREE.Mesh(new THREE.SphereGeometry(bs, 14, 10), new THREE.MeshBasicMaterial({ color: 0xe0f2fe, blending: THREE.AdditiveBlending, transparent: true }));
+        const halo = new THREE.Mesh(new THREE.SphereGeometry(bs * 1.9, 12, 8), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
+        bolt.add(halo); bolt.position.copy(hp); scene.add(bolt); bolt.add(new THREE.PointLight(0x7dd3fc, 3, 18, 2));
+        COLOSSUS_BOLTS.push({ mesh: bolt, vel: dir.multiplyScalar(C.isMini ? 28 : 26), life: 5, trailT: 0, dmg: C.dmg, owner: C, R: C.isMini ? 4.5 : 5.5 });
+      }
+    } else {
+      C.cool -= dt;
+      if (C.cool <= 0 && (C.facingErr || 0) < 0.6 && !segmentBlocked(hp, target, C.root.position.x, C.root.position.z, C.rad + 1.5)) {
+        C.charge = 0; C.cool = C.rate + Math.random() * 2; colossusChargeSfx(C.isMini);
+      } else if (C.cool <= 0) C.cool = 0.4;
+    }
+  });
+  colossusHud(hudC);
+  for (let i = COLOSSUS_BOLTS.length - 1; i >= 0; i--) {
+    const b = COLOSSUS_BOLTS[i]; b.life -= dt; const p = b.mesh.position; p.addScaledVector(b.vel, dt);
+    b.trailT -= dt;
+    if (b.trailT <= 0) { b.trailT = IS_COARSE ? 0.05 : 0.025; const tr = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 6), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false })); tr.position.copy(p); scene.add(tr); MUZZLE_FX.push({ mesh: tr, life: 0.35, max: 0.35, light: null }); }
+    const own = b.owner; const nearOwner = own && Math.hypot(p.x - own.root.position.x, p.z - own.root.position.z) < own.rad + 1.5;
+    let hit = b.life <= 0 || p.y <= 0.3 || (collidesAt(p.x, p.z, 0.3) && !nearOwner);
+    if (!hit && Math.hypot(p.x - STATE.player.x, p.z - STATE.player.z) < 1.3 && Math.abs(p.y - (STATE.player.y + 1.0)) < 1.6) hit = true;
+    if (hit) { colossusExplode(p.clone(), b.dmg, b.R); scene.remove(b.mesh); COLOSSUS_BOLTS.splice(i, 1); }
+  }
+  for (let i = EMP_ARCS.length - 1; i >= 0; i--) { const a = EMP_ARCS[i]; a.life -= dt; a.mesh.material.opacity = Math.max(0, a.life * 6); if (a.life <= 0) { scene.remove(a.mesh); a.mesh.geometry.dispose(); EMP_ARCS.splice(i, 1); } }
+}
+function updateColossus(dt, now) { updateColossi(dt, now); }
+
+function buildColossus(height, opts = {}) {
   const g = new THREE.Group();
-  const tpl = MESHY_TEMPLATES.bot || MESHY_TEMPLATES.guard;
+  const isMini = !!opts.mini;
+  const tpl = isMini ? (MESHY_TEMPLATES.guard || MESHY_TEMPLATES.bot) : (MESHY_TEMPLATES.bot || MESHY_TEMPLATES.guard);
+  const C = { root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: null, hand: null };
   if (tpl && THREE.SkeletonUtils) {
     const c = THREE.SkeletonUtils.clone(tpl.scene);
-    c.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; if (o.material) { o.material = o.material.clone(); brightenMat(o.material); } } });
-    const s = height / (tpl.targetHeight || 2.5);
-    const holder = new THREE.Group(); holder.scale.setScalar(s); holder.add(c); g.add(holder);
-    if (tpl.animations && tpl.animations.length) {
-      const mx = new THREE.AnimationMixer(c); const a = mx.clipAction(tpl.animations[0]); a.play(); a.timeScale = 0.08;
-      COLOSSUS = { mixer: mx };
-    }
+    c.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; if (o.material) { o.material = o.material.clone(); brightenMat(o.material); if (isMini && o.material.color) o.material.color.multiplyScalar(0.85).lerp(new THREE.Color(0x60a5fa), 0.12); } } });
+    const holder = new THREE.Group(); holder.scale.setScalar(height / (tpl.targetHeight || 2.5)); holder.add(c); g.add(holder);
+    if (tpl.animations && tpl.animations.length) { C.mixer = new THREE.AnimationMixer(c); const a = C.mixer.clipAction(tpl.animations[0]); a.play(); a.timeScale = isMini ? 0.14 : 0.08; }
+    const bones = []; c.traverse(o => { if (o.isBone) bones.push(o); });
+    const pick = re => bones.find(b => re.test(b.name) && /right|_r\b|\.r\b|^r_/i.test(b.name)) || bones.find(b => re.test(b.name));
+    C.hand = pick(/hand/i) || pick(/wrist/i) || pick(/fore ?arm|lowerarm/i) || null;
   } else {
-    const r = createDoomSentinel(0x3f2a1a, 0xef4444, 'MOSES COLOSSUS', true); r.root.scale.multiplyScalar(height / 2.6);
+    const r = createDoomSentinel(0x3f2a1a, 0xef4444, 'COLOSSUS', true); r.root.scale.multiplyScalar(height / 2.6);
     if (r.hb && r.hb.sprite) r.hb.sprite.visible = false; g.add(r.root);
   }
-  const eye = new THREE.PointLight(0xff3300, 2.5, 40, 2); eye.position.set(0, height * 0.92, 2); g.add(eye);
-  const plate = new THREE.Mesh(new THREE.CylinderGeometry(5, 5.6, 0.6, 24), new THREE.MeshStandardMaterial({ color: 0x2b3240, metalness: 0.7, roughness: 0.4 })); plate.position.y = 0.3; g.add(plate);
+  C.handName = C.hand ? C.hand.name : null;
+  C.rad = Math.max(1.6, height * 0.12);
+  C.fallback = new THREE.Object3D(); C.fallback.position.set(-height * 0.2, height * 0.52, height * 0.12); g.add(C.fallback);
+  C.glow = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  C.glow.visible = false; arenaGroup.add(C.glow);
+  C.glowLight = new THREE.PointLight(0x60a5fa, 0, 30, 2); arenaGroup.add(C.glowLight);
+  C.eye = new THREE.PointLight(0xff3300, isMini ? 1.6 : 2.5, isMini ? 18 : 40, 2); C.eye.position.set(0, height * 0.92, height * 0.08); g.add(C.eye);
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(C.rad * 1.6, C.rad * 1.8, 0.5, 24), new THREE.MeshStandardMaterial({ color: 0x2b3240, metalness: 0.7, roughness: 0.4 })); plate.position.y = 0.25; plate.receiveShadow = true; g.add(plate);
+  const L = STATE.level || 1, F = STATE.floor || 0;
+  C.maxHp = C.hp = isMini ? Math.round(240 + 50 * L + 30 * F) : Math.round(450 + 100 * L);
+  C.dmg = isMini ? Math.round(10 + 2.5 * L + 2 * F) : Math.round(14 + 3 * L);
+  C.rate = isMini ? Math.max(3, 5.2 - 0.15 * L - 0.3 * F) : Math.max(3.2, 4.2 - 0.08 * L);
+  COLOSSI.push(C);
   return g;
 }
 
@@ -1384,6 +1628,7 @@ function genFloorLayout(level, floor) {
   const info = { start: { x: 0, z: 70, yaw: 0 }, exit: { x: 0, z: -76 }, spawnZone: { minX: -80, maxX: 80, minZ: -68, maxZ: 30 }, activateZ: null };
   const mirror = level % 2 === 0 ? -1 : 1;
   const fl = FLOOR_NAMES[floor];
+  const miniH = Math.min(11.5, 8 + 0.5 * floor + 0.3 * (level - 1));
   if (floor === 0) {
     info.start = { x: 0, z: 79, yaw: 0 }; info.activateZ = 46; info.spawnZone = { minX: -78, maxX: 78, minZ: -66, maxZ: 26 };
     // holding cell
@@ -1436,6 +1681,7 @@ function genFloorLayout(level, floor) {
         add('rackrow', x, (a + b) / 2, { w: len, d: 1.2, h: 2.6, rot: Math.PI / 2, tray: rnd() < 0.6 });
       }
     }
+    add('colossus', 0, -20, { h: miniH, mini: true });
     cross.forEach((c, i) => add('sign', -6.2, c, { y: 3.6, rot: Math.PI / 2, title: 'SERVER HALL B1', sub: `AISLE ${String.fromCharCode(65 + i)} · HOT/COLD`, color: '#38bdf8', w: 5 }));
     add('sign', 0, -83.4, { y: 6, rot: 0, title: 'STAIRWELL ▼ B2', sub: 'COOLING PLANT', color: '#22c55e', w: 7 });
     add('sign', 0, 83.4, { y: 6, rot: Math.PI, title: 'FLOOR B1', sub: 'SERVER FARM · LEVEL ' + level, color: '#facc15', w: 7 });
@@ -1448,6 +1694,7 @@ function genFloorLayout(level, floor) {
     for (let i = 0; i < 9; i++) { add('crac', -86.5, 70 - i * 17, { rot: Math.PI / 2 }); add('crac', 86.5, 70 - i * 17, { rot: -Math.PI / 2 }); }
     for (let r = 0; r < 3; r++) { const z = 58 - r * 44 + (rnd() - 0.5) * 6; for (let i = 0; i < 6; i++) add('ups', -14 + i * 1.4 + (r - 1) * 4 * mirror, z); }
     for (let i = 0; i < 8; i++) add('pillar', (i % 2 ? 16 : -16), 66 - i * 18, { w: 1.6, d: 1.6, h: 12, color: '#facc15' });
+    add('colossus', 0, -12, { h: miniH, mini: true });
     for (let i = 0; i < 5; i++) add('pipevent', (rnd() - 0.5) * 140, (rnd() - 0.5) * 130);
     add('sign', 0, -83.4, { y: 6, rot: 0, title: 'STAIRWELL ▼ B3', sub: 'ARCHIVE VAULT · CORE', color: '#22c55e', w: 7 });
     add('sign', -86, 20, { y: 5, rot: Math.PI / 2, title: '⚠ HIGH VOLTAGE', sub: 'GENERATOR PLANT B2', color: '#f97316', w: 7 });
@@ -1465,6 +1712,7 @@ function genFloorLayout(level, floor) {
     [[-30, 0, 1, 34], [30, 0, 1, 34]].forEach(([x, z, w, d]) => add('wall', x, z, { w, d, h: 8, color: '#7f1d1d' }));
     add('wall', -19, 17, { w: 22, d: 1, h: 8, color: '#7f1d1d' }); add('wall', 19, 17, { w: 22, d: 1, h: 8, color: '#7f1d1d' });
     add('emp', 0, 0, { w: 5, d: 5, h: 9, color: '#ef4444' });
+    add('colossus', 40 * mirror, -35, { h: miniH, mini: true });
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; add('cryo', Math.cos(a) * 11, Math.sin(a) * 11, { w: 2.4, d: 2.4, h: 4.6, color: '#22c55e' }); }
     for (let i = 0; i < 4; i++) add('cabinet', -60 + i * 1.1, -40, { rot: 0 });
     add('sign', 0, 17.6, { y: 6, rot: 0, title: 'CORE VAULT', sub: '⚠ RESTRICTED · LEVEL 5 CLEARANCE', color: '#ef4444', w: 8 });
@@ -1516,10 +1764,13 @@ function damageCellDoor(dmg) {
 function buildArenaMap() {
   while (arenaGroup.children.length > 0) arenaGroup.remove(arenaGroup.children[0]);
   colliders = []; walkableSurfaces = []; sirenBeaconMeshes = []; PICKUPS = []; ARENA_LIGHTS = []; STEAM_PARTICLES = []; BLINK_MATS = []; CELL_DOOR = null; COLOSSUS = null;
+  COLOSSUS_BOLTS.forEach(b => scene.remove(b.mesh)); COLOSSUS_BOLTS = [];
+  COLOSSI.forEach(C => { if (C.voice && C.voice.isPlaying) C.voice.stop(); }); COLOSSI = []; EMP_ARCS.forEach(a => scene.remove(a.mesh)); EMP_ARCS = []; colossusHud(null);
   const floor = STATE.floor || 0; const theme = FLOOR_THEMES[floor];
   const steelMat = new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.42, metalness: 0.78, bumpMap: WALL_PBR.bumpMap, bumpScale: 0.04 });
   const floorColors = [0xa8a49a, 0x8f9aa8, 0x9a8f80, 0x8a8078];
-  const fm = new THREE.Mesh(new THREE.PlaneGeometry(220, 190), new THREE.MeshStandardMaterial({ map: FLOOR_PBR.map, bumpMap: FLOOR_PBR.bumpMap, bumpScale: 0.06, color: floorColors[floor], roughness: 0.58, metalness: 0.32 }));
+  const fm = new THREE.Mesh(new THREE.PlaneGeometry(220, 190), new THREE.MeshStandardMaterial({ map: FLOOR_PBR.map, bumpMap: FLOOR_PBR.bumpMap, bumpScale: 0.06, color: floorColors[floor], roughness: 0.58, metalness: 0.32, envMapIntensity: 0.45 }));
+  fm.material.userData._bright = true;
   fm.rotation.x = -Math.PI / 2; fm.receiveShadow = true; arenaGroup.add(fm);
   // raised-floor tile lines for server floors
   if (floor === 1) { const grid = new THREE.GridHelper(180, 90, 0x64748b, 0x475569); grid.position.y = 0.02; grid.material.opacity = 0.35; grid.material.transparent = true; arenaGroup.add(grid); }
@@ -1528,23 +1779,32 @@ function buildArenaMap() {
   // ceiling trusses (skip centre on G so the colossus can tower)
   for (let tz = -72; tz <= 72; tz += 24) {
     const segs = floor === 0 ? [[-56, 64], [56, 64]] : [[0, 176]];
-    segs.forEach(([cx, len]) => { const t = new THREE.Mesh(new THREE.BoxGeometry(len, 0.8, 0.9), steelMat); t.position.set(cx, floor === 0 ? 14.6 : 10.5, tz); arenaGroup.add(t); });
-    [-36, 36].forEach(bx => { const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.5, 10), new THREE.MeshBasicMaterial({ color: 0x330a0a })); beacon.position.set(bx, floor === 0 ? 14.0 : 9.9, tz); arenaGroup.add(beacon); sirenBeaconMeshes.push(beacon); });
+    segs.forEach(([cx, len]) => { const t = new THREE.Mesh(new THREE.BoxGeometry(len, 0.8, 0.9), steelMat); t.position.set(cx, floor === 0 ? 14.6 : 13.2, tz); arenaGroup.add(t); });
+    [-36, 36].forEach(bx => { const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.5, 10), new THREE.MeshBasicMaterial({ color: 0x330a0a })); beacon.position.set(bx, floor === 0 ? 14.0 : 12.6, tz); arenaGroup.add(beacon); sirenBeaconMeshes.push(beacon); });
   }
   createSecurityElevator(FLOOR_INFO.exit.x, FLOOR_INFO.exit.z - 1.2);
   // lighting per theme
-  const lh = floor === 0 ? 11 : 9;
+  const lh = floor === 0 ? 11 : 11.5;
   const spots = IS_COARSE ? [[0, 40], [0, -20], [-50, 0], [50, 0]] : [[-50, 50], [0, 60], [50, 50], [-50, 10], [0, 20], [50, 10], [-50, -30], [0, -40], [50, -30], [0, -70]];
   spots.forEach(([x, z], i) => addHangingLight(x, lh, z, theme.light, 1.1, 26));
+  // key shadow-casting spotlights (security desk on G, entry zone below ground)
+  const keySpots = floor === 0 ? [[0, 40, 0, 34], [0, 14, 0, -6]] : [[0, 60, 0, 50]];
+  keySpots.slice(0, IS_COARSE ? 1 : 2).forEach(([x, z, tx, tz]) => {
+    const sp = new THREE.SpotLight(0xfff1dd, 1.4, 60, 0.75, 0.5, 1.5); sp.position.set(x, floor === 0 ? 13 : 12.5, z);
+    sp.target.position.set(tx, 0, tz); sp.castShadow = true; sp.shadow.mapSize.set(IS_COARSE ? 512 : 1024, IS_COARSE ? 512 : 1024);
+    sp.shadow.bias = -0.0006; sp.shadow.normalBias = 0.05; sp.shadow.camera.near = 1; sp.shadow.camera.far = 60;
+    arenaGroup.add(sp, sp.target);
+  });
   MAP_OBJECTS.forEach(obj => {
     if (obj.type === 'celldoor') { buildCellDoor(obj); return; }
     if (obj.type === 'sign') { addSign(obj.x, obj.y || 5.2, obj.z, obj.rot || 0, obj.title || 'SECTOR', obj.sub || '', obj.color || '#f59e0b', obj.w || 7); return; }
     if (renderMapObject(obj)) return;
     renderLegacyObject(obj, steelMat);
   });
+  COLOSSUS = COLOSSI[0] || null;
   // pickups at free spots
   const rnd = seededRng(STATE.level * 31 + floor);
-  const types = [['health', 0x22c55e], ['armor', 0x00f0ff], ['ammo', 0xfacc15], ['health', 0x22c55e], ['quad', 0xa855f7]];
+  const types = [['health', 0x22c55e], ['armor', 0x00f0ff], ['ammo', 0xfacc15], ['health', 0x22c55e], ['quad', 0xa855f7], ['emp', 0x38bdf8], ['emp', 0x38bdf8], ['emp', 0x38bdf8]];
   types.forEach(([type, color]) => {
     for (let t = 0; t < 30; t++) {
       const x = (rnd() - 0.5) * 150, z = FLOOR_INFO.spawnZone.minZ + rnd() * (FLOOR_INFO.spawnZone.maxZ - FLOOR_INFO.spawnZone.minZ);
@@ -1558,6 +1818,7 @@ function buildArenaMap() {
 function startFloor(lvl, floor) {
   STATE.level = lvl; STATE.floor = floor; STATE.bossSpawned = false; STATE.hasAccessKey = false; STATE.combatActive = false; HACK_TIMER = 0;
   STATE.floorCleared = false;
+  if (STATE.weapons[3] && STATE.weapons[3].ammo < 4) STATE.weapons[3].ammo = 4;
   if (ACCESS_KEY) { arenaGroup.remove(ACCESS_KEY.group); ACCESS_KEY = null; }
   PROJECTILES.forEach(p => scene.remove(p.mesh)); PROJECTILES = [];
   document.getElementById('boss-hud').classList.add('hidden');
@@ -1585,7 +1846,7 @@ function startFloor(lvl, floor) {
   }
   const theme = FLOOR_THEMES[floor];
   if (floor === 0) showBanner(`LEVEL ${lvl} · ${cfg.name}`, 'You are locked in a holding cell. Shoot the red lock, press E at the door, or stand at the cyan wall terminal to hack it.', 6500);
-  else { showBanner(`LEVEL ${lvl} · FLOOR ${FLOOR_NAMES[floor]}`, theme.title + (floor === 3 ? ' — kill the Minotaur for the exit keycard.' : ' — clear all sentinels to unlock the stairwell.'), 5000); setTimeout(() => { if (STATE.floor === floor) STATE.combatActive = true; }, 1800); }
+  else { showBanner(`LEVEL ${lvl} · FLOOR ${FLOOR_NAMES[floor]}`, theme.title + ' — MINI COLOSSUS DETECTED: only EMP [4] can breach its shielding.' + (floor === 3 ? ' Then kill the Minotaur for the exit keycard.' : ' Destroy it and all sentinels to unlock the stairwell.'), 6000); setTimeout(() => { if (STATE.floor === floor) STATE.combatActive = true; }, 1800); }
   updateHUD();
 }
 function startCampaignLevel(lvl) { startFloor(lvl, 0); }
@@ -1609,7 +1870,14 @@ function advanceFloor() {
 function updateFloorLogic(dt, now) {
   // blinking rack LEDs
   BLINK_MATS.forEach(b => { b.phase += dt * b.rate; b.tex.offset.y = (Math.floor(b.phase) % 2) * 0.5; });
-  if (COLOSSUS && COLOSSUS.mixer) COLOSSUS.mixer.update(dt);
+  updateColossus(dt, now);
+  if (false) {
+    gunMesh.updateMatrixWorld(true);
+    const n = new THREE.Vector3(0, 0, -1).transformDirection(gunMesh.matrixWorld);
+    const pt = new THREE.Vector3(0, 0, gunMesh.userData.clipZ).applyMatrix4(gunMesh.matrixWorld);
+    GUN_CLIP.setFromNormalAndCoplanarPoint(n, pt);
+  }
+  updateShadowCamera();
   if (CELL_DOOR) {
     if (CELL_DOOR.open && CELL_DOOR.lift < 1) { CELL_DOOR.lift = Math.min(1, CELL_DOOR.lift + dt * 0.8); CELL_DOOR.bars.position.y = CELL_DOOR.lift * 4.4; }
     if (!CELL_DOOR.open) {
@@ -1626,7 +1894,7 @@ function updateFloorLogic(dt, now) {
     STATE.combatActive = true;
     const ks = document.getElementById('keycard-status'); ks.textContent = '🔒 STAIRWELL LOCKED · CLEAR FLOOR'; ks.className = 'text-[10px] text-amber-300 font-bold block';
     sirenActiveTimer = 4; SFX.playSiren && SFX.playSiren(3);
-    showBanner('⚠ INTRUDER ALERT', 'Server Hall G sentinels are active. Clear the floor to unlock the stairwell to B1.', 4000);
+    showBanner('⚠ INTRUDER ALERT', 'COLOSSUS UNIT DETECTED — ONLY EMP CAN BREACH ITS SHIELDING. Switch to Ion EMP [4], destroy it and the sentinels to unlock the stairwell.', 5500);
     SFX.playRadioChatter('Detainee escaped holding! All Strogg units converge on Server Hall G!', 'SECTOR COMMAND');
   }
 }
@@ -1715,7 +1983,7 @@ function gunYawToForward(model) {
 function buildViewModel() {
   while (viewModelGroup.children.length > 0) viewModelGroup.remove(viewModelGroup.children[0]);
   weaponGlowMats = [];
-  if (MESHY_TEMPLATES.viewmodel && STATE.currentWeapon === 0) {
+  if (MESHY_TEMPLATES.viewmodel) {
     const wrap = new THREE.Group();
     const clone = MESHY_TEMPLATES.viewmodel.scene.clone(true);
     const inner = new THREE.Group(); inner.add(clone); wrap.add(inner);
@@ -1726,11 +1994,30 @@ function buildViewModel() {
     const sc = 0.56 / Math.max(0.05, sz.z); inner.scale.setScalar(sc);
     wrap.updateMatrixWorld(true); bb = meshOnlyBounds(inner);
     const ctr = new THREE.Vector3(); bb.getCenter(ctr);
-    inner.position.set(-ctr.x, -ctr.y, -ctr.z - 0.2);
+    inner.position.set(-ctr.x, -ctr.y, -ctr.z - 0.34);
     viewModelGroup.add(wrap); gunMesh = wrap;
     muzzleAnchor = new THREE.Object3D();
     muzzleAnchor.position.copy(findMuzzleLocalOffset(wrap));
     wrap.add(muzzleAnchor);
+    if (STATE.currentWeapon !== 0) {
+      const wcol = (STATE.weapons[STATE.currentWeapon] || {}).color || 0xffffff;
+      const ringMat = new THREE.MeshStandardMaterial({ color: wcol, emissive: wcol, emissiveIntensity: 2.2 });
+      for (let i = 0; i < 3; i++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.012, 6, 14), ringMat); ring.position.copy(muzzleAnchor.position); ring.position.z += 0.06 + i * 0.05; wrap.add(ring); }
+      weaponGlowMats.push(ringMat);
+    }
+    // trim the square buttplate at the rear of the Meshy cannon
+    wrap.updateMatrixWorld(true); const wb = meshOnlyBounds(inner);
+    wrap.userData.clipZ = wb.max.z - (wb.max.z - wb.min.z) * 0.2;
+    const clipZ = wrap.userData.clipZ; wrap.userData.clipZ = null;
+    const toWrap = new THREE.Matrix4(); const inv = new THREE.Matrix4().copy(wrap.matrixWorld).invert(); const va = new THREE.Vector3();
+    inner.traverse(o => {
+      if (!o.isMesh || !o.geometry?.attributes?.position) return;
+      const g2 = o.geometry.clone(); const pos = g2.attributes.position; toWrap.multiplyMatrices(inv, o.matrixWorld);
+      const zs = new Float32Array(pos.count); for (let i = 0; i < pos.count; i++) { va.fromBufferAttribute(pos, i).applyMatrix4(toWrap); zs[i] = va.z; }
+      const idx = g2.index ? Array.from(g2.index.array) : [...Array(pos.count).keys()];
+      const keep = []; for (let i = 0; i < idx.length; i += 3) { const a = idx[i], b = idx[i + 1], c = idx[i + 2]; if (!(zs[a] > clipZ && zs[b] > clipZ && zs[c] > clipZ)) keep.push(a, b, c); }
+      g2.setIndex(keep); o.geometry = g2;
+    });
   } else if (STATE.currentWeapon === 0) {
     gunMesh = buildProceduralPulseCannon();
     viewModelGroup.add(gunMesh);
@@ -1952,6 +2239,7 @@ function spawnBotFromArchetype(spec, levelMult = 1.0) {
   }
   const spawnY = Number(spec.y) || getGroundHeightAt(spec.x, spec.z, 6);
   rig.root.position.set(spec.x, spawnY, spec.z);
+  rig.root.traverse(o => { if (o.isMesh && !o.isSprite) { o.castShadow = true; o.receiveShadow = !IS_COARSE; } });
   scene.add(rig.root);
   const maxHp = Math.round(spec.maxHealth * levelMult);
   rig.hb.update(maxHp, maxHp);
@@ -2080,7 +2368,7 @@ function firePlayerWeapon() {
       new THREE.MeshBasicMaterial({ color: wep.color, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false })
     );
     orb.add(glow);
-    PROJECTILES.push({ mesh: orb, x: startPos.x, y: startPos.y, z: startPos.z, vx: dir.x * wep.speed, vy: dir.y * wep.speed, vz: dir.z * wep.speed, damage: wep.damage * dmgMult, splash: wep.splash || 0, fromPlayer: true, life: 2.6 });
+    PROJECTILES.push({ mesh: orb, x: startPos.x, y: startPos.y, z: startPos.z, vx: dir.x * wep.speed, vy: dir.y * wep.speed, vz: dir.z * wep.speed, damage: wep.damage * dmgMult, splash: wep.splash || 0, fromPlayer: true, emp: !!wep.emp, life: 2.6 });
   }
   updateHUD();
 }
@@ -2131,7 +2419,7 @@ function finishBotKill(b) {
     showBanner('🔑 EXIT KEYCARD DROPPED!', 'Grab the golden keycard and take the north exit to the next level!', 5000);
   } else {
     SFX.playRadioChatter(`${b.name} eliminated! All Strogg sentinels converge!`, 'OVERWATCH COMMS');
-    if (BOTS.filter(x => !x.dying).length === 0) { if (STATE.floor === 3) { if (!STATE.bossSpawned) setTimeout(() => spawnMinotaurBossForLevel(), 900); } else unlockExit(); }
+    checkFloorClear();
   }
   updateHUD();
 }
@@ -2185,6 +2473,7 @@ window.addEventListener('keydown', e => {
   KEYS[e.code] = true;
   if (e.code === 'Digit1') switchWeapon(0);
   if (e.code === 'Digit2') switchWeapon(1);
+  if (e.code === 'Digit4') switchWeapon(3);
   if (e.code === 'Digit3') switchWeapon(2);
   if (e.code === 'Digit4') switchWeapon(3);
   if (e.code === 'KeyG' || e.code === 'KeyQ') throwFragGrenade();
@@ -2272,7 +2561,7 @@ bindHoldButton(document.getElementById('btn-crouch'), () => { STATE.player.crouc
 bindHoldButton(document.getElementById('btn-turn180'), () => { STATE.player.yaw += Math.PI; }, null);
 bindHoldButton(document.getElementById('btn-reload'), () => {
   const w = STATE.weapons[STATE.currentWeapon];
-  if (w.maxAmmo !== Infinity) w.ammo = w.maxAmmo; SFX.playKeyPickup(); updateHUD();
+  if (w.maxAmmo !== Infinity && !w.emp) w.ammo = w.maxAmmo; SFX.playKeyPickup(); updateHUD();
 }, null);
 
 function updateHUD() {
@@ -2405,7 +2694,8 @@ function gameLoop(now) {
       p.active = false; p.mesh.visible = false; p.respawnTimer = 15; SFX.playKeyPickup();
       if (p.type === 'health') STATE.player.health = Math.min(100, STATE.player.health + 35);
       if (p.type === 'armor') STATE.player.armor = Math.min(100, STATE.player.armor + 40);
-      if (p.type === 'ammo') { STATE.weapons.forEach(w => { if (w.maxAmmo !== Infinity) w.ammo = w.maxAmmo; }); STATE.grenades = Math.min(5, STATE.grenades + 2); }
+      if (p.type === 'emp') { const e = STATE.weapons[3]; e.ammo = Math.min(e.maxAmmo, e.ammo + 3); addKillFeed('+3 EMP rounds'); }
+      if (p.type === 'ammo') { STATE.weapons.forEach(w => { if (w.maxAmmo !== Infinity && !w.emp) w.ammo = w.maxAmmo; }); STATE.grenades = Math.min(5, STATE.grenades + 2); }
       if (p.type === 'quad') STATE.quadTimer = 12;
       updateHUD();
     }
@@ -2441,13 +2731,23 @@ function gameLoop(now) {
     const p = PROJECTILES[i]; p.life -= dt;
     p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.mesh.position.set(p.x, p.y, p.z);
     let hit = false;
+    if (p.fromPlayer) {
+      const CH = colossusAt(p.x, p.z, 0.4);
+      if (CH && p.y < CH.height + 1) {
+        if (p.emp) empBurst(new THREE.Vector3(p.x, p.y, p.z));
+        else { spawnImpact(p.x, p.y, p.z, 0x7dd3fc); flashImmune(); CH.engaged = 6; }
+        scene.remove(p.mesh); PROJECTILES.splice(i, 1); continue;
+      }
+    }
     if (collidesAt(p.x, p.z, 0.15) || p.y <= 0.05 || p.life <= 0) hit = true;
+    if (hit && p.emp) { empBurst(new THREE.Vector3(p.x, Math.max(0.3, p.y), p.z)); scene.remove(p.mesh); PROJECTILES.splice(i, 1); continue; }
     if (p.fromPlayer && !hit) {
       for (const b of BOTS) {
         if (b.dying) continue;
         const hitRadius = b.isBoss ? 1.55 : (b.hitRadius || 0.95); const hitHeight = b.isBoss ? 3.5 : (b.hitHeight || 2.4);
         if (Math.hypot(p.x - b.x, p.z - b.z) < hitRadius && p.y >= b.y && p.y <= b.y + hitHeight) {
-          if (p.splash > 0) triggerExplosion(p.x, p.y, p.z, p.splash, p.damage);
+          if (p.emp) empBurst(new THREE.Vector3(p.x, p.y, p.z));
+          else if (p.splash > 0) triggerExplosion(p.x, p.y, p.z, p.splash, p.damage);
           else { damageBot(b, p.damage); spawnImpact(p.x, p.y, p.z, 0xf59e0b); }
           hit = true; break;
         }
@@ -2906,7 +3206,7 @@ document.getElementById('btn-instructions').onclick = () => {
   STATE.running = false; document.exitPointerLock?.(); document.getElementById('game-modal').classList.remove('hidden');
 };
 document.getElementById('btn-start').onclick = () => {
-  SFX.init();
+  SFX.init(); initVoice();
   STATE.botSkill = parseFloat(document.getElementById('select-bot-diff').value) || 1.0;
   const startLvl = parseInt(document.getElementById('select-level').value) || 1;
   document.getElementById('game-modal').classList.add('hidden');
@@ -2925,6 +3225,8 @@ document.getElementById('tab-party-mode').onclick = () => {
 };
 document.getElementById('slider-bright').oninput = e => setBrightness((parseFloat(e.target.value) || 100) / 100);
 setBrightness(BRIGHTNESS);
+document.getElementById('btn-shadows').onclick = () => setShadows(!SHADOWS_ON);
+setShadows(SHADOWS_ON);
 function brightenScene() { scene.traverse(o => { if (o.isMesh && o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(brightenMat); }); }
 setInterval(brightenScene, 2000);
 document.getElementById('slider-sens').oninput = e => { STATE.sens = (parseFloat(e.target.value) || 125) / 100; document.getElementById('sens-value').textContent = `${Math.round(STATE.sens * 100)}%`; };
