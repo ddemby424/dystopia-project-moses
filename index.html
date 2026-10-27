@@ -239,10 +239,8 @@
     #dm-panel { display:flex; flex-direction:column; gap:6px; margin-top:6px; } #dm-panel .dm-row { display:flex; gap:6px; } #dm-panel .dm-row > * { flex:1; min-width:0; } #dm-panel select { font-size:10px; padding:6px; letter-spacing:.05em; }
     .dm-btn.hot { background:rgba(239,68,68,.35); border-color:#fca5a5; } #btn-choose-op { width:100%; margin-bottom:6px; }
     #dm-lobby .dm-li { font:700 11px system-ui; color:#e5e7eb; padding:3px 8px; border-left:2px solid #38bdf8; margin:2px 0; } #dm-lobby .dm-li span { opacity:.6; font-size:10px; } #dm-lobby .dim { opacity:.5; border-color:#666; }
-    body.mtouch #mc-turn { width:11vmin; height:11vmin; right:calc(var(--sR) + 27.5vmin); bottom:calc(var(--sB) + 18vmin); }
     body.mtouch #btn-crouch { width:12vmin !important; height:12vmin !important; bottom:calc(var(--sB) + 2vmin) !important; }
     body.mtouch #btn-reload { right:calc(var(--sR) + 41vmin) !important; bottom:calc(var(--sB) + 18vmin) !important; }
-    body.mtouch #mc-turn svg { width:62%; height:62%; }
     .mc-lab { position:absolute; left:50%; top:100%; transform:translateX(-50%); margin-top:.25vmin; font:800 clamp(7px,1.75vmin,10px)/1 system-ui,-apple-system,sans-serif !important; letter-spacing:.14em; color:rgba(255,255,255,.62); text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 4px rgba(0,0,0,.6); pointer-events:none; white-space:nowrap; text-transform:uppercase; }
     body.mdesk .mc-lab { display:none; }
     #mc-ads > .mc-lab { top:auto; bottom:100%; margin:0 0 .25vmin; }
@@ -253,6 +251,10 @@
     body.mdesk #mc-movehint { display:none; }
     #mc-movehint.show { animation:mvhint 3.6s ease forwards; }
     @keyframes mvhint { 0%{opacity:0} 15%{opacity:1} 70%{opacity:1} 100%{opacity:0} }
+    #mc-sheet input[type=range] { width:100%; accent-color:#7dd3fc; height:28px; touch-action:none; }
+    #mc-sheet #mcs-sv { opacity:.8; margin-left:6px; }
+    #touch-look-zone, #btn-fire, #mc-lfire { touch-action:none; }
+    #btn-fire > .mc-lab, #mc-lfire > .mc-lab { letter-spacing:.08em; font-size:clamp(6px,1.5vmin,9px) !important; }
 </style>
 </head>
 <body>
@@ -390,7 +392,7 @@
 <button id="btn-grenade" data-btn-id="grenade" class="customizable-btn action-btn w-[54px] h-[54px] rounded-full bg-emerald-600/90 border-2 border-emerald-300 text-white font-extrabold text-[9px] flex flex-col items-center justify-center shadow-[0_0_14px_rgba(16,185,129,0.65)] pointer-events-auto" style="left: calc(100% - 198px - var(--sR)); top: calc(100% - 124px - var(--sB));"><span class="text-sm leading-none">💣</span><span id="grenade-label" class="mt-0.5">FRAG (3)</span></button>
 <button id="btn-jump" data-btn-id="jump" class="customizable-btn action-btn w-[54px] h-[54px] rounded-full bg-blue-600/85 border-2 border-blue-400 text-white font-extrabold text-xs flex flex-col items-center justify-center shadow-[0_0_14px_rgba(37,99,235,0.6)] pointer-events-auto" style="left: calc(100% - 58px - var(--sR)); top: calc(100% - 210px - var(--sB));"><span class="text-xs leading-none">▲</span><span class="text-[9px] mt-0.5">JUMP</span></button>
 <button id="btn-crouch" data-btn-id="crouch" class="customizable-btn action-btn w-12 h-12 rounded-full bg-purple-600/80 border-2 border-purple-400 text-white font-extrabold text-[9px] flex flex-col items-center justify-center shadow-[0_0_12px_rgba(147,51,234,0.5)] pointer-events-auto" style="left: calc(100% - 124px - var(--sR)); top: calc(100% - 204px - var(--sB));"><span class="text-xs leading-none">▼</span><span>SLIDE</span></button>
-<button id="btn-turn180" data-btn-id="turn180" class="customizable-btn action-btn w-12 h-12 rounded-full bg-cyan-600/85 border-2 border-cyan-300 text-white font-extrabold text-[9px] flex flex-col items-center justify-center shadow-[0_0_12px_rgba(0,240,255,0.5)] pointer-events-auto" style="left: calc(100% - 186px - var(--sR)); top: calc(100% - 204px - var(--sB));"><span class="text-xs leading-none">🔄</span><span class="mt-0.5">180°</span></button>
+<button style="display:none" id="btn-turn180" data-btn-id="turn180" class="customizable-btn action-btn w-12 h-12 rounded-full bg-cyan-600/85 border-2 border-cyan-300 text-white font-extrabold text-[9px] flex flex-col items-center justify-center shadow-[0_0_12px_rgba(0,240,255,0.5)] pointer-events-auto" style="left: calc(100% - 186px - var(--sR)); top: calc(100% - 204px - var(--sB));"><span class="text-xs leading-none">🔄</span><span class="mt-0.5">180°</span></button>
 
 <div id="game-modal" class="hidden absolute inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-3" style="padding-top: calc(12px + var(--sT)); padding-bottom: calc(12px + var(--sB));">
   <div class="q3-metal max-w-md w-full min-w-0 max-h-[94dvh] overflow-y-auto p-5 text-center flex flex-col gap-2.5">
@@ -4758,19 +4760,46 @@ function bindTouch(zone, type) {
   };
   zone.addEventListener('touchend', end); zone.addEventListener('touchcancel', end);
 }
-bindTouch(moveZone, 'move'); bindTouch(lookZone, 'look');
+bindTouch(moveZone, 'move');
 
+
+// ---------- Round 14: CoD-style fire-and-look. Any right-side touch (look zone or FIRE buttons) drags the camera ----------
+const LOOK = { ptrs: new Map(), px: 0, py: 0, sens: parseFloat(localStorage.getItem('dys_look') || '') || 1.0 };
+const LOOK_RAD_PER_PX = 0.0046, LOOK_DEAD = 1.5, LOOK_TAU = 0.022;
+function lookStart(e) { if (e.pointerType === 'mouse') return; LOOK.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, live: false }); }
+function lookMove(e) {
+  const p = LOOK.ptrs.get(e.pointerId); if (!p) return;
+  if (!p.live) { if (Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < LOOK_DEAD) return; p.live = true; p.x = p.sx + Math.sign(e.clientX - p.sx) * 0; p.y = p.sy; }
+  const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : null; const last = evs && evs.length ? evs[evs.length - 1] : e;
+  LOOK.px += last.clientX - p.x; LOOK.py += last.clientY - p.y; p.x = last.clientX; p.y = last.clientY;
+  if (e.cancelable) e.preventDefault();
+}
+function lookEnd(e) { LOOK.ptrs.delete(e.pointerId); }
+function lookApply(dt) {
+  if (!LOOK.px && !LOOK.py) return;
+  const k = 1 - Math.exp(-dt / LOOK_TAU); let dx = LOOK.px * k, dy = LOOK.py * k;
+  if (Math.abs(LOOK.px) < 0.05 && Math.abs(LOOK.py) < 0.05) { dx = LOOK.px; dy = LOOK.py; }
+  LOOK.px -= dx; LOOK.py -= dy;
+  const r = LOOK_RAD_PER_PX * LOOK.sens * (STATE.adsSensMul || 1) * (STATE.ads ? 0.55 : 1);
+  STATE.player.yaw -= dx * r; STATE.player.pitch = Math.max(-1.35, Math.min(1.35, STATE.player.pitch - dy * r));
+}
+function bindLookSurface(el, capture) {
+  if (!el) return; el.style.touchAction = 'none';
+  el.addEventListener('pointerdown', e => { if (!STATE.running || STATE.pausedForStudio) return; if (!capture && uiBlockedTarget(e.target)) return; lookStart(e); if (capture) { try { el.setPointerCapture(e.pointerId); } catch (_) {} } else if (e.cancelable) e.preventDefault(); });
+  el.addEventListener('pointermove', lookMove, { passive: false });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => el.addEventListener(t, lookEnd));
+}
+bindLookSurface(lookZone, false);
 function bindHoldButton(el, onDown, onUp) {
   const down = e => { e.preventDefault(); e.stopPropagation(); try { el.setPointerCapture(e.pointerId); } catch (err) {} onDown(); };
   const up = e => { e.preventDefault(); if (onUp) onUp(); };
   el.addEventListener('pointerdown', down); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
 }
 function tryJump() { if (STATE.player.y <= getGroundHeightAt(STATE.player.x, STATE.player.z, STATE.player.y) + 0.12) STATE.player.vy = STATE.jumpVel; }
-bindHoldButton(document.getElementById('btn-fire'), () => { isFiringHeld = true; }, () => { isFiringHeld = false; });
+bindHoldButton(document.getElementById('btn-fire'), () => { isFiringHeld = true; }, () => { isFiringHeld = false; }); bindLookSurface(document.getElementById('btn-fire'), true);
 bindHoldButton(document.getElementById('btn-jump'), tryJump, null);
 bindHoldButton(document.getElementById('btn-grenade'), throwFragGrenade, null);
 bindHoldButton(document.getElementById('btn-crouch'), () => { STATE.player.crouch = !STATE.player.crouch; }, null);
-bindHoldButton(document.getElementById('btn-turn180'), () => { STATE.player.yaw += Math.PI; }, null);
 bindHoldButton(document.getElementById('btn-reload'), () => {
   const w = STATE.weapons[STATE.currentWeapon];
   if (w.maxAmmo !== Infinity && !w.emp) { w.ammo = w.maxAmmo; AI_G.lastReloadT = performance.now(); } startReloadAnim(); SFX.playKeyPickup(); updateHUD();
@@ -4812,6 +4841,7 @@ function gameLoop(now) {
   if (LORE_OPEN) { renderer.render(scene, camera); return; }
   if (STATE.dm) dmUpdate(dt);
   if (STATE.turnAnim) turnAnimUpdate(dt);
+  if (STATE.running) lookApply(dt);
 
   if (sirenActiveTimer > 0) {
     sirenActiveTimer -= dt;
@@ -5895,7 +5925,7 @@ function qrCard(text, label) {
   setIcon('btn-grenade', ICONS.nade, '<span id="mc-nade-badge" class="mc-badge">3</span><span id="grenade-label" style="display:none"></span>');
   const mk = (id, svg) => { const b = document.createElement('button'); b.id = id; b.className = 'mc-btn mc-touch'; b.innerHTML = svg; body.appendChild(b); return b; };
   const ads = mk('mc-ads', ICONS.ads), lf = mk('mc-lfire', ICONS.fire);
-  bindHoldButton(lf, () => { isFiringHeld = true; }, () => { isFiringHeld = false; });
+  bindHoldButton(lf, () => { isFiringHeld = true; }, () => { isFiringHeld = false; }); bindLookSurface(lf, true);
   bindHoldButton(ads, () => { STATE.ads = !STATE.ads; ads.classList.toggle('on', STATE.ads); }, null);
   document.querySelectorAll('#btn-fire,#btn-jump,#btn-crouch,#btn-reload,#btn-grenade,.mc-btn').forEach(b => { b.addEventListener('pointerdown', () => b.classList.add('mc-press')); ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => b.addEventListener(ev, () => b.classList.remove('mc-press'))); });
   // desktop: right mouse = ADS
@@ -5914,7 +5944,7 @@ function qrCard(text, label) {
     <button id="mcs-resume">RESUME</button>
     <div class="row"><button id="mcs-fs">FULLSCREEN</button><button id="mcs-snd">SOUND ON</button></div>
     <div class="lbl">GRAPHICS</div><div class="row"><button data-gfx="low">LOW</button><button data-gfx="med">MED</button><button data-gfx="high">HIGH</button></div>
-    <button id="mcs-180">TURN 180</button>
+    <div class="lbl">LOOK SENSITIVITY <span id="mcs-sv"></span></div><input type="range" id="mcs-sens" min="30" max="250" step="5">
     <div class="lbl">PLAY ON YOUR PHONE</div><div id="mcs-qr" style="display:flex;justify-content:center"></div>
     <button id="mcs-main">MAIN MENU</button></div>`;
   body.appendChild(sheet);
@@ -5925,7 +5955,7 @@ function qrCard(text, label) {
   $('mcs-resume').onclick = () => closeSheet();
   $('mcs-fs').onclick = () => goFullscreen(true);
   $('mcs-snd').onclick = () => { SFX.muted = !SFX.muted; $('mcs-snd').textContent = SFX.muted ? 'SOUND OFF' : 'SOUND ON'; };
-  $('mcs-180').onclick = () => { STATE.player.yaw += Math.PI; closeSheet(); };
+  { const sl = $('mcs-sens'), sv = $('mcs-sv'); const show = () => { sl.value = Math.round(LOOK.sens * 100); sv.textContent = sl.value + '%'; }; show(); sl.oninput = () => { LOOK.sens = sl.value / 100; localStorage.setItem('dys_look', LOOK.sens); sv.textContent = sl.value + '%'; }; }
   $('mcs-main').onclick = () => { closeSheet(false); $('btn-instructions').onclick(); };
   sheet.querySelectorAll('[data-gfx]').forEach(b => b.onclick = () => applyGfx(b.dataset.gfx));
   window.addEventListener('keydown', e => { if (e.code === 'Escape' && STATE.running === false && sheet.style.display === 'flex') closeSheet(); });
@@ -6443,20 +6473,13 @@ function dmLobbyList() { const el = document.getElementById('dm-lobby'); if (!el
 // ---------- Round 13: bullet fire icon, TURN next to fire, tiny control labels, MOVE hint ----------
 (function r13Controls() {
   const BULLET = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M12 1.8c2.3 1.9 3.3 4.6 3.3 7.5V15H8.7V9.3c0-2.9 1-5.6 3.3-7.5z"/><path d="M8.1 15h7.8v2.3H8.1z" fill="rgba(255,255,255,.25)"/><path d="M8.7 17.3h6.6v4.4H8.7z"/><path d="M10.5 6.6c.35-1 .85-1.8 1.5-2.4" opacity=".75"/><path d="M10.6 19.5h2.8" opacity=".6"/></svg>';
-  const TURN = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 1 1 2.05 4.95"/><path d="M4.2 18.6 7.05 16.95 5.4 14.1"/><text x="12" y="14.6" font-size="6.6" font-family="system-ui,sans-serif" font-weight="800" fill="#fff" stroke="none" text-anchor="middle">180</text></svg>';
+  const _TURN_UNUSED = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 1 1 2.05 4.95"/><path d="M4.2 18.6 7.05 16.95 5.4 14.1"/><text x="12" y="14.6" font-size="6.6" font-family="system-ui,sans-serif" font-weight="800" fill="#fff" stroke="none" text-anchor="middle">180</text></svg>';
   ICONS.fire = BULLET;
   const $ = id => document.getElementById(id);
   const lab = (el, t) => { if (!el || el.querySelector(':scope > .mc-lab')) return; const s = document.createElement('span'); s.className = 'mc-lab'; s.textContent = t; el.appendChild(s); };
   const swapIcon = el => { if (!el) return; const old = el.querySelector(':scope > svg'); if (old) old.outerHTML = BULLET; };
   swapIcon($('btn-fire')); swapIcon($('mc-lfire'));
-  let turn = $('mc-turn');
-  if (!turn) {
-    turn = document.createElement('button'); turn.id = 'mc-turn'; turn.className = 'mc-btn mc-touch'; turn.innerHTML = TURN; turn.setAttribute('aria-label', 'Turn 180');
-    ($('btn-fire') && $('btn-fire').parentNode || document.body).appendChild(turn);
-    bindHoldButton(turn, () => { if (!STATE.running) return; STATE.turnAnim = { from: STATE.player.yaw, t: 0 }; }, null);
-    turn.addEventListener('pointerdown', () => turn.classList.add('mc-press')); ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => turn.addEventListener(ev, () => turn.classList.remove('mc-press')));
-  }
-  [['btn-fire', 'FIRE'], ['mc-lfire', 'FIRE'], ['mc-turn', 'TURN'], ['btn-jump', 'JUMP'], ['btn-crouch', 'CROUCH'], ['btn-reload', 'RELOAD'], ['mc-ads', 'AIM'], ['btn-grenade', 'GRENADE'], ['mc-menu', 'MENU']].forEach(([id, t]) => lab($(id), t));
+  [['btn-fire', 'FIRE · DRAG TO AIM'], ['mc-lfire', 'FIRE · AIM'], ['btn-jump', 'JUMP'], ['btn-crouch', 'CROUCH'], ['btn-reload', 'RELOAD'], ['mc-ads', 'AIM'], ['btn-grenade', 'GRENADE'], ['mc-menu', 'MENU']].forEach(([id, t]) => lab($(id), t));
   // MOVE hint over the joystick zone — fades in briefly at deploy
   let mv = $('mc-movehint'); if (!mv) { mv = document.createElement('div'); mv.id = 'mc-movehint'; mv.innerHTML = '<span>◀ ▲ ▼ ▶</span><b>MOVE</b><i>drag anywhere on the left</i>'; document.body.appendChild(mv); }
   window.r13MoveHint = () => { mv.classList.remove('show'); void mv.offsetWidth; mv.classList.add('show'); };
