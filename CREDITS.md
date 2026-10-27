@@ -10,13 +10,13 @@ Created, written & directed by **Darcy D. Demby**.
 | Exploration (ambient) | music/ambient_1-52.mp3 | Untitled 1-52 |
 | Combat (rotation, 3rd pick) | music/combat_2-06.mp3 | Untitled 2-06 |
 | Doom Party deathmatch (rotation) | music/dm_highschool_band.mp3 | Highschool Band |
-| Title screen (main theme) — DROP-IN SLOT | music/title_bass_angel.mp3 | Bass Angel |
-| Starter / exploration, all levels (main song) — DROP-IN SLOT | music/explore_ghetto.mp3 | Ghetto Shit |
-| Deploy / settings menu — DROP-IN SLOT | music/menu_on_hold.mp3 | On Hold |
-| Doom Party deathmatch (rotation) — DROP-IN SLOT | music/dm_jungle_slap.mp3 | Jungle Slap |
+| Title screen (main theme) | music/title_bass_angel.mp3 | Bass Angel (first 3:00, faded loop) |
+| Starter / exploration, all levels (main song) | music/explore_ghetto.mp3 | Ghetto Sh*t |
+| Deploy / settings menu | music/menu_on_hold.mp3 | On Hold |
+| Doom Party deathmatch (rotation) | music/dm_jungle_slap.mp3 | Jungle Slap |
 | Doom Party deathmatch (rotation) | music/oldschool_flavor.mp3 | Old School Flavor |
 
-Drop-in slots are used automatically when the file exists; until then the game falls back (title → Rising Game, exploration → Untitled 1-52, menu → title track).
+If any of these files is missing the game falls back automatically (title → Rising Game, exploration → Untitled 1-52, menu → title track).
 | Credits screen | music/credits_808_play.mp3 | 808 Play (silent gaps removed) |
 
 Third-party (all by Kevin MacLeod, incompetech.com, licensed under Creative Commons: By Attribution 4.0 — https://creativecommons.org/licenses/by/4.0/). Each was loudness-normalized to -16 LUFS, trimmed and given a loop crossfade:
