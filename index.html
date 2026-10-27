@@ -255,6 +255,9 @@
     #mc-sheet #mcs-sv { opacity:.8; margin-left:6px; }
     #touch-look-zone, #btn-fire, #mc-lfire { touch-action:none; }
     #btn-fire > .mc-lab, #mc-lfire > .mc-lab { letter-spacing:.08em; font-size:clamp(6px,1.5vmin,9px) !important; }
+    #credits-screen { position:fixed; inset:0; z-index:350; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.7); padding:12px; }
+    #credits-screen .cr-card { width:min(92vw,560px); max-height:90dvh; overflow:auto; padding:16px 18px; display:flex; flex-direction:column; gap:10px; }
+    #credits-screen .cr-sec { font:600 12px/1.45 system-ui,sans-serif; color:#e5e7eb; text-align:center; } #credits-screen .cr-sec b { letter-spacing:.2em; font-size:11px; color:#7dd3fc; } #credits-screen a { color:#fde68a; } #credits-screen .dim { opacity:.6; font-size:10px; }
 </style>
 </head>
 <body>
@@ -4650,6 +4653,7 @@ function damageBot(b, dmg) {
 }
 
 function damagePlayer(dmg) {
+  STATE.lastHurtT = performance.now();
   if (STATE.dm) return dmTakeDamage(dmg, null);
   const absorb = Math.min(STATE.player.armor, Math.ceil(dmg * 0.5));
   STATE.player.armor -= absorb; STATE.player.health -= (dmg - absorb);
@@ -4842,6 +4846,7 @@ function gameLoop(now) {
   if (STATE.dm) dmUpdate(dt);
   if (STATE.turnAnim) turnAnimUpdate(dt);
   if (STATE.running) lookApply(dt);
+  musicUpdate(dt);
 
   if (sirenActiveTimer > 0) {
     sirenActiveTimer -= dt;
@@ -6263,6 +6268,7 @@ function dmApplyDamageTo(targetId, dmg, fromId, w) { // runs on host
 }
 function dmSendHit(targetId, dmg, w) { if (DM.host) dmApplyDamageTo(targetId, dmg, DM.me, w); else dmSendToHost({ t: 'hit', target: targetId, dmg, w }); }
 function dmTakeDamage(dmg, fromId) {
+  STATE.lastHurtT = performance.now();
   if (!DM.meAlive || DM.ended) return;
   const absorb = Math.min(STATE.player.armor, Math.ceil(dmg * 0.4)); STATE.player.armor -= absorb; STATE.player.health -= (dmg - absorb);
   STATE.screenShake = Math.max(STATE.screenShake, 0.3); const fl = document.getElementById('damage-flash'); if (fl) { fl.style.opacity = '1'; setTimeout(() => (fl.style.opacity = '0'), 140); }
@@ -6487,6 +6493,92 @@ function dmLobbyList() { const el = document.getElementById('dm-lobby'); if (!el
 })();
 // quick 180 (0.14 s ease) so aim stays readable while running
 function turnAnimUpdate(dt) { const A = STATE.turnAnim; if (!A) return; const t0 = A.t; A.t = Math.min(1, A.t + dt / 0.14); const e = u => u * u * (3 - 2 * u); STATE.player.yaw += Math.PI * (e(A.t) - e(t0)); if (A.t >= 1) STATE.turnAnim = null; }
+
+// ---------- Round 15: MUSIC (Darcy Demby originals + Kevin MacLeod "Dark Times") ----------
+const MUSIC_TRACKS = {
+  title: { url: 'music/title_dark_times.mp3', name: 'Dark Times', by: 'Kevin MacLeod (incompetech.com)', gain: 0.9 },
+  ambient: { url: 'music/ambient_1-52.mp3', name: 'Untitled 1-52', by: 'Darcy Demby', gain: 0.85 },
+  combat: { url: 'music/combat_2-06.mp3', name: 'Untitled 2-06', by: 'Darcy Demby', gain: 0.8 },
+  boss: { url: 'music/boss_2-08.mp3', name: 'Untitled 2-08', by: 'Darcy Demby', gain: 0.85 },
+  dm: { url: 'music/dm_highschool_band.mp3', name: 'Highschool Band', by: 'Darcy Demby', gain: 0.8 },
+  credits: { url: 'music/credits_808_play.mp3', name: '808 Play', by: 'Darcy Demby', gain: 1.0 }
+};
+const MUSIC = { ready: false, on: localStorage.getItem('dys_music_on') !== '0', vol: parseFloat(localStorage.getItem('dys_music_vol') ?? '0.55'), buf: {}, loading: {}, cur: null, voices: {}, off: {}, role: null, want: null, combatHold: 0, t: 0, duck: 1, creditsOpen: false };
+if (!(MUSIC.vol >= 0 && MUSIC.vol <= 1)) MUSIC.vol = 0.55;
+function musicInit() {
+  if (MUSIC.ready) return; try { SFX.init(); } catch (e) { return; } const ctx = SFX.ctx; if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  MUSIC.master = ctx.createGain(); MUSIC.master.gain.value = MUSIC.on ? MUSIC.vol : 0; MUSIC.duckG = ctx.createGain(); MUSIC.duckG.connect(MUSIC.master); MUSIC.master.connect(ctx.destination);
+  MUSIC.ready = true; musicLoad('title'); musicLoad('ambient'); setTimeout(() => ['combat', 'boss', 'dm', 'credits'].forEach(musicLoad), 6000);
+}
+function musicLoad(role) {
+  if (MUSIC.buf[role] || MUSIC.loading[role]) return MUSIC.loading[role]; const T = MUSIC_TRACKS[role]; if (!T) return null;
+  MUSIC.loading[role] = fetch(T.url).then(r => r.arrayBuffer()).then(ab => new Promise((res, rej) => SFX.ctx.decodeAudioData(ab, res, rej))).then(b => { MUSIC.buf[role] = b; if (MUSIC.want === role && MUSIC.role !== role) musicPlay(role, 1.5); return b; }).catch(() => null);
+  return MUSIC.loading[role];
+}
+function musicPlay(role, fade = 2.5) {
+  if (!MUSIC.ready) return; MUSIC.want = role; if (MUSIC.role === role) return;
+  const ctx = SFX.ctx, now = ctx.currentTime;
+  if (MUSIC.role && MUSIC.voices[MUSIC.role]) { const v = MUSIC.voices[MUSIC.role]; MUSIC.off[MUSIC.role] = ((now - v.t0) * 1) % v.src.buffer.duration; v.g.gain.cancelScheduledValues(now); v.g.gain.setValueAtTime(v.g.gain.value, now); v.g.gain.linearRampToValueAtTime(0, now + fade); try { v.src.stop(now + fade + 0.05); } catch (e) {} delete MUSIC.voices[MUSIC.role]; }
+  MUSIC.role = null;
+  const b = MUSIC.buf[role]; if (!b) { musicLoad(role); return; }
+  const src = ctx.createBufferSource(); src.buffer = b; src.loop = true; const g = ctx.createGain(); g.gain.value = 0; src.connect(g); g.connect(MUSIC.duckG);
+  const keep = role === 'ambient' || role === 'title'; const off = keep ? (MUSIC.off[role] || 0) : 0;
+  src.start(now, off); g.gain.linearRampToValueAtTime(MUSIC_TRACKS[role].gain, now + fade);
+  MUSIC.voices[role] = { src, g, t0: now - off }; MUSIC.role = role;
+}
+function musicSetVolume(v) { MUSIC.vol = v; localStorage.setItem('dys_music_vol', v); if (MUSIC.master) MUSIC.master.gain.setTargetAtTime(MUSIC.on && !SFX.muted ? v : 0, SFX.ctx.currentTime, 0.1); }
+function musicSetOn(on) { MUSIC.on = on; localStorage.setItem('dys_music_on', on ? '1' : '0'); musicSetVolume(MUSIC.vol); }
+function musicRole() {
+  if (MUSIC.creditsOpen) return 'credits';
+  const menu = ['splash-screen', 'game-modal'].some(id => { const e = document.getElementById(id); return e && !e.classList.contains('hidden'); });
+  if (menu) return 'title';
+  if (!STATE.running) return MUSIC.role || 'title';
+  if (STATE.dm) return 'dm';
+  const P = STATE.player;
+  const boss = COLOSSI.some(C => !C.dead && !C.rising && (C.alerted || C.engaged > 0) && Math.hypot(C.root.position.x - P.x, C.root.position.z - P.z) < 95) || BOTS.some(b => b.isBoss && !b.dying);
+  if (boss) return 'boss';
+  const fight = BOTS.some(b => !b.dying && b.aiState === 'combat' && Math.hypot(b.x - P.x, b.z - P.z) < 60) || (performance.now() - (STATE.lastHurtT || -1e9) < 5000);
+  if (fight) MUSIC.combatHold = 9; return MUSIC.combatHold > 0 ? 'combat' : 'ambient';
+}
+function musicUpdate(dt) {
+  if (!MUSIC.ready) return; MUSIC.combatHold = Math.max(0, MUSIC.combatHold - dt);
+  MUSIC.t -= dt; if (MUSIC.t > 0) return; MUSIC.t = 0.25;
+  const r = musicRole(); if (r !== MUSIC.want || (MUSIC.role !== r && MUSIC.buf[r])) musicPlay(r, r === 'combat' || r === 'boss' ? 1.2 : r === 'ambient' ? 4 : 2.5);
+  // duck under the Colossus voice line (and while paused)
+  const voice = COLOSSI.some(C => C.voice && C.voice.isPlaying);
+  const d = voice ? 0.3 : (!STATE.running && !MUSIC.creditsOpen && r !== 'title' ? 0.45 : 1);
+  if (d !== MUSIC.duck) { MUSIC.duck = d; MUSIC.duckG.gain.setTargetAtTime(d, SFX.ctx.currentTime, voice ? 0.08 : 0.4); }
+  const tgt = MUSIC.on && !SFX.muted ? MUSIC.vol : 0; if (Math.abs(MUSIC.master.gain.value - tgt) > 0.01) MUSIC.master.gain.setTargetAtTime(tgt, SFX.ctx.currentTime, 0.15);
+}
+// first user gesture unlocks audio (iOS) and starts the title theme
+['pointerdown', 'keydown', 'touchend'].forEach(ev => window.addEventListener(ev, () => { musicInit(); }, { capture: true, passive: true }));
+setInterval(() => { if (document.hidden) return; if (LORE_OPEN) musicUpdate(0.25); }, 250);
+// ---- credits screen ----
+const CREDITS_HTML = `<div class="gc-t">CREDITS</div>
+ <div class="cr-sec"><b>DYSTOPIA · PROJECT MOSES</b><br>Created, written &amp; directed by Darcy D. Demby</div>
+ <div class="cr-sec"><b>MUSIC</b><br>Music by Darcy Demby — “808 Play”, “Untitled 1-52”, “Untitled 2-06”, “Untitled 2-08”, “Highschool Band” (produced in Soundtrap)<br>
+ “Dark Times” — Kevin MacLeod (incompetech.com) · Licensed under <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a> · <a href="https://commons.wikimedia.org/wiki/File:Dark_Times_(ISRC_USUAN1100747).mp3" target="_blank" rel="noopener">source</a></div>
+ <div class="cr-sec"><b>3D MODELS</b><br>Characters, Sentinels &amp; props generated with Meshy AI for Darcy Demby</div>
+ <div class="cr-sec"><b>TECH</b><br>three.js (MIT) · PeerJS (MIT) · qrcode-generator by Kazuhiko Arase (MIT)</div>
+ <div class="cr-sec dim">Now playing: “808 Play” — Darcy Demby</div><button id="cr-close">CLOSE</button>`;
+function openCredits() {
+  if (document.getElementById('credits-screen')) return; musicInit(); MUSIC.creditsOpen = true; musicUpdate(1);
+  const el = document.createElement('div'); el.id = 'credits-screen'; el.innerHTML = `<div class="glass-card cr-card">${CREDITS_HTML}</div>`; document.body.appendChild(el);
+  el.querySelector('#cr-close').onclick = () => { el.remove(); MUSIC.creditsOpen = false; MUSIC.t = 0; musicUpdate(0); };
+}
+(function musicUI() {
+  const $ = id => document.getElementById(id);
+  // pause sheet: music on/off + volume + credits
+  const sheet = $('mc-sheet'); if (sheet) { const anchor = sheet.querySelector('#mcs-main');
+    const box = document.createElement('div'); box.innerHTML = `<div class="lbl">MUSIC <span id="mcs-mv"></span></div><div class="row"><button id="mcs-mus">MUSIC ON</button><button id="mcs-cred">CREDITS</button></div><input type="range" id="mcs-mvol" min="0" max="100" step="5">`;
+    anchor.parentNode.insertBefore(box, anchor);
+    const sl = $('mcs-mvol'), lab = $('mcs-mv'), bt = $('mcs-mus'); const show = () => { sl.value = Math.round(MUSIC.vol * 100); lab.textContent = sl.value + '%'; bt.textContent = MUSIC.on ? 'MUSIC ON' : 'MUSIC OFF'; }; show();
+    sl.oninput = () => { musicInit(); musicSetVolume(sl.value / 100); lab.textContent = sl.value + '%'; };
+    bt.onclick = () => { musicInit(); musicSetOn(!MUSIC.on); show(); }; $('mcs-cred').onclick = openCredits; }
+  // main menu credits button
+  const modal = $('game-modal'); if (modal) { const card = modal.firstElementChild; const b = document.createElement('button'); b.id = 'btn-credits'; b.className = 'q3-btn steel action-btn py-1.5 text-xs'; b.textContent = 'CREDITS'; b.onclick = openCredits; card.appendChild(b); }
+})();
 
 // Boot — load Meshy GLBs first so arena props / viewmodel / sentinels use them
 { const L0 = genFloorLayout(1, 0); MAP_OBJECTS = L0.objects; FLOOR_INFO = L0.info; }
