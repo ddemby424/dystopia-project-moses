@@ -14,7 +14,7 @@ Created, written & directed by **Darcy D. Demby**.
 | Starter / exploration, all levels (main song) — DROP-IN SLOT | music/explore_ghetto.mp3 | Ghetto Shit |
 | Deploy / settings menu — DROP-IN SLOT | music/menu_on_hold.mp3 | On Hold |
 | Doom Party deathmatch (rotation) — DROP-IN SLOT | music/dm_jungle_slap.mp3 | Jungle Slap |
-| Doom Party deathmatch (rotation) — DROP-IN SLOT | music/oldschool_flavor.mp3 | Old School Flavor |
+| Doom Party deathmatch (rotation) | music/oldschool_flavor.mp3 | Old School Flavor |
 
 Drop-in slots are used automatically when the file exists; until then the game falls back (title → Rising Game, exploration → Untitled 1-52, menu → title track).
 | Credits screen | music/credits_808_play.mp3 | 808 Play (silent gaps removed) |
