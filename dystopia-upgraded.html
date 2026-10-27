@@ -239,6 +239,20 @@
     #dm-panel { display:flex; flex-direction:column; gap:6px; margin-top:6px; } #dm-panel .dm-row { display:flex; gap:6px; } #dm-panel .dm-row > * { flex:1; min-width:0; } #dm-panel select { font-size:10px; padding:6px; letter-spacing:.05em; }
     .dm-btn.hot { background:rgba(239,68,68,.35); border-color:#fca5a5; } #btn-choose-op { width:100%; margin-bottom:6px; }
     #dm-lobby .dm-li { font:700 11px system-ui; color:#e5e7eb; padding:3px 8px; border-left:2px solid #38bdf8; margin:2px 0; } #dm-lobby .dm-li span { opacity:.6; font-size:10px; } #dm-lobby .dim { opacity:.5; border-color:#666; }
+    body.mtouch #mc-turn { width:11vmin; height:11vmin; right:calc(var(--sR) + 27.5vmin); bottom:calc(var(--sB) + 18vmin); }
+    body.mtouch #btn-crouch { width:12vmin !important; height:12vmin !important; bottom:calc(var(--sB) + 2vmin) !important; }
+    body.mtouch #btn-reload { right:calc(var(--sR) + 41vmin) !important; bottom:calc(var(--sB) + 18vmin) !important; }
+    body.mtouch #mc-turn svg { width:62%; height:62%; }
+    .mc-lab { position:absolute; left:50%; top:100%; transform:translateX(-50%); margin-top:.25vmin; font:800 clamp(7px,1.75vmin,10px)/1 system-ui,-apple-system,sans-serif !important; letter-spacing:.14em; color:rgba(255,255,255,.62); text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 4px rgba(0,0,0,.6); pointer-events:none; white-space:nowrap; text-transform:uppercase; }
+    body.mdesk .mc-lab { display:none; }
+    #mc-ads > .mc-lab { top:auto; bottom:100%; margin:0 0 .25vmin; }
+    #btn-fire > .mc-lab { margin-top:.4vmin; color:rgba(255,255,255,.72); }
+    #mc-menu { overflow:visible; } #mc-menu > .mc-lab { font-size:clamp(6px,1.5vmin,9px) !important; }
+    #mc-movehint { position:absolute; left:calc(var(--sL,0px) + 14vmin); bottom:calc(var(--sB,0px) + 22vmin); z-index:20; pointer-events:none; display:flex; flex-direction:column; align-items:center; gap:.6vmin; opacity:0; color:rgba(255,255,255,.75); text-shadow:0 1px 3px #000; font-family:system-ui,sans-serif; }
+    #mc-movehint b { font-weight:900; letter-spacing:.3em; font-size:clamp(10px,3vmin,16px); } #mc-movehint span { font-size:clamp(8px,2.2vmin,13px); letter-spacing:.3em; opacity:.8; } #mc-movehint i { font-size:clamp(7px,1.7vmin,10px); font-style:normal; letter-spacing:.12em; opacity:.6; }
+    body.mdesk #mc-movehint { display:none; }
+    #mc-movehint.show { animation:mvhint 3.6s ease forwards; }
+    @keyframes mvhint { 0%{opacity:0} 15%{opacity:1} 70%{opacity:1} 100%{opacity:0} }
 </style>
 </head>
 <body>
@@ -1782,6 +1796,7 @@ function killColossus(C) {
   if (C.rebuilt) { addScore(500, 'SENTINEL DOWN (REBUILT)', new THREE.Vector3(C.root.position.x, C.height * 0.75, C.root.position.z), true); (C.spots || []).forEach(s => { s.g.visible = false; if (s.plates) s.plates.forEach(p => scene.remove(p.m)); }); } else { const top = new THREE.Vector3(C.root.position.x, C.height * 0.75, C.root.position.z); addScore(2500, 'SENTINEL DOWN', top, true); const all = C.spots && C.spots.every(s => s.dead); if (all) setTimeout(() => addScore(1500, 'FULL DISMANTLE', top.clone().add(new THREE.Vector3(0, -1.5, 0)), true), 500); if (C.lastHitKey === 'core') setTimeout(() => addScore(1000, 'CORE KILL', top.clone().add(new THREE.Vector3(0, -3, 0)), true), 900); (C.spots || []).forEach(s => { s.g.visible = false; if (s.plates) s.plates.forEach(p => scene.remove(p.m)); }); }
   colliders = colliders.filter(c => c !== C.col); if (C.laser) C.laser.visible = false; buildNavGrid();
   if (C.eye) C.eye.intensity = 0;
+  colossusHideParts(C);
   explodeColossal(C);
   showBanner(C.isMini ? '⚡ MINI COLOSSUS DOWN' : '⚡ MOSES COLOSSUS DESTROYED', 'Shielding collapsed. Clear the remaining sentinels to open the stairwell.', 4000);
   SFX.playRadioChatter(`${C.isMini ? 'Mini Colossus' : 'Moses Colossus'} offline! EMP breach confirmed!`, 'SECTOR COMMAND');
@@ -1798,7 +1813,7 @@ function updateColossi(dt, now) {
   let hudC = null, hudD = 1e9;
   COLOSSI.forEach(C => {
     if (C.dead) {
-      C.deathT += dt; updateWreck(C, dt, now); return;
+      C.deathT += dt; if (C.cannon && C.cannon.visible) C.cannon.visible = false; if (C.glow && C.glow.visible) C.glow.visible = false; updateWreck(C, dt, now); return;
     }
     if (C.mixer && C.stun <= 0) C.mixer.update(dt);
     updateColossusCannon(C);
@@ -4040,6 +4055,32 @@ const SOFT_DEFS = [
 const WRECK_CFG = { burn: IS_COARSE ? 18 : 28, dispatch: IS_COARSE ? 13 : 9, redispatch: IS_COARSE ? 34 : 26, repairTime: IS_COARSE ? 24 : 18, maxDispatch: 2, riseHp: IS_COARSE ? 0.4 : 0.5 };
 const WRECK_MAT = new THREE.MeshStandardMaterial({ color: 0x1c1915, metalness: 0.75, roughness: 0.8 });
 const WRECK_MAT2 = new THREE.MeshStandardMaterial({ color: 0x3a2a1c, metalness: 0.6, roughness: 0.9, emissive: 0x401204, emissiveIntensity: 0.5 });
+function colossusHideParts(C) {
+  C.charge = -1; if (C.cannon) C.cannon.visible = false; if (C.glow) C.glow.visible = false; if (C.glowLight) C.glowLight.intensity = 0; if (C.laser) C.laser.visible = false;
+  (C.spots || []).forEach(s => { s.g.visible = false; (s.plates || []).forEach(p => { p.m.visible = false; }); });
+  C.root.traverse(o => { if (o.isSprite && o.userData.wasVis === undefined) { o.userData.wasVis = o.visible; o.visible = false; } });
+}
+// after the twist pass: no limb may poke up out of the heap — untwist the offending bones (leaves first), then fold any rest-pose limb still sticking up down onto the hull
+function wreckSettleBones(C) {
+  const cap = C.thick * 2.1; const v = new THREE.Vector3(); C.root.updateMatrixWorld(true);
+  const maxY = b => { let m = -1e9; b.traverse(o => { if (o.isBone) { o.getWorldPosition(v); m = Math.max(m, v.y); } }); return m; };
+  for (let pass = 0; pass < 3; pass++) {
+    let changed = false;
+    for (let i = C.boneRest.length - 1; i >= 0; i--) { const r = C.boneRest[i]; if (maxY(r.b) > cap && !r.b.quaternion.equals(r.q)) { r.b.quaternion.copy(r.q); r.b.updateMatrixWorld(true); changed = true; } }
+    if (!changed) break; C.root.updateMatrixWorld(true);
+  }
+  // residual: bend each offending bone toward the floor in small steps
+  const tmp = new THREE.Quaternion(), axes = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0)];
+  for (let i = 0; i < C.boneRest.length; i++) {
+    const b = C.boneRest[i].b; let y0 = maxY(b); if (y0 <= cap) continue;
+    for (let it = 0; it < 24 && y0 > cap; it++) {
+      let best = null, by = y0; const q0 = b.quaternion.clone();
+      for (const ax of axes) for (const sg of [-1, 1]) { b.quaternion.copy(q0).multiply(tmp.setFromAxisAngle(ax, sg * 0.2)); b.updateMatrixWorld(true); const y = maxY(b); if (y < by) { by = y; best = b.quaternion.clone(); } }
+      if (!best) { b.quaternion.copy(q0); b.updateMatrixWorld(true); break; } b.quaternion.copy(best); b.updateMatrixWorld(true); y0 = by;
+    }
+  }
+  C.root.updateMatrixWorld(true);
+}
 function wreckBeginFall(C) {
   C.fall = { th: 0.04, w: 0.12, t: 0, landed: false, bounce: 0 };
   C.root.rotation.order = 'YXZ'; C.root.rotation.z = 0;
@@ -4092,6 +4133,7 @@ function wreckBuild(C) {
   // twist it: bend every bone a little, harder at the extremities
   C.boneRest.forEach((r, i) => { const a = 0.25 + Math.random() * 0.45; r.b.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler((Math.random() - 0.5) * a, (Math.random() - 0.5) * a, (Math.random() - 0.5) * a))); });
   C.root.scale.set(1.04, 0.86, 1.0); // crushed
+  try { wreckSettleBones(C); } catch (e) {}
   // persistent scattered scrap
   C.scrap = C.scrap || [];
   if (!C.scrap.length) {
@@ -4160,6 +4202,7 @@ function wreckFinishRise(C) {
   C.rising = null; C.fall = null; C.dead = false; C.rebuilt = true; C.rebuilds = (C.rebuilds || 0) + 1;
   C.hp = Math.round(C.maxHp * WRECK_CFG.riseHp); C.stun = 0; C.charge = -1; C.cool = 3; C.cannonDisabled = false; C.turnMult = 1; C.rateMult = 1; C.limp = 0;
   C.root.rotation.x = 0; C.root.rotation.z = 0; C.root.position.y = 0; if (C.plate) C.plate.visible = true;
+  C.root.traverse(o => { if (o.isSprite && o.userData.wasVis !== undefined) { o.visible = o.userData.wasVis; delete o.userData.wasVis; } }); if (C.cannon) C.cannon.visible = true;
   if (C.eye) C.eye.intensity = C.isMini ? 1.6 : 2.5;
   (C.spots || []).forEach(sp => { sp.dead = false; sp.hp = sp.maxHp; sp.g.visible = true; if (sp.plates) sp.plates.forEach(p => scene.add(p.m)); });
   colliders.push(C.col); try { buildNavGrid(); } catch (e) {}
@@ -4213,7 +4256,7 @@ function updateWreck(C, dt, now) {
       const x = c.x + C.fallDir.y * sx, z = c.z - C.fallDir.x * sx, y = 0.15 + Math.random() * C.thick * 1.4;
       fxEmit('fire', x, y, z, { life: 0.8 + Math.random() * 0.5, s0: 0.9 + C.thick * 0.6, s1: 2.4 + C.thick * 1.1, vy: 2.6, drag: 1.2 }); if (!IS_COARSE && Math.random() < 0.5) fxEmit('fire', x, 0.2, z, { life: 0.9, s0: 0.8, s1: 1.8, vy: 1.4, drag: 1 });
       if (Math.random() < 0.35) fxEmit('smoke', x, y + 1, z, { life: 2.2, s0: 1, s1: 3.5 + C.height * 0.08, vy: 2.4, op: 0.55, color: 0x2a2622 });
-      if (Math.random() < 0.4) fxEmit('dot', x, y, z, { life: 1.4, s0: 0.12, s1: 0.04, vx: (Math.random() - 0.5) * 1.5, vy: 2 + Math.random() * 2, vz: (Math.random() - 0.5) * 1.5, grav: -0.5, color: 0xffa040 });
+      if (Math.random() < 0.4) fxEmit('dot', x, y, z, { life: 0.9, s0: 0.1, s1: 0.03, vx: (Math.random() - 0.5) * 2.5, vy: 2 + Math.random() * 2.5, vz: (Math.random() - 0.5) * 2.5, grav: 9, floor: 0.05, color: 0xffa040 });
     }
     if (!C.fireLight) { C.fireLight = new RTLight(0xff7a2a, 0, 26, 2); arenaGroup.add(C.fireLight); }
     const c0 = wreckCenter(C, 0.45); C.fireLight.position.set(c0.x, C.thick * 2 + 1, c0.z); C.fireLight.intensity = 3.2 * k * (0.75 + Math.random() * 0.25);
@@ -4768,6 +4811,7 @@ function gameLoop(now) {
   const dt = Math.min(0.05, (now - lastTime) / 1000); lastTime = now;
   if (LORE_OPEN) { renderer.render(scene, camera); return; }
   if (STATE.dm) dmUpdate(dt);
+  if (STATE.turnAnim) turnAnimUpdate(dt);
 
   if (sirenActiveTimer > 0) {
     sirenActiveTimer -= dt;
@@ -6127,6 +6171,7 @@ function dmStartMatch(cfg) {
   dmBuildArena(); Object.values(DM.ents).forEach(e => { if (e.A) { arenaGroup.add(e.A.root); } });
   if (DM.host) dmFillBots();
   dmResetPlayer(); STATE.running = true; buildViewModel(); renderWeaponBar();
+  try { window.r13MoveHint && r13MoveHint(); } catch (e) {}
   dmTop(); showBanner(DM.mode === 'team' ? 'SQUAD DEATHMATCH' : 'DEATHMATCH', `FIRST TO ${DM.fragLimit} FRAGS · ${Math.round(DM.timeLimit / 60)} MIN`, 2600);
   if (!IS_COARSE) setTimeout(() => { try { const r = canvas.requestPointerLock?.(); if (r && r.catch) r.catch(() => {}); } catch (e) {} }, 80);
   if (DM.host) dmBroadcastRoster();
@@ -6394,6 +6439,31 @@ function dmLobbyList() { const el = document.getElementById('dm-lobby'); if (!el
   // cheat hint under solo panel (desktop & phone)
   const solo = document.getElementById('panel-solo-config'); if (solo) { const b = document.createElement('button'); b.className = 'dm-btn'; b.id = 'btn-choose-op'; b.innerHTML = 'OPERATOR: <span class="op-label"></span>'; b.onclick = () => openCharSelect(); solo.insertBefore(b, solo.firstChild); updateOpLabels(); }
 })();
+
+// ---------- Round 13: bullet fire icon, TURN next to fire, tiny control labels, MOVE hint ----------
+(function r13Controls() {
+  const BULLET = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M12 1.8c2.3 1.9 3.3 4.6 3.3 7.5V15H8.7V9.3c0-2.9 1-5.6 3.3-7.5z"/><path d="M8.1 15h7.8v2.3H8.1z" fill="rgba(255,255,255,.25)"/><path d="M8.7 17.3h6.6v4.4H8.7z"/><path d="M10.5 6.6c.35-1 .85-1.8 1.5-2.4" opacity=".75"/><path d="M10.6 19.5h2.8" opacity=".6"/></svg>';
+  const TURN = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 1 1 2.05 4.95"/><path d="M4.2 18.6 7.05 16.95 5.4 14.1"/><text x="12" y="14.6" font-size="6.6" font-family="system-ui,sans-serif" font-weight="800" fill="#fff" stroke="none" text-anchor="middle">180</text></svg>';
+  ICONS.fire = BULLET;
+  const $ = id => document.getElementById(id);
+  const lab = (el, t) => { if (!el || el.querySelector(':scope > .mc-lab')) return; const s = document.createElement('span'); s.className = 'mc-lab'; s.textContent = t; el.appendChild(s); };
+  const swapIcon = el => { if (!el) return; const old = el.querySelector(':scope > svg'); if (old) old.outerHTML = BULLET; };
+  swapIcon($('btn-fire')); swapIcon($('mc-lfire'));
+  let turn = $('mc-turn');
+  if (!turn) {
+    turn = document.createElement('button'); turn.id = 'mc-turn'; turn.className = 'mc-btn mc-touch'; turn.innerHTML = TURN; turn.setAttribute('aria-label', 'Turn 180');
+    ($('btn-fire') && $('btn-fire').parentNode || document.body).appendChild(turn);
+    bindHoldButton(turn, () => { if (!STATE.running) return; STATE.turnAnim = { from: STATE.player.yaw, t: 0 }; }, null);
+    turn.addEventListener('pointerdown', () => turn.classList.add('mc-press')); ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => turn.addEventListener(ev, () => turn.classList.remove('mc-press')));
+  }
+  [['btn-fire', 'FIRE'], ['mc-lfire', 'FIRE'], ['mc-turn', 'TURN'], ['btn-jump', 'JUMP'], ['btn-crouch', 'CROUCH'], ['btn-reload', 'RELOAD'], ['mc-ads', 'AIM'], ['btn-grenade', 'GRENADE'], ['mc-menu', 'MENU']].forEach(([id, t]) => lab($(id), t));
+  // MOVE hint over the joystick zone — fades in briefly at deploy
+  let mv = $('mc-movehint'); if (!mv) { mv = document.createElement('div'); mv.id = 'mc-movehint'; mv.innerHTML = '<span>◀ ▲ ▼ ▶</span><b>MOVE</b><i>drag anywhere on the left</i>'; document.body.appendChild(mv); }
+  window.r13MoveHint = () => { mv.classList.remove('show'); void mv.offsetWidth; mv.classList.add('show'); };
+  ['btn-start'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', () => setTimeout(window.r13MoveHint, 600)); });
+})();
+// quick 180 (0.14 s ease) so aim stays readable while running
+function turnAnimUpdate(dt) { const A = STATE.turnAnim; if (!A) return; const t0 = A.t; A.t = Math.min(1, A.t + dt / 0.14); const e = u => u * u * (3 - 2 * u); STATE.player.yaw += Math.PI * (e(A.t) - e(t0)); if (A.t >= 1) STATE.turnAnim = null; }
 
 // Boot — load Meshy GLBs first so arena props / viewmodel / sentinels use them
 { const L0 = genFloorLayout(1, 0); MAP_OBJECTS = L0.objects; FLOOR_INFO = L0.info; }
