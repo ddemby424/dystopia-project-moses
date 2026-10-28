@@ -1,0 +1,75 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SRGD Pre-test</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font:17px/1.45 system-ui,sans-serif;background:#111;color:#eee}
+main{max-width:640px;margin:auto;padding:14px}
+#bar{height:10px;background:#333;border-radius:5px;overflow:hidden}#fill{height:100%;width:0;background:#f60;transition:width .3s}
+.meta{font-size:13px;color:#999;margin:6px 0}
+pre{background:#000;color:#9f9;padding:10px;border-radius:6px;overflow:auto;font-size:14px;white-space:pre-wrap}
+button.opt{display:block;width:100%;text-align:left;margin:8px 0;padding:13px;border-radius:10px;border:1px solid #444;background:#1d1d24;color:#eee;font:inherit;font-family:ui-monospace,monospace;font-size:15px}
+button.idk{color:#aaa;font-style:italic;font-family:inherit}
+button.ok{background:#174d24;border-color:#3c3}button.bad{background:#5a1a1a;border-color:#c33}
+#fb{margin:10px 0;padding:10px;border-radius:8px;background:#1b2333;display:none}
+.big{display:block;width:100%;padding:14px;border:0;border-radius:10px;background:#f60;color:#000;font:bold 17px system-ui;margin-top:8px}
+table{width:100%;border-collapse:collapse}td{padding:6px;border-bottom:1px solid #333}
+textarea{width:100%;height:110px;background:#000;color:#9f9;border-radius:6px;font:13px ui-monospace,monospace;padding:8px}
+</style></head><body><main id="app"></main>
+<script>
+const TOPICS={B:"QBasic / BASIC",V:"Visual Basic",H:"HTML / CSS",J:"JavaScript",A:"Arduino C++",G:"Game concepts"};
+// [id, topic, question, code or "", options[], correctIndex, explanation]
+const Q=[
+["B1","B","What does this print?","FOR I = 1 TO 3\n  PRINT I * 2;\nNEXT I",["2 4 6","1 2 3","2 4 6 8","6"],0,"The loop runs I=1,2,3 and prints I*2 each time."],
+["B2","B","What does GOSUB do?","",["Jumps to a label and RETURN comes back to the line after it","Jumps to a label and never comes back","Ends the program","Declares a variable"],0,"GOSUB/RETURN is BASIC's version of calling a function."],
+["B3","B","After DIM A(5), what does A(2) = 7 do?","",["Stores 7 in slot 2 of the array A","Multiplies A by 2","Creates a variable named A2","Error: arrays can't be assigned to"],0,"Arrays are numbered slots, and A(2) is one of them."],
+["B4","B","What does this print?","X = 1\nDO WHILE X < 20\n  X = X * 3\nLOOP\nPRINT X",["27","9","20","3"],0,"1, then 3, then 9, then 27. 27 isn't < 20, so the loop stops."],
+["V1","V","In VB, when does Command1_Click run?","",["When the user clicks the Command1 button","Once, when the program starts","Every second","Only if you call it in a loop"],0,"It's an event handler: the control calls it for you when something happens."],
+["V2","V","In Text1.Text = \"Hi\", what is .Text?","",["A property of the Text1 control","A method","An event","A module"],0,"Properties are values that belong to an object."],
+["V3","V","What does List1.AddItem \"Bob\" do?","",["Calls the AddItem method to add Bob to the list","Sets a property called AddItem","Fires the list's click event","Declares a variable"],0,"Methods are actions an object can perform."],
+["V4","V","What is a VB Timer control's Interval = 1000 for?","",["To fire its Timer event every 1000 ms (1 s)","To wait 1000 seconds once","To count to 1000","To limit the program to 1000 frames"],0,"Running code repeatedly on a beat is the ancestor of a game loop."],
+["H1","H","Which tag loads a JavaScript file?","",["<script src=\"game.js\"><\/script>","<js href=\"game.js\">","<link rel=\"js\" href=\"game.js\">","<code src=\"game.js\">"],0,"This is exactly how three.js gets loaded from a CDN."],
+["H2","H","In CSS, what does #hud { color: red } target?","",["The element with id=\"hud\"","Every element with class=\"hud\"","Every <hud> tag","Nothing, it's invalid"],0,"# means id and . means class."],
+["H3","H","What is a <canvas> element for?","",["A drawing surface that code can paint pixels on, including 3D via WebGL","A big text box","An embedded video","A page layout grid"],0,"three.js draws your whole 3D world into a canvas."],
+["H4","H","What does position: fixed do in CSS?","",["Pins the element to the screen so it doesn't scroll","Stops the element from being edited","Locks its size","Makes it invisible"],0,"Game HUDs and touch joysticks use it."],
+["J1","J","What's the difference between let and const?","",["let can be reassigned; const can't","const is faster; otherwise they're the same","let is global; const is local","There's no difference"],0,"Use const by default and let when the value changes."],
+["J2","J","What does this print?","function add(a, b) { return a + b; }\nconsole.log(add(2, 3));",["5","23","add(2, 3)","undefined"],0,"A function takes inputs and returns a value."],
+["J3","J","What does this print?","const a = [10, 20, 30];\nconsole.log(a.length, a[0]);",["3 10","3 20","2 10","30 10"],0,"Arrays start counting at index 0."],
+["J4","J","What does this print?","const p = { x: 1, y: 2 };\np.x = 5;\nconsole.log(p.x + p.y);",["7","3","12","Error: p is const"],0,"const locks the variable, not the object's properties."],
+["J5","J","What does this do?","btn.addEventListener('click', () => go());",["Runs go() whenever btn is clicked","Runs go() right now, once","Deletes the button","Makes btn a function"],0,"It's like VB's Command1_Click, but you attach the handler in code."],
+["J6","J","In arr.forEach(x => console.log(x)), what is x => console.log(x)?","",["A callback: a function you hand over to be called for each item","A comparison","A pointer","A class"],0,"Callbacks are functions passed into other functions."],
+["J7","J","What does this print?","class Dog {\n  constructor(n) { this.name = n; }\n  bark() { return this.name + ' woof'; }\n}\nconsole.log(new Dog('Rex').bark());",["Rex woof","Dog woof","undefined woof","Error"],0,"A class is a blueprint, new builds an object from it, and bark is a method."],
+["J8","J","What does import { Scene } from 'three' do?","",["Pulls the Scene export from the 'three' module into this file","Downloads a 3D scene","Creates a new Scene","Exports Scene to other files"],0,"Modules split code into files that share only what they export."],
+["J9","J","What does fetch() return?","",["A Promise that resolves later with the response","The web page text, immediately","true or false","Nothing"],0,"Network calls are async, so you use await or .then() to get the result."],
+["J10","J","What does this print?","const s = '{\"hp\":100}';\nconsole.log(JSON.parse(s).hp - 1);",["99","100-1","'{\"hp\":100}'1","NaN"],0,"JSON.parse turns text into a real object."],
+["J11","J","What's an API, in plain terms?","",["The list of functions or endpoints a library or service lets you call","A type of loop","A graphics card","A file format"],0,"THREE.* is three.js's API, and fetch talks to web APIs."],
+["A1","A","In an Arduino sketch, how do setup() and loop() run?","",["setup runs once, then loop runs forever","Both run once","loop runs once and setup runs forever","Only when called from main()"],0,"This is the same idea as a game: initialise once, then update forever."],
+["A2","A","What does digitalWrite(13, HIGH) do?","",["Sets pin 13 to on (5 V or 3.3 V)","Reads pin 13","Waits 13 ms","Prints HIGH"],0,"It's a library function call with arguments."],
+["A3","A","Why use millis() instead of delay() for blinking?","",["delay freezes everything, while millis lets you check the time and keep doing other work","millis is more accurate","delay doesn't exist","There's no difference"],0,"Non-blocking timing is how delta time works in game loops."],
+["A4","A","After int x = 5; int* p = &x; *p = 9; what is x?","",["9","5","The address of x","Error"],0,"p holds x's address, so *p = 9 writes into x."],
+["A5","A","What can an Arduino int (on an Uno) hold?","",["Whole numbers from about -32768 to 32767","Any decimal number","Text","Only 0 or 1"],0,"Types decide what a variable can store. Use float for decimals."],
+["G1","G","What happens in a game loop's single frame, in order?","",["Read input, update the world, draw","Draw, then quit","Load the level","Wait for a click"],0,"This repeats about 60 times a second."],
+["G2","G","Why multiply movement by delta time (dt)?","",["So speed is the same at 30 fps and 120 fps","To make it random","To save memory","To aim better"],0,"Speed × seconds = distance, whatever the frame rate."],
+["G3","G","In three.js, which axis points up by default?","",["Y","Z","X","W"],0,"X is right, Y is up, and Z points toward you."],
+["G4","G","What does the vector (3, 0, 4) have a length of?","",["5","7","12","3"],0,"√(3² + 4²) = 5. Distance checks use this."],
+["G5","G","Two axis-aligned boxes overlap when...","",["they overlap on every axis","they touch on any one axis","their centres are equal","their colors match"],0,"This AABB check is the basis of wall collision."],
+["G6","G","An enemy with modes PATROL → CHASE → ATTACK is an example of...","",["A state machine","Recursion","A texture","A shader"],0,"There's one mode at a time, with rules for switching."],
+["G7","G","What's the difference between a sprite and a mesh?","",["A sprite is a flat 2D image; a mesh is 3D geometry with a material","They're the same","A mesh is a sound","A sprite is a 3D model"],0,"DYSTOPIA's enemies are meshes; HUD icons are sprites."],
+];
+// shuffle each question's options while keeping track of the answer; "I don't know" is always last
+for(const q of Q){const ans=q[4][q[5]];const o=q[4].slice().sort(()=>Math.random()-.5);q[4]=o;q[5]=o.indexOf(ans);}
+let i=0,res={};const app=document.getElementById('app');const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function start(){app.innerHTML=`<h1>SRGD Pre-test</h1><p>${Q.length} quick questions, about 10 minutes. Tap an answer to see the result right away. <b>"I don't know" is a great answer</b>, because it tells me what to teach you.</p><p>Nothing is sent anywhere. At the end you'll get a code to paste back into chat.</p><button class="big" onclick="show()">Start</button>`;}
+function show(){const q=Q[i];
+app.innerHTML=`<div id="bar"><div id="fill" style="width:${i/Q.length*100}%"></div></div><div class="meta">${i+1} / ${Q.length} · ${TOPICS[q[1]]}</div><h3>${esc(q[2])}</h3>${q[3]?`<pre>${esc(q[3])}</pre>`:''}<div id="opts">${q[4].map((o,k)=>`<button class="opt" onclick="pick(${k})">${esc(o)}</button>`).join('')}<button class="opt idk" onclick="pick(-1)">🤷 I don't know</button></div><div id="fb"></div>`;}
+function pick(k){const q=Q[i];const bs=document.querySelectorAll('.opt');if(bs[0].disabled)return;bs.forEach(b=>b.disabled=true);
+const ok=k===q[5];res[q[0]]=ok?1:(k<0?'?':0);bs[q[5]].classList.add('ok');if(!ok&&k>=0)bs[k].classList.add('bad');
+const fb=document.getElementById('fb');fb.style.display='block';fb.innerHTML=(ok?'✅ ':k<0?'💡 ':'❌ ')+esc(q[6])+`<button class="big" onclick="next()">${i+1<Q.length?'Next →':'See results'}</button>`;}
+function next(){i++;i<Q.length?show():done();}
+function done(){const t={};for(const q of Q){t[q[1]]=t[q[1]]||[0,0];t[q[1]][1]++;if(res[q[0]]===1)t[q[1]][0]++;}
+const miss=Q.filter(q=>res[q[0]]===0).map(q=>q[0]),idk=Q.filter(q=>res[q[0]]==='?').map(q=>q[0]);
+const total=Object.values(res).filter(v=>v===1).length;
+const code=`SRGD-PRETEST v1 | ${total}/${Q.length}\n`+Object.keys(TOPICS).map(k=>`${k}:${t[k][0]}/${t[k][1]}`).join(' ')+`\nWRONG: ${miss.join(',')||'none'}\nIDK: ${idk.join(',')||'none'}`;
+app.innerHTML=`<div id="bar"><div id="fill" style="width:100%"></div></div><h2>Done! ${total} / ${Q.length}</h2><table>${Object.keys(TOPICS).map(k=>`<tr><td>${TOPICS[k]}</td><td>${t[k][0]} / ${t[k][1]}</td></tr>`).join('')}</table><p>Copy this and paste it into chat:</p><textarea id="code" readonly>${code}</textarea><button class="big" onclick="copyCode()">📋 Copy</button><button class="big" style="background:#333;color:#eee" onclick="location.reload()">Retake</button>`;}
+function copyCode(){const ta=document.getElementById('code');ta.select();(navigator.clipboard?navigator.clipboard.writeText(ta.value):Promise.reject()).catch(()=>document.execCommand('copy'));event.target.textContent='✅ Copied';}
+start();
+</script></body></html>
