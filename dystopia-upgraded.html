@@ -11,18 +11,32 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script>/* loading progress: count every GLB the boot sequence fetches */
+  window.LOADP = { n: 0, done: 0, f: {} };
+  window.uiLoad = function (frac, label) { const b = document.getElementById('splash-bar'), t = document.getElementById('splash-pct'), st = document.getElementById('splash-status'); const pct = Math.max(4, Math.min(100, Math.round(frac * 100))); if (b && parseFloat(b.style.width) < pct) b.style.width = pct + '%'; if (t) t.textContent = pct >= 100 ? 'READY' : pct + '%'; if (label && st) st.textContent = label; if (pct >= 100) document.body && document.body.classList.add('loaded'); };
+  if (window.THREE && THREE.GLTFLoader) { const L = THREE.GLTFLoader.prototype.load; THREE.GLTFLoader.prototype.load = function (url, onLoad, onProgress, onError) { const P = window.LOADP, id = P.n++; P.f[id] = 0;
+    const upd = () => { let s = 0; for (const k in P.f) s += P.f[k]; uiLoad(0.08 + 0.88 * s / Math.max(1, P.n), P.done < P.n ? 'Calibrating sentinels · ' + P.done + '/' + P.n : 'Arming Pulse Cannon'); };
+    const fin = () => { if (P.f[id] < 1) { P.f[id] = 1; P.done++; upd(); } };
+    return L.call(this, url, g => { fin(); onLoad && onLoad(g); }, e => { if (e && e.total) { P.f[id] = Math.min(0.99, e.loaded / e.total); upd(); } onProgress && onProgress(e); }, e => { fin(); onError && onError(e); }); }; }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" type="image/png" href="icons/icon-192.png" />
   <meta name="apple-mobile-web-app-title" content="DYSTOPIA" />
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Russo+One&family=Homemade+Apple&family=Caveat:wght@500&display=swap" rel="stylesheet">
+  <link rel="preload" href="fonts/BlackOpsOne-400.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="fonts/ChakraPetch-600.woff2" as="font" type="font/woff2" crossorigin>
+  <style>/* self-hosted, SIL OFL 1.1 (see fonts/OFL-*.txt) */
+    @font-face { font-family:'Black Ops One'; src:url(fonts/BlackOpsOne-400.woff2) format('woff2'); font-weight:400; font-display:swap; }
+    @font-face { font-family:'Chakra Petch'; src:url(fonts/ChakraPetch-500.woff2) format('woff2'); font-weight:100 500; font-display:swap; }
+    @font-face { font-family:'Chakra Petch'; src:url(fonts/ChakraPetch-600.woff2) format('woff2'); font-weight:600; font-display:swap; }
+    @font-face { font-family:'Chakra Petch'; src:url(fonts/ChakraPetch-700.woff2) format('woff2'); font-weight:700 900; font-display:swap; }
+    @font-face { font-family:'Caveat'; src:url(fonts/Caveat-500.woff2) format('woff2'); font-weight:400 700; font-display:swap; }
+  </style>
   <style>
     :root { --sT: env(safe-area-inset-top, 0px); --sR: env(safe-area-inset-right, 0px); --sB: env(safe-area-inset-bottom, 0px); --sL: env(safe-area-inset-left, 0px); }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { margin:0; padding:0; width:100%; height:100%; height:100dvh; overflow:hidden; background:#030712; font-family:'Segoe UI',system-ui,sans-serif; color:#f8fafc; position:fixed; inset:0; touch-action:none; overscroll-behavior:none; -webkit-user-select:none; user-select:none; }
+    html, body { margin:0; padding:0; width:100%; height:100%; height:100dvh; overflow:hidden; background:#030712; font-family:'Chakra Petch','Chakra Petch',sans-serif; color:#f8fafc; position:fixed; inset:0; touch-action:none; overscroll-behavior:none; -webkit-user-select:none; user-select:none; }
     canvas#webgl-canvas { display:block; width:100%; height:100%; position:absolute; inset:0; z-index:1; touch-action:none; }
     input, textarea, select { -webkit-user-select:text; user-select:text; touch-action:manipulation; }
     #game-modal, #studio-editor-modal, #splash-screen { touch-action: pan-y; }
@@ -60,8 +74,8 @@
     #muzzle-vignette { position:absolute; inset:0; pointer-events:none; z-index:13; opacity:0; background:radial-gradient(circle at 62% 72%, rgba(56,189,248,0.35), transparent 42%); transition:opacity 0.05s linear; }
     /* ===== QUAKE III / DOOM CHROME THEME ===== */
     :root { --rust:#5a2e16; --rust2:#3b1d0e; --gun:#2b2b2d; --gun2:#1a1a1b; --blood:#8b0f0f; --ember:#ff6a00; --bone:#e8d9b8; }
-    body, button, select, input { font-family:'Russo One', 'Segoe UI', sans-serif; }
-    .q3-font { font-family:'Black Ops One', 'Russo One', sans-serif; letter-spacing:.04em; }
+    body, button, select, input { font-family:'Chakra Petch', 'Segoe UI', sans-serif; }
+    .q3-font { font-family:'Black Ops One', 'Chakra Petch', sans-serif; letter-spacing:.04em; }
     .q3-metal {
       background:
         radial-gradient(circle at 10px 10px, #c9a27a 0 2px, #2a160a 2.5px 3.5px, transparent 4px) top left / 100% 100% no-repeat,
@@ -78,7 +92,7 @@
     }
     .q3-inset { background:linear-gradient(180deg,#151110,#211a17) !important; border:2px solid #0b0807 !important; border-radius:2px !important; box-shadow: inset 2px 2px 4px rgba(0,0,0,.8), inset -1px -1px 0 rgba(255,200,150,.12) !important; }
     .q3-btn {
-      font-family:'Black Ops One','Russo One',sans-serif !important; letter-spacing:.08em; text-transform:uppercase; color:#fff3dc !important;
+      font-family:'Black Ops One','Chakra Petch',sans-serif !important; letter-spacing:.08em; text-transform:uppercase; color:#fff3dc !important;
       text-shadow: 0 2px 0 #000, 0 0 6px rgba(0,0,0,.8);
       background: repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 1px, transparent 1px 3px), linear-gradient(180deg, #a8411a 0%, #7a2410 48%, #5a170a 52%, #3d0f06 100%) !important;
       border:2px solid #1c0a04 !important; border-radius:3px !important;
@@ -96,7 +110,7 @@
     @keyframes kenburns { 0% { transform:scale(1.0) translate(0,0); } 100% { transform:scale(1.12) translate(-2.5%,-1.5%); } }
     @keyframes flicker { 0%,100% { opacity:.8 } 40% { opacity:1 } 55% { opacity:.6 } 70% { opacity:.95 } }
     #game-modal { background: radial-gradient(ellipse at center, rgba(20,6,2,.55), rgba(0,0,0,.88)), url('images/title_bg.jpg') center/cover !important; backdrop-filter:none !important; }
-    #game-modal label, #game-modal .q3-label { font-family:'Russo One',sans-serif; color:#d6a56f !important; font-size:10px; letter-spacing:.12em; text-transform:uppercase; }
+    #game-modal label, #game-modal .q3-label { font-family:'Chakra Petch',sans-serif; color:#d6a56f !important; font-size:10px; letter-spacing:.12em; text-transform:uppercase; }
     #game-modal select, #game-modal input[type=text] { background:#120d0b !important; border:2px solid #4a3020 !important; border-radius:2px !important; color:#ffd8a8 !important; box-shadow:inset 1px 1px 3px #000; }
     #game-modal input[type=range] { accent-color:#ff6a00; }
     .q3-tab { background:linear-gradient(180deg,#2a2422,#171312) !important; color:#9c8670 !important; border:2px solid #0b0807 !important; border-radius:2px !important; font-family:'Black Ops One',sans-serif !important; letter-spacing:.06em; box-shadow:none !important; }
@@ -109,7 +123,7 @@
     .backdrop-blur-md:not(#game-modal), #hud-editor-bar { backdrop-filter:none !important; background: linear-gradient(180deg, rgba(48,40,36,.94), rgba(24,19,17,.94)) !important; border:2px solid #6b4a2f !important; border-radius:2px !important; box-shadow: inset 1px 1px 0 rgba(255,220,180,.16), inset -1px -1px 0 rgba(0,0,0,.7), 0 3px 8px rgba(0,0,0,.6) !important; }
     #boss-hud.backdrop-blur-md { border-color:#8b0f0f !important; background:linear-gradient(180deg, rgba(70,12,6,.94), rgba(30,6,3,.94)) !important; }
     #radio-comms-box { border-left:4px solid #ff6a00 !important; }
-    .hud-chrome-btns button { font-family:'Russo One',sans-serif !important; background:linear-gradient(180deg,#4a423e,#221c1a) !important; border:2px solid #0b0807 !important; border-radius:2px !important; color:#e8d9b8 !important; box-shadow: inset 1px 1px 0 rgba(255,220,180,.25), 0 2px 0 #000 !important; }
+    .hud-chrome-btns button { font-family:'Chakra Petch',sans-serif !important; background:linear-gradient(180deg,#4a423e,#221c1a) !important; border:2px solid #0b0807 !important; border-radius:2px !important; color:#e8d9b8 !important; box-shadow: inset 1px 1px 0 rgba(255,220,180,.25), 0 2px 0 #000 !important; }
     .wep-btn { font-family:'Black Ops One',sans-serif !important; border-radius:2px !important; background:linear-gradient(180deg,#3a3330,#1a1412) !important; border:2px solid #0b0807 !important; color:#a8957e !important; box-shadow: inset 1px 1px 0 rgba(255,220,180,.15), 0 2px 0 #000 !important; }
     .wep-btn.border-amber-400 { background:linear-gradient(180deg,#a8411a,#5a170a) !important; color:#fff3dc !important; border-color:#ffb703 !important; box-shadow: inset 1px 1px 0 rgba(255,190,140,.45), 0 0 12px rgba(255,106,0,.6) !important; }
     #btn-fire, #btn-reload, #btn-grenade, #btn-jump, #btn-crouch, #btn-turn180, #btn-read-lore {
@@ -122,7 +136,7 @@
     .joystick-base { border:3px solid #6b4a2f !important; background: radial-gradient(circle, rgba(40,32,28,.55), rgba(15,10,8,.7)) !important; box-shadow: inset 0 0 12px #000; }
     .joystick-thumb { background: radial-gradient(circle at 35% 30%, #d9a066, #7a3a14 60%, #3b1d0e) !important; box-shadow: 0 0 10px rgba(255,106,0,.6), inset 0 -3px 4px rgba(0,0,0,.6) !important; }
     #banner-title { font-family:'Black Ops One',sans-serif !important; color:#ffb703 !important; text-shadow: 0 3px 0 #3a0703, 0 0 18px rgba(255,60,0,.8) !important; }
-    #banner-sub { font-family:'Russo One',sans-serif !important; background:linear-gradient(180deg, rgba(40,32,28,.95), rgba(18,14,12,.95)) !important; border:2px solid #6b4a2f !important; border-radius:2px !important; color:#f5d7a8 !important; }
+    #banner-sub { font-family:'Chakra Petch',sans-serif !important; background:linear-gradient(180deg, rgba(40,32,28,.95), rgba(18,14,12,.95)) !important; border:2px solid #6b4a2f !important; border-radius:2px !important; color:#f5d7a8 !important; }
     #reticle-dot { background:#ffb703 !important; box-shadow:0 0 8px #ff6a00 !important; }
     #crosshair .absolute { background:rgba(255,183,3,.9) !important; }
     #rotate-hint { border-radius:2px !important; border-color:#ff6a00 !important; color:#ffb703 !important; background:#1a1412ee !important; }
@@ -133,7 +147,7 @@
     .hud-chrome-btns > button:not(#btn-open-studio) { display:none !important; }
     #minimap-label, #rotate-hint, #btn-turn180, #party-code-badge, #keycard-status, #active-powerup-label { display:none !important; }
     #mh-status-panel { display:none !important; }
-    #mh-top { position:absolute; top:calc(6px + var(--sT)); left:50%; transform:translateX(-50%); z-index:22; pointer-events:none; display:flex; gap:10px; align-items:center; padding:3px 12px; border-radius:999px; font:600 clamp(10px,2.6vmin,14px)/1.2 'Russo One',sans-serif; letter-spacing:.08em; color:#fff; background:rgba(10,12,16,.28); border:1px solid rgba(255,255,255,.18); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+    #mh-top { position:absolute; top:calc(6px + var(--sT)); left:50%; transform:translateX(-50%); z-index:22; pointer-events:none; display:flex; gap:10px; align-items:center; padding:3px 12px; border-radius:999px; font:600 clamp(10px,2.6vmin,14px)/1.2 'Chakra Petch',sans-serif; letter-spacing:.08em; color:#fff; background:rgba(10,12,16,.28); border:1px solid rgba(255,255,255,.18); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
     #mh-top .k { opacity:.6; font-size:.8em; } #mh-top .sep { width:1px; height:1em; background:rgba(255,255,255,.3); }
     #mh-mini { position:absolute; top:calc(6px + var(--sT)); left:calc(6px + var(--sL)); z-index:21; pointer-events:none; padding:3px; border-radius:10px; background:rgba(10,12,16,.25) !important; border:1px solid rgba(255,255,255,.2) !important; box-shadow:none !important; opacity:.85; }
     #mh-mini canvas { width:clamp(56px,15vmin,96px) !important; height:clamp(56px,15vmin,96px) !important; border-radius:8px; display:block; }
@@ -146,7 +160,7 @@
     #mh-ammo #hud-wep-name { display:none; } #mh-ammo #hud-ammo { font-size:clamp(14px,4vmin,20px) !important; color:#fff !important; } #mh-ammo #hud-ammo-max { color:rgba(255,255,255,.6) !important; }
     body.mdesk #mh-ammo { bottom:calc(10px + var(--sB)); right:calc(12px + var(--sR)); }
     #kill-feed { position:fixed; left:calc(8px + var(--sL)); top:calc(var(--sT) + 19vmin); max-width:42vw; gap:2px !important; pointer-events:none; }
-    #kill-feed > div { background:rgba(10,12,16,.35) !important; border:0 !important; border-left:2px solid rgba(255,183,3,.8) !important; font:600 clamp(9px,2.3vmin,12px) 'Russo One',sans-serif !important; color:#fff !important; padding:1px 6px !important; transition:opacity .4s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #kill-feed > div { background:rgba(10,12,16,.35) !important; border:0 !important; border-left:2px solid rgba(255,183,3,.8) !important; font:600 clamp(9px,2.3vmin,12px) 'Chakra Petch',sans-serif !important; color:#fff !important; padding:1px 6px !important; transition:opacity .4s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     #radio-comms-box { position:fixed !important; left:50%; transform:translateX(-50%); top:calc(var(--sT) + 7vmin); max-width:min(60vw,520px); padding:3px 10px !important; background:rgba(10,12,16,.45) !important; border:0 !important; border-left:3px solid #ffb703 !important; box-shadow:none !important; }
     #radio-comms-box #radio-sender { font-size:8px !important; } #radio-comms-box #radio-message { font-size:clamp(10px,2.4vmin,12px) !important; }
     #center-banner { top:22% !important; max-width:80vw; }
@@ -156,7 +170,7 @@
     #mender-cue, #repair-hud { font-size:clamp(9px,2.4vmin,13px) !important; }
     /* weapon slots bottom centre (CoD style) */
     #weapon-bar-container { left:50% !important; top:auto !important; bottom:calc(var(--sB) + 2vmin) !important; transform:translateX(-50%) !important; gap:1.4vmin !important; z-index:31; }
-    #weapon-bar-container .wep-btn { min-height:0 !important; width:clamp(54px,15vmin,96px); height:clamp(34px,9.5vmin,58px); padding:0 !important; border-radius:10px !important; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; font:600 clamp(7px,1.9vmin,10px) 'Russo One',sans-serif !important; letter-spacing:.06em; background:rgba(255,255,255,.08) !important; -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.25) !important; color:rgba(255,255,255,.75) !important; box-shadow:none !important; }
+    #weapon-bar-container .wep-btn { min-height:0 !important; width:clamp(54px,15vmin,96px); height:clamp(34px,9.5vmin,58px); padding:0 !important; border-radius:10px !important; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; font:600 clamp(7px,1.9vmin,10px) 'Chakra Petch',sans-serif !important; letter-spacing:.06em; background:rgba(255,255,255,.08) !important; -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.25) !important; color:rgba(255,255,255,.75) !important; box-shadow:none !important; }
     #weapon-bar-container .wep-btn.on { background:rgba(255,255,255,.22) !important; border:1.5px solid rgba(255,255,255,.85) !important; color:#fff !important; }
     #weapon-bar-container .wep-btn svg { width:72%; height:58%; }
     /* touch controls */
@@ -189,24 +203,24 @@
     body.mtouch #crosshair #reticle-box { transform:scale(.8); }
     /* pause sheet */
     #mc-sheet { position:absolute; inset:0; z-index:70; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.45); -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px); padding:calc(10px + var(--sT)) calc(10px + var(--sR)) calc(10px + var(--sB)) calc(10px + var(--sL)); }
-    #mc-sheet .card { width:min(420px,92vw); max-height:92dvh; overflow:auto; border-radius:18px; padding:14px; display:flex; flex-direction:column; gap:8px; font-family:'Russo One',sans-serif; }
+    #mc-sheet .card { width:min(420px,92vw); max-height:92dvh; overflow:auto; border-radius:18px; padding:14px; display:flex; flex-direction:column; gap:8px; font-family:'Chakra Petch',sans-serif; }
     #mc-sheet h3 { margin:0 0 4px; font-size:14px; letter-spacing:.2em; color:#fff; text-align:center; }
-    #mc-sheet button { min-height:42px; border-radius:12px; font:600 13px 'Russo One',sans-serif; letter-spacing:.08em; color:#fff; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.3); }
+    #mc-sheet button { min-height:42px; border-radius:12px; font:600 13px 'Chakra Petch',sans-serif; letter-spacing:.08em; color:#fff; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.3); }
     #mc-sheet button.on { background:rgba(255,255,255,.85); color:#111; }
     #mc-sheet .row { display:flex; gap:6px; } #mc-sheet .row > * { flex:1; }
     #mc-sheet .lbl { font-size:10px; letter-spacing:.2em; color:rgba(255,255,255,.65); margin-top:4px; }
     /* rotate prompt + iOS tip */
-    #mc-rotate { position:fixed; inset:0; z-index:200; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:rgba(5,6,8,.92); color:#fff; font:600 15px 'Russo One',sans-serif; letter-spacing:.12em; text-align:center; padding:20px; }
+    #mc-rotate { position:fixed; inset:0; z-index:200; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:rgba(5,6,8,.92); color:#fff; font:600 15px 'Chakra Petch',sans-serif; letter-spacing:.12em; text-align:center; padding:20px; }
     #mc-rotate svg { width:72px; height:72px; animation:mcrot 1.8s ease-in-out infinite; }
     @keyframes mcrot { 0%,30% { transform:rotate(0) } 60%,100% { transform:rotate(-90deg) } }
     @media (pointer: coarse) and (orientation: portrait) { body.playing #mc-rotate { display:flex; } }
-    #mc-tip { position:fixed; left:50%; bottom:calc(14px + var(--sB)); transform:translateX(-50%); z-index:210; max-width:min(92vw,460px); border-radius:14px; padding:10px 14px; font:600 12px/1.45 'Russo One',sans-serif; display:none; gap:10px; align-items:center; }
+    #mc-tip { position:fixed; left:50%; bottom:calc(14px + var(--sB)); transform:translateX(-50%); z-index:210; max-width:min(92vw,460px); border-radius:14px; padding:10px 14px; font:600 12px/1.45 'Chakra Petch',sans-serif; display:none; gap:10px; align-items:center; }
     #mc-tip button { flex:none; border-radius:10px; padding:6px 10px; background:rgba(255,255,255,.85); color:#111; font:700 11px sans-serif; }
     /* QR */
     .qr-card { background:#fff; padding:10px; border-radius:10px; display:inline-block; }
     .qr-card canvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges; }
     #qr-container canvas { width:min(240px,62vmin); height:min(240px,62vmin); }
-      .glass-card { background:rgba(16,20,28,.55); -webkit-backdrop-filter:blur(14px) saturate(1.2); backdrop-filter:blur(14px) saturate(1.2); border:1px solid rgba(255,255,255,.22); border-radius:18px; color:#fff; box-shadow:0 10px 40px rgba(0,0,0,.45); font-family:system-ui,-apple-system,sans-serif; }
+      .glass-card { background:rgba(16,20,28,.55); -webkit-backdrop-filter:blur(14px) saturate(1.2); backdrop-filter:blur(14px) saturate(1.2); border:1px solid rgba(255,255,255,.22); border-radius:18px; color:#fff; box-shadow:0 10px 40px rgba(0,0,0,.45); font-family:'Chakra Petch',sans-serif; }
     .glass-card .gc-t { font-weight:800; letter-spacing:.22em; font-size:13px; text-align:center; opacity:.95; }
     .glass-card .gc-s { font-size:10px; letter-spacing:.14em; opacity:.7; text-align:center; }
     .glass-card button, .dm-btn { background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.3); color:#fff; border-radius:12px; padding:8px 12px; font-weight:800; letter-spacing:.12em; font-size:11px; }
@@ -216,7 +230,7 @@
     #cheat-box input { text-transform:uppercase; text-align:center; font-size:20px; }
     #cheat-box .gc-row { display:flex; gap:8px; } #cheat-box .gc-row button { flex:1; }
     #cheat-err { color:#fca5a5; min-height:12px; }
-    #cheat-toast { position:fixed; z-index:420; left:50%; top:22%; transform:translate(-50%,-50%); pointer-events:none; opacity:0; font:900 clamp(16px,4.5vmin,30px) system-ui,sans-serif; letter-spacing:.18em; color:#fde047; text-shadow:0 0 18px rgba(253,224,71,.7),0 2px 0 #000; padding:10px 22px; border-radius:16px; background:rgba(0,0,0,.35); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); border:1px solid rgba(253,224,71,.5); white-space:nowrap; }
+    #cheat-toast { position:fixed; z-index:420; left:50%; top:22%; transform:translate(-50%,-50%); pointer-events:none; opacity:0; font:900 clamp(16px,4.5vmin,30px) 'Chakra Petch',sans-serif; letter-spacing:.18em; color:#fde047; text-shadow:0 0 18px rgba(253,224,71,.7),0 2px 0 #000; padding:10px 22px; border-radius:16px; background:rgba(0,0,0,.35); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); border:1px solid rgba(253,224,71,.5); white-space:nowrap; }
     #cheat-toast.show { animation:cheatT 2.6s ease forwards; }
     @keyframes cheatT { 0%{opacity:0;transform:translate(-50%,-50%) scale(1.4)} 10%{opacity:1;transform:translate(-50%,-50%) scale(1)} 80%{opacity:1} 100%{opacity:0} }
 
@@ -240,30 +254,30 @@
     #cs-screen .cs-body { flex:1; display:flex; gap:12px; min-height:0; }
     #cs-canvas { flex:1.2; min-width:0; width:100%; height:100%; border-radius:14px; background:rgba(0,0,0,.25); }
     #cs-screen .cs-side { flex:1; display:flex; flex-direction:column; gap:6px; min-width:0; overflow:auto; }
-    #cs-screen .cs-big { font:900 clamp(20px,5vmin,34px) system-ui,sans-serif; letter-spacing:.12em; }
+    #cs-screen .cs-big { font:900 clamp(20px,5vmin,34px) 'Chakra Petch',sans-serif; letter-spacing:.12em; }
     #cs-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
     #cs-grid .cs-pick.on { background:rgba(56,189,248,.35); border-color:#7dd3fc; }
     #cs-ok { background:rgba(56,189,248,.35) !important; margin-top:auto; padding:10px !important; }
     @media (orientation:portrait) { #cs-screen .cs-body { flex-direction:column; } #cs-canvas { flex:1; min-height:40%; } }
-    #dm-top { position:absolute; top:calc(6px + var(--sT,0px)); left:50%; transform:translateX(-50%); z-index:23; display:none; gap:10px; align-items:center; padding:3px 14px; border-radius:999px; font:800 13px system-ui,sans-serif; color:#fff; background:rgba(10,12,16,.35); border:1px solid rgba(255,255,255,.2); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); cursor:pointer; }
+    #dm-top { position:absolute; top:calc(6px + var(--sT,0px)); left:50%; transform:translateX(-50%); z-index:23; display:none; gap:10px; align-items:center; padding:3px 14px; border-radius:999px; font:800 13px 'Chakra Petch',sans-serif; color:#fff; background:rgba(10,12,16,.35); border:1px solid rgba(255,255,255,.2); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); cursor:pointer; }
     #dm-top .k { opacity:.6; font-size:.8em; } #dm-top .sep { width:1px; height:1em; background:rgba(255,255,255,.3); }
     body.dm #dm-top { display:flex; } body.dm #mh-top, body.dm #boss-hud, body.dm #colossus-hud { display:none !important; }
     #dm-board { position:fixed; z-index:260; left:50%; top:50%; transform:translate(-50%,-50%); display:none; flex-direction:column; gap:8px; padding:14px 16px; width:min(92vw,560px); max-height:86dvh; overflow:auto; }
-    #dm-board table { width:100%; border-collapse:collapse; font:700 12px system-ui,sans-serif; } #dm-board th { font-size:9px; letter-spacing:.15em; opacity:.6; text-align:left; padding:3px 6px; } #dm-board td { padding:5px 6px; border-top:1px solid rgba(255,255,255,.1); }
+    #dm-board table { width:100%; border-collapse:collapse; font:700 12px 'Chakra Petch',sans-serif; } #dm-board th { font-size:9px; letter-spacing:.15em; opacity:.6; text-align:left; padding:3px 6px; } #dm-board td { padding:5px 6px; border-top:1px solid rgba(255,255,255,.1); }
     #dm-board tr.me td { background:rgba(56,189,248,.18); }
     #dm-dmgdir { position:fixed; left:50%; top:50%; width:44vmin; height:44vmin; z-index:21; pointer-events:none; opacity:0; transition:opacity .3s; border-radius:50%; border-top:4px solid rgba(239,68,68,.85); filter:drop-shadow(0 0 6px #ef4444); }
     #crosshair.dm-hit { filter:drop-shadow(0 0 4px #ef4444) brightness(2) hue-rotate(-40deg); transform:translate(-50%,-50%) scale(1.25); }
     #dm-panel { display:flex; flex-direction:column; gap:6px; margin-top:6px; } #dm-panel .dm-row { display:flex; gap:6px; } #dm-panel .dm-row > * { flex:1; min-width:0; } #dm-panel select { font-size:10px; padding:6px; letter-spacing:.05em; }
     .dm-btn.hot { background:rgba(239,68,68,.35); border-color:#fca5a5; } #btn-choose-op { width:100%; margin-bottom:6px; }
-    #dm-lobby .dm-li { font:700 11px system-ui; color:#e5e7eb; padding:3px 8px; border-left:2px solid #38bdf8; margin:2px 0; } #dm-lobby .dm-li span { opacity:.6; font-size:10px; } #dm-lobby .dim { opacity:.5; border-color:#666; }
+    #dm-lobby .dm-li { font:700 11px 'Chakra Petch',sans-serif; color:#e5e7eb; padding:3px 8px; border-left:2px solid #38bdf8; margin:2px 0; } #dm-lobby .dm-li span { opacity:.6; font-size:10px; } #dm-lobby .dim { opacity:.5; border-color:#666; }
     body.mtouch #btn-crouch { width:12vmin !important; height:12vmin !important; bottom:calc(var(--sB) + 2vmin) !important; }
     body.mtouch #btn-reload { right:calc(var(--sR) + 41vmin) !important; bottom:calc(var(--sB) + 18vmin) !important; }
-    .mc-lab { position:absolute; left:50%; top:100%; transform:translateX(-50%); margin-top:.25vmin; font:800 clamp(7px,1.75vmin,10px)/1 system-ui,-apple-system,sans-serif !important; letter-spacing:.14em; color:rgba(255,255,255,.62); text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 4px rgba(0,0,0,.6); pointer-events:none; white-space:nowrap; text-transform:uppercase; }
+    .mc-lab { position:absolute; left:50%; top:100%; transform:translateX(-50%); margin-top:.25vmin; font:800 clamp(7px,1.75vmin,10px)/1 'Chakra Petch',sans-serif !important; letter-spacing:.14em; color:rgba(255,255,255,.62); text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 4px rgba(0,0,0,.6); pointer-events:none; white-space:nowrap; text-transform:uppercase; }
     body.mdesk .mc-lab { display:none; }
     #mc-ads > .mc-lab { top:auto; bottom:100%; margin:0 0 .25vmin; }
     #btn-fire > .mc-lab { margin-top:.4vmin; color:rgba(255,255,255,.72); }
     #mc-menu { overflow:visible; } #mc-menu > .mc-lab { font-size:clamp(6px,1.5vmin,9px) !important; }
-    #mc-movehint { position:absolute; left:calc(var(--sL,0px) + 14vmin); bottom:calc(var(--sB,0px) + 22vmin); z-index:20; pointer-events:none; display:flex; flex-direction:column; align-items:center; gap:.6vmin; opacity:0; color:rgba(255,255,255,.75); text-shadow:0 1px 3px #000; font-family:system-ui,sans-serif; }
+    #mc-movehint { position:absolute; left:calc(var(--sL,0px) + 14vmin); bottom:calc(var(--sB,0px) + 22vmin); z-index:20; pointer-events:none; display:flex; flex-direction:column; align-items:center; gap:.6vmin; opacity:0; color:rgba(255,255,255,.75); text-shadow:0 1px 3px #000; font-family:'Chakra Petch',sans-serif; }
     #mc-movehint b { font-weight:900; letter-spacing:.3em; font-size:clamp(10px,3vmin,16px); } #mc-movehint span { font-size:clamp(8px,2.2vmin,13px); letter-spacing:.3em; opacity:.8; } #mc-movehint i { font-size:clamp(7px,1.7vmin,10px); font-style:normal; letter-spacing:.12em; opacity:.6; }
     body.mdesk #mc-movehint { display:none; }
     #mc-movehint.show { animation:mvhint 3.6s ease forwards; }
@@ -274,7 +288,79 @@
     #btn-fire > .mc-lab, #mc-lfire > .mc-lab { letter-spacing:.08em; font-size:clamp(6px,1.5vmin,9px) !important; }
     #credits-screen { position:fixed; inset:0; z-index:350; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.7); padding:12px; }
     #credits-screen .cr-card { width:min(92vw,560px); max-height:90dvh; overflow:auto; padding:16px 18px; display:flex; flex-direction:column; gap:10px; }
-    #credits-screen .cr-sec { font:600 12px/1.45 system-ui,sans-serif; color:#e5e7eb; text-align:center; } #credits-screen .cr-sec b { letter-spacing:.2em; font-size:11px; color:#7dd3fc; } #credits-screen a { color:#fde68a; } #credits-screen .dim { opacity:.6; font-size:10px; }
+    #credits-screen .cr-sec { font:600 12px/1.45 'Chakra Petch',sans-serif; color:#e5e7eb; text-align:center; } #credits-screen .cr-sec b { letter-spacing:.2em; font-size:11px; color:#7dd3fc; } #credits-screen a { color:#fde68a; } #credits-screen .dim { opacity:.6; font-size:10px; }
+    /* ===== Pro pass: brand tokens, typography, glass, transitions, combat feedback ===== */
+    :root { --font-display:'Black Ops One','Chakra Petch',sans-serif; --font-ui:'Chakra Petch',system-ui,sans-serif;
+      --brand:#ff6a00; --brand-hi:#ffb703; --brand-lo:#b81d0b; --info:#7dd3fc; --danger:#ef4444; --ink:#f5efe6; --ink-dim:rgba(245,239,230,.66);
+      --glass-bg:rgba(14,16,22,.58); --glass-line:rgba(255,255,255,.16); --glass-hi:inset 0 1px 0 rgba(255,255,255,.14); --glass-blur:blur(14px) saturate(1.25);
+      --r-lg:16px; --r-md:12px; --gap:10px; }
+    html, body, button, input, select, textarea { font-family:var(--font-ui); }
+    button { font-family:var(--font-ui); }
+    .glass-card, #mc-sheet .card, #credits-screen .cr-card, #dm-board, #dm-lobby, #game-modal > .q3-metal {
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0) 40%), var(--glass-bg) !important;
+      -webkit-backdrop-filter:var(--glass-blur); backdrop-filter:var(--glass-blur);
+      border:1px solid var(--glass-line) !important; border-top:1px solid rgba(255,183,3,.45) !important; border-radius:var(--r-lg) !important;
+      box-shadow:var(--glass-hi), 0 18px 50px rgba(0,0,0,.55) !important; color:var(--ink); }
+    #game-modal > .q3-metal::before, #game-modal > .q3-metal::after { display:none !important; }
+    #game-modal { background:radial-gradient(ellipse at 50% 30%, rgba(60,20,6,.55), rgba(0,0,0,.88) 70%) !important; }
+    #mc-sheet h3, #credits-screen h2, .glass-card .gc-t { font-family:var(--font-display) !important; letter-spacing:.18em; font-weight:400 !important; color:var(--brand-hi); text-shadow:0 0 14px rgba(255,106,0,.35); }
+    #mc-sheet .lbl, .glass-card .gc-s { color:var(--ink-dim); font-weight:600; }
+    #mc-sheet button.on { background:linear-gradient(180deg,var(--brand-hi),var(--brand)) !important; color:#1a0a02 !important; border-color:transparent !important; }
+    #mc-sheet input[type=range] { accent-color:var(--brand); }
+    #credits-screen .cr-sec b { color:var(--brand-hi) !important; font-family:var(--font-display); font-weight:400; letter-spacing:.22em; }
+    #credits-screen .cr-sec { font-family:var(--font-ui) !important; font-weight:500 !important; } #credits-screen a { color:var(--info); }
+    /* entry animations for every overlay panel */
+    @keyframes ui-in { from { opacity:0; translate:0 10px; scale:.97; } to { opacity:1; translate:0 0; scale:1; } }
+    @keyframes ui-fade { from { opacity:0; } to { opacity:1; } }
+    #mc-sheet .card, #credits-screen .cr-card, #game-modal > .q3-metal, .glass-card { animation:ui-in .28s cubic-bezier(.2,.8,.2,1) both; }
+    #mc-sheet, #credits-screen { animation:ui-fade .2s ease both; }
+    #splash-screen { transition:opacity .6s ease, visibility .6s; }
+    /* title logo treatment: metal gradient + sweeping glint + ember glow */
+    #splash-main-title { position:relative; letter-spacing:.04em; filter:drop-shadow(0 4px 0 #2a0702) drop-shadow(0 0 22px rgba(255,90,0,.45)); animation:logo-in .9s cubic-bezier(.2,.8,.2,1) both; }
+    #splash-main-title::after { content:'DYSTOPIA'; position:absolute; inset:0; background:linear-gradient(105deg, transparent 40%, rgba(255,255,240,.85) 50%, transparent 60%); background-size:250% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; animation:logo-glint 5.5s ease-in-out 1.2s infinite; pointer-events:none; }
+    @keyframes logo-in { from { opacity:0; transform:scale(1.08); letter-spacing:.2em; } to { opacity:1; transform:none; letter-spacing:.04em; } }
+    @keyframes logo-glint { 0%,70% { background-position:150% 0; } 100% { background-position:-50% 0; } }
+    #splash-sub-title::before, #splash-sub-title::after { content:''; display:inline-block; width:28px; height:1px; vertical-align:middle; margin:0 10px; background:linear-gradient(90deg,transparent,var(--brand)); }
+    #splash-sub-title::after { background:linear-gradient(90deg,var(--brand),transparent); }
+    #splash-pct { font:700 10px/1 var(--font-ui); letter-spacing:.3em; color:var(--brand-hi); margin-top:-4px; }
+    /* loading → ready */
+    body:not(.loaded) #btn-skip-splash { opacity:.55; }
+    #btn-skip-splash { transition:opacity .4s ease, box-shadow .4s ease; }
+    body.loaded #btn-skip-splash { animation:cta-pulse 2.4s ease-in-out infinite; }
+    @keyframes cta-pulse { 50% { box-shadow:0 0 26px rgba(255,106,0,.65), inset 0 0 0 1px rgba(255,220,180,.35); } }
+    /* scene fade */
+    #fx-fade { position:fixed; inset:0; z-index:300; background:#000; opacity:0; pointer-events:none; transition:opacity .45s ease; }
+    /* cheap post: vignette + split-tone grade (static overlay, no extra render pass) */
+    #post-grade { position:absolute; inset:0; z-index:11; pointer-events:none;
+      background:radial-gradient(ellipse 75% 70% at 50% 50%, transparent 58%, rgba(0,0,0,.42) 100%), linear-gradient(180deg, rgba(20,40,70,.10), transparent 40%, transparent 65%, rgba(90,35,5,.10)); }
+    body:not(.in-game) #post-grade { display:none; }
+    /* hit markers */
+    .hitmarker svg line { stroke:#fff !important; stroke-width:2.6px; filter:drop-shadow(0 0 2px rgba(0,0,0,.9)); }
+    .hitmarker.kill svg line { stroke:var(--danger) !important; stroke-width:3.2px; }
+    .hitmarker.kill.active { transform:translate(-50%,-50%) scale(1.45) rotate(0deg); }
+    /* directional damage */
+    #dmg-dir { position:absolute; left:50%; top:50%; width:0; height:0; z-index:14; pointer-events:none; }
+    #dmg-dir i { position:absolute; left:-46px; top:calc(-1 * min(28vmin,150px) - 10px); width:92px; height:20px; transform-origin:46px calc(min(28vmin,150px) + 10px); border-radius:50% 50% 0 0 / 100% 100% 0 0;
+      background:radial-gradient(ellipse at 50% 100%, rgba(239,68,68,.95), rgba(239,68,68,0) 70%); opacity:0; transition:opacity .9s ease; }
+    #dmg-dir i.on { opacity:1; transition:none; }
+    /* kill feed */
+    #kill-feed > div { background:rgba(12,14,20,.55) !important; -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); border-left:3px solid var(--brand) !important; border-radius:6px !important;
+      font:600 clamp(9px,2.3vmin,12px)/1.5 var(--font-ui) !important; letter-spacing:.06em; padding:2px 8px !important; animation:kf-in .22s ease both, kf-out .4s ease 3.1s forwards; }
+    #kill-feed > div.hs { border-left-color:var(--danger) !important; }
+    @keyframes kf-in { from { opacity:0; transform:translateX(-12px); } } @keyframes kf-out { to { opacity:0; transform:translateX(-8px); } }
+    /* centre banner */
+    #center-banner:not(.hidden) { animation:ui-in .3s cubic-bezier(.2,.8,.2,1) both; }
+    #banner-sub { background:var(--glass-bg) !important; -webkit-backdrop-filter:var(--glass-blur); backdrop-filter:var(--glass-blur); border:1px solid var(--glass-line) !important; border-radius:10px !important; font-weight:600 !important; letter-spacing:.08em; }
+    /* death screen */
+    #kia { position:fixed; inset:0; z-index:90; display:none; align-items:center; justify-content:center; flex-direction:column; gap:6px; pointer-events:none;
+      background:radial-gradient(ellipse at 50% 50%, rgba(80,0,0,.35), rgba(0,0,0,.82) 75%); animation:ui-fade .35s ease both; }
+    #kia .t { font:400 clamp(34px,11vmin,72px)/1 var(--font-display); letter-spacing:.12em; color:var(--danger); text-shadow:0 0 24px rgba(239,68,68,.6), 0 4px 0 #2a0000; animation:ui-in .5s cubic-bezier(.2,.8,.2,1) both; }
+    #kia .s { font:600 clamp(10px,2.8vmin,14px)/1.4 var(--font-ui); letter-spacing:.24em; color:var(--ink-dim); text-transform:uppercase; }
+    #kia .bar { width:min(220px,50vw); height:3px; background:rgba(255,255,255,.15); border-radius:2px; overflow:hidden; margin-top:8px; } #kia .bar > div { height:100%; width:0; background:var(--danger); }
+    /* consistent HUD typography + spacing */
+    .mc-lab { font-family:var(--font-ui) !important; font-weight:700 !important; letter-spacing:.12em !important; opacity:.85; }
+    #dm-board table { font-family:var(--font-ui) !important; } #dm-board tr.me td { color:var(--brand-hi); }
+    #mc-tip { bottom:calc(10px + var(--sB)) !important; top:auto !important; width:min(92vw,460px); box-sizing:border-box; font-size:11px !important; }
 </style>
 </head>
 <body>
@@ -286,14 +372,14 @@
     <div class="q3-font text-[11px] tracking-[0.35em] uppercase" style="color:#d6a56f;text-shadow:0 2px 0 #000">Cradle 09 &middot; Triage Intake</div>
     <h1 id="splash-main-title" class="splash-title q3-title text-6xl sm:text-8xl">DYSTOPIA</h1>
     <p id="splash-sub-title" class="q3-font text-sm sm:text-base uppercase tracking-[0.3em]" style="color:#f5d7a8;text-shadow:0 2px 0 #000,0 0 10px #000">Project Moses</p>
-    <p class="text-sm sm:text-base italic" style="color:#ffd7a8;font-family:Georgia,serif;text-shadow:0 2px 6px #000">They didn't conquer us. They comforted us.</p>
+    <p class="text-sm sm:text-base italic" style="color:#ffd7a8;font-family:'Chakra Petch',sans-serif;font-weight:500;letter-spacing:.04em;text-shadow:0 2px 6px #000">They didn't conquer us. They comforted us.</p>
     <div class="q3-metal my-2 w-full max-w-xs px-5 py-3">
       <div class="text-[10px] uppercase tracking-[0.25em]" style="color:#b08a62">Created &amp; Engineered By</div>
       <div class="q3-font text-xl sm:text-2xl mt-1" style="color:#fff3dc;text-shadow:0 2px 0 #000">Darcy D. Demby</div>
       <div class="text-[11px] tracking-wider uppercase mt-0.5" style="color:#ff8c2a">Chief Software Architect</div>
     </div>
-    <div class="q3-bar w-64"><div id="splash-bar" style="width: 25%;"></div></div>
-    <div id="splash-status" class="text-[11px] tracking-wider uppercase" style="color:#e8c49a;text-shadow:0 1px 0 #000">Loading sentinels, colossus and arena...</div>
+    <div class="q3-bar w-64"><div id="splash-bar" style="width: 4%;"></div></div><div id="splash-pct">0%</div>
+    <div id="splash-status" class="text-[11px] tracking-wider uppercase" style="color:#e8c49a;text-shadow:0 1px 0 #000">Initializing Triage systems…</div>
     <button id="btn-skip-splash" class="q3-btn action-btn mt-2 px-10 py-3 text-base">Enter Dystopia</button>
   </div>
 </div>
@@ -1803,7 +1889,7 @@ function colossusExplode(pos, dmg, R = 5.5) {
   const ring = new THREE.Mesh(new THREE.SphereGeometry(R * 0.47, 14, 10), new THREE.MeshBasicMaterial({ color: 0xbfdbfe, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
   ring.position.copy(pos); scene.add(ring); MUZZLE_FX.push({ mesh: ring, life: 0.25, max: 0.25, light: fl });
   const d = Math.hypot(STATE.player.x - pos.x, STATE.player.z - pos.z, (STATE.player.y + 1) - pos.y);
-  if (d < R) damagePlayer(Math.round(dmg * (1 - d / R * 0.6)));
+  if (d < R) damagePlayer(Math.round(dmg * (1 - d / R * 0.6)), pos);
   STATE.screenShake = Math.max(STATE.screenShake, d < 14 ? 0.9 : 0.4);
 }
 function spawnEmpArcs(C, n = 6) {
@@ -2626,38 +2712,17 @@ function switchWeapon(idx) {
 }
 
 function spawnMuzzleFlash(worldPos, color = 0xf59e0b, fromPlayer = true) {
-  const flash = new THREE.Mesh(
-    new THREE.SphereGeometry(0.18, 8, 8),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })
-  );
-  flash.position.copy(worldPos); scene.add(flash);
-  const star = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.28, 0),
-    new THREE.MeshBasicMaterial({ color: 0xfff7ed, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })
-  );
-  star.position.copy(worldPos); scene.add(star);
-  let light = null;
-  if (!IS_COARSE || fromPlayer) {
-    light = new RTLight(color, fromPlayer ? 3.2 : 1.6, fromPlayer ? 12 : 8);
-    light.position.copy(worldPos); scene.add(light);
-  }
-  for (let i = 0; i < (IS_COARSE ? 3 : 7); i++) {
-    const spark = new THREE.Mesh(
-      new THREE.SphereGeometry(0.03, 4, 4),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })
-    );
-    spark.position.copy(worldPos);
-    scene.add(spark);
-    MUZZLE_FX.push({ mesh: spark, life: 0.12 + Math.random() * 0.1, max: 0.22, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, vz: (Math.random() - 0.5) * 6, light: null });
-  }
-  MUZZLE_FX.push({ mesh: flash, life: 0.08, max: 0.08, vx: 0, vy: 0, vz: 0, light });
-  MUZZLE_FX.push({ mesh: star, life: 0.06, max: 0.06, vx: 0, vy: 0, vz: 0, light: null });
+  fxInit(); const x = worldPos.x, y = worldPos.y, z = worldPos.z;
+  // pooled additive sprites: hot white core + coloured petal + a few sparks (no geometry/material churn per shot)
+  fxEmit('dot', x, y, z, { life: 0.06, s0: fromPlayer ? 0.55 : 0.4, s1: 0.2, color: 0xfffbeb });
+  fxEmit('fire', x, y, z, { life: 0.08, s0: fromPlayer ? 0.75 : 0.5, s1: 0.35, color });
+  for (let i = 0; i < (IS_COARSE ? 2 : 5); i++) fxEmit('dot', x, y, z, { life: 0.12 + Math.random() * 0.1, s0: 0.08, s1: 0.02, color, vx: (Math.random() - 0.5) * 7, vy: Math.random() * 4, vz: (Math.random() - 0.5) * 7, grav: 9 });
+  if (!IS_COARSE || fromPlayer) fxLight(x, y, z, fromPlayer ? 3.2 : 1.6, 0.07, color);
   if (fromPlayer) {
     const vig = document.getElementById('muzzle-vignette');
     if (vig) { vig.style.opacity = '1'; setTimeout(() => { vig.style.opacity = '0'; }, 50); }
   }
 }
-
 function spawnImpact(x, y, z, color = 0xf59e0b) {
   for (let i = 0; i < (IS_COARSE ? 4 : 10); i++) {
     const spark = new THREE.Mesh(
@@ -2728,7 +2793,7 @@ function normalizeMeshyScene(model, targetHeight, opts = {}) {
 function autoLoadMeshyAssets() {
   if (typeof THREE.GLTFLoader !== 'function') {
     const st = document.getElementById('splash-status');
-    if (st) st.textContent = 'Procedural Strogg sentinels ready (GLTFLoader unavailable)';
+    if (st) st.textContent = 'All systems online';
     return Promise.resolve();
   }
   const loader = new THREE.GLTFLoader();
@@ -2791,7 +2856,7 @@ function autoLoadMeshyAssets() {
     } catch (e) { resolve(); }
   }))).then(() => {
     const st = document.getElementById('splash-status');
-    if (st) st.textContent = loaded ? `Loaded ${loaded} Meshy Strogg GLB(s)` : 'Procedural Strogg sentinels · Meshy GLB optional';
+    if (st) st.textContent = 'Sentinels calibrated';
     if (MESHY_TEMPLATES.viewmodel) buildViewModel();
   });
 }
@@ -2986,7 +3051,7 @@ function aiShoot(b) {
     const hit = off.length() < 0.55; const end = target.clone().add(off.multiplyScalar(hit ? 0 : 1.8));
     const tr = new THREE.Line(new THREE.BufferGeometry().setFromPoints([muzzle, end]), new THREE.LineBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
     scene.add(tr); EMP_ARCS.push({ mesh: tr, life: 0.07 });
-    if (hit) damagePlayer(Math.round(6 * (STATE.diff?.dmg || 1)));
+    if (hit) damagePlayer(Math.round(6 * (STATE.diff?.dmg || 1)), b);
   } else {
     spawnMuzzleFlash(muzzle, 0xf97316, false);
     const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending }));
@@ -3252,7 +3317,7 @@ function loreUI() {
 let LORE_NEAR = null, LORE_OPEN = false;
 function openLore() {
   if (!LORE_NEAR) return; LORE_OPEN = true; LORE_NEAR.read = true; LORE_NEAR.halo.material.color.setHex(0x64748b);
-  const KS = { archivist: { bg: '#efe3c4', fg: '#2b1d0e', tc: '#7c2d12', font: "'Homemade Apple', 'Caveat', cursive", size: '17px', lh: '1.75', label: 'ARCHIVIST NOTE · HANDWRITTEN' }, triage: { bg: '#f8fafc', fg: '#334155', tc: '#7c3aed', font: "'Trebuchet MS', sans-serif", size: '14px', lh: '1.6', label: 'TRIAGE · CARE PLAN' }, warden: { bg: '#d6d3d1', fg: '#1c1917', tc: '#7f1d1d', font: "'Courier New', monospace", size: '14px', lh: '1.5', label: 'HALCYON WARDEN SERVICE' }, broadcast: { bg: '#e0f2fe', fg: '#0c4a6e', tc: '#0369a1', font: "Georgia, serif", size: '15px', lh: '1.6', label: 'MOSES · PUBLIC BROADCAST' } };
+  const KS = { archivist: { bg: '#efe3c4', fg: '#2b1d0e', tc: '#7c2d12', font: "'Caveat', cursive", size: '17px', lh: '1.75', label: 'ARCHIVIST NOTE · HANDWRITTEN' }, triage: { bg: '#f8fafc', fg: '#334155', tc: '#7c3aed', font: "'Trebuchet MS', sans-serif", size: '14px', lh: '1.6', label: 'TRIAGE · CARE PLAN' }, warden: { bg: '#d6d3d1', fg: '#1c1917', tc: '#7f1d1d', font: "'Courier New', monospace", size: '14px', lh: '1.5', label: 'HALCYON WARDEN SERVICE' }, broadcast: { bg: '#e0f2fe', fg: '#0c4a6e', tc: '#0369a1', font: "Georgia, serif", size: '15px', lh: '1.6', label: 'MOSES · PUBLIC BROADCAST' } };
   const st = KS[LORE_NEAR.kind] || KS.warden; const card = document.querySelector('#lore-panel > div');
   card.style.background = st.bg; card.style.color = st.fg; card.style.borderRadius = LORE_NEAR.kind === 'triage' || LORE_NEAR.kind === 'broadcast' ? '18px' : '3px';
   const tEl = document.getElementById('lore-title'), bEl = document.getElementById('lore-body');
@@ -3851,7 +3916,7 @@ function spawnMender(x, z, i, hpMult = 1) {
 function menderDispatchCue() {
   if (!BOTS.some(b => b.isMender && !b.dying)) return;
   let el = document.getElementById('mender-cue');
-  if (!el) { el = document.createElement('div'); el.id = 'mender-cue'; el.style.cssText = "position:absolute;left:50%;top:15%;transform:translateX(-50%);z-index:43;pointer-events:none;font-family:'Russo One',sans-serif;font-size:clamp(11px,1.6vw,18px);letter-spacing:.12em;color:#ffd7c2;background:linear-gradient(180deg,rgba(90,10,4,.92),rgba(40,4,2,.92));border:2px solid #ff3b1a;box-shadow:0 0 18px rgba(255,40,10,.6);padding:6px 14px;white-space:nowrap;"; document.body.appendChild(el); }
+  if (!el) { el = document.createElement('div'); el.id = 'mender-cue'; el.style.cssText = "position:absolute;left:50%;top:15%;transform:translateX(-50%);z-index:43;pointer-events:none;font-family:'Chakra Petch',sans-serif;font-size:clamp(11px,1.6vw,18px);letter-spacing:.12em;color:#ffd7c2;background:linear-gradient(180deg,rgba(90,10,4,.92),rgba(40,4,2,.92));border:2px solid #ff3b1a;box-shadow:0 0 18px rgba(255,40,10,.6);padding:6px 14px;white-space:nowrap;"; document.body.appendChild(el); }
   el.textContent = 'SENTINEL CONTROL: MAINTENANCE UNITS DISPATCHED'; el.style.display = 'block'; el.style.animation = 'none'; void el.offsetWidth;
   clearTimeout(el._t); el._t = setTimeout(() => { el.style.display = 'none'; }, 5200);
   addKillFeed('SENTINEL CONTROL: MAINTENANCE UNITS DISPATCHED');
@@ -3938,7 +4003,7 @@ function updateMender(b, dt, now) {
     if ((b.repairT -= dt) <= 0) { b.repairT = 0.25; spawnImpact(repairing.x, repairing.y + 1.2, repairing.z, 0x6fc8ff); }
   } else if (dist < 3.4 && b.atkT <= 0) {
     b.atkKind = 1 - b.atkKind; b.atkT = b.atkKind ? 1.7 : 1.4; b.atkAnim = 0.5;
-    setTimeout(() => { if (b.dying || b.stunT > 0) return; const d2 = Math.hypot(STATE.player.x - b.x, STATE.player.z - b.z); if (d2 < 3.6) { damagePlayer(Math.round((b.atkKind ? 18 : 14) * (STATE.diff?.dmg || 1))); STATE.screenShake = Math.max(STATE.screenShake, 0.45); spawnImpact(STATE.player.x, STATE.player.y + 1.2, STATE.player.z, b.atkKind ? 0xffd27a : 0xff7a1a); addKillFeed(`${b.name}: ${b.atkKind ? 'CLAW SLAM' : 'SAW SWEEP'}`); } }, 260);
+    setTimeout(() => { if (b.dying || b.stunT > 0) return; const d2 = Math.hypot(STATE.player.x - b.x, STATE.player.z - b.z); if (d2 < 3.6) { damagePlayer(Math.round((b.atkKind ? 18 : 14) * (STATE.diff?.dmg || 1)), b); STATE.screenShake = Math.max(STATE.screenShake, 0.45); spawnImpact(STATE.player.x, STATE.player.y + 1.2, STATE.player.z, b.atkKind ? 0xffd27a : 0xff7a1a); addKillFeed(`${b.name}: ${b.atkKind ? 'CLAW SLAM' : 'SAW SWEEP'}`); } }, 260);
   } else if (dist < 6.5 && dist >= 2.0 && facingP && losGrid(b.x, b.z, P.x, P.z, NAV.high)) {
     torch = 1; if ((b.burnT = (b.burnT || 0) - dt) <= 0) { b.burnT = 0.25; damagePlayer(Math.max(1, Math.round(3 * (STATE.diff?.dmg || 1)))); }
   }
@@ -4219,7 +4284,7 @@ function addScore(n, label, worldPos, big = false) {
   STATE.score = (STATE.score || 0) + n; const el = document.getElementById('score-val'); if (el) el.textContent = String(STATE.score).padStart(6, '0');
   if (!worldPos) return;
   const d = document.createElement('div'); d.className = 'score-pop'; d.textContent = `+${n} ${label}`;
-  d.style.cssText = `position:absolute;z-index:44;pointer-events:none;font-family:'Black Ops One','Russo One',sans-serif;font-size:${big ? 30 : 18}px;color:${big ? '#ffd166' : '#ffb347'};text-shadow:0 0 10px rgba(255,120,0,.9),2px 2px 0 #3a1200;white-space:nowrap;transform:translate(-50%,-50%);letter-spacing:.06em;`;
+  d.style.cssText = `position:absolute;z-index:44;pointer-events:none;font-family:'Black Ops One','Chakra Petch',sans-serif;font-size:${big ? 30 : 18}px;color:${big ? '#ffd166' : '#ffb347'};text-shadow:0 0 10px rgba(255,120,0,.9),2px 2px 0 #3a1200;white-space:nowrap;transform:translate(-50%,-50%);letter-spacing:.06em;`;
   (document.getElementById('game-container') || document.body).appendChild(d);
   SCORE_POPS.push({ d, p: worldPos.clone(), t: 0, life: big ? 2.2 : 1.4 });
 }
@@ -4411,7 +4476,7 @@ function repairHud(C) {
   let el = document.getElementById('repair-hud');
   if (!el) {
     el = document.createElement('div'); el.id = 'repair-hud';
-    el.style.cssText = "position:absolute;left:50%;top:21%;transform:translateX(-50%);z-index:43;pointer-events:none;font-family:'Russo One',sans-serif;text-align:center;color:#ffd2c0;letter-spacing:.12em;font-size:clamp(10px,1.5vw,16px);display:none";
+    el.style.cssText = "position:absolute;left:50%;top:21%;transform:translateX(-50%);z-index:43;pointer-events:none;font-family:'Chakra Petch',sans-serif;text-align:center;color:#ffd2c0;letter-spacing:.12em;font-size:clamp(10px,1.5vw,16px);display:none";
     el.innerHTML = '<div id="repair-hud-t" style="text-shadow:0 0 10px #ff2a10">⚠ SENTINEL REBOOTING</div><div style="width:clamp(160px,26vw,320px);height:10px;margin:4px auto 0;border:2px solid #ff3b1a;background:rgba(40,4,2,.85)"><div id="repair-hud-bar" style="height:100%;width:0;background:linear-gradient(90deg,#ff6a00,#ffd000)"></div></div><div id="repair-hud-n" style="font-size:.75em;margin-top:3px;color:#ffb38a">KILL OR EMP THE MENDER</div>';
     (document.getElementById('game-container') || document.body).appendChild(el);
   }
@@ -4830,7 +4895,7 @@ function damageBot(b, dmg) {
   b.health -= dmg; b.flinchTimer = 0.18; b.rig.hb.update(b.health, b.maxHealth);
   // hit reaction lean
   if (b.rig.torso && b.rig.torso !== b.rig.root) b.rig.torso.rotation.x = -0.15;
-  const hm = document.getElementById('hitmarker'); hm.classList.add('active'); clearTimeout(hm._t); hm._t = setTimeout(() => hm.classList.remove('active'), 95);
+  uiHit(b.health <= 0);
   if (b.isBoss) {
     document.getElementById('boss-hp-text').textContent = `${Math.max(0, b.health)} / ${b.maxHealth}`;
     document.getElementById('boss-hp-bar').style.width = `${Math.max(0, (b.health / b.maxHealth) * 100)}%`;
@@ -4846,16 +4911,20 @@ function damageBot(b, dmg) {
   }
 }
 
-function damagePlayer(dmg) {
+function damagePlayer(dmg, src) {
+  if (STATE.dying) return;
   STATE.lastHurtT = performance.now();
-  if (STATE.dm) return dmTakeDamage(dmg, null);
+  if (STATE.dm) { uiDamageDir(src); return dmTakeDamage(dmg, null); }
+  uiDamageDir(src);
   const absorb = Math.min(STATE.player.armor, Math.ceil(dmg * 0.5));
   STATE.player.armor -= absorb; STATE.player.health -= (dmg - absorb);
   STATE.screenShake = Math.max(STATE.screenShake, 0.35);
   const flash = document.getElementById('damage-flash'); flash.style.opacity = '1'; setTimeout(() => (flash.style.opacity = '0'), 160);
   updateHUD();
   if (STATE.player.health <= 0) {
-    STATE.player.health = 100; STATE.player.armor = 50; startFloor(STATE.level, STATE.floor || 0);
+    STATE.player.health = 0; STATE.dying = true; updateHUD();
+    const lv = STATE.level, fl = STATE.floor || 0, who = src && src.name;
+    uiDeath(who, () => { STATE.dying = false; if (STATE.dm || STATE.level !== lv) return; STATE.player.health = 100; STATE.player.armor = 50; startFloor(lv, fl); });
   }
 }
 function addKillFeed(msg) {
@@ -5226,7 +5295,7 @@ function gameLoop(now) {
       }
     } else if (!p.fromPlayer && !hit) {
       if (Math.hypot(p.x - STATE.player.x, p.z - STATE.player.z) < 0.85 && Math.abs(p.y - (STATE.player.y + 1.2)) < 1.2) {
-        damagePlayer(p.damage); spawnImpact(p.x, p.y, p.z, 0xef4444); hit = true;
+        damagePlayer(p.damage, { x: p.x - p.vx, z: p.z - p.vz }); spawnImpact(p.x, p.y, p.z, 0xef4444); hit = true;
       }
     }
     if (hit && p.fromPlayer && CELL_DOOR && !CELL_DOOR.open && Math.abs(p.z - CELL_DOOR.z) < 1.3 && Math.abs(p.x - CELL_DOOR.x) < CELL_DOOR.w / 2 + 0.5) damageCellDoor(p.damage);
@@ -5672,9 +5741,7 @@ function compileAndDownloadHTML(stripEditorForRelease) {
 document.getElementById('btn-export-player').onclick = () => compileAndDownloadHTML(true);
 document.getElementById('btn-export-dev').onclick = () => compileAndDownloadHTML(false);
 
-setTimeout(() => {
-  const bar = document.getElementById('splash-bar'); if (bar) bar.style.width = '70%';
-}, 200);
+
 
 document.getElementById('btn-skip-splash').onclick = () => {
   document.getElementById('splash-screen').classList.add('hidden');
@@ -6251,7 +6318,7 @@ function loadCharTpl(id) {
 }
 function nameTagSprite(text, color) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 64; const x = c.getContext('2d');
-  x.font = 'bold 30px system-ui,sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = "bold 30px 'Chakra Petch',sans-serif"; x.textAlign = 'center'; x.textBaseline = 'middle';
   x.fillStyle = 'rgba(0,0,0,.45)'; const w = Math.min(250, x.measureText(text).width + 26); x.beginPath(); x.roundRect ? x.roundRect(128 - w / 2, 10, w, 44, 22) : x.rect(128 - w / 2, 10, w, 44); x.fill();
   x.fillStyle = '#' + new THREE.Color(color).getHexString(); x.fillText(text, 128, 33);
   const t = new THREE.CanvasTexture(c); const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
@@ -6699,7 +6766,7 @@ function dmLobbyList() { const el = document.getElementById('dm-lobby'); if (!el
 // ---------- Round 13: bullet fire icon, TURN next to fire, tiny control labels, MOVE hint ----------
 (function r13Controls() {
   const BULLET = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M12 1.8c2.3 1.9 3.3 4.6 3.3 7.5V15H8.7V9.3c0-2.9 1-5.6 3.3-7.5z"/><path d="M8.1 15h7.8v2.3H8.1z" fill="rgba(255,255,255,.25)"/><path d="M8.7 17.3h6.6v4.4H8.7z"/><path d="M10.5 6.6c.35-1 .85-1.8 1.5-2.4" opacity=".75"/><path d="M10.6 19.5h2.8" opacity=".6"/></svg>';
-  const _TURN_UNUSED = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 1 1 2.05 4.95"/><path d="M4.2 18.6 7.05 16.95 5.4 14.1"/><text x="12" y="14.6" font-size="6.6" font-family="system-ui,sans-serif" font-weight="800" fill="#fff" stroke="none" text-anchor="middle">180</text></svg>';
+  const _TURN_UNUSED = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 1 1 2.05 4.95"/><path d="M4.2 18.6 7.05 16.95 5.4 14.1"/><text x="12" y="14.6" font-size="6.6" font-family="Chakra Petch,sans-serif" font-weight="800" fill="#fff" stroke="none" text-anchor="middle">180</text></svg>';
   ICONS.fire = BULLET;
   const $ = id => document.getElementById(id);
   const lab = (el, t) => { if (!el || el.querySelector(':scope > .mc-lab')) return; const s = document.createElement('span'); s.className = 'mc-lab'; s.textContent = t; el.appendChild(s); };
@@ -6797,6 +6864,7 @@ const CREDITS_HTML = `<div class="gc-t">CREDITS</div>
  All music licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons: By Attribution 4.0</a></div>
  <div class="cr-sec"><b>3D MODELS</b><br>Characters, Sentinels &amp; props generated with Meshy AI for Darcy Demby</div>
  <div class="cr-sec"><b>TECH</b><br>three.js (MIT) · PeerJS (MIT) · qrcode-generator by Kazuhiko Arase (MIT)</div>
+ <div class="cr-sec"><b>FONTS</b><br>Black Ops One · Chakra Petch · Caveat — SIL Open Font License 1.1</div>
  <div class="cr-sec dim">Now playing: “Feral Angel Waltz” — Kevin MacLeod</div><button id="cr-close">CLOSE</button>`;
 function openCredits() {
   if (document.getElementById('credits-screen')) return; musicInit(); MUSIC.creditsOpen = true; musicUpdate(1);
@@ -6823,11 +6891,7 @@ requestAnimationFrame(gameLoop);
 autoLoadMeshyAssets().then(() => {
   if (!STATE.running) buildArenaMap();
   buildViewModel();
-  const bar = document.getElementById('splash-bar'); if (bar) bar.style.width = '100%';
-  const st = document.getElementById('splash-status');
-  if (st) st.textContent = (MESHY_TEMPLATES.guard || MESHY_TEMPLATES.bot || MESHY_TEMPLATES.viewmodel)
-    ? 'Meshy Strogg assets online · Pulse Cannon ready'
-    : 'Procedural Strogg Sentinels, Pulse Cannon & Biomech Arena Ready!';
+  window.uiLoad && uiLoad(1, 'All systems online');
 });
 
 </script>
@@ -6837,6 +6901,37 @@ autoLoadMeshyAssets().then(() => {
   function strip(root){ (root.querySelectorAll ? root.querySelectorAll('button, #game-modal span, #game-modal label') : []).forEach(el=>{ el.childNodes.forEach(n=>{ if(n.nodeType===3&&RX.test(n.nodeValue)){ n.nodeValue=n.nodeValue.replace(RX,'').replace(/\s{2,}/g,' '); } else if(n.nodeType===1&&n.tagName==='SPAN'&&RX.test(n.textContent)&&!n.textContent.replace(RX,'').trim()) n.style.display='none'; }); }); }
   strip(document);
   new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType===1){ strip(n.parentNode||n); } }))).observe(document.body,{childList:true,subtree:true});
+})();
+</script>
+<div id="fx-fade"></div><div id="kia"><div class="t">K.I.A.</div><div class="s" id="kia-s"></div><div class="bar"><div id="kia-bar"></div></div></div>
+<script>/* ===== Pro pass runtime: fades, hit/damage feedback, death screen ===== */
+(function () {
+  const $ = id => document.getElementById(id);
+  const grade = document.createElement('div'); grade.id = 'post-grade'; (document.getElementById('game-container') || document.body).appendChild(grade);
+  const dd = document.createElement('div'); dd.id = 'dmg-dir'; for (let i = 0; i < 4; i++) dd.appendChild(document.createElement('i')); document.body.appendChild(dd);
+  window.uiFade = function (holdMs = 120) { const f = $('fx-fade'); if (!f) return; f.style.transition = 'none'; f.style.opacity = '1'; void f.offsetWidth; setTimeout(() => { f.style.transition = 'opacity .5s ease'; f.style.opacity = '0'; }, holdMs); };
+  window.uiHit = function (kill) { const hm = $('hitmarker'); if (!hm) return; hm.classList.toggle('kill', !!kill); hm.classList.add('active'); clearTimeout(hm._t); hm._t = setTimeout(() => hm.classList.remove('active', 'kill'), kill ? 260 : 110); };
+  window.showHitMarker = window.uiHit;
+  let ddi = 0;
+  window.uiDamageDir = function (src) {
+    const P = STATE.player; if (!src) { let best = 1e9; for (const b of (window.BOTS || BOTS)) { if (b.dying) continue; const d = Math.hypot(b.x - P.x, b.z - P.z); if (d < best && d < 60 && b.aiState === 'combat') { best = d; src = b; } } }
+    if (!src || src.x === undefined) return; const dx = src.x - P.x, dz = src.z - P.z; if (Math.hypot(dx, dz) < 0.5) return;
+    const y = P.yaw, right = dx * Math.cos(y) - dz * Math.sin(y), fwd = -dx * Math.sin(y) - dz * Math.cos(y); window.showDamageDir(Math.atan2(right, fwd));
+  };
+  window.showDamageDir = function (a) { const el = dd.children[ddi++ % 4]; el.style.transform = `rotate(${a}rad)`; el.classList.add('on'); void el.offsetWidth; requestAnimationFrame(() => el.classList.remove('on')); };
+  window.uiDeath = function (who, done) { const k = $('kia'); $('kia-s').textContent = who ? 'Eliminated by ' + who : 'You were eliminated'; k.style.display = 'flex'; const bar = $('kia-bar'); bar.style.transition = 'none'; bar.style.width = '0'; void bar.offsetWidth; bar.style.transition = 'width 1.8s linear'; bar.style.width = '100%';
+    setTimeout(() => { uiFade(200); setTimeout(() => { k.style.display = 'none'; done && done(); }, 120); }, 1900); };
+  window.showDeathScreen = who => uiDeath(who, null);
+  // fade on every floor/level load and on Doom Party start
+  if (typeof startFloor === 'function') { const sf = startFloor; window.startFloor = startFloor = function () { uiFade(); document.body.classList.add('in-game'); return sf.apply(this, arguments); }; }
+  if (typeof dmStartMatch === 'function') { const dm = dmStartMatch; window.dmStartMatch = dmStartMatch = function () { uiFade(); document.body.classList.add('in-game'); return dm.apply(this, arguments); }; }
+  // kill feed: tag headshots
+  if (typeof addKillFeed === 'function') { const kf = addKillFeed; window.addKillFeed = addKillFeed = function (msg) { kf(msg); const f = $('kill-feed'), el = f && f.lastElementChild; if (el && /HEADSHOT|CRIT/i.test(msg)) el.classList.add('hs'); }; }
+  // splash → menu crossfade
+  const sk = $('btn-skip-splash'); if (sk) sk.addEventListener('click', () => uiFade(60), true);
+  // re-draw text textures once the self-hosted fonts are ready (signs drawn before font load)
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!STATE.running && typeof buildArenaMap === 'function') try { buildArenaMap(); } catch (e) {} });
+  if (!window.LOADP || !window.LOADP.n) uiLoad(0.15, 'Initializing Triage systems…');
 })();
 </script>
 </body>

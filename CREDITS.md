@@ -21,3 +21,9 @@ Characters, Sentinels and props generated with Meshy AI for Darcy Demby.
 
 ## Software
 three.js (MIT) · PeerJS (MIT) · qrcode-generator by Kazuhiko Arase (MIT).
+
+## Fonts
+Self-hosted in `fonts/` under the SIL Open Font License 1.1 (license texts alongside):
+- Black Ops One (display)
+- Chakra Petch (UI)
+- Caveat (in-world handwritten notes)
