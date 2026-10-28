@@ -1,6 +1,6 @@
 <!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=robots content=noindex><title>Learn 3D in Python</title><style>body{font-family:system-ui;max-width:820px;margin:auto;padding:16px;background:#111;color:#eee}pre{background:#1e1e1e;padding:12px;overflow:auto;border-radius:8px;font-size:13px}.s{color:#7f7}.t{color:#fc6}a{color:#6cf}img{max-width:100%}</style>
 <h1>Learn 3D games in Python (Ursina) in 7 tiny steps</h1><p>This is the desktop companion to the browser tutorial. It runs on Windows and Mac.</p><p><a href='3d-tutorial-python.zip'><b>Download all files (zip)</b></a></p><p>Install with <code>pip install ursina</code> (on Mac use <code>pip3</code>), then run <code>python step1.py</code>.</p><img src='step7.png' alt='final result'>
-<h2>Step 1: The app, Entities and the update loop</h2><p>`Ursina()` opens a window, every visible thing is an `Entity`, and a function called `update()` runs every frame. Multiply by `time.dt` so speed is the same on fast and slow computers.</p><pre># STEP 1 - The app and your first Entity
+<h2>Step 0: Libraries, pip and imports (2-minute read)</h2><p>A <b>library</b> is a big pile of code someone else already wrote, like a toolbox. Ursina is a 3D game library, so you don&#x27;t have to write the 3D maths yourself.</p><p><b>pip</b> is Python&#x27;s app store for libraries. <code>pip install ursina</code> downloads Ursina onto your computer once.</p><p><b><code>from ursina import *</code></b> at the top of a file means &quot;open the Ursina toolbox and put every tool on my desk&quot;, so you can just write <code>Entity(...)</code> instead of <code>ursina.Entity(...)</code>.</p><p><b>Objects and methods, VB-style:</b> an <code>Entity</code> is like a VB control (a Button or a PictureBox). <code>cube.color = color.red</code> is like setting <code>Button1.BackColor</code> (a property). <code>cube.look_at(player)</code> is like calling <code>Button1.Focus()</code> (a method). And <code>def update():</code> is like a Timer&#x27;s Tick event that fires every frame.</p><h2>Step 1: The app, Entities and the update loop</h2><p>`Ursina()` opens a window, every visible thing is an `Entity`, and a function called `update()` runs every frame. Multiply by `time.dt` so speed is the same on fast and slow computers.</p><pre># STEP 1 - The app and your first Entity
 from ursina import *
 
 app = Ursina()                         # opens the game window
@@ -12,7 +12,7 @@ def update():                          # runs every frame (~60x per second)
 
 EditorCamera()                         # right-drag to orbit, scroll to zoom
 app.run()
-</pre><p class=s><b>You should see:</b> A spinning orange cube (right-drag to orbit).</p><p class=t><b>Try changing:</b> Change `90` to `400`, or `rotation_y` to `rotation_x`.</p>
+</pre><p><i>Library call: <code>Ursina()</code> creates the game window, <code>Entity(...)</code> makes a 3D object, and <code>EditorCamera()</code> gives you a camera you can orbit with the mouse.</i></p><p class=s><b>You should see:</b> A spinning orange cube (right-drag to orbit).</p><p class=t><b>Try changing:</b> Change `90` to `400`, or `rotation_y` to `rotation_x`.</p>
 <h2>Step 2: Models, textures, position &amp; scale</h2><p>An Entity&#x27;s `model` is its shape, `texture` is the picture on it, and `position`/`scale` are (x, y, z): x = right, y = up, z = forward.</p><pre># STEP 2 - Models, textures, position &amp; scale
 from ursina import *
 
@@ -24,7 +24,7 @@ wall  = Entity(model=&#x27;cube&#x27;, position=(0, 1.5, 5), scale=(10, 3, 0.3),
 
 EditorCamera()
 app.run()
-</pre><p class=s><b>You should see:</b> A brick wall standing on grass.</p><p class=t><b>Try changing:</b> Set `texture_scale=(20, 8)` and see the bricks get tiny.</p>
+</pre><p><i>Library call: <code>model=&#x27;plane&#x27;</code> / <code>&#x27;cube&#x27;</code> and <code>texture=&#x27;brick&#x27;</code> / <code>&#x27;grass&#x27;</code> are built-in shapes and pictures that come with Ursina.</i></p><p class=s><b>You should see:</b> A brick wall standing on grass.</p><p class=t><b>Try changing:</b> Set `texture_scale=(20, 8)` and see the bricks get tiny.</p>
 <h2>Step 3: Rooms from cubes, with colliders</h2><p>A wall is just a stretched cube. The `wall()` helper turns two corner points into one, and `collider=&#x27;box&#x27;` makes it solid. Leaving a gap makes a doorway.</p><pre># STEP 3 - Build two rooms + a hallway out of cubes (with colliders)
 from ursina import *
 
@@ -55,7 +55,7 @@ wall(-3, -1.5, 3, -1.5)
 EditorCamera(rotation=(45, 0, 0))
 camera.position = (0, 0, -40)
 app.run()
-</pre><p class=s><b>You should see:</b> Two brick rooms joined by a hallway, seen from above.</p><p class=t><b>Try changing:</b> Add `wall(-13, 0, -8, 0)` to split the left room in half.</p>
+</pre><p><i>Library call: <code>collider=&#x27;box&#x27;</code> asks Ursina to make an invisible solid box the player can bump into.</i></p><p class=s><b>You should see:</b> Two brick rooms joined by a hallway, seen from above.</p><p class=t><b>Try changing:</b> Add `wall(-13, 0, -8, 0)` to split the left room in half.</p>
 <h2>Step 4: The FirstPersonController</h2><p>This ready-made player does WASD movement, mouse-look, gravity and jumping, and bumps into colliders.</p><pre># STEP 4 - Walk around: the FirstPersonController
 from ursina import *
 from ursina.prefabs.first_person_controller import FirstPersonController
@@ -87,7 +87,7 @@ wall(-3, -1.5, 3, -1.5)
 player = FirstPersonController(position=(-8, 1, 0), speed=6)  # WASD + mouse, space = jump
 # colliders on the walls stop you walking through them. Press Esc to quit.
 app.run()
-</pre><p class=s><b>You should see:</b> You walk around inside. Walls stop you. Esc quits.</p><p class=t><b>Try changing:</b> Try `speed=15` and `jump_height=4`.</p>
+</pre><p><i>Library call: <code>from ursina.prefabs.first_person_controller import FirstPersonController</code> grabs one specific tool (a ready-made player) from a sub-folder of the library.</i></p><p class=s><b>You should see:</b> You walk around inside. Walls stop you. Esc quits.</p><p class=t><b>Try changing:</b> Try `speed=15` and `jump_height=4`.</p>
 <h2>Step 5: A hand on the camera (viewmodel)</h2><p>Setting `parent=camera` glues the hand to your view, so it turns when you look around. It&#x27;s built from small cubes parented to one `hand` Entity, so moving `hand` moves them all.</p><pre># STEP 5 - A first-person hand (viewmodel)
 from ursina import *
 from ursina.prefabs.first_person_controller import FirstPersonController
@@ -131,7 +131,7 @@ Entity(parent=hand, model=&#x27;cube&#x27;, scale=(0.06, 0.06, 0.14), color=skin
 Entity(parent=hand, model=&#x27;cube&#x27;, scale=(0.2, 0.09, 0.4), color=color.rgb32(40, 40, 60),
        position=(0, 0, -0.3))                                                    # sleeve
 app.run()
-</pre><p class=s><b>You should see:</b> A blocky hand with a sleeve in the bottom-right.</p><p class=t><b>Try changing:</b> Move it to the left side with `position=(-0.45, -0.45, 0.9)`.</p>
+</pre><p><i>Library call: <code>camera</code> is an object Ursina made for you. Setting <code>parent=camera</code> attaches the hand to it.</i></p><p class=s><b>You should see:</b> A blocky hand with a sleeve in the bottom-right.</p><p class=t><b>Try changing:</b> Move it to the left side with `position=(-0.45, -0.45, 0.9)`.</p>
 <h2>Step 6: Bobbing with time.dt</h2><p>`sin()` swings smoothly between -1 and 1. Pushing `t` forward only while a WASD key is held makes the hand bob as you walk and settle when you stop.</p><pre># STEP 6 - Hand bob with time.dt
 from ursina import *
 from ursina.prefabs.first_person_controller import FirstPersonController
@@ -187,7 +187,7 @@ def update():
     hand.y = -0.45 + abs(sin(t)) * -0.04
     hand.x = 0.45 + sin(t) * 0.03
 app.run()
-</pre><p class=s><b>You should see:</b> The hand bobs left and right while you walk.</p><p class=t><b>Try changing:</b> Change `* 10` to `* 25` for a sprint bob.</p>
+</pre><p><i>Library call: <code>held_keys[&#x27;w&#x27;]</code> is 1 while W is held down, and <code>sin()</code> and <code>lerp()</code> are maths helpers from the library.</i></p><p class=s><b>You should see:</b> The hand bobs left and right while you walk.</p><p class=t><b>Try changing:</b> Change `* 10` to `* 25` for a sprint bob.</p>
 <h2>Step 7: Lighting</h2><p>A `DirectionalLight` is the sun and `AmbientLight` is soft fill. The `lit_with_shadows_shader` makes entities react to light, and `Sky()` adds a sky.</p><pre># STEP 7 - Lighting (the finished project!)
 from ursina import *
 from ursina.prefabs.first_person_controller import FirstPersonController
@@ -254,4 +254,4 @@ Sky()
 
 
 app.run()
-</pre><p class=s><b>You should see:</b> Shaded brick walls with sunlight, shadows and a sky.</p><p class=t><b>Try changing:</b> Change `Vec3(1, -1, 1)` to `Vec3(-1, -0.3, 0)` for a sunset angle.</p>
+</pre><p><i>Library call: <code>DirectionalLight</code>, <code>AmbientLight</code>, <code>Sky</code> and <code>lit_with_shadows_shader</code> are Ursina&#x27;s lighting tools.</i></p><p class=s><b>You should see:</b> Shaded brick walls with sunlight, shadows and a sky.</p><p class=t><b>Try changing:</b> Change `Vec3(1, -1, 1)` to `Vec3(-1, -0.3, 0)` for a sunset angle.</p>

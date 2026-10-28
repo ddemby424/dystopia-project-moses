@@ -2,6 +2,16 @@
 
 Install with `pip install ursina` (Mac: `pip3`), then run `python stepN.py`. Each step file runs by itself.
 
+## Step 0: Libraries, pip and imports (2-minute read)
+
+A **library** is a big pile of code someone else already wrote, like a toolbox. Ursina is a 3D game library, so you don't have to write the 3D maths yourself.
+
+**pip** is Python's app store for libraries. `pip install ursina` downloads Ursina onto your computer once.
+
+**`from ursina import *`** at the top of a file means "open the Ursina toolbox and put every tool on my desk", so you can just write `Entity(...)` instead of `ursina.Entity(...)`.
+
+**Objects and methods, VB-style:** an `Entity` is like a VB control (a Button or a PictureBox). `cube.color = color.red` is like setting `Button1.BackColor` (a property). `cube.look_at(player)` is like calling `Button1.Focus()` (a method). And `def update():` is like a Timer's Tick event that fires every frame.
+
 ## Step 1: The app, Entities and the update loop
 
 `Ursina()` opens a window, every visible thing is an `Entity`, and a function called `update()` runs every frame. Multiply by `time.dt` so speed is the same on fast and slow computers.
@@ -20,6 +30,8 @@ def update():                          # runs every frame (~60x per second)
 EditorCamera()                         # right-drag to orbit, scroll to zoom
 app.run()
 ```
+
+*Library call: `Ursina()` creates the game window, `Entity(...)` makes a 3D object, and `EditorCamera()` gives you a camera you can orbit with the mouse.*
 
 **You should see:** A spinning orange cube (right-drag to orbit).
 
@@ -42,6 +54,8 @@ wall  = Entity(model='cube', position=(0, 1.5, 5), scale=(10, 3, 0.3),
 EditorCamera()
 app.run()
 ```
+
+*Library call: `model='plane'` / `'cube'` and `texture='brick'` / `'grass'` are built-in shapes and pictures that come with Ursina.*
 
 **You should see:** A brick wall standing on grass.
 
@@ -84,6 +98,8 @@ camera.position = (0, 0, -40)
 app.run()
 ```
 
+*Library call: `collider='box'` asks Ursina to make an invisible solid box the player can bump into.*
+
 **You should see:** Two brick rooms joined by a hallway, seen from above.
 
 **Try changing:** Add `wall(-13, 0, -8, 0)` to split the left room in half.
@@ -125,6 +141,8 @@ player = FirstPersonController(position=(-8, 1, 0), speed=6)  # WASD + mouse, sp
 # colliders on the walls stop you walking through them. Press Esc to quit.
 app.run()
 ```
+
+*Library call: `from ursina.prefabs.first_person_controller import FirstPersonController` grabs one specific tool (a ready-made player) from a sub-folder of the library.*
 
 **You should see:** You walk around inside. Walls stop you. Esc quits.
 
@@ -179,6 +197,8 @@ Entity(parent=hand, model='cube', scale=(0.2, 0.09, 0.4), color=color.rgb32(40, 
        position=(0, 0, -0.3))                                                    # sleeve
 app.run()
 ```
+
+*Library call: `camera` is an object Ursina made for you. Setting `parent=camera` attaches the hand to it.*
 
 **You should see:** A blocky hand with a sleeve in the bottom-right.
 
@@ -245,6 +265,8 @@ def update():
     hand.x = 0.45 + sin(t) * 0.03
 app.run()
 ```
+
+*Library call: `held_keys['w']` is 1 while W is held down, and `sin()` and `lerp()` are maths helpers from the library.*
 
 **You should see:** The hand bobs left and right while you walk.
 
@@ -322,6 +344,8 @@ Sky()
 
 app.run()
 ```
+
+*Library call: `DirectionalLight`, `AmbientLight`, `Sky` and `lit_with_shadows_shader` are Ursina's lighting tools.*
 
 **You should see:** Shaded brick walls with sunlight, shadows and a sky.
 
