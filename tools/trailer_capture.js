@@ -1,0 +1,50 @@
+#!/usr/bin/env node
+// Deterministic gameplay capture for the trailer: virtual clock, 30 fps, 1920x1080 PNG frames per shot.
+// node tools/trailer_capture.js OUTDIR [shotName...]
+const { chromium } = require('playwright-core'); const fs = require('fs'), path = require('path'), http = require('http');
+const ROOT = path.resolve(__dirname, '..'); const OUT = process.argv[2]; const ONLY = process.argv.slice(3);
+const T = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.json': 'application/json' };
+const serve = () => new Promise(r => { const s = http.createServer((q, res) => { let p = decodeURIComponent(q.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html'; const f = path.join(ROOT, p); if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'content-type': T[path.extname(f)] || 'application/octet-stream' }); fs.createReadStream(f).pipe(res); }).listen(0, () => r([s, `http://127.0.0.1:${s.address().port}/index.html`])); });
+const FPS = 30;
+// shot: { name, L, F, secs, setup(js string run once), frame(js string run per frame with t in seconds) }
+const SHOTS = [
+  { name: 'corridor', L: 1, F: 0, secs: 5, setup: `try{openCellDoor('t')}catch(e){} BOTS.forEach(b=>b.frozen=1)`, frame: `P.x=0.6*Math.sin(t*0.6); P.z=76-t*4.6; P.yaw=0.05*Math.sin(t*0.7); P.pitch=0.06;` },
+  { name: 'colossus', L: 1, F: 0, secs: 5, setup: `try{openCellDoor('t')}catch(e){}`, frame: `const C=COLOSSI[0]; P.x=-3+t*0.6; P.z=44-t*1.2; if(C){const c=C.root.position; P.yaw=Math.atan2(-(c.x-P.x),-(c.z-P.z));} P.pitch=0.42-t*0.06;` },
+  { name: 'emp', L: 1, F: 0, secs: 6, setup: `try{openCellDoor('t')}catch(e){} switchWeapon(3); STATE.weapons[3].ammo=99; STATE.combatActive=true;`, frame: `const C=COLOSSI[0]; P.x=8-t*0.8; P.z=28; if(C){const c=C.root.position; P.yaw=Math.atan2(-(c.x-P.x),-(c.z-P.z)); P.pitch=0.12;} if(t>0.6&&(Math.floor(t*30)%36)===0){STATE.fireCooldown=0; firePlayerWeapon();}` },
+  { name: 'drone', L: 2, F: 1, secs: 5, setup: `STATE.combatActive=true; switchWeapon(0);`, frame: `P.x=0; P.z=30-t*0.8; const d=DRONES.find(d=>d.state!=='falling'); if(d){ if(t<0.05){d.x=2;d.z=20;d.y=3.2;} P.yaw=Math.atan2(-(d.x-P.x),-(d.z-P.z)); P.pitch=Math.atan2(d.y-1.6,Math.hypot(d.x-P.x,d.z-P.z))*0.9; if(t>2.5&&(Math.floor(t*30)%6)===0){STATE.fireCooldown=0;firePlayerWeapon();}}` },
+  { name: 'mender', L: 3, F: 2, secs: 5, setup: `STATE.combatActive=true; const m=BOTS.find(b=>b.isMender&&!b.dying); if(m){ window.__m=m; P.x=m.x; P.z=m.z+7; }`, frame: `const m=window.__m; if(m){ const a=t*0.25; P.x=m.x+Math.sin(a)*6.5; P.z=m.z+Math.cos(a)*6.5; P.yaw=Math.atan2(-(m.x-P.x),-(m.z-P.z)); P.pitch=-0.12; }` },
+  { name: 'firefight', L: 4, F: 0, secs: 6, setup: `try{openCellDoor('t')}catch(e){} STATE.combatActive=true; switchWeapon(1); P.x=0; P.z=44;`, frame: `const b=BOTS.filter(b=>!b.dying&&!b.isMender).sort((a,c)=>Math.hypot(a.x-P.x,a.z-P.z)-Math.hypot(c.x-P.x,c.z-P.z))[0]; P.z=44-t*1.5; if(b){const ty=Math.atan2(-(b.x-P.x),-(b.z-P.z)); P.yaw+= (ty-P.yaw)*0.15; P.pitch=0.02; if(t>1&&(Math.floor(t*30)%22)===0){STATE.fireCooldown=0;firePlayerWeapon();}}` },
+  { name: 'vault', L: 9, F: 3, secs: 5, setup: ``, frame: `P.x=-20+t*6; P.z=40-t*2; P.yaw=0.6-t*0.22; P.pitch=0.1;` },
+];
+(async () => {
+  const [srv, URL] = await serve();
+  const br = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--mute-audio'] });
+  const ctx = await br.newContext({ viewport: { width: +(process.env.TW || 1280), height: +(process.env.TH || 720) }, deviceScaleFactor: 1 }); const p = await ctx.newPage();
+  p.on('pageerror', e => console.log('pageerror', e.message));
+  await p.addInitScript(() => {
+    try { localStorage.setItem('dys_trailer_seen', '1'); } catch (e) {}
+    const rRAF = window.requestAnimationFrame.bind(window), rNow = performance.now.bind(performance);
+    let virt = false, vt = 0, q = [];
+    window.requestAnimationFrame = cb => { if (!virt) return rRAF(cb); q.push(cb); return q.length; };
+    performance.now = () => virt ? vt : rNow();
+    window.__virt = () => { vt = rNow(); virt = true; };
+    window.__step = ms => { vt += ms; const c = q; q = []; c.forEach(f => { try { f(vt); } catch (e) { console.error(e); } }); };
+  });
+  await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(12000);
+  await p.evaluate(() => { document.getElementById('btn-skip-splash')?.click(); }); await p.waitForTimeout(800);
+  await p.evaluate(() => document.getElementById('btn-start').click()); await p.waitForTimeout(5000);
+  for (const S of SHOTS) { if (ONLY.length && !ONLY.includes(S.name)) continue;
+    const dir = path.join(OUT, S.name); fs.mkdirSync(dir, { recursive: true });
+    await p.evaluate(([L, F]) => { window.__virtOff && 0; startFloor(L, F); }, [S.L, S.F]); await p.waitForTimeout(3500);
+    await p.evaluate(setup => { const P = STATE.player; P.health = P.maxHealth = 1e9; STATE.player.armor = 100; document.getElementById('center-banner')?.classList.add('hidden'); try { eval(setup); } catch (e) { console.log('setup', e); } if (!window.__isVirt) { window.__virt(); window.__isVirt = 1; } }, S.setup);
+    // warm-up 1 s of sim
+    for (let i = 0; i < 45; i++) await p.evaluate(() => __step(1000 / 30));
+    const n = Math.round(S.secs * FPS); const t0 = Date.now();
+    for (let i = 0; i < n; i++) {
+      await p.evaluate(([fr, t]) => { const P = STATE.player; P.health = 1e9; try { eval(fr); } catch (e) {} __step(1000 / 30); }, [S.frame, i / FPS]);
+      await p.screenshot({ path: path.join(dir, `f${String(i).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 92 });
+    }
+    console.log(S.name, n, 'frames', ((Date.now() - t0) / 1000).toFixed(0) + 's');
+  }
+  await br.close(); srv.close();
+})();

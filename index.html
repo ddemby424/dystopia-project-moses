@@ -32,7 +32,14 @@
     @font-face { font-family:'Chakra Petch'; src:url(fonts/ChakraPetch-600.woff2) format('woff2'); font-weight:600; font-display:swap; }
     @font-face { font-family:'Chakra Petch'; src:url(fonts/ChakraPetch-700.woff2) format('woff2'); font-weight:700 900; font-display:swap; }
     @font-face { font-family:'Caveat'; src:url(fonts/Caveat-500.woff2) format('woff2'); font-weight:400 700; font-display:swap; }
-  </style>
+    #trailer-overlay{position:fixed;inset:0;z-index:99999;background:#000;display:flex;align-items:center;justify-content:center;transition:opacity .45s}
+  #trailer-overlay.out{opacity:0;pointer-events:none}
+  #trailer-overlay video{width:100%;height:100%;object-fit:contain;background:#000}
+  #trailer-overlay .tr-btn{position:absolute;font:600 13px 'Chakra Petch',sans-serif;letter-spacing:.18em;color:#e5e7eb;background:rgba(10,14,20,.62);border:1px solid rgba(229,231,235,.35);border-radius:6px;padding:10px 16px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);cursor:pointer}
+  #trailer-skip{right:calc(16px + env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom))}
+  #trailer-sound{left:calc(16px + env(safe-area-inset-left));bottom:calc(22px + env(safe-area-inset-bottom))}
+  #trailer-prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.08)}#trailer-prog i{display:block;height:100%;width:0;background:#ef4444}
+</style>
   <style>
     :root { --sT: env(safe-area-inset-top, 0px); --sR: env(safe-area-inset-right, 0px); --sB: env(safe-area-inset-bottom, 0px); --sL: env(safe-area-inset-left, 0px); }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -381,6 +388,7 @@
     <div class="q3-bar w-64"><div id="splash-bar" style="width: 4%;"></div></div><div id="splash-pct">0%</div>
     <div id="splash-status" class="text-[11px] tracking-wider uppercase" style="color:#e8c49a;text-shadow:0 1px 0 #000">Initializing Triage systems…</div>
     <button id="btn-skip-splash" class="q3-btn action-btn mt-2 px-10 py-3 text-base">Enter Dystopia</button>
+    <button id="btn-watch-trailer" class="q3-btn steel action-btn px-6 py-1.5 text-xs" onclick="playTrailer(true)">&#9654; Watch Trailer</button>
   </div>
 </div>
 
@@ -1085,6 +1093,17 @@ FLOOR_PBR.map.repeat.set(38, 32); FLOOR_PBR.bumpMap.repeat.set(38, 32);
   }
   WALL_PBR.map.image = c; WALL_PBR.map.needsUpdate = true;
 })();
+// Round 19: ambientCG CC0 metal plate textures (1K) swapped into the wall/floor canvases once loaded; procedural noise stays as fallback
+(function loadMetalPlates() {
+  const swap = (tex, url, tint, hazard, tiles = 1) => { const im = new Image(); im.onload = () => {
+    const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d'); const ts = 512 / tiles;
+    for (let i = 0; i < tiles; i++) for (let j = 0; j < tiles; j++) x.drawImage(im, i * ts, j * ts, ts, ts); if (tint) { x.globalCompositeOperation = 'multiply'; x.fillStyle = tint; x.fillRect(0, 0, 512, 512); x.globalCompositeOperation = 'source-over'; }
+    if (hazard) { x.fillStyle = '#eab308'; x.fillRect(0, 428, 512, 34); x.fillStyle = '#090d16'; for (let k = -64; k < 576; k += 36) { x.beginPath(); x.moveTo(k, 428); x.lineTo(k + 18, 428); x.lineTo(k - 4, 462); x.lineTo(k - 22, 462); x.closePath(); x.fill(); } }
+    tex.image = c; tex.needsUpdate = true; }; im.src = url; };
+  swap(WALL_PBR.map, 'images/tex/metal_wall_1k.jpg', '#4a5670', true, 3); swap(WALL_PBR.bumpMap, 'images/tex/metal_wall_bump_1k.jpg', null, false, 3);
+  swap(FLOOR_PBR.map, 'images/tex/metal_floor_1k.jpg', '#6b7280'); swap(FLOOR_PBR.bumpMap, 'images/tex/metal_floor_bump_1k.jpg');
+  FLOOR_PBR.map.repeat.set(30, 26); FLOOR_PBR.bumpMap.repeat.set(30, 26);
+})();
 
 function createHealthBarSprite(nameText, isBoss = false) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 64;
@@ -1761,9 +1780,30 @@ const PROP_BUILDERS = {
   },
   extinguisher(o) {
     const g = new THREE.Group();
+    const px = cloneProp('ph_extinguisher'); if (px) { px.position.set(0, 0.82, 0.12); g.add(px); const br = boxMesh(0.34, 0.06, 0.16, 0x1f2937, { metal: 0.7 }); br.position.set(0, 1.14, 0.04); g.add(br); const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), new THREE.MeshBasicMaterial({ map: signTexture('FIRE', 'EXTINGUISHER', '#ef4444') })); tag.position.set(0, 1.75, 0.02); twoSidedText(tag, 0.006); g.add(tag); return { g, collide: null }; }
     const b = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.6, 10), new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35, metalness: 0.3 })); b.position.y = 1.1; g.add(b);
     const n = boxMesh(0.06, 0.12, 0.06, 0x111111); n.position.y = 1.46; g.add(n);
     const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), new THREE.MeshBasicMaterial({ map: signTexture('FIRE', 'EXTINGUISHER', '#ef4444') })); tag.position.set(0, 1.75, 0.02); twoSidedText(tag, 0.006); g.add(tag);
+    return { g, collide: null };
+  },
+  seccam(o) {
+    const g = new THREE.Group(); const c = cloneProp('ph_camera');
+    if (c) { c.position.set(0, o.camY || 3.6, 0.15); c.rotation.x = 0.3; g.add(c); }
+    else { const b = boxMesh(0.18, 0.16, 0.4, 0xd1d5db); b.position.set(0, o.camY || 3.6, 0.25); g.add(b); }
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff2020 })); led.position.set(0.08, (o.camY || 3.6) + 0.08, 0.32); g.add(led);
+    return { g, collide: null };
+  },
+  powerbox(o) {
+    const g = new THREE.Group(); const c = cloneProp('ph_powerbox');
+    if (c) { c.position.set(0, 0.95, 0.05); c.traverse(m => { if (m.isMesh && m.material) { m.material = m.material.clone(); m.material.color && m.material.color.setHex(0x5a6070); m.material.metalness = 0.4; m.material.roughness = 0.75; } }); g.add(c); } else { const b = boxMesh(0.6, 0.9, 0.25, 0x6b7280); b.position.set(0, 1.4, 0.12); g.add(b); }
+    return { g, collide: null };
+  },
+  airduct(o) {
+    const g = new THREE.Group(); const len = o.len || 12, y = o.ductY || 5.2;
+    const tpl = MESHY_TEMPLATES.props.ph_airduct;
+    if (tpl) { const s = new THREE.Vector3(); new THREE.Box3().setFromObject(tpl.scene).getSize(s); const seg = Math.max(0.5, Math.max(s.x, s.z)); const along = s.x >= s.z;
+      for (let d = -len / 2 + seg / 2; d <= len / 2; d += seg) { const c = cloneProp('ph_airduct'); c.position.set(0, y - 0.35, d); if (along) c.rotation.y = Math.PI / 2; g.add(c); } }
+    else { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, len, 12), new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 0.8, roughness: 0.35 })); m.rotation.x = Math.PI / 2; m.position.y = y; g.add(m); }
     return { g, collide: null };
   },
   generator(o) {
@@ -2094,7 +2134,7 @@ function updateShockwaves(dt) {
 function buildColossus(height, opts = {}) {
   const g = new THREE.Group();
   const isMini = !!opts.mini;
-  const tpl = isMini ? (MESHY_TEMPLATES.guard || MESHY_TEMPLATES.bot) : (MESHY_TEMPLATES.bot || MESHY_TEMPLATES.guard);
+  const tpl = isMini ? (MESHY_TEMPLATES.guard || MESHY_TEMPLATES.bot) : (MESHY_TEMPLATES.colossus || MESHY_TEMPLATES.bot || MESHY_TEMPLATES.guard);
   const C = { root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: null, hand: null };
   if (tpl && THREE.SkeletonUtils) {
     const c = THREE.SkeletonUtils.clone(tpl.scene);
@@ -2216,6 +2256,8 @@ function genFloorLayout(level, floor) {
     add('celldoorprop', -4.0, 62, { rot: Math.PI / 2 }); add('celldoorprop', 4.0, 57, { rot: -Math.PI / 2 });
     add('sign', -3.95, 66.5, { y: 4.2, rot: Math.PI / 2, title: 'CELL 2', sub: '', color: '#ef4444', w: 2.4 }); add('sign', 3.95, 52.5, { y: 4.2, rot: -Math.PI / 2, title: 'CELL 4', sub: '', color: '#ef4444', w: 2.4 });
     add('extinguisher', -3.9, 69, { rot: Math.PI / 2 }); add('extinguisher', 3.9, 52, { rot: -Math.PI / 2 });
+    add('seccam', 3.95, 70.5, { rot: -Math.PI / 2, camY: 4.2 }); add('seccam', -3.95, 49, { rot: Math.PI / 2, camY: 4.2 });
+    add('powerbox', 3.95, 60.5, { rot: -Math.PI / 2 }); add('airduct', 2.6, 59.5, { len: 23, ductY: 5.6 });
     // security checkpoint
     add('desk', -9, 39, { rot: 0 }); add('monitors', -9, 38.9, { y: 1.1, rot: 0 }); add('chair', -9, 37.2, { rot: Math.PI });
     add('desk', 9, 39, { rot: 0 }); add('monitors', 9, 38.9, { y: 1.1, rot: 0 }); add('chair', 9, 37.2, { rot: Math.PI });
@@ -2254,6 +2296,7 @@ function genFloorLayout(level, floor) {
     add('sign', 0, -83.4, { y: 6, rot: 0, title: 'STAIRWELL ▼ B2', sub: 'COOLING PLANT', color: '#22c55e', w: 7 });
     add('sign', 0, 83.4, { y: 6, rot: Math.PI, title: 'FLOOR B1', sub: 'SERVER FARM · LEVEL ' + level, color: '#facc15', w: 7 });
     for (let i = 0; i < 6; i++) add('extinguisher', mirror * (-5.8), 60 - i * 24, { rot: Math.PI / 2 });
+    for (let i = 0; i < 3; i++) { add('powerbox', mirror * (-5.8), 48 - i * 48, { rot: Math.PI / 2 }); add('seccam', mirror * (-5.8), 36 - i * 48, { rot: Math.PI / 2, camY: 4.4 }); }
     for (let i = 0; i < 4; i++) add('crac', (i % 2 ? 87 : -87), -60 + i * 38, { rot: i % 2 ? -Math.PI / 2 : Math.PI / 2 });
   } else if (floor === 2) {
     // cooling / generator plant
@@ -2629,7 +2672,7 @@ function buildViewModel() {
   while (viewModelGroup.children.length > 0) viewModelGroup.remove(viewModelGroup.children[0]);
   weaponGlowMats = [];
   const WK = ['cannon', 'shotgun', 'rocket', 'emp'];
-  { const wi = STATE.currentWeapon; const hasTpl = wi === 0 ? !!MESHY_TEMPLATES.viewmodel : wi === 1 ? !!VM_TPL.shotgun : wi === 2 ? !!VM_TPL.rocket : false;
+  { const wi = STATE.currentWeapon; const hasTpl = wi === 0 ? !!MESHY_TEMPLATES.viewmodel : wi === 1 ? !!VM_TPL.shotgun : wi === 2 ? !!VM_TPL.rocket : wi === 3 ? !!VM_TPL.emp : false;
     if (wi > 0 && !hasTpl) {
       const wrap = new THREE.Group(); const gm = buildProcWeapon(WK[wi]); wrap.add(gm); viewModelGroup.add(wrap); gunMesh = wrap; wrap.userData.kind = WK[wi];
       muzzleAnchor = new THREE.Object3D(); muzzleAnchor.position.set(0, wi === 1 ? 0.022 : 0, wi === 1 ? -0.8 : wi === 2 ? -0.72 : -0.68); wrap.add(muzzleAnchor);
@@ -2640,7 +2683,7 @@ function buildViewModel() {
   if (MESHY_TEMPLATES.viewmodel) {
     const wrap = new THREE.Group();
     const wi = STATE.currentWeapon; wrap.userData.kind = WK[wi];
-    const vtpl = (wi === 1 && VM_TPL.shotgun) || (wi === 2 && VM_TPL.rocket) || MESHY_TEMPLATES.viewmodel;
+    const vtpl = (wi === 1 && VM_TPL.shotgun) || (wi === 2 && VM_TPL.rocket) || (wi === 3 && VM_TPL.emp) || MESHY_TEMPLATES.viewmodel;
     const isCannonTpl = vtpl === MESHY_TEMPLATES.viewmodel;
     const clone = vtpl.scene.clone(true); clone.userData = { ...vtpl.scene.userData };
     const inner = new THREE.Group(); inner.add(clone); wrap.add(inner);
@@ -2657,8 +2700,11 @@ function buildViewModel() {
     muzzleAnchor.position.copy(findMuzzleLocalOffset(wrap));
     wrap.add(muzzleAnchor);
     const wcolD = [0x38bdf8, 0xff8a2a, 0xff3b30, 0x7dd3fc][wi] || 0x38bdf8;
+    const ownEmp = wi === 3 && vtpl === VM_TPL.emp; // Round 19: Meshy Ion EMP is fully modelled — skip procedural dressing
+    if (!ownEmp) {
     sciFiDress(wrap, wcolD, -1, ['cannon', 'shotgun', 'rocket', 'emp'][wi] || 'cannon', inner);
     try { tacDetail(wrap, WK[wi] || 'cannon', -1, inner); } catch (e) {}
+    }
     if (wi === 3) {
       const wcol = (STATE.weapons[STATE.currentWeapon] || {}).color || 0xffffff;
       const ringMat = new THREE.MeshStandardMaterial({ color: wcol, emissive: wcol, emissiveIntensity: 2.2 });
@@ -2819,7 +2865,15 @@ function autoLoadMeshyAssets() {
     { file: 'models/ups_cabinet.glb', role: 'prop:ups_cabinet', height: 1.9 },
     { file: 'models/cell_door.glb', role: 'prop:cell_door', height: 4.2 },
     { file: 'models/cell_bench.glb', role: 'prop:cell_bench', height: 0.6 },
-    { file: 'models/wall_terminal.glb', role: 'prop:wall_terminal', height: 0.8 }
+    { file: 'models/wall_terminal.glb', role: 'prop:wall_terminal', height: 0.8 },
+    { file: 'models/ph_extinguisher.glb', role: 'prop:ph_extinguisher', height: 0.62 },
+    { file: 'models/ph_security_camera.glb', role: 'prop:ph_camera', height: 0.42 },
+    { file: 'models/ph_power_box.glb', role: 'prop:ph_powerbox', height: 0.9 },
+    { file: 'models/ph_airduct.glb', role: 'prop:ph_airduct', height: 0.75 },
+    { file: 'models/bot_drone.glb', role: 'prop:bot_drone', height: 0.9 },
+    { file: 'models/mender_treads.glb', role: 'prop:mender_treads', height: 0.9 },
+    { file: 'models/player_ion_emp.glb', role: 'vm:emp', height: 0.3, yaw: Math.PI / 2 },
+    { file: 'models/sentinel_colossus.glb', role: 'colossus', height: 1 }
   ];
   let loaded = 0;
   return Promise.all(jobs.map(job => new Promise(async resolve => {
@@ -2844,6 +2898,7 @@ function autoLoadMeshyAssets() {
         else if (job.role === 'bot') MESHY_TEMPLATES.bot = tpl;
         else if (job.role.startsWith('vm:')) { model.userData.forceYaw = job.yaw; VM_TPL[job.role.slice(3)] = tpl; if (MESHY_TEMPLATES.viewmodel) buildViewModel(); }
         else if (job.role === 'mender') { MESHY_TEMPLATES.mender = tpl; }
+        else if (job.role === 'colossus') { MESHY_TEMPLATES.colossus = tpl; }
         else if (job.role.startsWith('ewep:')) { const kind = job.role.slice(5); if (job.yaw !== undefined) model.userData.forceYaw = job.yaw; ENEMY_WEAPON_TPL[kind] = prepWeaponTemplate(model, kind === 'rifle' ? 0.95 : 1.0); sciFiDress(ENEMY_WEAPON_TPL[kind], kind === 'rifle' ? 0x38e0ff : 0xff5a1a, +1, kind === 'rifle' ? 'rifle' : 'pulse'); try { tacDetail(ENEMY_WEAPON_TPL[kind], kind, +1, null, IS_COARSE); } catch (e) {} BOTS.forEach(b => { if ((kind === 'rifle') === !!b.isHuman) equipEnemyWeapon(b); }); }
         else if (job.role === 'human') { MESHY_TEMPLATES.human = tpl; BOTS.filter(b => b.isHuman && b.procHuman).forEach(b => { const r = buildRigFromMeshyTemplate(tpl, b.name, false); r.root.position.copy(b.rig.root.position); r.root.traverse(o => { if (o.isMesh) o.castShadow = true; }); scene.remove(b.rig.root); scene.add(r.root); b.rig = r; b.mixer = r.mixer || null; b.procHuman = false; if (b.mixer && b.mixer._actions[0]) b.action = b.mixer._actions[0]; r.hb.update(b.health, b.maxHealth); equipEnemyWeapon(b); }); }
         else if (job.role === 'viewmodel') {
@@ -3871,6 +3926,8 @@ function buildMenderRig(name) {
     const strip = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.04, 1.0), hazard); strip.position.set(sx, 0.44, 0); root.add(strip);
   });
   const chassis = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.25, 1.05), dark); chassis.position.y = 0.42; root.add(chassis);
+  // Round 19: Meshy tank-tread base replaces the box treads when loaded
+  const tb = cloneProp('mender_treads'); if (tb) { const pre = root.children.slice(); pre.forEach(o => { if (o !== body) o.visible = false; }); const hold = new THREE.Group(); hold.scale.set(1.25, 0.95, 1.3); hold.add(tb); root.add(hold); }
   // upper assembly yaws independently (torso yaw)
   const upper = new THREE.Group(); upper.position.y = 1.55; root.add(upper);
   const mkArm = (side) => {
@@ -4693,6 +4750,8 @@ function buildDroneMesh(kami) {
   const coneMat = new THREE.MeshBasicMaterial({ color: 0xff2010, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const cone = new THREE.Mesh(new THREE.ConeGeometry(2.6, 9, 18, 1, true), coneMat); cone.rotation.x = -Math.PI / 2; cone.position.set(0, 0, 4.8);
   const pivot = new THREE.Group(); pivot.position.copy(eye.position); pivot.rotation.x = 0.35; pivot.add(cone); g.add(pivot);
+  // Round 19: CC-BY 'Bot Drone' (Dave404) shell over the procedural core; keep eye/band/cone for gameplay readability
+  const dm = cloneProp('bot_drone'); if (dm) { body.visible = false; g.children.forEach(o => { if (o.geometry && o.geometry.type === 'BoxGeometry') o.visible = false; }); rotors.forEach(r => r.visible = false); dm.traverse(o => { if (o.isMesh && o.material) { o.material = o.material.clone(); if (kami && o.material.color) o.material.color.lerp(new THREE.Color(0x8a3a10), 0.45); } }); dm.position.y = -0.42; g.add(dm); band.scale.setScalar(1.15); }
   g.traverse(o => { if (o.isMesh) o.castShadow = false; });
   return { g, eye, rotors, cone, coneMat, pivot, band };
 }
@@ -6862,10 +6921,36 @@ const CREDITS_HTML = `<div class="gc-t">CREDITS</div>
  <div class="cr-sec"><b>MUSIC</b><br>
  “Rising Game” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100593" target="_blank" rel="noopener">source</a><br>“Dark Times” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100747" target="_blank" rel="noopener">source</a><br>“Devastation and Revenge” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100694" target="_blank" rel="noopener">source</a><br>“Metalmania” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1700023" target="_blank" rel="noopener">source</a><br>“Killers” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1600024" target="_blank" rel="noopener">source</a><br>“Aggressor” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1700051" target="_blank" rel="noopener">source</a><br>“Burn The World Waltz” — Kevin MacLeod featuring Alexander Nakarada (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN2100009" target="_blank" rel="noopener">source</a><br>“Feral Angel Waltz” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN2100010" target="_blank" rel="noopener">source</a><br>
  All music licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons: By Attribution 4.0</a></div>
- <div class="cr-sec"><b>3D MODELS</b><br>Characters, Sentinels &amp; props generated with Meshy AI for Darcy Demby</div>
+ <div class="cr-sec"><b>3D MODELS</b><br>Characters, Sentinels &amp; props generated with Meshy AI for Darcy Demby<br>"Bot Drone" by Dave404 via Poly Pizza — CC BY 3.0 (creativecommons.org/licenses/by/3.0)<br>Props (security camera, power box, air duct, fire extinguisher) from Poly Haven — CC0<br>Metal plate textures from ambientCG.com — CC0</div>
  <div class="cr-sec"><b>TECH</b><br>three.js (MIT) · PeerJS (MIT) · qrcode-generator by Kazuhiko Arase (MIT)</div>
  <div class="cr-sec"><b>FONTS</b><br>Black Ops One · Chakra Petch · Caveat — SIL Open Font License 1.1</div>
  <div class="cr-sec dim">Now playing: “Feral Angel Waltz” — Kevin MacLeod</div><button id="cr-close">CLOSE</button>`;
+// ---------- Round 19: startup trailer (first launch auto-plays muted; Skip; tap for sound; Watch Trailer in menus) ----------
+const TRAILER_SRC = 'media/dystopia_trailer_720p.mp4', TRAILER_KEY = 'dys_trailer_seen';
+function playTrailer(manual) {
+  if (document.getElementById('trailer-overlay')) return;
+  const el = document.createElement('div'); el.id = 'trailer-overlay';
+  el.innerHTML = `<video id="trailer-video" playsinline webkit-playsinline muted autoplay preload="auto" poster="media/trailer_poster.jpg"><source src="${TRAILER_SRC}" type="video/mp4"></video>
+    <button id="trailer-sound" class="tr-btn">&#128264; TAP FOR SOUND</button><button id="trailer-skip" class="tr-btn">SKIP &#8250;&#8250;</button><div id="trailer-prog"><i></i></div>`;
+  document.body.appendChild(el);
+  const v = el.querySelector('video'), snd = el.querySelector('#trailer-sound'), bar = el.querySelector('#trailer-prog i');
+  const duck = on => { try { if (MUSIC.master && SFX.ctx) MUSIC.master.gain.setTargetAtTime(on ? 0 : (MUSIC.on && !SFX.muted ? MUSIC.vol : 0), SFX.ctx.currentTime, 0.15); } catch (e) {} }; duck(true);
+  const close = () => { try { localStorage.setItem(TRAILER_KEY, '1'); } catch (e) {} v.pause(); el.classList.add('out'); setTimeout(() => el.remove(), 450); document.removeEventListener('keydown', key); duck(false); };
+  const key = e => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
+  document.addEventListener('keydown', key);
+  el.querySelector('#trailer-skip').onclick = e => { e.stopPropagation(); close(); };
+  const unmute = () => { v.muted = false; v.volume = 1; snd.style.display = 'none'; v.play().catch(() => {}); };
+  snd.onclick = e => { e.stopPropagation(); unmute(); };
+  v.onclick = () => { if (v.muted) unmute(); else if (v.paused) v.play().catch(() => {}); };
+  v.onended = close; v.onerror = close; v.querySelector('source').onerror = close;
+  v.ontimeupdate = () => { if (v.duration) bar.style.width = (v.currentTime / v.duration * 100) + '%'; };
+  if (manual) { v.muted = false; snd.style.display = 'none'; } // a tap opened it: sound allowed
+  const pr = v.play(); if (pr && pr.catch) pr.catch(() => { v.muted = true; snd.style.display = ''; v.play().catch(() => {}); });
+}
+(function trailerFirstLaunch() {
+  let seen = false; try { seen = localStorage.getItem(TRAILER_KEY) === '1'; } catch (e) {}
+  if (!seen && !/[?&]notrailer\b/.test(location.search) && !navigator.webdriver) playTrailer(false);
+})();
 function openCredits() {
   if (document.getElementById('credits-screen')) return; musicInit(); MUSIC.creditsOpen = true; musicUpdate(1);
   const el = document.createElement('div'); el.id = 'credits-screen'; el.innerHTML = `<div class="glass-card cr-card">${CREDITS_HTML}</div>`; document.body.appendChild(el);
@@ -6881,7 +6966,8 @@ function openCredits() {
     sl.oninput = () => { musicInit(); musicSetVolume(sl.value / 100); lab.textContent = sl.value + '%'; };
     bt.onclick = () => { musicInit(); musicSetOn(!MUSIC.on); show(); }; $('mcs-cred').onclick = openCredits; }
   // main menu credits button
-  const modal = $('game-modal'); if (modal) { const card = modal.firstElementChild; const b = document.createElement('button'); b.id = 'btn-credits'; b.className = 'q3-btn steel action-btn py-1.5 text-xs'; b.textContent = 'CREDITS'; b.onclick = openCredits; card.appendChild(b); }
+  const modal = $('game-modal'); if (modal) { const card = modal.firstElementChild; const b = document.createElement('button'); b.id = 'btn-credits'; b.className = 'q3-btn steel action-btn py-1.5 text-xs'; b.textContent = 'CREDITS'; b.onclick = openCredits; card.appendChild(b);
+    const t = document.createElement('button'); t.id = 'btn-trailer-menu'; t.className = 'q3-btn steel action-btn py-1.5 text-xs'; t.textContent = '\u25B6 WATCH TRAILER'; t.onclick = () => playTrailer(true); card.appendChild(t); }
 })();
 
 // Boot — load Meshy GLBs first so arena props / viewmodel / sentinels use them

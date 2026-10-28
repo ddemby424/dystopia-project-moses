@@ -17,7 +17,22 @@ All music by Kevin MacLeod (incompetech.com), licensed under Creative Commons: B
 | Credits screen | music/credits_feral_angel_waltz.mp3 | "Feral Angel Waltz (first 3:00)" | https://incompetech.com/music/royalty-free/index.html?isrc=USUAN2100010 |
 
 ## 3D models
-Characters, Sentinels and props generated with Meshy AI for Darcy Demby.
+Characters, Sentinels and props generated with Meshy AI for Darcy Demby (incl. the Moses Colossus, Mender tread base and Ion EMP launcher).
+
+### Free models (attribution)
+| File | Asset | Author | License | Source |
+|---|---|---|---|---|
+| models/bot_drone.glb | "Bot Drone" (decimated) | Dave404 | CC BY 3.0 — https://creativecommons.org/licenses/by/3.0/ | https://poly.pizza/m/2iyQx2YscRq |
+| models/ph_security_camera.glb | Security Camera 01 (decimated, 512px textures) | Poly Haven | CC0 | https://polyhaven.com/a/security_camera_01 |
+| models/ph_power_box.glb | Power Box 01 (decimated) | Poly Haven | CC0 | https://polyhaven.com/a/power_box_01 |
+| models/ph_airduct.glb | Modular Airduct Circular 01 (decimated) | Poly Haven | CC0 | https://polyhaven.com/a/modular_airduct_circular_01 |
+| models/ph_extinguisher.glb | Korean Fire Extinguisher 01 (decimated) | Poly Haven | CC0 | https://polyhaven.com/a/korean_fire_extinguisher_01 |
+
+## Textures
+| File | Asset | License | Source |
+|---|---|---|---|
+| images/tex/metal_wall_*.jpg | MetalPlates006 (1K) | CC0 | https://ambientcg.com/view?id=MetalPlates006 |
+| images/tex/metal_floor_*.jpg | MetalPlates013 (1K) | CC0 | https://ambientcg.com/view?id=MetalPlates013 |
 
 ## Software
 three.js (MIT) · PeerJS (MIT) · qrcode-generator by Kazuhiko Arase (MIT).
