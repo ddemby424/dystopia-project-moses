@@ -15,6 +15,7 @@
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
   <meta name="apple-mobile-web-app-title" content="DYSTOPIA" />
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Russo+One&family=Homemade+Apple&family=Caveat:wght@500&display=swap" rel="stylesheet">
@@ -1676,7 +1677,7 @@ const PROP_BUILDERS = {
     const g = new THREE.Group();
     const b = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.6, 10), new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35, metalness: 0.3 })); b.position.y = 1.1; g.add(b);
     const n = boxMesh(0.06, 0.12, 0.06, 0x111111); n.position.y = 1.46; g.add(n);
-    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), new THREE.MeshBasicMaterial({ map: signTexture('FIRE', 'EXTINGUISHER', '#ef4444') })); tag.position.set(0, 1.75, 0.02); g.add(tag);
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), new THREE.MeshBasicMaterial({ map: signTexture('FIRE', 'EXTINGUISHER', '#ef4444') })); tag.position.set(0, 1.75, 0.02); twoSidedText(tag, 0.006); g.add(tag);
     return { g, collide: null };
   },
   generator(o) {
@@ -2407,11 +2408,12 @@ function fixCoplanarSurfaces() {
     for (const ax of ['x', 'y', 'z']) { const others = ['x', 'y', 'z'].filter(k => k !== ax); if (!ovA(A.b, B.b, others)) continue;
       if (Math.abs(A.b.max[ax] - B.b.max[ax]) < 0.003 || Math.abs(A.b.min[ax] - B.b.min[ax]) < 0.003) {
         const vA = (A.b.max.x - A.b.min.x) * (A.b.max.y - A.b.min.y) * (A.b.max.z - A.b.min.z), vB = (B.b.max.x - B.b.min.x) * (B.b.max.y - B.b.min.y) * (B.b.max.z - B.b.min.z);
-        const S = vA < vB ? A : B; if (S.o.userData.zInset) continue; const size = S.b.max[ax] - S.b.min[ax]; if (size < 0.02) continue;
+        const S = vA < vB ? A : B; S.o.userData.zInset = S.o.userData.zInset || {}; if (S.o.userData.zInset[ax]) continue; const size = Math.max(0.004, S.b.max[ax] - S.b.min[ax]);
         // inset in world axis: approximate by scaling the local axis most aligned with it
         S.o.matrixWorld.decompose(v, q, sc); const inv = q.clone().invert(); const wa = new THREE.Vector3(ax === 'x' ? 1 : 0, ax === 'y' ? 1 : 0, ax === 'z' ? 1 : 0).applyQuaternion(inv);
         const la = Math.abs(wa.x) > Math.abs(wa.y) ? (Math.abs(wa.x) > Math.abs(wa.z) ? 'x' : 'z') : (Math.abs(wa.y) > Math.abs(wa.z) ? 'y' : 'z');
-        S.o.scale[la] *= Math.max(0.9, 1 - 0.006 / size); S.o.userData.zInset = true; fixedB++; } } }
+        S.o.scale[la] *= Math.max(0.9, 1 - 0.006 / size);
+        S.o.userData.zInset[ax] = true; S.b.setFromObject(S.o); fixedB++; } } }
   return { planes: planes.length, fixedP, fixedB };
 }
 function advanceFloor() {
@@ -4069,6 +4071,9 @@ function firePlayerWeapon() {
   // if the muzzle is poking through a wall, start the shot at the eye instead
   const startPos = segmentBlocked(aim.origin, muzzleWorld) ? aim.origin.clone().addScaledVector(aim.dir, 0.3) : muzzleWorld.clone();
   const forward = aimPoint.clone().sub(startPos); if (forward.lengthSq() < 1e-4) forward.copy(aim.dir); forward.normalize();
+  // ballistic launcher: keep the arc, but lob it so the arc lands on the crosshair point (low-angle solution)
+  if (wep.splash > 0 && !wep.emp) { try { const g = STATE.gravity * ROCKET_G, v = wep.speed, dx = aimPoint.x - startPos.x, dz = aimPoint.z - startPos.z, D = Math.hypot(dx, dz), dy = aimPoint.y - startPos.y;
+    const disc = v ** 4 - g * (g * D * D + 2 * dy * v * v); if (D > 0.5 && g > 0 && disc >= 0) { const th = Math.atan((v * v - Math.sqrt(disc)) / (g * D)); forward.set(dx / D * Math.cos(th), Math.sin(th), dz / D * Math.cos(th)).normalize(); } } catch (e) {} }
   STATE.lastAim = { origin: aim.origin.clone(), dir: aim.dir.clone(), point: aimPoint.clone(), start: startPos.clone(), fwd: forward.clone() };
   vmFlash.intensity = 2.2;
   spawnMuzzleFlash(muzzleWorld, wep.color, true);
