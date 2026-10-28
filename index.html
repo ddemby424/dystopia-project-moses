@@ -251,7 +251,7 @@
     #dm-board table { width:100%; border-collapse:collapse; font:700 12px system-ui,sans-serif; } #dm-board th { font-size:9px; letter-spacing:.15em; opacity:.6; text-align:left; padding:3px 6px; } #dm-board td { padding:5px 6px; border-top:1px solid rgba(255,255,255,.1); }
     #dm-board tr.me td { background:rgba(56,189,248,.18); }
     #dm-dmgdir { position:fixed; left:50%; top:50%; width:44vmin; height:44vmin; z-index:21; pointer-events:none; opacity:0; transition:opacity .3s; border-radius:50%; border-top:4px solid rgba(239,68,68,.85); filter:drop-shadow(0 0 6px #ef4444); }
-    #crosshair.dm-hit { filter:drop-shadow(0 0 4px #ef4444) brightness(2) hue-rotate(-40deg); transform:scale(1.25); }
+    #crosshair.dm-hit { filter:drop-shadow(0 0 4px #ef4444) brightness(2) hue-rotate(-40deg); transform:translate(-50%,-50%) scale(1.25); }
     #dm-panel { display:flex; flex-direction:column; gap:6px; margin-top:6px; } #dm-panel .dm-row { display:flex; gap:6px; } #dm-panel .dm-row > * { flex:1; min-width:0; } #dm-panel select { font-size:10px; padding:6px; letter-spacing:.05em; }
     .dm-btn.hot { background:rgba(239,68,68,.35); border-color:#fca5a5; } #btn-choose-op { width:100%; margin-bottom:6px; }
     #dm-lobby .dm-li { font:700 11px system-ui; color:#e5e7eb; padding:3px 8px; border-left:2px solid #38bdf8; margin:2px 0; } #dm-lobby .dm-li span { opacity:.6; font-size:10px; } #dm-lobby .dim { opacity:.5; border-color:#666; }
@@ -882,8 +882,26 @@ function liftFog(hex) { const c = new THREE.Color(hex); c.lerp(new THREE.Color(0
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 320);
 const viewModelGroup = new THREE.Group();
-camera.add(viewModelGroup);
+// Round 18: the FPS weapon + arms live in their OWN scene/camera and are drawn in a second pass after the depth
+// buffer is cleared. Before, the rig shared the world depth buffer and the 0.1 m near plane, so parts of the gun
+// sank into walls/floors/enemies and the forearms were sliced by the near plane — the "gun breaking apart".
+const vmScene = new THREE.Scene();
+const vmCam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 20);
+vmScene.add(vmCam); vmCam.add(viewModelGroup);
+vmScene.add(new THREE.HemisphereLight(0xddeeff, 0x1a1e26, 0.35));
+const vmFlash = new THREE.PointLight(0xffd29a, 0, 3.5, 1.6); vmFlash.position.set(0.3, -0.1, -1.0); vmCam.add(vmFlash);
 scene.add(camera);
+function syncVmCam() {
+  camera.updateMatrixWorld(); vmCam.position.setFromMatrixPosition(camera.matrixWorld); vmCam.quaternion.setFromRotationMatrix(camera.matrixWorld);
+  if (vmCam.fov !== camera.fov || vmCam.aspect !== camera.aspect) { vmCam.fov = camera.fov; vmCam.aspect = camera.aspect; vmCam.updateProjectionMatrix(); }
+  vmCam.updateMatrixWorld(true);
+}
+function renderFrame() {
+  renderer.render(scene, camera);
+  if (!gunMesh || !viewModelGroup.visible) return;
+  syncVmCam(); if (vmFlash.intensity > 0) vmFlash.intensity = Math.max(0, vmFlash.intensity - 0.35);
+  const ac = renderer.autoClear; renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = ac;
+}
 
 const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x1a1e26, 0.05);
 scene.add(hemiLight);
@@ -892,9 +910,9 @@ scene.add(ambientLight);
 const fillLight = new THREE.DirectionalLight(0x6f9cff, 0.06);
 fillLight.position.set(-50, 40, -40); scene.add(fillLight);
 const camFill = new THREE.PointLight(0xffe2c0, 0.12, 10, 1.6);
-camera.add(camFill);
+camera.add(camFill); vmCam.add(camFill.clone());
 // short-range key light so the FPS weapon + hands read in the dark
-const vmLight = new THREE.PointLight(0xfff0dc, 1.7, 3.0, 1.5); vmLight.position.set(0.35, 0.45, 0.1); camera.add(vmLight);
+const vmLight = new THREE.PointLight(0xfff0dc, 1.7, 3.0, 1.5); vmLight.position.set(0.35, 0.45, 0.1); vmCam.add(vmLight);
 // ---------- Round 11: runtime light pool (no new PointLights during play → no shader recompiles) ----------
 const RT_LIGHTS = new Set();
 class RTLight extends THREE.Object3D {
@@ -921,7 +939,7 @@ function rtLightsUpdate() {
     P.position.copy(c.p); P.color.copy(c.L.color); P.intensity = c.L.intensity; P.distance = c.L.distance; P.decay = c.L.decay || 2;
   }
 }
-try { const pm = new THREE.PMREMGenerator(renderer); const envScene = new THREE.Scene(); envScene.background = new THREE.Color(0x050608); const envRT = pm.fromScene(envScene, 0.04); scene.environment = envRT.texture; pm.dispose(); } catch (e) { console.warn('env', e); }
+try { const pm = new THREE.PMREMGenerator(renderer); const envScene = new THREE.Scene(); envScene.background = new THREE.Color(0x050608); const envRT = pm.fromScene(envScene, 0.04); scene.environment = envRT.texture; vmScene.environment = envRT.texture; pm.dispose(); } catch (e) { console.warn('env', e); }
 const dirLight = new THREE.DirectionalLight(0xffe6c8, 0.12);
 dirLight.position.set(45, 85, 35);
 dirLight.castShadow = true;
@@ -4004,6 +4022,21 @@ function spawnDeathGib(b) {
   STATE.screenShake = Math.max(STATE.screenShake, b.isBoss ? 0.55 : 0.28);
 }
 
+// Round 18: crosshair ray. Origin/direction come from the real render camera, so they match the screen-centre reticle.
+function crosshairAim(maxD = 150) {
+  camera.updateMatrixWorld(); const origin = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld); const dir = new THREE.Vector3(0, 0, -1).transformDirection(camera.matrixWorld);
+  let best = maxD; const inv = new THREE.Vector3(1 / (dir.x || 1e-9), 1 / (dir.y || 1e-9), 1 / (dir.z || 1e-9));
+  for (const c of colliders) { if (c.hi) continue; const y0 = c.minY ?? -1e3, y1 = c.maxY ?? 1e3;
+    let t1 = (c.minX - origin.x) * inv.x, t2 = (c.maxX - origin.x) * inv.x, tmin = Math.min(t1, t2), tmax = Math.max(t1, t2);
+    t1 = (y0 - origin.y) * inv.y; t2 = (y1 - origin.y) * inv.y; tmin = Math.max(tmin, Math.min(t1, t2)); tmax = Math.min(tmax, Math.max(t1, t2));
+    t1 = (c.minZ - origin.z) * inv.z; t2 = (c.maxZ - origin.z) * inv.z; tmin = Math.max(tmin, Math.min(t1, t2)); tmax = Math.min(tmax, Math.max(t1, t2));
+    if (tmax >= Math.max(0.05, tmin) && tmin > 0.05 && tmin < best) best = tmin; }
+  if (dir.y < -1e-4) { const tf = (STATE.player.y - origin.y + 0.0) / dir.y; if (tf > 0 && tf < best) best = tf; } // floor under the player
+  const hitEnt = (cx, cy, cz, r) => { const oc = new THREE.Vector3(cx - origin.x, cy - origin.y, cz - origin.z); const tc = oc.dot(dir); if (tc < 0) return; const d2 = oc.lengthSq() - tc * tc; if (d2 > r * r) return; const t = tc - Math.sqrt(r * r - d2); if (t > 0.05 && t < best) best = t; };
+  BOTS.forEach(b => { if (b.dying) return; const h = b.isBoss ? 2.2 : 1.0; hitEnt(b.x, (b.y || 0) + h, b.z, b.isBoss ? 1.6 : 0.75); hitEnt(b.x, (b.y || 0) + h + 0.6, b.z, 0.45); });
+  if (STATE.dm && typeof DM !== 'undefined') Object.values(DM.ents || {}).forEach(e => { if (e.alive) hitEnt(e.x, (e.y || 0) + 1.0, e.z, 0.7); });
+  return { origin, dir, dist: best, point: origin.clone().addScaledVector(dir, best) };
+}
 function firePlayerWeapon() {
   if (STATE.fireCooldown > 0 || !STATE.running || STATE.pausedForStudio) return;
   aiNoise(STATE.player.x, STATE.player.z, 45);
@@ -4019,28 +4052,25 @@ function firePlayerWeapon() {
   VM.recoilZ = Math.min(0.045, (VM.recoilZ || 0) + wep.recoil * 0.18); VM.kick = Math.min(0.22, VM.kick + wep.recoil * 0.55);
   STATE.screenShake = Math.max(STATE.screenShake, wep.recoil * 0.6);
 
-  const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(STATE.player.pitch, STATE.player.yaw, 0, 'YXZ'));
+  // Round 18: aim from the CAMERA through the screen-centre crosshair. Find what the crosshair ray hits, then send the
+  // shot from the muzzle to that exact point. (Before: shots started 13 cm below the eye on a parallel line, and the
+  // 80% "magnetic" assist bent them up to ~0.5 rad toward any bot inside a 19° cone — so they missed the crosshair.)
+  const aim = crosshairAim();
+  let aimPoint = aim.point;
   const AAL = STATE.dm ? dmAimList() : BOTS;
-  if (STATE.aimAssist > 0 && AAL.length) {
-    let best = null, bestAng = 0.42 * STATE.aimAssist;
-    const muzzleY = STATE.player.y + (STATE.player.crouch ? 1.0 : 1.55);
-    AAL.forEach(b => {
-      if (b.dying) return;
-      const to = new THREE.Vector3(b.x - STATE.player.x, (b.y + (b.isBoss ? 2.0 : 1.3)) - muzzleY, b.z - STATE.player.z);
-      if (to.length() > 72) return; to.normalize();
-      const ang = forward.angleTo(to);
-      if (ang < bestAng) { bestAng = ang; best = to; }
-    });
-    if (best) forward.lerp(best, Math.min(0.85, STATE.aimAssist * 0.7)).normalize();
+  if (STATE.aimAssist > 0 && AAL.length) { // light magnetism: only targets already under/next to the crosshair
+    let best = null, bestAng = 0.05 * STATE.aimAssist;
+    AAL.forEach(b => { if (b.dying) return; const c = new THREE.Vector3(b.x, (b.y || 0) + (b.isBoss ? 2.0 : 1.3), b.z); const to = c.clone().sub(aim.origin); const L = to.length(); if (L > 72 || L > aim.dist + 0.5) return; const ang = aim.dir.angleTo(to.normalize()); if (ang < bestAng && !segmentBlocked(aim.origin, c)) { bestAng = ang; best = c; } });
+    if (best) aimPoint = best;
   }
-  const startPos = new THREE.Vector3(STATE.player.x, STATE.player.y + (STATE.player.crouch ? 1.0 : 1.55), STATE.player.z).addScaledVector(forward, 0.8);
-  let muzzleWorld = startPos.clone().addScaledVector(forward, 0.35);
-  if (muzzleAnchor && gunMesh) {
-    gunMesh.updateMatrixWorld(true);
-    const mw = new THREE.Vector3();
-    muzzleAnchor.getWorldPosition(mw);
-    if (mw.lengthSq() > 0.01) muzzleWorld = mw;
-  }
+  syncVmCam();
+  let muzzleWorld = aim.origin.clone().addScaledVector(aim.dir, 0.6);
+  if (muzzleAnchor && gunMesh) { gunMesh.updateMatrixWorld(true); const mw = new THREE.Vector3(); muzzleAnchor.getWorldPosition(mw); if (mw.lengthSq() > 0.01) muzzleWorld = mw; }
+  // if the muzzle is poking through a wall, start the shot at the eye instead
+  const startPos = segmentBlocked(aim.origin, muzzleWorld) ? aim.origin.clone().addScaledVector(aim.dir, 0.3) : muzzleWorld.clone();
+  const forward = aimPoint.clone().sub(startPos); if (forward.lengthSq() < 1e-4) forward.copy(aim.dir); forward.normalize();
+  STATE.lastAim = { origin: aim.origin.clone(), dir: aim.dir.clone(), point: aimPoint.clone(), start: startPos.clone(), fwd: forward.clone() };
+  vmFlash.intensity = 2.2;
   spawnMuzzleFlash(muzzleWorld, wep.color, true);
 
   const dmgMult = STATE.quadTimer > 0 ? 4 : 1;
@@ -4048,7 +4078,7 @@ function firePlayerWeapon() {
     const dir = forward.clone();
     dir.x += (Math.random() - 0.5) * wep.spread; dir.y += (Math.random() - 0.5) * wep.spread; dir.z += (Math.random() - 0.5) * wep.spread;
     dir.normalize();
-    if (STATE.dm) dmLocalShot(startPos, dir, STATE.currentWeapon, dmgMult);
+    if (STATE.dm) { const d2 = aimPoint.clone().sub(aim.origin).normalize(); d2.x += dir.x - forward.x; d2.y += dir.y - forward.y; d2.z += dir.z - forward.z; dmLocalShot(aim.origin.clone(), d2.normalize(), STATE.currentWeapon, dmgMult); }
     const orb = new THREE.Mesh(
       new THREE.SphereGeometry(wep.splash > 0 ? 0.22 : 0.1, 8, 8),
       new THREE.MeshBasicMaterial({ color: wep.color, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending })
@@ -4830,6 +4860,12 @@ function addKillFeed(msg) {
   el.textContent = msg; feed.appendChild(el); setTimeout(() => el.remove(), 3500);
 }
 
+// Round 18: height-aware test for player shots, so firing over a low crate/rail (as the crosshair shows) isn't stopped by it
+function collidesAt3(x, y, z, r = 0.15) {
+  if (x < -88 || x > 88 || z < -83 || z > 83) return true;
+  for (const c of colliders) { if (c.hi) continue; if (y < (c.minY ?? -1e3) - r || y > (c.maxY ?? 1e3) + r) continue; if (x + r > c.minX && x - r < c.maxX && z + r > c.minZ && z - r < c.maxZ) return true; }
+  return false;
+}
 function collidesAt(x, z, r = 0.65) {
   if (x < -88 || x > 88 || z < -83 || z > 83) return true;
   for (const c of colliders) {
@@ -5001,7 +5037,7 @@ let lastTime = performance.now();
 function gameLoop(now) {
   requestAnimationFrame(gameLoop);
   const dt = Math.min(0.05, (now - lastTime) / 1000); lastTime = now;
-  if (LORE_OPEN) { renderer.render(scene, camera); return; }
+  if (LORE_OPEN) { renderFrame(); return; }
   if (STATE.dm) dmUpdate(dt);
   if (STATE.turnAnim) turnAnimUpdate(dt);
   if (STATE.running) lookApply(dt);
@@ -5032,7 +5068,7 @@ function gameLoop(now) {
     });
   }
 
-  if (!STATE.running || STATE.pausedForStudio) { renderer.render(scene, camera); return; }
+  if (!STATE.running || STATE.pausedForStudio) { renderFrame(); return; }
 
   if (STATE.fireCooldown > 0) STATE.fireCooldown -= dt;
   if (isFiringHeld) firePlayerWeapon();
@@ -5150,7 +5186,14 @@ function gameLoop(now) {
       _v1.set(p.vx, p.vy, p.vz); p.mesh.quaternion.setFromUnitVectors(_UP_Z, _v1.normalize());
       if ((p.trailT = (p.trailT || 0) - dt) <= 0) { p.trailT = IS_COARSE ? 0.05 : 0.022; fxInit(); fxEmit('smoke', p.x - _v1.x * 0.5, p.y - _v1.y * 0.5, p.z - _v1.z * 0.5, { life: 1.6, s0: 0.35, s1: 1.6, op: 0.8, vy: 0.4 }); fxEmit('fire', p.x - _v1.x * 0.45, p.y - _v1.y * 0.45, p.z - _v1.z * 0.45, { life: 0.12, s0: 0.35, s1: 0.15 }); }
     }
-    p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.mesh.position.set(p.x, p.y, p.z);
+    p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+    // Round 18: swept collision for player shots. At 92 m/s and phone frame times a shot moved 1.5–4.6 m per frame and
+    // tunnelled straight through enemies (0.95 m radius) — so a shot dead on the crosshair could miss. Sub-step it.
+    if (p.fromPlayer) { const L = Math.hypot(p.x - px0, p.y - py0, p.z - pz0); if (L > 0.35) { const n = Math.ceil(L / 0.35);
+      for (let k = 1; k < n; k++) { const f = k / n, qx = px0 + (p.x - px0) * f, qy = py0 + (p.y - py0) * f, qz = pz0 + (p.z - pz0) * f;
+        const botHit = BOTS.some(b => !b.dying && Math.hypot(qx - b.x, qz - b.z) < (b.isBoss ? 1.55 : (b.hitRadius || 0.95)) && qy >= b.y && qy <= b.y + (b.isBoss ? 3.5 : (b.hitHeight || 2.4)));
+        if (botHit || collidesAt3(qx, qy, qz, 0.15) || qy <= 0.05) { p.x = qx; p.y = qy; p.z = qz; break; } } } }
+    p.mesh.position.set(p.x, p.y, p.z);
     let hit = false;
     if (p.fromPlayer && !p.emp && weakPointHit(p, px0, py0, pz0)) { scene.remove(p.mesh); PROJECTILES.splice(i, 1); continue; }
     if (p.fromPlayer && droneHit(p, px0, py0, pz0)) { scene.remove(p.mesh); PROJECTILES.splice(i, 1); continue; }
@@ -5163,7 +5206,7 @@ function gameLoop(now) {
         scene.remove(p.mesh); PROJECTILES.splice(i, 1); continue;
       }
     }
-    if (collidesAt(p.x, p.z, 0.15) || p.y <= (p.ballistic ? getGroundHeightAt(p.x, p.z, p.y + 0.3) + 0.05 : 0.05) || p.life <= 0 || (SOLIDS.length && solidAt(p.x, p.y, p.z))) hit = true;
+    if ((p.fromPlayer ? collidesAt3(p.x, p.y, p.z, 0.15) : collidesAt(p.x, p.z, 0.15)) || p.y <= (p.ballistic ? getGroundHeightAt(p.x, p.z, p.y + 0.3) + 0.05 : 0.05) || p.life <= 0 || (SOLIDS.length && solidAt(p.x, p.y, p.z))) hit = true;
     if (hit && p.emp) { empBurst(new THREE.Vector3(p.x, Math.max(0.3, p.y), p.z)); scene.remove(p.mesh); PROJECTILES.splice(i, 1); continue; }
     if (p.fromPlayer && !hit) {
       for (const b of BOTS) {
@@ -5296,7 +5339,7 @@ function gameLoop(now) {
   updateLore(dt, now);
   updateFloorLogic(dt, now);
   drawMinimap();
-  renderer.render(scene, camera);
+  renderFrame();
 }
 
 // ============================================================================
