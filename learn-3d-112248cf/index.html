@@ -1,6 +1,14 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="icon" href="data:,"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Learn 3D in 10 tiny steps</title><style>body{font:16px/1.5 system-ui,sans-serif;background:#111;color:#eee;max-width:820px;margin:auto;padding:14px}pre{background:#000;color:#9f9;padding:10px;overflow:auto;font-size:13px;border-radius:6px}a{color:#7cf}.step{border-left:4px solid #f60;padding-left:12px;margin:28px 0}.see{color:#fc6}.try{color:#6cf}code{background:#222;padding:1px 4px}.del pre{color:#f88}</style></head><body>
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="icon" href="data:,"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Learn 3D in 10 tiny steps</title><style>body{font:16px/1.5 system-ui,sans-serif;background:#111;color:#eee;max-width:820px;margin:auto;padding:14px}pre{background:#000;color:#9f9;padding:10px;overflow:auto;font-size:13px;border-radius:6px}a{color:#7cf}.step{border-left:4px solid #f60;padding-left:12px;margin:28px 0}.see{color:#fc6}.try{color:#6cf}code{background:#222;padding:1px 4px}.del pre{color:#f88}.lib{background:#1b2333;border-radius:6px;padding:6px 12px;font-size:14px}.lib ul{margin:4px 0;padding-left:20px}.s0{border-left-color:#6c6}</style></head><body>
 <h1>Learn 3D games in 10 tiny steps</h1><p>Two brick rooms, a hallway, and your own first-person hand. Each step takes about 5 minutes and you can play the result straight away. <b>Lost? Open the step's .html file, it has the full code.</b></p>
 <p><b>How to work:</b> make a folder, put <code>step1.html</code> and an <code>assets/bricks.jpg</code> in it, edit in VS Code, and run <code>python3 -m http.server</code>, then open <code>localhost:8000/step1.html</code>. (Textures don't load from <code>file://</code>.) Lines go in the order you see them in the full file, and the "game loop" lines go inside <code>loop()</code>.</p><p>Jump in: <a href="step1.html">▶ 1</a> <a href="step2.html">▶ 2</a> <a href="step3.html">▶ 3</a> <a href="step4.html">▶ 4</a> <a href="step5.html">▶ 5</a> <a href="step6.html">▶ 6</a> <a href="step7.html">▶ 7</a> <a href="step8.html">▶ 8</a> <a href="step9.html">▶ 9</a> <a href="step10.html">▶ 10</a></p>
+<div class="step s0"><h2>0. What's a library and an API? (2-minute read)</h2>
+<p><b>Library</b> = someone else's prewritten functions. On your TI-89 you never wrote <code>sin()</code> or <code>Line</code>, because they were built in. <b>three.js</b> is a big pack of built-in commands for 3D that we borrow.</p>
+<p><b>CDN</b> = a website that hosts the library. This one line loads it, like installing a program onto the calculator:</p>
+<pre>&lt;script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"&gt;&lt;/script&gt;</pre>
+<p><b>API</b> = the list of commands a library offers, plus how to call them. Every three.js command starts with <code>THREE.</code>, the way TI-89 commands live in its catalog menu.</p>
+<p><b>Objects</b> bundle data and actions together, just like VB controls. <b>Properties</b> are values: <code>Text1.Text = "hi"</code> in VB is <code>cube.position.y = 2</code> here. <b>Methods</b> are actions: <code>List1.AddItem "x"</code> in VB is <code>scene.add(cube)</code> here.</p>
+<p><b><code>new</code></b> creates a fresh object from a blueprint, like dragging a new TextBox onto a VB form. <code>const cam = new THREE.PerspectiveCamera(...)</code> means "make a camera and call it cam".</p>
+<p>That's it. You already know variables and functions. A library just hands you lots of ready-made ones. Look for the 📚 notes in each step.</p></div>
 <div class="step"><h2>1. Scene, camera, renderer</h2><p>A <b>scene</b> is the box of stuff, the <b>camera</b> is your eye, the <b>renderer</b> paints what the eye sees onto a &lt;canvas&gt;. Three objects, every 3D game ever.</p>
 Type this:<pre>camera.position.set(0, 1.6, 5);
 const Mat = THREE.MeshBasicMaterial;     // &quot;unlit&quot; paint: ignores lights
@@ -8,6 +16,7 @@ const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new Mat({ color: 0xf
 cube.position.y = 1.6;
 scene.add(cube);
 renderer.render(scene, camera);   // draw ONE picture</pre>
+<div class="lib"><b>📚 Library call:</b><ul><li><code>new THREE.Scene()</code> creates an empty world object.</li><li><code>new THREE.PerspectiveCamera(70, aspect, 0.1, 100)</code> creates a camera: zoom angle, screen shape, nearest and farthest distance it sees.</li><li><code>new THREE.WebGLRenderer()</code> creates the painter. <code>renderer.render(scene, camera)</code> is its method that draws one picture.</li><li><code>new THREE.Mesh(new THREE.BoxGeometry(1,1,1), material)</code> creates a 1×1×1 box, and <code>scene.add(cube)</code> puts it in the world.</li></ul></div>
 <p class="see">👀 You should see: An orange square in the middle of a dark screen (it's a cube seen face-on).</p><p class="try">🧪 Try changing: Change <code>cube.position.y = 1.6</code> to <code>2.5</code> - where did it go?</p><p><a href="step1.html">▶ Play step 1</a> · <a href="view-source:step1.html">full code (view source)</a></p></div>
 <div class="step"><h2>2. The game loop</h2><p>Games redraw ~60 times a second. Each frame: measure <b>dt</b> (time since last frame), update things, draw. Multiply speeds by dt so it runs the same on a slow phone and a fast PC.</p>
 <div class="del">Delete these (they did their job):<pre>renderer.render(scene, camera);   // draw ONE picture</pre></div>
@@ -21,6 +30,7 @@ function loop() {
   renderer.render(scene, camera);
 }
 loop();</pre>
+<div class="lib"><b>📚 Library call:</b><ul><li><code>requestAnimationFrame(loop)</code> is the browser's API: "call loop again before the next screen refresh".</li><li><code>new THREE.Clock()</code> creates a stopwatch, and <code>clock.getDelta()</code> returns the seconds since it was last asked.</li></ul></div>
 <p class="see">👀 You should see: The cube spins smoothly.</p><p class="try">🧪 Try changing: Change <code>1.0 * dt</code> to <code>5.0 * dt</code>.</p><p><a href="step2.html">▶ Play step 2</a> · <a href="view-source:step2.html">full code (view source)</a></p></div>
 <div class="step"><h2>3. Meshes & materials</h2><p>A <b>mesh</b> = geometry (the shape) + material (the paint). Same recipe for floors, walls, enemies, guns.</p>
 Add this:<pre>// ===== STEP 3: meshes = geometry (shape) + material (paint) =====
@@ -30,6 +40,7 @@ scene.add(floor);
 const ball = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), new Mat({ color: 0x33aaff, wireframe: true }));
 ball.position.set(2, 1, 0);
 scene.add(ball);</pre>
+<div class="lib"><b>📚 Library call:</b><ul><li><code>THREE.PlaneGeometry(30, 30)</code> and <code>THREE.SphereGeometry(radius, ...)</code> are more built-in shapes.</li><li><code>floor.rotation.x</code> is a property, just like setting <code>Text1.Left</code> in VB.</li></ul></div>
 <p class="see">👀 You should see: A grey floor and a wireframe blue ball next to the spinning cube.</p><p class="try">🧪 Try changing: Delete <code>wireframe: true</code>, or swap SphereGeometry for <code>new THREE.TorusGeometry(0.4, 0.15)</code>.</p><p><a href="step3.html">▶ Play step 3</a> · <a href="view-source:step3.html">full code (view source)</a></p></div>
 <div class="step"><h2>4. Textures</h2><p>A <b>texture</b> is an image glued onto a material via <code>map</code>. RepeatWrapping + <code>repeat</code> tiles it so bricks stay brick-sized.</p>
 Add this:<pre>// ===== STEP 4: textures = pictures glued onto materials =====
@@ -43,6 +54,7 @@ function brick(rx, ry) {
 const testWall = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 0.3), new Mat({ map: brick(2, 1.5) }));
 testWall.position.set(0, 1.5, -2);
 scene.add(testWall);</pre>
+<div class="lib"><b>📚 Library call:</b><ul><li><code>new THREE.TextureLoader().load('file.jpg')</code> fetches an image and returns a texture object.</li><li><code>THREE.RepeatWrapping</code> is a constant (a named setting), and <code>t.repeat.set(x, y)</code> sets how many times the image tiles.</li></ul></div>
 <p class="see">👀 You should see: A brick wall behind the cube.</p><p class="try">🧪 Try changing: Change <code>brick(2, 1.5)</code> to <code>brick(8, 6)</code> - tiny bricks!</p><p><a href="step4.html">▶ Play step 4</a> · <a href="view-source:step4.html">full code (view source)</a></p></div>
 <div class="step"><h2>5. Building rooms from boxes</h2><p>Levels are just boxes. One helper <code>wall(x, z, width, depth)</code> + a loop that builds a room on each side (s = -1 and +1) + two hallway walls.</p>
 <div class="del">Delete these (they did their job):<pre>camera.position.set(0, 1.6, 5);
@@ -78,6 +90,7 @@ for (const s of [-1, 1]) {            // s=-1 builds room A (left), s=+1 room B 
 }
 wall(0, -1.2, 8, 0.3);                // hallway sides
 wall(0,  1.2, 8, 0.3);</pre>
+<div class="lib"><b>📚 Library call:</b><ul><li><code>m.position.set(x, y, z)</code> is a method that moves an object in one call.</li></ul></div>
 <p class="see">👀 You should see: A top-down view: two brick rooms joined by a hallway.</p><p class="try">🧪 Try changing: Make the hall longer: change both <code>8</code>s in the hallway walls... and the room centres. Notice what breaks.</p><p><a href="step5.html">▶ Play step 5</a> · <a href="view-source:step5.html">full code (view source)</a></p></div>
 <div class="step"><h2>6. Moving with WASD + mouse</h2><p>We keep two angles: <b>yaw</b> (turn) and <b>pitch</b> (look up/down). WASD makes a forward/side amount, and sin/cos of yaw turns that into world X/Z. Click = pointer lock.</p>
 <div class="del">Delete these (they did their job):<pre>camera.position.set(0, 22, 10);   // bird&#x27;s-eye view of the building
@@ -103,6 +116,7 @@ addEventListener(&#x27;mousemove&#x27;, e =&gt; {
   const mz = (-Math.cos(yaw) * fwd - Math.sin(yaw) * side) * speed;
   camera.position.x += mx; camera.position.z += mz;
   camera.rotation.set(pitch, yaw, 0);</pre>
+<div class="lib"><b>📚 Library call:</b><ul><li><code>addEventListener('keydown', fn)</code> is the browser's API: "run fn when a key is pressed", like VB's <code>Form_KeyDown</code>.</li><li><code>requestPointerLock()</code> hides the mouse pointer and reports only how far the mouse moved.</li></ul></div>
 <p class="see">👀 You should see: You're standing in room A. Click, then WASD + mouse to walk. (You can walk THROUGH walls - fixed in step 8.)</p><p class="try">🧪 Try changing: Change <code>4 * dt</code> to <code>10 * dt</code> - sprint mode.</p><p><a href="step6.html">▶ Play step 6</a> · <a href="view-source:step6.html">full code (view source)</a></p></div>
 <div class="step"><h2>7. Touch controls (iPhone)</h2><p>Same movement, new inputs: a left-half virtual joystick feeds <code>joy.x/joy.y</code> into the same fwd/side numbers; right-half drag changes yaw/pitch. Input is just numbers.</p>
 Add this:<pre>#stick{position:fixed;left:30px;bottom:30px;width:120px;height:120px;border-radius:50%;border:2px solid #fff6;z-index:5;pointer-events:none}
@@ -146,6 +160,7 @@ function endTouch(e) {
 addEventListener(&#x27;touchend&#x27;, endTouch);
 addEventListener(&#x27;touchcancel&#x27;, endTouch);
   fwd -= joy.y; side += joy.x;</pre>
+<div class="lib"><b>📚 Library call:</b><ul><li><code>'touchstart'</code> and <code>'touchmove'</code> are the browser's finger events. <code>el.getBoundingClientRect()</code> returns where an element sits on screen.</li></ul></div>
 <p class="see">👀 You should see: On a phone: left thumb walks, right thumb looks. Desktop still works.</p><p class="try">🧪 Try changing: Change the look speed <code>0.005</code> to <code>0.01</code>.</p><p><a href="step7.html">▶ Play step 7</a> · <a href="view-source:step7.html">full code (view source)</a></p></div>
 <div class="step"><h2>8. Collision</h2><p>Before moving, ask: <i>would my new spot overlap a wall box (grown by my radius)?</i> Test X and Z separately so you slide along walls instead of sticking.</p>
 <div class="del">Delete these (they did their job):<pre>  camera.position.x += mx; camera.position.z += mz;</pre></div>
@@ -164,6 +179,7 @@ function tryMove(dx, dz) {               // test X and Z separately = slide alon
   if (!hits(p.x, p.z + dz)) p.z += dz;
 }
   tryMove(mx, mz);</pre>
+<div class="lib"><b>📚 Library call:</b><ul><li><code>w.geometry.parameters</code> reads back the width, height and depth you gave BoxGeometry.</li></ul></div>
 <p class="see">👀 You should see: Walls are solid now; you slide along them and fit through doorways.</p><p class="try">🧪 Try changing: Set <code>R = 1.2</code> - now you're too fat for the hallway.</p><p><a href="step8.html">▶ Play step 8</a> · <a href="view-source:step8.html">full code (view source)</a></p></div>
 <div class="step"><h2>9. First-person hand in its own pass</h2><p>The hand lives in a separate scene + camera, drawn AFTER the world with the depth buffer cleared, so it never pokes into walls (exactly DYSTOPIA's gun fix). A little sine wave = walking bob.</p>
 <div class="del">Delete these (they did their job):<pre>  renderer.render(scene, camera);</pre></div>
@@ -196,6 +212,7 @@ let bobT = 0;
   renderer.render(scene, camera);      // pass 1: the world
   renderer.clearDepth();               // forget wall depths...
   renderer.render(handScene, handCam); // pass 2: hand always on top, never clips</pre>
+<div class="lib"><b>📚 Library call:</b><ul><li><code>new THREE.Group()</code> is an invisible container, so moving the group moves every part of the hand.</li><li><code>renderer.clearDepth()</code> erases the memory of how far away the walls were, so the hand always draws on top.</li></ul></div>
 <p class="see">👀 You should see: A hand + sleeve bottom-right that bobs as you walk and never clips into walls.</p><p class="try">🧪 Try changing: Change <code>bobT += dt * 9</code> to <code>dt * 20</code>, or move the hand with <code>hand.position.set(...)</code>.</p><p><a href="step9.html">▶ Play step 9</a> · <a href="view-source:step9.html">full code (view source)</a></p></div>
 <div class="step"><h2>10. Lighting</h2><p>Swap one word: MeshBasicMaterial (unlit) to MeshStandardMaterial (lit). Now lights matter: a dim hemisphere fill plus a coloured point light per room, plus fog.</p>
 <div class="del">Delete these (they did their job):<pre>const Mat = THREE.MeshBasicMaterial;     // &quot;unlit&quot; paint: ignores lights</pre></div>
@@ -211,5 +228,6 @@ for (const [x, color] of [[-8, 0xffaa55], [0, 0xffffff], [8, 0x55aaff]]) {
 }
 scene.fog = new THREE.Fog(0x202030, 6, 25);
 handScene.add(new THREE.HemisphereLight(0xffeedd, 0x333333, 1.2));</pre>
+<div class="lib"><b>📚 Library call:</b><ul><li><code>THREE.MeshStandardMaterial</code> is paint that reacts to light. <code>THREE.HemisphereLight</code>, <code>THREE.PointLight(color, strength, range)</code> and <code>THREE.Fog</code> are built-in light and fog objects.</li></ul></div>
 <p class="see">👀 You should see: Moody rooms: warm orange room A, white hall, blue room B, with light falloff.</p><p class="try">🧪 Try changing: Change a lamp colour, e.g. <code>0xffaa55</code> to <code>0xff0000</code>, or the intensity <code>1.6</code> to <code>4</code>.</p><p><a href="step10.html">▶ Play step 10</a> · <a href="view-source:step10.html">full code (view source)</a></p></div>
 <h2>What's next?</h2><p>Add a door that slides open (move a wall box in the loop). Spawn a capsule "enemy" that walks toward <code>camera.position</code>. Then a raycast from the screen centre to shoot it. These are the same building blocks DYSTOPIA uses.</p><h3>Credits</h3><p>Bricks texture: <a href="https://ambientcg.com/view?id=Bricks076C">Bricks076C by ambientCG</a>, CC0. three.js r128 (MIT) from jsDelivr. The hand is built from boxes in code.</p></body></html>
