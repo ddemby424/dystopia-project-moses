@@ -1,0 +1,215 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="icon" href="data:,"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Learn 3D in 10 tiny steps</title><style>body{font:16px/1.5 system-ui,sans-serif;background:#111;color:#eee;max-width:820px;margin:auto;padding:14px}pre{background:#000;color:#9f9;padding:10px;overflow:auto;font-size:13px;border-radius:6px}a{color:#7cf}.step{border-left:4px solid #f60;padding-left:12px;margin:28px 0}.see{color:#fc6}.try{color:#6cf}code{background:#222;padding:1px 4px}.del pre{color:#f88}</style></head><body>
+<h1>Learn 3D games in 10 tiny steps</h1><p>Two brick rooms, a hallway, and your own first-person hand. Each step takes about 5 minutes and you can play the result straight away. <b>Lost? Open the step's .html file, it has the full code.</b></p>
+<p><b>How to work:</b> make a folder, put <code>step1.html</code> and an <code>assets/bricks.jpg</code> in it, edit in VS Code, and run <code>python3 -m http.server</code>, then open <code>localhost:8000/step1.html</code>. (Textures don't load from <code>file://</code>.) Lines go in the order you see them in the full file, and the "game loop" lines go inside <code>loop()</code>.</p><p>Jump in: <a href="step1.html">▶ 1</a> <a href="step2.html">▶ 2</a> <a href="step3.html">▶ 3</a> <a href="step4.html">▶ 4</a> <a href="step5.html">▶ 5</a> <a href="step6.html">▶ 6</a> <a href="step7.html">▶ 7</a> <a href="step8.html">▶ 8</a> <a href="step9.html">▶ 9</a> <a href="step10.html">▶ 10</a></p>
+<div class="step"><h2>1. Scene, camera, renderer</h2><p>A <b>scene</b> is the box of stuff, the <b>camera</b> is your eye, the <b>renderer</b> paints what the eye sees onto a &lt;canvas&gt;. Three objects, every 3D game ever.</p>
+Type this:<pre>camera.position.set(0, 1.6, 5);
+const Mat = THREE.MeshBasicMaterial;     // &quot;unlit&quot; paint: ignores lights
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new Mat({ color: 0xff6600 }));
+cube.position.y = 1.6;
+scene.add(cube);
+renderer.render(scene, camera);   // draw ONE picture</pre>
+<p class="see">👀 You should see: An orange square in the middle of a dark screen (it's a cube seen face-on).</p><p class="try">🧪 Try changing: Change <code>cube.position.y = 1.6</code> to <code>2.5</code> - where did it go?</p><p><a href="step1.html">▶ Play step 1</a> · <a href="view-source:step1.html">full code (view source)</a></p></div>
+<div class="step"><h2>2. The game loop</h2><p>Games redraw ~60 times a second. Each frame: measure <b>dt</b> (time since last frame), update things, draw. Multiply speeds by dt so it runs the same on a slow phone and a fast PC.</p>
+<div class="del">Delete these (they did their job):<pre>renderer.render(scene, camera);   // draw ONE picture</pre></div>
+Add this:<pre>// ===== STEP 2: the game loop - runs ~60 times a second =====
+const clock = new THREE.Clock();
+function loop() {
+  requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), 0.05);   // seconds since last frame
+  cube.rotation.y += 1.0 * dt;                    // 1 radian per SECOND, on any device
+  cube.rotation.x += 0.5 * dt;
+  renderer.render(scene, camera);
+}
+loop();</pre>
+<p class="see">👀 You should see: The cube spins smoothly.</p><p class="try">🧪 Try changing: Change <code>1.0 * dt</code> to <code>5.0 * dt</code>.</p><p><a href="step2.html">▶ Play step 2</a> · <a href="view-source:step2.html">full code (view source)</a></p></div>
+<div class="step"><h2>3. Meshes & materials</h2><p>A <b>mesh</b> = geometry (the shape) + material (the paint). Same recipe for floors, walls, enemies, guns.</p>
+Add this:<pre>// ===== STEP 3: meshes = geometry (shape) + material (paint) =====
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new Mat({ color: 0x555560 }));
+floor.rotation.x = -Math.PI / 2;   // planes stand up by default; lay it flat
+scene.add(floor);
+const ball = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), new Mat({ color: 0x33aaff, wireframe: true }));
+ball.position.set(2, 1, 0);
+scene.add(ball);</pre>
+<p class="see">👀 You should see: A grey floor and a wireframe blue ball next to the spinning cube.</p><p class="try">🧪 Try changing: Delete <code>wireframe: true</code>, or swap SphereGeometry for <code>new THREE.TorusGeometry(0.4, 0.15)</code>.</p><p><a href="step3.html">▶ Play step 3</a> · <a href="view-source:step3.html">full code (view source)</a></p></div>
+<div class="step"><h2>4. Textures</h2><p>A <b>texture</b> is an image glued onto a material via <code>map</code>. RepeatWrapping + <code>repeat</code> tiles it so bricks stay brick-sized.</p>
+Add this:<pre>// ===== STEP 4: textures = pictures glued onto materials =====
+const loader = new THREE.TextureLoader();
+function brick(rx, ry) {
+  const t = loader.load(&#x27;assets/bricks.jpg&#x27;);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;   // tile it instead of stretching
+  t.repeat.set(rx, ry);
+  return t;
+}
+const testWall = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 0.3), new Mat({ map: brick(2, 1.5) }));
+testWall.position.set(0, 1.5, -2);
+scene.add(testWall);</pre>
+<p class="see">👀 You should see: A brick wall behind the cube.</p><p class="try">🧪 Try changing: Change <code>brick(2, 1.5)</code> to <code>brick(8, 6)</code> - tiny bricks!</p><p><a href="step4.html">▶ Play step 4</a> · <a href="view-source:step4.html">full code (view source)</a></p></div>
+<div class="step"><h2>5. Building rooms from boxes</h2><p>Levels are just boxes. One helper <code>wall(x, z, width, depth)</code> + a loop that builds a room on each side (s = -1 and +1) + two hallway walls.</p>
+<div class="del">Delete these (they did their job):<pre>camera.position.set(0, 1.6, 5);
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new Mat({ color: 0xff6600 }));
+cube.position.y = 1.6;
+scene.add(cube);
+const ball = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), new Mat({ color: 0x33aaff, wireframe: true }));
+ball.position.set(2, 1, 0);
+scene.add(ball);
+const testWall = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 0.3), new Mat({ map: brick(2, 1.5) }));
+testWall.position.set(0, 1.5, -2);
+scene.add(testWall);
+  cube.rotation.y += 1.0 * dt;                    // 1 radian per SECOND, on any device
+  cube.rotation.x += 0.5 * dt;</pre></div>
+Add this:<pre>camera.position.set(0, 22, 10);   // bird&#x27;s-eye view of the building
+camera.lookAt(0, 0, 0);
+// ===== STEP 5: a building is just boxes =====
+const walls = [];
+function wall(x, z, w, d) {          // centre x,z  size w (along x) by d (along z)
+  const h = 3;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new Mat({ map: brick(Math.max(w, d) / 2, h / 2) }));
+  m.position.set(x, h / 2, z);
+  scene.add(m);
+  walls.push(m);
+}
+for (const s of [-1, 1]) {            // s=-1 builds room A (left), s=+1 room B (right)
+  const cx = 8 * s;                   // room centre
+  wall(cx, -4, 8.3, 0.3);             // north wall
+  wall(cx,  4, 8.3, 0.3);             // south wall
+  wall(cx + 4 * s, 0, 0.3, 8);        // outer end wall
+  wall(4 * s, -2.6, 0.3, 2.8);        // inner wall, split to leave a doorway
+  wall(4 * s,  2.6, 0.3, 2.8);
+}
+wall(0, -1.2, 8, 0.3);                // hallway sides
+wall(0,  1.2, 8, 0.3);</pre>
+<p class="see">👀 You should see: A top-down view: two brick rooms joined by a hallway.</p><p class="try">🧪 Try changing: Make the hall longer: change both <code>8</code>s in the hallway walls... and the room centres. Notice what breaks.</p><p><a href="step5.html">▶ Play step 5</a> · <a href="view-source:step5.html">full code (view source)</a></p></div>
+<div class="step"><h2>6. Moving with WASD + mouse</h2><p>We keep two angles: <b>yaw</b> (turn) and <b>pitch</b> (look up/down). WASD makes a forward/side amount, and sin/cos of yaw turns that into world X/Z. Click = pointer lock.</p>
+<div class="del">Delete these (they did their job):<pre>camera.position.set(0, 22, 10);   // bird&#x27;s-eye view of the building
+camera.lookAt(0, 0, 0);</pre></div>
+Add this:<pre>camera.position.set(-8, 1.6, 0);   // stand in room A at eye height
+camera.rotation.order = &#x27;YXZ&#x27;;      // turn left/right first, then look up/down
+// ===== STEP 6: keyboard + mouse =====
+const keys = {};
+addEventListener(&#x27;keydown&#x27;, e =&gt; keys[e.code] = true);
+addEventListener(&#x27;keyup&#x27;,   e =&gt; keys[e.code] = false);
+let yaw = -Math.PI / 2, pitch = 0;   // yaw = turn left/right, pitch = look up/down
+const clampPitch = p =&gt; Math.max(-1.4, Math.min(1.4, p));
+renderer.domElement.addEventListener(&#x27;click&#x27;, () =&gt; renderer.domElement.requestPointerLock &amp;&amp; renderer.domElement.requestPointerLock());
+addEventListener(&#x27;mousemove&#x27;, e =&gt; {
+  if (!document.pointerLockElement) return;
+  yaw -= e.movementX * 0.002;
+  pitch = clampPitch(pitch - e.movementY * 0.002);
+});
+  let fwd  = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+  let side = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  const speed = 4 * dt;                            // 4 metres per second
+  const mx = (-Math.sin(yaw) * fwd + Math.cos(yaw) * side) * speed;
+  const mz = (-Math.cos(yaw) * fwd - Math.sin(yaw) * side) * speed;
+  camera.position.x += mx; camera.position.z += mz;
+  camera.rotation.set(pitch, yaw, 0);</pre>
+<p class="see">👀 You should see: You're standing in room A. Click, then WASD + mouse to walk. (You can walk THROUGH walls - fixed in step 8.)</p><p class="try">🧪 Try changing: Change <code>4 * dt</code> to <code>10 * dt</code> - sprint mode.</p><p><a href="step6.html">▶ Play step 6</a> · <a href="view-source:step6.html">full code (view source)</a></p></div>
+<div class="step"><h2>7. Touch controls (iPhone)</h2><p>Same movement, new inputs: a left-half virtual joystick feeds <code>joy.x/joy.y</code> into the same fwd/side numbers; right-half drag changes yaw/pitch. Input is just numbers.</p>
+Add this:<pre>#stick{position:fixed;left:30px;bottom:30px;width:120px;height:120px;border-radius:50%;border:2px solid #fff6;z-index:5;pointer-events:none}
+#knob{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:#fff8}
+&lt;div id=&quot;stick&quot;&gt;&lt;div id=&quot;knob&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+// ===== STEP 7: touch = left-half joystick, right-half drag to look =====
+const joy = { x: 0, y: 0 };
+let joyId = null, lookId = null, lastX = 0, lastY = 0;
+const stick = document.getElementById(&#x27;stick&#x27;), knob = document.getElementById(&#x27;knob&#x27;);
+function moveJoy(t) {
+  const r = stick.getBoundingClientRect();
+  let x = (t.clientX - r.left - 60) / 60, y = (t.clientY - r.top - 60) / 60;
+  const len = Math.hypot(x, y); if (len &gt; 1) { x /= len; y /= len; }
+  joy.x = x; joy.y = y;
+  knob.style.left = (35 + x * 35) + &#x27;px&#x27;; knob.style.top = (35 + y * 35) + &#x27;px&#x27;;
+}
+addEventListener(&#x27;touchstart&#x27;, e =&gt; {
+  for (const t of e.changedTouches) {
+    if (t.clientX &lt; innerWidth / 2 &amp;&amp; joyId === null) { joyId = t.identifier; moveJoy(t); }
+    else if (lookId === null) { lookId = t.identifier; lastX = t.clientX; lastY = t.clientY; }
+  }
+  e.preventDefault();
+}, { passive: false });
+addEventListener(&#x27;touchmove&#x27;, e =&gt; {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyId) moveJoy(t);
+    else if (t.identifier === lookId) {
+      yaw -= (t.clientX - lastX) * 0.005;
+      pitch = clampPitch(pitch - (t.clientY - lastY) * 0.005);
+      lastX = t.clientX; lastY = t.clientY;
+    }
+  }
+  e.preventDefault();
+}, { passive: false });
+function endTouch(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyId) { joyId = null; joy.x = joy.y = 0; knob.style.left = knob.style.top = &#x27;35px&#x27;; }
+    if (t.identifier === lookId) lookId = null;
+  }
+}
+addEventListener(&#x27;touchend&#x27;, endTouch);
+addEventListener(&#x27;touchcancel&#x27;, endTouch);
+  fwd -= joy.y; side += joy.x;</pre>
+<p class="see">👀 You should see: On a phone: left thumb walks, right thumb looks. Desktop still works.</p><p class="try">🧪 Try changing: Change the look speed <code>0.005</code> to <code>0.01</code>.</p><p><a href="step7.html">▶ Play step 7</a> · <a href="view-source:step7.html">full code (view source)</a></p></div>
+<div class="step"><h2>8. Collision</h2><p>Before moving, ask: <i>would my new spot overlap a wall box (grown by my radius)?</i> Test X and Z separately so you slide along walls instead of sticking.</p>
+<div class="del">Delete these (they did their job):<pre>  camera.position.x += mx; camera.position.z += mz;</pre></div>
+Add this:<pre>// ===== STEP 8: collision = &quot;would my new spot overlap a wall box?&quot; =====
+const R = 0.35;                          // player radius
+function hits(x, z) {
+  for (const w of walls) {
+    const p = w.position, g = w.geometry.parameters;
+    if (Math.abs(x - p.x) &lt; g.width / 2 + R &amp;&amp; Math.abs(z - p.z) &lt; g.depth / 2 + R) return true;
+  }
+  return false;
+}
+function tryMove(dx, dz) {               // test X and Z separately = slide along walls
+  const p = camera.position;
+  if (!hits(p.x + dx, p.z)) p.x += dx;
+  if (!hits(p.x, p.z + dz)) p.z += dz;
+}
+  tryMove(mx, mz);</pre>
+<p class="see">👀 You should see: Walls are solid now; you slide along them and fit through doorways.</p><p class="try">🧪 Try changing: Set <code>R = 1.2</code> - now you're too fat for the hallway.</p><p><a href="step8.html">▶ Play step 8</a> · <a href="view-source:step8.html">full code (view source)</a></p></div>
+<div class="step"><h2>9. First-person hand in its own pass</h2><p>The hand lives in a separate scene + camera, drawn AFTER the world with the depth buffer cleared, so it never pokes into walls (exactly DYSTOPIA's gun fix). A little sine wave = walking bob.</p>
+<div class="del">Delete these (they did their job):<pre>  renderer.render(scene, camera);</pre></div>
+Add this:<pre>  handCam.aspect = innerWidth / innerHeight; handCam.updateProjectionMatrix();
+// ===== STEP 9: the hand lives in its OWN scene with its OWN camera =====
+const handScene = new THREE.Scene();
+const handCam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.01, 10);
+const hand = new THREE.Group();
+const skin = new Mat({ color: 0xd9a07a });
+hand.add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.03, 0.1), skin));           // palm
+for (let i = 0; i &lt; 4; i++) {                                                     // fingers
+  const f = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, 0.075), skin);
+  f.position.set(-0.033 + i * 0.022, 0, -0.085);
+  hand.add(f);
+}
+const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.06), skin);
+thumb.position.set(-0.055, 0, -0.03); thumb.rotation.y = 0.6; hand.add(thumb);
+const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.3, 12), new Mat({ color: 0x223344 }));
+sleeve.rotation.x = Math.PI / 2; sleeve.position.z = 0.19; hand.add(sleeve);
+hand.position.set(0.18, -0.17, -0.35);
+hand.rotation.set(0.25, 0.35, 0.15);
+handScene.add(hand);
+renderer.autoClear = false;              // we clear by hand so two passes can stack
+let bobT = 0;
+  const moving = Math.abs(fwd) + Math.abs(side) &gt; 0.05;
+  if (moving) bobT += dt * 9;
+  hand.position.y = -0.17 + Math.abs(Math.sin(bobT)) * 0.012;
+  hand.position.x = 0.18 + Math.sin(bobT) * 0.008;
+  renderer.clear();
+  renderer.render(scene, camera);      // pass 1: the world
+  renderer.clearDepth();               // forget wall depths...
+  renderer.render(handScene, handCam); // pass 2: hand always on top, never clips</pre>
+<p class="see">👀 You should see: A hand + sleeve bottom-right that bobs as you walk and never clips into walls.</p><p class="try">🧪 Try changing: Change <code>bobT += dt * 9</code> to <code>dt * 20</code>, or move the hand with <code>hand.position.set(...)</code>.</p><p><a href="step9.html">▶ Play step 9</a> · <a href="view-source:step9.html">full code (view source)</a></p></div>
+<div class="step"><h2>10. Lighting</h2><p>Swap one word: MeshBasicMaterial (unlit) to MeshStandardMaterial (lit). Now lights matter: a dim hemisphere fill plus a coloured point light per room, plus fog.</p>
+<div class="del">Delete these (they did their job):<pre>const Mat = THREE.MeshBasicMaterial;     // &quot;unlit&quot; paint: ignores lights</pre></div>
+Add this:<pre>const Mat = THREE.MeshStandardMaterial;    // &quot;lit&quot; paint: reacts to lights
+// ===== STEP 10: lights (only &quot;Standard&quot; materials care about them) =====
+scene.add(new THREE.HemisphereLight(0x8899bb, 0x332211, 0.35));   // soft sky/ground fill
+for (const [x, color] of [[-8, 0xffaa55], [0, 0xffffff], [8, 0x55aaff]]) {
+  const lamp = new THREE.PointLight(color, 1.6, 14);
+  lamp.position.set(x, 2.7, 0);
+  scene.add(lamp);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.08), new THREE.MeshBasicMaterial({ color }));
+  bulb.position.copy(lamp.position); scene.add(bulb);
+}
+scene.fog = new THREE.Fog(0x202030, 6, 25);
+handScene.add(new THREE.HemisphereLight(0xffeedd, 0x333333, 1.2));</pre>
+<p class="see">👀 You should see: Moody rooms: warm orange room A, white hall, blue room B, with light falloff.</p><p class="try">🧪 Try changing: Change a lamp colour, e.g. <code>0xffaa55</code> to <code>0xff0000</code>, or the intensity <code>1.6</code> to <code>4</code>.</p><p><a href="step10.html">▶ Play step 10</a> · <a href="view-source:step10.html">full code (view source)</a></p></div>
+<h2>What's next?</h2><p>Add a door that slides open (move a wall box in the loop). Spawn a capsule "enemy" that walks toward <code>camera.position</code>. Then a raycast from the screen centre to shoot it. These are the same building blocks DYSTOPIA uses.</p><h3>Credits</h3><p>Bricks texture: <a href="https://ambientcg.com/view?id=Bricks076C">Bricks076C by ambientCG</a>, CC0. three.js r128 (MIT) from jsDelivr. The hand is built from boxes in code.</p></body></html>

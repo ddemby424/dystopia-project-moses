@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>3D Basics - Step 5</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#000;touch-action:none}
+#hud{position:fixed;left:8px;top:8px;color:#fff;font:14px sans-serif;z-index:5;pointer-events:none;text-shadow:0 0 3px #000}
+</style></head><body>
+<div id="hud">STEP 5: Building rooms from boxes &nbsp;|&nbsp; <a style="color:#9cf;pointer-events:auto" href="index.html">tutorial</a></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+// ===== STEP 1: scene + camera + renderer =====
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202030);
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 22, 10);   // bird's-eye view of the building
+camera.lookAt(0, 0, 0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+const Mat = THREE.MeshBasicMaterial;     // "unlit" paint: ignores lights
+
+
+// ===== STEP 3: meshes = geometry (shape) + material (paint) =====
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new Mat({ color: 0x555560 }));
+floor.rotation.x = -Math.PI / 2;   // planes stand up by default; lay it flat
+scene.add(floor);
+
+// ===== STEP 4: textures = pictures glued onto materials =====
+const loader = new THREE.TextureLoader();
+function brick(rx, ry) {
+  const t = loader.load('assets/bricks.jpg');
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;   // tile it instead of stretching
+  t.repeat.set(rx, ry);
+  return t;
+}
+
+// ===== STEP 5: a building is just boxes =====
+const walls = [];
+function wall(x, z, w, d) {          // centre x,z  size w (along x) by d (along z)
+  const h = 3;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new Mat({ map: brick(Math.max(w, d) / 2, h / 2) }));
+  m.position.set(x, h / 2, z);
+  scene.add(m);
+  walls.push(m);
+}
+for (const s of [-1, 1]) {            // s=-1 builds room A (left), s=+1 room B (right)
+  const cx = 8 * s;                   // room centre
+  wall(cx, -4, 8.3, 0.3);             // north wall
+  wall(cx,  4, 8.3, 0.3);             // south wall
+  wall(cx + 4 * s, 0, 0.3, 8);        // outer end wall
+  wall(4 * s, -2.6, 0.3, 2.8);        // inner wall, split to leave a doorway
+  wall(4 * s,  2.6, 0.3, 2.8);
+}
+wall(0, -1.2, 8, 0.3);                // hallway sides
+wall(0,  1.2, 8, 0.3);
+
+
+
+
+
+
+// ===== STEP 2: the game loop - runs ~60 times a second =====
+const clock = new THREE.Clock();
+function loop() {
+  requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), 0.05);   // seconds since last frame
+  renderer.render(scene, camera);
+}
+loop();
+</script>
+</body></html>

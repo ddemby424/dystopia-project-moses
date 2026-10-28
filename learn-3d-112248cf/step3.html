@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>3D Basics - Step 3</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#000;touch-action:none}
+#hud{position:fixed;left:8px;top:8px;color:#fff;font:14px sans-serif;z-index:5;pointer-events:none;text-shadow:0 0 3px #000}
+</style></head><body>
+<div id="hud">STEP 3: Meshes & materials &nbsp;|&nbsp; <a style="color:#9cf;pointer-events:auto" href="index.html">tutorial</a></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+// ===== STEP 1: scene + camera + renderer =====
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202030);
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 1.6, 5);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+const Mat = THREE.MeshBasicMaterial;     // "unlit" paint: ignores lights
+
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new Mat({ color: 0xff6600 }));
+cube.position.y = 1.6;
+scene.add(cube);
+
+// ===== STEP 3: meshes = geometry (shape) + material (paint) =====
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new Mat({ color: 0x555560 }));
+floor.rotation.x = -Math.PI / 2;   // planes stand up by default; lay it flat
+scene.add(floor);
+const ball = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), new Mat({ color: 0x33aaff, wireframe: true }));
+ball.position.set(2, 1, 0);
+scene.add(ball);
+
+
+
+
+
+
+
+
+// ===== STEP 2: the game loop - runs ~60 times a second =====
+const clock = new THREE.Clock();
+function loop() {
+  requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), 0.05);   // seconds since last frame
+  cube.rotation.y += 1.0 * dt;                    // 1 radian per SECOND, on any device
+  cube.rotation.x += 0.5 * dt;
+  renderer.render(scene, camera);
+}
+loop();
+</script>
+</body></html>

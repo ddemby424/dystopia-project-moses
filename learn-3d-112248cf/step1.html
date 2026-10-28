@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>3D Basics - Step 1</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#000;touch-action:none}
+#hud{position:fixed;left:8px;top:8px;color:#fff;font:14px sans-serif;z-index:5;pointer-events:none;text-shadow:0 0 3px #000}
+</style></head><body>
+<div id="hud">STEP 1: Scene, camera, renderer &nbsp;|&nbsp; <a style="color:#9cf;pointer-events:auto" href="index.html">tutorial</a></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+// ===== STEP 1: scene + camera + renderer =====
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202030);
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 1.6, 5);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+const Mat = THREE.MeshBasicMaterial;     // "unlit" paint: ignores lights
+
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new Mat({ color: 0xff6600 }));
+cube.position.y = 1.6;
+scene.add(cube);
+renderer.render(scene, camera);   // draw ONE picture
+
+
+
+
+
+
+
+
+
+</script>
+</body></html>
