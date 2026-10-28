@@ -1252,6 +1252,12 @@ function createWall(x, z, w, d, h = 9, y = 0) {
   registerCollider(x - w / 2, x + w / 2, y, y + h, z - d / 2, z + d / 2);
 }
 
+// Round 17: text planes read correctly from BOTH sides. A DoubleSide plane shows its back face
+// mirrored, so instead render the front single-sided and add a back twin turned 180° (its own front).
+function twoSidedText(m, gap = 0.012) {
+  m.material.side = THREE.FrontSide;
+  const back = new THREE.Mesh(m.geometry, m.material); back.rotation.y = Math.PI; back.position.z = -gap; back.userData.signTwin = true; m.add(back); m.userData.textPlane = true; return m;
+}
 function addWallSign(x, y, z, rotY, title, subtitle, accentColor = '#f59e0b') {
   const c = document.createElement('canvas'); c.width = 512; c.height = 128;
   const ctx = c.getContext('2d');
@@ -1261,7 +1267,7 @@ function addWallSign(x, y, z, rotY, title, subtitle, accentColor = '#f59e0b') {
   ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 20px sans-serif'; ctx.fillText(subtitle, 22, 96);
   const tex = new THREE.CanvasTexture(c);
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 1.9), new THREE.MeshBasicMaterial({ map: tex }));
-  mesh.position.set(x, y, z); mesh.rotation.y = rotY; arenaGroup.add(mesh);
+  mesh.position.set(x, y, z); mesh.rotation.y = rotY; twoSidedText(mesh); arenaGroup.add(mesh);
 }
 
 function createSecurityElevator(x, z) {
@@ -1533,7 +1539,7 @@ function signTexture(title, sub, accent, bg = '#0f141b') {
 }
 function addSign(x, y, z, rotY, title, sub, accent = '#facc15', w = 6) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w * 0.3125), new THREE.MeshBasicMaterial({ map: signTexture(title, sub, accent), side: THREE.DoubleSide }));
-  m.position.set(x, y, z); m.rotation.y = rotY; arenaGroup.add(m); return m;
+  m.position.set(x, y, z); m.rotation.y = rotY; twoSidedText(m); arenaGroup.add(m); return m;
 }
 
 function cloneProp(key) {
@@ -1665,7 +1671,7 @@ const PROP_BUILDERS = {
   },
   colossus(o) {
     const g = buildColossus(o.h || 24, { mini: !!o.mini }); const C = COLOSSI[COLOSSI.length - 1]; const rr = C.rad;
-    C.col = { minX: o.x - rr, maxX: o.x + rr, minY: 0, maxY: (o.h || 24) + 2, minZ: o.z - rr, maxZ: o.z + rr }; colliders.push(C.col);
+    C.col = { minX: o.x - rr, maxX: o.x + rr, minY: 0, maxY: (o.h || 24) + 2, minZ: o.z - rr, maxZ: o.z + rr, dyn: true }; colliders.push(C.col);
     return { g, collide: null };
   },
   pipevent(o) {
@@ -1850,7 +1856,9 @@ function updateColossi(dt, now) {
     if (C.eye) C.eye.intensity = C.isMini ? 1.6 : 2.5;
     if (!alertOn) return;
     C.voiceT -= dt; if (C.voiceT <= 0) { C.voiceT = 20 + Math.random() * 10; if (!C.isMini || Math.random() < 0.5) colossusSpeak(C); }
-    const want = Math.atan2(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
+    // Round 17: free-moving Sentinel — pursue the player, path around obstacles, booming footfalls
+    let want = Math.atan2(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
+    try { const mv = colossusLocomotion(C, dt, pd); if (mv != null) want = mv; } catch (e) {}
     let dy = want - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     const turn = (C.isMini ? 0.7 : 0.45) * (C.turnMult || 1) * dt; C.root.rotation.y += Math.max(-turn, Math.min(turn, dy)); C.facingErr = Math.abs(dy);
     const hp = colossusHandPos(new THREE.Vector3(), C);
@@ -1884,7 +1892,7 @@ function updateColossi(dt, now) {
       } else if (C.cool <= 0) C.cool = 0.4;
     }
   });
-  colossusHud(hudC); updateWrecksHud();
+  colossusHud(hudC); updateWrecksHud(); updateShockwaves(dt);
   for (let i = COLOSSUS_BOLTS.length - 1; i >= 0; i--) {
     const b = COLOSSUS_BOLTS[i]; b.life -= dt; const p = b.mesh.position; p.addScaledVector(b.vel, dt);
     b.trailT -= dt;
@@ -1897,6 +1905,86 @@ function updateColossi(dt, now) {
   for (let i = EMP_ARCS.length - 1; i >= 0; i--) { const a = EMP_ARCS[i]; a.life -= dt; a.mesh.material.opacity = Math.max(0, a.life * 6); if (a.life <= 0) { scene.remove(a.mesh); a.mesh.geometry.dispose(); EMP_ARCS.splice(i, 1); } }
 }
 function updateColossus(dt, now) { updateColossi(dt, now); }
+// ---- Round 17: Sentinel locomotion, footfalls, shockwave ----
+function colossusFree(C, x, z, r) {
+  if (x < -86 || x > 86 || z < -81 || z > 81) return false;
+  for (const c of colliders) { if (c === C.col || c.hi || c.minY > 2) continue; if (x + r > c.minX && x - r < c.maxX && z + r > c.minZ && z - r < c.maxZ) return false; }
+  return true;
+}
+function colossusSyncCol(C) { if (!C.col) return; const p = C.root.position, rr = C.rad; C.col.minX = p.x - rr; C.col.maxX = p.x + rr; C.col.minZ = p.z - rr; C.col.maxZ = p.z + rr; }
+function colossusLocomotion(C, dt, pd) {
+  const P = C.root.position, pl = STATE.player; if (C.col) C.col.dyn = true;
+  const keep = C.isMini ? 9 : 15; // stand-off range: close enough to threaten, not inside the player
+  C.pathT = (C.pathT || 0) - dt;
+  const tgtY = Math.atan2(pl.x - P.x, pl.z - P.z);
+  const clear = !segmentBlocked(new THREE.Vector3(P.x, 1.2, P.z), new THREE.Vector3(pl.x, 1.2, pl.z), P.x, P.z, C.rad + 1.5);
+  let heading = tgtY;
+  if (!clear) {
+    if (C.pathT <= 0 || !C.path) { C.pathT = 1.2; C.path = aStar(P.x, P.z, pl.x, pl.z); C.pi = 0; }
+    if (C.path && C.path.length) {
+      while (C.pi < C.path.length - 1) { const w = C.path[C.pi]; if (Math.hypot((w.x ?? w[0]) - P.x, (w.z ?? w[1]) - P.z) < 2.2) C.pi++; else break; }
+      const w = C.path[Math.min(C.pi, C.path.length - 1)]; heading = Math.atan2((w.x ?? w[0]) - P.x, (w.z ?? w[1]) - P.z);
+    }
+  } else C.path = null;
+  const charging = C.charge >= 0;
+  if (pd <= keep || charging) { C.moving = false; return clear ? null : heading; }
+  // walk forward along the current facing once roughly lined up (no strafing / orbiting)
+  let dy = heading - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  if (!clear) { const t = (C.isMini ? 1.1 : 0.8) * dt; C.root.rotation.y += Math.max(-t, Math.min(t, dy)); }
+  const face = C.root.rotation.y; const err = Math.abs(Math.atan2(Math.sin(heading - face), Math.cos(heading - face)));
+  const speed = (C.isMini ? 2.8 : 2.1) * (1 - Math.min(0.6, C.limp || 0)) * Math.max(0, 1 - err / 1.1);
+  C.moving = speed > 0.05;
+  if (C.moving) {
+    const r = C.rad * 0.75, sx = Math.sin(face) * speed * dt, sz = Math.cos(face) * speed * dt;
+    let moved = 0;
+    if (colossusFree(C, P.x + sx, P.z + sz, r)) { P.x += sx; P.z += sz; moved = Math.hypot(sx, sz); }
+    else if (colossusFree(C, P.x + sx, P.z, r)) { P.x += sx; moved = Math.abs(sx); }
+    else if (colossusFree(C, P.x, P.z + sz, r)) { P.z += sz; moved = Math.abs(sz); }
+    else { C.pathT = 0; C.stuckT = (C.stuckT || 0) + dt; }
+    if (moved) { C.stuckT = 0; colossusSyncCol(C); C.stride = (C.stride || 0) + moved; const L = Math.max(1.6, C.height * 0.14); if (C.stride >= L) { C.stride -= L; colossusFootfall(C); } }
+  }
+  if (C.mixer) C.mixer.timeScale = C.moving ? 1.6 : 1;
+  return clear ? null : heading;
+}
+function colossusFootfall(C) {
+  const P = C.root.position, d = Math.hypot(STATE.player.x - P.x, STATE.player.z - P.z), k = C.isMini ? 0.6 : 1;
+  const vol = Math.max(0, 1 - d / 90) ** 1.5 * k;
+  if (vol > 0.02) playFootfallBoom(vol, C.isMini);
+  if (d < 45) STATE.screenShake = Math.max(STATE.screenShake, 0.32 * k * (1 - d / 45));
+  try { if (d < 60 && typeof fxEmit === 'function' && FX.ready) for (let i = 0; i < 3; i++) { const a = Math.random() * 6.28; fxEmit('smoke', P.x + Math.sin(a) * C.rad, 0.2, P.z + Math.cos(a) * C.rad, { life: 0.9, s0: 0.5, s1: 1.8, vx: Math.sin(a) * 1.5, vz: Math.cos(a) * 1.5, vy: 0.4 }); } } catch (e) {}
+}
+function playFootfallBoom(vol, mini) {
+  if (SFX.muted) return; try { SFX.init(); } catch (e) { return; } const ctx = SFX.ctx; if (!ctx) return; const now = ctx.currentTime;
+  const o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 180;
+  o.type = 'sine'; o.frequency.setValueAtTime(mini ? 78 : 58, now); o.frequency.exponentialRampToValueAtTime(mini ? 34 : 24, now + 0.45);
+  g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.9 * vol + 0.0001, now + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
+  o.connect(g); g.connect(lp); lp.connect(ctx.destination); o.start(now); o.stop(now + 0.8);
+  // gravel crunch on top
+  const n = Math.floor(ctx.sampleRate * 0.25), b = ctx.createBuffer(1, n, ctx.sampleRate), dd = b.getChannelData(0); for (let i = 0; i < n; i++) dd[i] = (Math.random() * 2 - 1) * (1 - i / n) ** 3;
+  const ns = ctx.createBufferSource(), ng = ctx.createGain(), nf = ctx.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 600; ns.buffer = b; ng.gain.value = 0.35 * vol;
+  ns.connect(nf); nf.connect(ng); ng.connect(ctx.destination); ns.start(now);
+}
+const SHOCKWAVES = [];
+function spawnShockwave(x, z, maxR, k) {
+  const m = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 64), new THREE.MeshBasicMaterial({ color: 0xffd8a0, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  m.rotation.x = -Math.PI / 2; m.position.set(x, 0.12, z); m.renderOrder = 5; scene.add(m);
+  const m2 = new THREE.Mesh(new THREE.RingGeometry(0.6, 1, 64), new THREE.MeshBasicMaterial({ color: 0x9ca3af, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }));
+  m2.rotation.x = -Math.PI / 2; m2.position.set(x, 0.1, z); scene.add(m2);
+  SHOCKWAVES.push({ m, m2, x, z, t: 0, dur: 1.3, maxR, k, hitP: false });
+  // deep sub boom
+  try { if (!SFX.muted) { SFX.init(); const ctx = SFX.ctx, now = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(48, now); o.frequency.exponentialRampToValueAtTime(18, now + 1.6); g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(1.0 * k, now + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, now + 2.0); o.connect(g); g.connect(ctx.destination); o.start(now); o.stop(now + 2.05); } } catch (e) {}
+}
+function updateShockwaves(dt) {
+  for (let i = SHOCKWAVES.length - 1; i >= 0; i--) {
+    const s = SHOCKWAVES[i]; s.t += dt; const u = Math.min(1, s.t / s.dur), e = 1 - (1 - u) ** 3, R = 1 + e * s.maxR;
+    s.m.scale.set(R, R, 1); s.m.material.opacity = 0.9 * (1 - u); s.m2.scale.set(R * 0.92, R * 0.92, 1); s.m2.material.opacity = 0.35 * (1 - u);
+    const P = STATE.player, d = Math.hypot(P.x - s.x, P.z - s.z);
+    if (!s.hitP && R >= d && d < s.maxR) { s.hitP = true; const f = (1 - d / s.maxR) * s.k; STATE.screenShake = Math.max(STATE.screenShake, 0.6 + f); if (d > 0.1) { P.kbx = (P.x - s.x) / d * 14 * f; P.kbz = (P.z - s.z) / d * 14 * f; P.kbT = 0.35; } }
+    if (u >= 1) { scene.remove(s.m); scene.remove(s.m2); s.m.geometry.dispose(); s.m2.geometry.dispose(); SHOCKWAVES.splice(i, 1); }
+  }
+  const P = STATE.player; if (P.kbT > 0) { P.kbT -= dt; const nx = P.x + P.kbx * dt, nz = P.z + P.kbz * dt; if (!collidesAt(nx, P.z)) P.x = nx; if (!collidesAt(P.x, nz)) P.z = nz; P.kbx *= 0.9; P.kbz *= 0.9; }
+}
+
 
 function buildColossus(height, opts = {}) {
   const g = new THREE.Group();
@@ -1922,7 +2010,7 @@ function buildColossus(height, opts = {}) {
   C.glow.visible = false; arenaGroup.add(C.glow);
   C.glowLight = new RTLight(0x60a5fa, 0, 30, 2); arenaGroup.add(C.glowLight);
   C.eye = new RTLight(0xff3300, isMini ? 1.6 : 2.5, isMini ? 18 : 40, 2); C.eye.position.set(0, height * 0.92, height * 0.08); g.add(C.eye);
-  const plate = new THREE.Mesh(new THREE.CylinderGeometry(C.rad * 1.6, C.rad * 1.8, 0.5, 24), new THREE.MeshStandardMaterial({ color: 0x2b3240, metalness: 0.7, roughness: 0.4 })); plate.position.y = 0.25; plate.receiveShadow = true; g.add(plate); C.plate = plate;
+  C.plate = null; // Round 17: no base disc — the Sentinel walks freely
   const L = STATE.level || 1, F = STATE.floor || 0;
   C.maxHp = C.hp = isMini ? Math.round(240 + 50 * L + 30 * F) : Math.round(450 + 100 * L);
   C.dmg = isMini ? Math.round(10 + 2.5 * L + 2 * F) : Math.round(14 + 3 * L);
@@ -2204,6 +2292,7 @@ function buildArenaMap() {
 }
 
 function startFloor(lvl, floor) {
+  setTimeout(() => { try { STATE.zfix = fixCoplanarSurfaces(); } catch (e) { console.warn('zfix', e); } }, 1200);
   if (STATE.dm) { STATE.dm = false; try { DM.on = false; document.body.classList.remove('dm'); dmBoard(false); } catch (e) {} }
   STATE.level = lvl; STATE.floor = floor; STATE.bossSpawned = false; STATE.hasAccessKey = false; STATE.combatActive = false; HACK_TIMER = 0;
   STATE.floorCleared = false;
@@ -2270,6 +2359,42 @@ function unlockExit() {
   ks.textContent = '🔓 STAIRWELL OPEN — HEAD NORTH'; ks.className = 'text-[10px] text-emerald-400 font-black block animate-pulse';
   addScore(1000, 'FLOOR CLEAR', null);
   showBanner(`FLOOR ${FLOOR_NAMES[STATE.floor]} CLEARED`, `SCORE ${String(STATE.score || 0).padStart(6, '0')} · Stairwell unlocked — descend to ${FLOOR_NAMES[STATE.floor + 1] || 'next level'}.`, 4500);
+}
+// Round 17: anti z-fighting pass. Run after a floor is built: coplanar decals/posters/signs/pools get
+// separated along their normal, and boxes whose faces coincide with a differently-coloured box get a 3mm inset.
+function fixCoplanarSurfaces() {
+  arenaGroup.updateMatrixWorld(true);
+  const planes = [], boxes = []; const v = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
+  arenaGroup.traverse(o => {
+    if (!o.isMesh || o.userData.signTwin || !o.geometry) return; const t = o.geometry.type;
+    if (t === 'PlaneGeometry' || t === 'CircleGeometry') { const n = new THREE.Vector3(0, 0, 1).transformDirection(o.matrixWorld); const p = new THREE.Vector3().setFromMatrixPosition(o.matrixWorld); planes.push({ o, n, d: n.dot(p), b: new THREE.Box3().setFromObject(o) }); }
+    else if (t === 'BoxGeometry' && !o.material.transparent) boxes.push({ o, b: new THREE.Box3().setFromObject(o) });
+  });
+  const ovA = (a, b, axes) => { let A = 1; for (const k of axes) { const ov = Math.min(a.max[k], b.max[k]) - Math.max(a.min[k], b.min[k]); if (ov <= 0.02) return 0; A *= ov; } return A; };
+  let fixedP = 0, fixedB = 0;
+  // planes vs planes (same orientation, same depth, overlapping)
+  for (let i = 0; i < planes.length; i++) { let stack = 0; const A = planes[i];
+    for (let j = 0; j < i; j++) { const B = planes[j]; if (A.n.dot(B.n) < 0.995 || Math.abs(A.d - B.d) > 0.012) continue;
+      const ax = Math.abs(A.n.x) > 0.9 ? ['y', 'z'] : Math.abs(A.n.y) > 0.9 ? ['x', 'z'] : ['x', 'y']; if (!ovA(A.b, B.b, ax)) continue; stack++; }
+    if (stack) { const off = 0.014 * stack; const wpos = new THREE.Vector3().setFromMatrixPosition(A.o.matrixWorld).addScaledVector(A.n, off); A.o.parent.worldToLocal(wpos); A.o.position.copy(wpos); A.d += off; A.o.updateMatrixWorld(true); fixedP++; }
+    const m = A.o.material; if (m && !m.polygonOffset && (m.transparent || m.map)) { m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -2; }
+  }
+  // planes lying exactly on a box face (decal flush with wall/floor): nudge 1cm out
+  planes.forEach(P => { if (Math.abs(P.n.y) > 0.9 && P.d < 0.03) return; for (const B of boxes) { const ax = Math.abs(P.n.x) > 0.9 ? 'x' : Math.abs(P.n.y) > 0.9 ? 'y' : Math.abs(P.n.z) > 0.9 ? 'z' : null; if (!ax) return;
+      const f = P.n[ax] > 0 ? B.b.max[ax] : B.b.min[ax]; const pv = P.b.min[ax]; if (Math.abs(pv - f) > 0.004) continue; const others = ['x', 'y', 'z'].filter(k => k !== ax); if (!ovA(P.b, B.b, others)) continue;
+      const w = new THREE.Vector3().setFromMatrixPosition(P.o.matrixWorld).addScaledVector(P.n, 0.01); P.o.parent.worldToLocal(w); P.o.position.copy(w); P.o.updateMatrixWorld(true); fixedP++; break; } });
+  // boxes with coincident same-facing faces and different colours
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const A = boxes[i], B = boxes[j];
+    const ca = A.o.material.color, cb = B.o.material.color; if (A.o.material === B.o.material || (ca && cb && ca.equals(cb) && A.o.material.map === B.o.material.map)) continue;
+    for (const ax of ['x', 'y', 'z']) { const others = ['x', 'y', 'z'].filter(k => k !== ax); if (!ovA(A.b, B.b, others)) continue;
+      if (Math.abs(A.b.max[ax] - B.b.max[ax]) < 0.003 || Math.abs(A.b.min[ax] - B.b.min[ax]) < 0.003) {
+        const vA = (A.b.max.x - A.b.min.x) * (A.b.max.y - A.b.min.y) * (A.b.max.z - A.b.min.z), vB = (B.b.max.x - B.b.min.x) * (B.b.max.y - B.b.min.y) * (B.b.max.z - B.b.min.z);
+        const S = vA < vB ? A : B; if (S.o.userData.zInset) continue; const size = S.b.max[ax] - S.b.min[ax]; if (size < 0.02) continue;
+        // inset in world axis: approximate by scaling the local axis most aligned with it
+        S.o.matrixWorld.decompose(v, q, sc); const inv = q.clone().invert(); const wa = new THREE.Vector3(ax === 'x' ? 1 : 0, ax === 'y' ? 1 : 0, ax === 'z' ? 1 : 0).applyQuaternion(inv);
+        const la = Math.abs(wa.x) > Math.abs(wa.y) ? (Math.abs(wa.x) > Math.abs(wa.z) ? 'x' : 'z') : (Math.abs(wa.y) > Math.abs(wa.z) ? 'y' : 'z');
+        S.o.scale[la] *= Math.max(0.9, 1 - 0.006 / size); S.o.userData.zInset = true; fixedB++; } } }
+  return { planes: planes.length, fixedP, fixedB };
 }
 function advanceFloor() {
   if (STATE.floor < 3) return startFloor(STATE.level, STATE.floor + 1);
@@ -2669,6 +2794,7 @@ function buildNavGrid() {
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) arr[j * W + i] = 1;
   };
   colliders.forEach(c => {
+    if (c.dyn) return;
     if (c.minY < 1.8) mark(NAV.move, NAV.w, NAV.h, NAV.cs, NAV.ox, NAV.oz, c.minX - 0.6, c.maxX + 0.6, c.minZ - 0.6, c.maxZ + 0.6);
     if (c.minY < 1.2 && c.maxY >= 1.7) mark(NAV.high, NAV.lw, NAV.lh, NAV.lcs, NAV.ox, NAV.oz, c.minX + 0.15, c.maxX - 0.15, c.minZ + 0.15, c.maxZ - 0.15);
     if (c.minY < 0.6 && c.maxY >= 0.95) mark(NAV.low, NAV.lw, NAV.lh, NAV.lcs, NAV.ox, NAV.oz, c.minX + 0.15, c.maxX - 0.15, c.minZ + 0.15, c.maxZ - 0.15);
@@ -2881,7 +3007,14 @@ function updateEnemyGrenades(dt) {
   if (!el) { el = document.createElement('div'); el.id = 'grenade-warning'; el.textContent = '⚠ GRENADE — MOVE!'; el.style.cssText = 'position:absolute;left:50%;top:58%;transform:translateX(-50%);z-index:42;pointer-events:none;font:900 16px sans-serif;color:#fecaca;background:rgba(127,29,29,.8);border:2px solid #ef4444;border-radius:8px;padding:4px 12px;display:none'; (document.getElementById('game-container') || document.body).appendChild(el); }
   el.style.display = warn ? 'block' : 'none';
 }
+function botNearestFree(x, z, r) {
+  if (!collidesAt(x, z, r)) return null;
+  for (let rad = 0.5; rad <= 6; rad += 0.5) for (let a = 0; a < 6.283; a += 0.5) { const nx = x + Math.cos(a) * rad, nz = z + Math.sin(a) * rad; if (!collidesAt(nx, nz, r + 0.05)) return [nx, nz]; }
+  return null;
+}
 function updateBotAI(b, dt, now) {
+  // Round 17: never start a frame embedded in a collider (spawn overlap / door closing / pushed by separation)
+  if (!b.isBoss && !b.perch && (b.y || 0) < 0.5 && (b._embedChk = (b._embedChk || 0) - dt) <= 0) { b._embedChk = 0.5; const fr = botNearestFree(b.x, b.z, 0.5); if (fr) { b.x = fr[0]; b.z = fr[1]; } }
   const P = STATE.player;
   b.thinkT -= dt; if (b.thinkT <= 0) { b.thinkT = (IS_COARSE ? 0.5 : 0.35) + Math.random() * 0.25; aiThink(b); }
   if (b.los) b.lockT += dt; else b.lockT = Math.max(0, b.lockT - dt * 2);
@@ -2912,11 +3045,14 @@ function updateBotAI(b, dt, now) {
     const nx = b.x + mvx * dt, nz = b.z + mvz * dt;
     let moved = false;
     if (!collidesAt(nx, b.z, 0.55)) { b.x = nx; moved = true; } if (!collidesAt(b.x, nz, 0.55)) { b.z = nz; moved = true; }
-    if (!moved) { b.stuck = (b.stuck || 0) + dt; if (b.stuck > 0.8) { b.stuck = 0; b.path = b.goal ? aStar(b.x, b.z, b.goal.x, b.goal.z) : null; b.pathI = 0; } }
+    if (!moved) { b.stuck = (b.stuck || 0) + dt; if (b.stuck > 0.8) { b.stuck = 0; b.stuckN = (b.stuckN || 0) + 1; b.path = b.goal ? aStar(b.x, b.z, b.goal.x, b.goal.z) : null; b.pathI = 0;
+      // Round 17: repeated stalls → embedded in geometry or unreachable goal. Pop to the nearest free spot and re-think.
+      if (b.stuckN >= 2) { b.stuckN = 0; const fr = botNearestFree(b.x, b.z, 0.6); if (fr) { b.x = fr[0]; b.z = fr[1]; } b.goal = null; b.path = null; b.cover = null; b.thinkT = 0; } } }
+    else b.stuckN = 0;
   }
   // facing
   const faceP = b.aiState === 'combat' && (b.los || b.phase !== 'move');
-  const wantYaw = faceP ? Math.atan2(P.x - b.x, P.z - b.z) : (b.moving ? Math.atan2(mvx, mvz) : (b.role === 'sniper' && b.scanYaw !== undefined ? b.yaw + Math.sin(now * 0.0006 + b.x) * 0.02 : b.yaw));
+  const wantYaw = faceP ? Math.atan2(P.x - b.x, P.z - b.z) : (b.moving && Math.hypot(mvx, mvz) > 0.6 ? Math.atan2(mvx, mvz) : (b.role === 'sniper' && b.scanYaw !== undefined ? b.yaw + Math.sin(now * 0.0006 + b.x) * 0.02 : b.yaw));
   let dy = wantYaw - b.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); b.yaw += dy * Math.min(1, dt * (b.isHuman ? 9 : 5));
   b.rig.root.rotation.y = b.yaw;
   // crouch (humans duck behind low cover)
@@ -3048,7 +3184,7 @@ function posterTexture(p) {
 }
 function addPoster(x, z, rot, idx, y = 3.4) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 3.1), new THREE.MeshStandardMaterial({ map: (() => { const t = posterTexture(LORE_POSTERS[idx % LORE_POSTERS.length]); t.encoding = THREE.sRGBEncoding; return t; })(), roughness: 0.85, emissive: 0xffffff, emissiveIntensity: 0.06, emissiveMap: null }));
-  m.material.emissiveMap = m.material.map; m.position.set(x, y, z); m.rotation.y = rot; m.receiveShadow = true; arenaGroup.add(m); return m;
+  m.material.emissiveMap = m.material.map; m.position.set(x, y, z); m.rotation.y = rot; m.receiveShadow = true; twoSidedText(m, 0.006); arenaGroup.add(m); return m;
 }
 function addMemo(x, z, y, title, body, kind) {
   const g = new THREE.Group();
@@ -3544,7 +3680,7 @@ function animateViewModel(dt, now) {
   gunMesh.rotation.x = 0; gunMesh.rotation.y = 0;
   if (VM.swapT > 0) {
     VM.swapT = Math.max(0, VM.swapT - dt); const k = VM.swapT / 0.42;
-    gunMesh.position.y -= k * k * 0.35; gunMesh.rotation.x = -k * 0.9;
+    gunMesh.position.y -= k * k * 0.35; gunMesh.rotation.x = -k * 0.5;
     if (VM.swapEmp) { gunMesh.rotation.z += Math.sin(k * Math.PI) * 0.6; gunMesh.rotation.y = k * 0.5; }
   }
   if (VM.reloadT > 0) {
@@ -3552,7 +3688,12 @@ function animateViewModel(dt, now) {
     gunMesh.position.y -= dip * 0.12; gunMesh.rotation.x += dip * 0.45; gunMesh.rotation.z += dip * 0.35;
     if (VM.leftArm) { const m = Math.sin(Math.PI * Math.min(1, t * 1.6)); VM.leftArm.position.set(0.02 * m, -0.11 * m, 0.08 * m); VM.leftArm.rotation.x = 0.2 * m; }
   } else if (VM.leftArm) { VM.leftArm.position.multiplyScalar(0.8); VM.leftArm.rotation.x *= 0.8; }
-  VM.kick *= Math.exp(-dt * 14); gunMesh.rotation.x += VM.kick * 0.5; gunMesh.position.y += VM.kick * 0.04;
+  VM.kick *= Math.exp(-dt * 14); gunMesh.rotation.x += VM.kick * 0.35; gunMesh.position.y += VM.kick * 0.03;
+  // never let the rig leave the hands / screen corner, whatever stacks up (swap + reload + kick + ADS)
+  gunMesh.rotation.x = Math.max(-0.55, Math.min(0.5, gunMesh.rotation.x)); gunMesh.rotation.z = Math.max(-0.45, Math.min(0.45, gunMesh.rotation.z));
+  const _by = STATE.currentWeapon === 0 ? -0.28 : -0.26; gunMesh.position.y = Math.max(_by - 0.4, Math.min(_by + 0.06, gunMesh.position.y));
+  if (VM.leftArm && VM.leftArm.parent !== gunMesh && gunMesh.children.length) { try { gunMesh.add(VM.leftArm); } catch (e) {} }
+  if (VM.rightArm && VM.rightArm.parent !== gunMesh) { try { gunMesh.add(VM.rightArm); } catch (e) {} }
   // idle breathing on top of the existing bob
   gunMesh.rotation.x += Math.sin(now * 0.0016) * 0.008; gunMesh.rotation.y += Math.sin(now * 0.0011) * 0.01;
 }
@@ -3874,7 +4015,8 @@ function firePlayerWeapon() {
   if (STATE.currentWeapon === 0) SFX.playPulse();
   else if (STATE.currentWeapon === 1) SFX.playShotgun();
   else SFX.playPew(290);
-  if (gunMesh) gunMesh.position.z = (gunMesh.position.z || -0.52) + wep.recoil * 0.35; VM.kick = Math.min(0.5, VM.kick + wep.recoil * 0.9);
+  // Round 17: recoil is a bounded impulse (was unbounded z push + 0.5 kick → gun drifted off the arms on rapid fire / low fps)
+  VM.recoilZ = Math.min(0.045, (VM.recoilZ || 0) + wep.recoil * 0.18); VM.kick = Math.min(0.22, VM.kick + wep.recoil * 0.55);
   STATE.screenShake = Math.max(STATE.screenShake, wep.recoil * 0.6);
 
   const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(STATE.player.pitch, STATE.player.yaw, 0, 'YXZ'));
@@ -4148,6 +4290,7 @@ function wreckSlam(C) {
   if (!IS_COARSE) explode(P.x + d.x * H * 0.25, 0.3, P.z + d.y * H * 0.25, { scale: 1.1, noScorch: true });
   if (pd < H * 0.35) damagePlayer(Math.round(20 * k));
   BOTS.forEach(b => { if (!b.dying && segPointDist(P.x, 0, P.z, P.x + d.x * H, 0, P.z + d.y * H, new THREE.Vector3(b.x, 0, b.z)) < C.thick + 1.2) damageBot(b, 200); });
+  try { spawnShockwave(P.x + d.x * H * 0.5, P.z + d.y * H * 0.5, C.isMini ? 22 : 38, k); } catch (e) {}
   addKillFeed(`${C.isMini ? 'Mini Colossus' : 'Moses Colossus'} hits the floor`);
 }
 function wreckBuild(C) {
@@ -4929,7 +5072,7 @@ function gameLoop(now) {
   camera.rotation.order = 'YXZ'; camera.rotation.y = STATE.player.yaw; camera.rotation.x = STATE.player.pitch;
   if (gunMesh) {
     const baseZ = STATE.currentWeapon === 0 ? -0.52 : -0.48;
-    gunMesh.position.z += (baseZ - gunMesh.position.z) * 10 * dt;
+    VM.recoilZ = (VM.recoilZ || 0) * Math.exp(-dt * 16); gunMesh.position.z = baseZ + VM.recoilZ; // absolute each frame: no drift
     gunMesh.position.y = (STATE.currentWeapon === 0 ? -0.28 : -0.26) + bob;
     gunMesh.position.x = (STATE.currentWeapon === 0 ? 0.32 : 0.28) + sway;
     gunMesh.rotation.z = sway * 0.4;
@@ -6370,8 +6513,12 @@ function dmBotThink(b, dt) {
     if (d < 1.2) b.pi++; else { mx = dx / d; mz = dz / d; spd = 5.2; b.yaw = Math.atan2(-mx, -mz); }
   }
   const nx = b.x + mx * spd * dt, nz = b.z + mz * spd * dt;
-  if (!collidesAt(nx, b.z, 0.5)) b.x = nx; else b.path = null;
-  if (!collidesAt(b.x, nz, 0.5)) b.z = nz; else b.path = null;
+  let blocked = false;
+  if (!collidesAt(nx, b.z, 0.5)) b.x = nx; else { b.path = null; blocked = true; }
+  if (!collidesAt(b.x, nz, 0.5)) b.z = nz; else { b.path = null; blocked = true; }
+  // Round 17: a fighting bot that strafes into a wall flips direction instead of grinding against it; embedded bots pop free
+  if (blocked && spd > 0) { b.blockT = (b.blockT || 0) + dt; if (b.blockT > 0.3) { b.blockT = 0; b.strafe = -(b.strafe || 1); } } else b.blockT = 0;
+  if (collidesAt(b.x, b.z, 0.45)) { const fr = botNearestFree(b.x, b.z, 0.5); if (fr) { b.x = fr[0]; b.z = fr[1]; } }
   b.y = getGroundHeightAt(b.x, b.z, b.y || 0); b.spd = spd * Math.min(1, Math.hypot(mx, mz));
 }
 function dmAimList() { const me = dmMeEnt(); return Object.values(DM.ents).filter(e => e.alive && dmEnemy(me, e)).map(e => ({ x: e.x, y: (e.y || 0) + 0.2, z: e.z })); }
