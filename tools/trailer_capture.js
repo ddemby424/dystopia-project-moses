@@ -3,7 +3,7 @@
 // node tools/trailer_capture.js OUTDIR [shotName...]
 const { chromium } = require('playwright-core'); const fs = require('fs'), path = require('path'), http = require('http');
 const ROOT = path.resolve(__dirname, '..'); const OUT = process.argv[2]; const ONLY = process.argv.slice(3);
-const T = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.json': 'application/json' };
+const T = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.json': 'application/json' };
 const serve = () => new Promise(r => { const s = http.createServer((q, res) => { let p = decodeURIComponent(q.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html'; const f = path.join(ROOT, p); if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'content-type': T[path.extname(f)] || 'application/octet-stream' }); fs.createReadStream(f).pipe(res); }).listen(0, () => r([s, `http://127.0.0.1:${s.address().port}/index.html`])); });
 const FPS = 30;
 // shot: { name, L, F, secs, setup(js string run once), frame(js string run per frame with t in seconds) }
