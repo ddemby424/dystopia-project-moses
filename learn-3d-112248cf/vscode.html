@@ -1,0 +1,184 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="icon" href="data:,"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DYSTOPIA in VS Code: tiny steps</title><style>body{font:16px/1.5 system-ui,sans-serif;background:#111;color:#eee;max-width:820px;margin:auto;padding:14px}pre{background:#000;color:#9f9;padding:10px;overflow:auto;font-size:13px;border-radius:6px}a{color:#7cf}.step{border-left:4px solid #f60;padding-left:12px;margin:28px 0}.see{color:#fc6}.try{color:#6cf}code{background:#222;padding:1px 4px}.del pre{color:#f88}.lib{background:#1b2333;border-radius:6px;padding:6px 12px;font-size:14px}.lib ul{margin:4px 0;padding-left:20px}.s0{border-left-color:#6c6}.tree{color:#ddd}.tree b{color:#fc6}</style></head><body>
+<h1>Work on DYSTOPIA in VS Code</h1>
+<p>Tiny steps. Each one takes 1 to 5 minutes and ends with something you can <b>see</b>. Do one, take the win, then do the next. Stuck? Skip it and come back.</p>
+<p>Jump: <a href="#get">Get code</a> · <a href="#open">Open</a> · <a href="#tree">Folders</a> · <a href="#run">Run</a> · <a href="#edit">Change stuff</a> · <a href="#assets">Assets</a> · <a href="#push">Push</a> · <a href="#test">Test</a> · <a href="index.html">3D tutorial</a></p>
+
+<div class="step s0"><h2>0. Words you'll see (1-minute read)</h2>
+<div class="lib"><ul>
+<li><b>Repo</b> = the project folder that lives on GitHub. Like a TI-89 program group, but online.</li>
+<li><b>Clone</b> = copy the repo onto your PC, with its history.</li>
+<li><b>Commit</b> = a save point with a note. Like "Save As v2" but it remembers every version.</li>
+<li><b>Push</b> = send your commits up to GitHub. GitHub Pages then updates the live game in about 1 minute.</li>
+<li><b>Extension</b> = an add-on for VS Code, like a VB add-in.</li>
+</ul></div></div>
+
+<h2 id="get">Part 1: Get the code</h2>
+<div class="step"><h2>1. Install the 3 tools</h2>
+<p>Install these (all free, click Next until done): <a href="https://code.visualstudio.com/">VS Code</a>, <a href="https://git-scm.com/downloads">Git</a>, <a href="https://nodejs.org/">Node.js (LTS)</a>.</p>
+<p class="see">👀 Win: VS Code opens and shows a Welcome tab.</p></div>
+
+<div class="step"><h2>2a. Get the code with git clone (best)</h2>
+<p>In VS Code press <code>Ctrl+Shift+P</code>, type <code>Git: Clone</code>, press Enter, paste:</p>
+<pre>https://github.com/ddemby424/dystopia-project-moses.git</pre>
+<p>Pick a folder like <code>Documents</code>. Click <b>Open</b> when it asks.</p>
+<p class="see">👀 Win: the left sidebar fills with files like <code>index.html</code> and <code>game.js</code>.</p></div>
+
+<div class="step"><h2>2b. Or download the ZIP (no git)</h2>
+<p>Open <a href="https://github.com/ddemby424/dystopia-project-moses">the repo on GitHub</a>, click the green <b>Code</b> button, then <b>Download ZIP</b>. Right-click the ZIP, <b>Extract All</b>.</p>
+<p>⚠️ A ZIP can't push back to GitHub. Fine for poking around. Use 2a when you want to publish changes.</p>
+<p class="see">👀 Win: a folder called <code>dystopia-project-moses-main</code>.</p></div>
+
+<h2 id="open">Part 2: Open it</h2>
+<div class="step"><h2>3. Open the folder (not one file)</h2>
+<p>VS Code menu: <b>File → Open Folder…</b> and pick the repo folder. If it asks "Do you trust the authors?", click <b>Yes</b>.</p>
+<p>Always open the <b>whole folder</b>. Opening only <code>game.js</code> hides everything else.</p>
+<p class="see">👀 Win: click <code>game.js</code> in the sidebar and the code shows in colour.</p></div>
+
+<h2 id="tree">Part 3: What's in the box</h2>
+<div class="step"><h2>4. The folder map</h2>
+<pre class="tree"><b>dystopia-project-moses/</b>
+├─ <b>index.html</b>          the page skeleton: menus, HUD, buttons. Loads the two files below.
+├─ <b>style.css</b>           all the looks: colours, fonts, sizes, menu layout.
+├─ <b>game.js</b>             ALL the game code (~530 KB). Levels, weapons, Sentinels, sound.
+├─ models/            3D models (.glb). Sentinels, guns, props.
+├─ images/            pictures. images/tex/ = wall and floor textures.
+├─ audio/             short sounds and voice lines (.mp3), e.g. colossus_loved.mp3
+├─ music/             background songs (.mp3)
+├─ media/             the trailer video + poster + its sources list
+├─ fonts/             the game's fonts (.woff2) and their licences
+├─ icons/             app icons for phones
+├─ tools/             test robots: regression.js (big test), shots.js (screenshots)
+├─ learn-3d-…/        these tutorials
+├─ manifest.webmanifest  lets phones "install" the game
+├─ CREDITS.md         who made which asset, and its licence
+├─ STORY_BIBLE.md     the lore
+└─ README.md          project notes</pre>
+<p class="lib">Think of it like a VB project: <code>index.html</code> = the Form, <code>style.css</code> = the Properties window, <code>game.js</code> = the code module.</p>
+<p class="try">🧪 Try: open <code>index.html</code> and scroll to the bottom. You'll see the line that loads <code>game.js</code>.</p></div>
+
+<h2 id="run">Part 4: Run it on your PC</h2>
+<div class="step"><h2>5. Why double-clicking fails</h2>
+<p>Double-click <code>index.html</code> and the page opens as <code>file://…</code>. Browsers block a file page from loading other files, so <b>the models and textures won't load</b> (grey boxes, stuck loading bar). You need a tiny local web server.</p></div>
+
+<div class="step"><h2>6. Install Live Server</h2>
+<p>Click the <b>Extensions</b> icon (4 squares) on the left, or <code>Ctrl+Shift+X</code>. Search <code>Live Server</code> (by Ritwick Dey). Click <b>Install</b>.</p>
+<p class="see">👀 Win: a <b>Go Live</b> button appears at the bottom-right of VS Code.</p></div>
+
+<div class="step"><h2>7. Play it locally</h2>
+<p>Click <b>Go Live</b>. A browser opens at something like <code>http://127.0.0.1:5500/index.html</code>.</p>
+<p class="see">👀 Win: DYSTOPIA loads, with models, on your own PC.</p>
+<p class="try">🧪 Try: in <code>style.css</code> change any colour, press <code>Ctrl+S</code>. The browser refreshes by itself.</p></div>
+
+<h2 id="edit">Part 5: Change common things</h2>
+<div class="step"><h2>8. Find anything with Ctrl+F</h2>
+<p>Open <code>game.js</code>, press <code>Ctrl+F</code>, type a word below. <code>Enter</code> jumps to the next hit. <code>Ctrl+Shift+F</code> searches every file.</p>
+<pre>walkSpeed: 14          player run speed (try 20)
+jumpVel: 8.5           jump height
+weapons: [             all guns: damage, ammo, fireRate, spread
+damage: 28             Pulse Cannon damage
+const jobs = [         the list of every 3D model the game loads
+const PROP_BUILDERS    how each prop (powerbox, airduct…) is built
+function genFloorLayout   where props get placed in each level
+CREDITS_HTML           the in-game credits screen
+function playTrailer   the startup trailer</pre>
+<p>Also handy: <code>Ctrl+G</code> = go to line number. <code>Ctrl+Z</code> = undo. <code>Alt+Z</code> = wrap long lines.</p>
+<p class="see">👀 Win: change <code>walkSpeed: 14</code> to <code>walkSpeed: 24</code>, save, play. You zoom.</p>
+<p class="try">🧪 Then put it back to 14 (or keep it, your game!).</p></div>
+
+<h2 id="assets">Part 6: Assets (models, pictures, sounds)</h2>
+<div class="step"><h2>9. Where each kind lives</h2>
+<pre class="tree">3D models (.glb)        models/          e.g. models/ph_power_box.glb
+Textures (.jpg)         images/tex/      e.g. images/tex/metal_wall_1k.jpg
+Sounds, voices (.mp3)   audio/           e.g. audio/colossus_loved.mp3
+Music (.mp3)            music/
+Video (.mp4)            media/           media/dystopia_trailer_720p.mp4
+Fonts (.woff2)          fonts/           + the licence .txt next to it</pre></div>
+
+<div class="step"><h2>10. Naming rules</h2>
+<ul><li>all lowercase, words joined with <code>_</code>: <code>crate_metal.glb</code> ✅ <code>Crate Metal(1).GLB</code> ❌</li>
+<li>no spaces (the live site is picky about case: <code>Crate.glb</code> ≠ <code>crate.glb</code>)</li>
+<li>textures end in their size: <code>_1k.jpg</code></li>
+<li>prefix by source if you like: <code>ph_</code> = Poly Haven, <code>pp_</code> = Poly Pizza</li></ul></div>
+
+<div class="step"><h2>11. Phone budget (so it stays smooth)</h2>
+<pre>One prop          under 5,000 triangles,  under 500 KB
+One enemy model   under 20,000 triangles, under 2 MB
+Textures          1024×1024 (1K) max, .jpg (or .png only if it needs see-through)
+Sounds            .mp3, under 200 KB each
+Music             .mp3, 128 kbps</pre>
+<p>Check a model: drag it onto <a href="https://gltf-viewer.donmccurdy.com/">gltf-viewer.donmccurdy.com</a>. It shows size and triangles.</p></div>
+
+<div class="step"><h2>12. Shrink a big model (1 command)</h2>
+<p>Open VS Code's terminal: <code>Ctrl+`</code> (the key under Esc). Paste:</p>
+<pre>npx @gltf-transform/cli optimize models/big.glb models/crate_metal.glb --texture-compress webp --texture-size 1024 --simplify-ratio 0.25</pre>
+<p><code>0.25</code> keeps a quarter of the triangles. Too blobby? Try <code>0.5</code>.</p>
+<p class="see">👀 Win: the new file is much smaller. Check it in the viewer from step 11.</p></div>
+
+<div class="step"><h2>13. Worked example: add a new 3D prop</h2>
+<p><b>13a. Drop the file in.</b> Download a model (e.g. a crate from <a href="https://poly.pizza">Poly Pizza</a>, or one you made on Meshy). Rename it <code>crate_metal.glb</code>, put it in <code>models/</code>.</p>
+<p><b>13b. Add it to the loader list.</b> In <code>game.js</code>, <code>Ctrl+F</code> → <code>const jobs = [</code>. Find the <code>ph_airduct</code> line and add ONE line under it:</p>
+<pre>    { file: 'models/ph_airduct.glb', role: 'prop:ph_airduct', height: 0.75 },
+    { file: 'models/crate_metal.glb', role: 'prop:crate_metal', height: 1.0 },</pre>
+<p class="lib"><code>height</code> = how tall it ends up in metres (the game auto-scales it). The part after <code>prop:</code> is its nickname.</p>
+<p><b>13c. Teach the game how to build it.</b> <code>Ctrl+F</code> → <code>const PROP_BUILDERS = {</code>. Paste this right after that line:</p>
+<pre>  crate(o) {
+    const g = new THREE.Group();
+    const c = cloneProp('crate_metal');               // the nickname from 13b
+    if (c) {
+      c.position.set(0, 0, 0);                        // nudge: x, up, z (metres)
+      c.scale.setScalar(o.scale || 1);                // bigger: { scale: 1.5 }
+      g.add(c);
+    }
+    return { g, collide: null };
+  },</pre>
+<p><b>13d. Place it in a level.</b> <code>Ctrl+F</code> → <code>add('powerbox', 3.95, 60.5</code>. On a new line under it paste:</p>
+<pre>    add('crate', 3.0, 58.0, { rot: Math.PI / 4, scale: 1.2 });</pre>
+<p class="lib"><code>3.0, 58.0</code> = x and z on the floor map. <code>rot</code> = turn in radians (<code>Math.PI / 2</code> = 90°, <code>Math.PI</code> = 180°), just like TI-89 radian mode.</p>
+<p class="see">👀 Win: save, the Live Server page reloads, walk to that spot: your crate is there.</p>
+<p class="try">🧪 Try: change <code>rot</code> to <code>Math.PI</code> and <code>scale</code> to <code>2</code>.</p></div>
+
+<div class="step"><h2>14. Add a sound</h2>
+<p>Put <code>alarm_beep.mp3</code> in <code>audio/</code>. Anywhere you want it to play (e.g. inside a function that runs on an event), paste:</p>
+<pre>try { if (!SFX.muted) { const a = new Audio('audio/alarm_beep.mp3'); a.volume = 0.8; a.play().catch(() =&gt; {}); } } catch (e) {}</pre>
+<p class="lib">This is the same pattern the game uses for <code>audio/sentinel_dispatch.mp3</code> (search it to see).</p>
+<p class="see">👀 Win: you hear it when that event happens.</p></div>
+
+<div class="step"><h2>15. Swap a texture</h2>
+<p>Make your picture 1024×1024, save as <code>images/tex/rust_wall_1k.jpg</code>. In <code>game.js</code> <code>Ctrl+F</code> → <code>metal_wall_1k.jpg</code> and change just the filename:</p>
+<pre>swap(WALL_PBR.map, 'images/tex/rust_wall_1k.jpg', '#4a5670', true, 3);</pre>
+<p class="see">👀 Win: every wall now wears your texture.</p></div>
+
+<div class="step"><h2>16. Credit it (every time)</h2>
+<p>Open <code>CREDITS.md</code> and add one line, e.g.:</p>
+<pre>- "Metal Crate" by SomeArtist via Poly Pizza, CC BY 3.0 — models/crate_metal.glb</pre>
+<p>CC0 = no credit needed (still nice). CC BY = you <b>must</b> credit: also add it to the in-game screen (<code>Ctrl+F</code> → <code>CREDITS_HTML</code>). "NC" or "ND" licences: skip that asset.</p></div>
+
+<div class="step"><h2>17. Test, then publish</h2>
+<p>Play it with <b>Go Live</b> (step 7). Looks good? Push it (Part 7).</p></div>
+
+<h2 id="push">Part 7: Save, commit, push</h2>
+<div class="step"><h2>18. Save</h2>
+<p><code>Ctrl+S</code>. A white dot on a tab = not saved yet. Tip: <b>File → Auto Save</b> turns that worry off.</p></div>
+<div class="step"><h2>19. Commit</h2>
+<p>Click <b>Source Control</b> on the left (the branch icon, <code>Ctrl+Shift+G</code>). Your changed files are listed; click one to see red (old) vs green (new). Type a note in the box, like <code>Faster walk speed</code>, click <b>✓ Commit</b>. If it asks to stage all changes, click <b>Yes</b>.</p>
+<p>First time only, git asks who you are. In the terminal (<code>Ctrl+`</code>):</p>
+<pre>git config --global user.name "ddemby424"
+git config --global user.email "ddemby424@users.noreply.github.com"</pre></div>
+<div class="step"><h2>20. Push</h2>
+<p>Click <b>Sync Changes</b> (or <b>⋯ → Push</b>). First time, it opens GitHub in the browser to sign in; click <b>Authorize</b>.</p>
+<p class="see">👀 Win: wait about 1 minute, open <a href="https://ddemby424.github.io/dystopia-project-moses/">the live game</a>, hard-refresh (<code>Ctrl+Shift+R</code>). Your change is live for everyone.</p></div>
+
+<h2 id="test">Part 8: Run the test robot</h2>
+<div class="step"><h2>21. One-time setup</h2>
+<p>Terminal (<code>Ctrl+`</code>) in the repo folder:</p>
+<pre>npm install playwright-core
+npx playwright install chromium</pre></div>
+<div class="step"><h2>22. Run the big test</h2>
+<pre>node tools/regression.js --quick</pre>
+<p>That's the fast version (2 floors). The full one, all 9 levels plus phones, takes a while:</p>
+<pre>node tools/regression.js</pre>
+<p>If Chrome isn't found, add its path, e.g. <code>--chrome "C:\Program Files\Google\Chrome\Application\chrome.exe"</code>.</p>
+<p class="see">👀 Win: lines saying <code>PASS</code> scroll by, then a total like <code>264/264</code>. Any <code>FAIL</code> line tells you which level and what broke. Screenshots go to <code>regression-out/</code>.</p></div>
+
+<h2>You did it</h2><p>Get code → open folder → Go Live → change one thing → commit → push. That loop is the whole job. Everything else is just more loops.</p>
+</body></html>
