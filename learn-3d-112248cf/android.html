@@ -1,0 +1,198 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="icon" href="data:,"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DYSTOPIA on an Android tablet: tiny steps</title><style>body{font:16px/1.5 system-ui,sans-serif;background:#111;color:#eee;max-width:820px;margin:auto;padding:14px}pre{background:#000;color:#9f9;padding:10px;overflow:auto;font-size:13px;border-radius:6px}a{color:#7cf}.step{border-left:4px solid #f60;padding-left:12px;margin:28px 0}.see{color:#fc6}.try{color:#6cf}code{background:#222;padding:1px 4px}.del pre{color:#f88}.lib{background:#1b2333;border-radius:6px;padding:6px 12px;font-size:14px}.lib ul{margin:4px 0;padding-left:20px}.s0{border-left-color:#6c6}.tree{color:#ddd}.tree b{color:#fc6}.kb td{padding:2px 10px;border-bottom:1px solid #333}kbd{background:#333;border:1px solid #555;border-radius:4px;padding:0 5px;font-size:13px}.alt{border-left-color:#c6f}</style></head><body>
+<h1>Work on DYSTOPIA on your Android tablet</h1>
+<p>For the Lenovo tablet + Targus keyboard. Tiny steps, each ends with a 👀 win. Two apps are covered: <b>Spck Editor</b> (has Git built in, the easiest way to push) and <b>Acode</b> (great editor, uses a plugin for GitHub). Pick one. If unsure, pick <b>Spck</b>.</p>
+<p>On a PC instead? See <a href="vscode.html">the VS Code version</a>. · <a href="index.html">3D tutorial</a></p>
+<p>Jump: <a href="#keys">Keys</a> · <a href="#install">Install</a> · <a href="#token">Token</a> · <a href="#get">Get code</a> · <a href="#tree">Folders</a> · <a href="#run">Run</a> · <a href="#edit">Change stuff</a> · <a href="#assets">Assets</a> · <a href="#push">Push</a> · <a href="#test">Tests</a></p>
+
+<div class="step s0" id="keys"><h2>⌨️ Keyboard cheat sheet (Targus keyboard)</h2>
+<table class="kb">
+<tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>save (both apps)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>find in this file (both)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>undo (both)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>V</kbd> / <kbd>X</kbd></td><td>copy / paste / cut</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>G</kbd></td><td>Acode: go to line number</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Acode: find a file by name</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td>Acode: command palette (type any command) · Spck: launch project preview</td></tr>
+<tr><td><kbd>F5</kbd></td><td>Acode: run / preview the open file</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></td><td>Spck: Git commit</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Tab</kbd></td><td>Acode: next file tab</td></tr>
+<tr><td><kbd>Alt</kbd>+<kbd>Tab</kbd></td><td>Android: jump between apps (editor ⇄ Chrome). Works on Android 13+ with a keyboard.</td></tr>
+</table>
+<p class="lib">Spck's docs list shortcuts with ⌘ (Mac). On your keyboard use <kbd>Ctrl</kbd> where it says ⌘. If one key combo does nothing, use the on-screen menu instead; the steps below always say where.</p>
+<p><b>Split screen (editor + game side by side):</b> open the editor, open Recents (swipe up and hold, or the square button), tap the editor's icon at the top of its card → <b>Split screen</b> (some Lenovo builds say <b>Open in split screen view</b>), then tap Chrome. Drag the middle bar to resize.</p>
+<p class="see">👀 Win: code on the left, game on the right.</p></div>
+
+<div class="step s0"><h2>0. Words you'll see</h2><div class="lib"><ul>
+<li><b>Repo</b> = the project folder on GitHub. <b>Clone</b> = copy it onto the tablet.</li>
+<li><b>Commit</b> = a save point with a note. <b>Push</b> = send commits to GitHub; the live game updates in about 1 minute.</li>
+<li><b>Token</b> = a long password made only for one app. You can cancel it any time.</li></ul></div></div>
+
+<h2 id="install">Part 1: Install</h2>
+<div class="step"><h2>1. Get the app from the Play Store</h2>
+<p>Play Store → search <b>Spck Editor</b> (by Spck, "Spck Editor / Git Client") or <b>Acode</b> → <b>Install</b>. The free versions are enough.</p>
+<p class="see">👀 Win: the app opens to its project/file screen.</p></div>
+
+<h2 id="token">Part 2: A GitHub token (the safe way)</h2>
+<div class="step"><h2>2. Make a token</h2>
+<p>In Chrome, sign in to GitHub, then open <a href="https://github.com/settings/personal-access-tokens/new">github.com/settings/personal-access-tokens/new</a> (fine-grained token).</p>
+<ol><li>Name: <code>tablet-spck</code> (or <code>tablet-acode</code>).</li>
+<li>Expiration: 90 days.</li>
+<li>Repository access: <b>Only select repositories</b> → <code>dystopia-project-moses</code>.</li>
+<li>Permissions → Repository: <b>Contents: Read and write</b> (Metadata: Read is added for you). Spck's own link also adds Pull requests: Read and write; that's optional.</li>
+<li><b>Generate token</b>, then copy it right away. GitHub shows it only once.</li></ol>
+<p>🔒 <b>Safety rules:</b> paste it <b>only</b> into the app's credentials box. Never into chat (not even to Grok Bot), email, a code file, or a screenshot. If it ever leaks: GitHub → Settings → Developer settings → Personal access tokens → <b>Delete</b>, then make a new one.</p>
+<p class="see">👀 Win: a token starting with <code>github_pat_</code> on your clipboard.</p></div>
+
+<h2 id="get">Part 3: Get the code</h2>
+<div class="step"><h2>3S. Spck: save the token, then clone</h2>
+<p>Spck: <b>Git menu → Git Credentials</b> → choose <b>GitHub</b> → paste the token → save.</p>
+<p>Then create a project by cloning: on the project screen pick the <b>clone</b> option and paste</p>
+<pre>https://github.com/ddemby424/dystopia-project-moses.git</pre>
+<p>Keep the project in <b>device storage</b>. Spck's Git needs a real device folder.</p>
+<p class="see">👀 Win: the project opens and you see <code>index.html</code>, <code>game.js</code>…</p></div>
+
+<div class="step alt"><h2>3A. Acode, option 1: GitHub plugin</h2>
+<p>Acode: menu (top-left) → <b>Extensions</b> icon → search <b>GitHub</b> → <b>Install</b>. Tap the GitHub icon in the sidebar → <b>Sign in with GitHub</b> (or <b>Use personal access token</b> and paste yours) → pick <code>dystopia-project-moses</code> → branch <code>main</code>. It opens as a folder.</p>
+<p class="lib">This plugin edits the repo <b>directly on GitHub</b>. Every save becomes a commit (it asks for a message). No separate push step. The flip side: every save goes live.</p>
+<p class="see">👀 Win: the repo files appear in Acode's sidebar.</p></div>
+<div class="step alt"><h2>3A. Acode, option 2: ZIP (read and tinker only)</h2>
+<p>In Chrome open <a href="https://github.com/ddemby424/dystopia-project-moses">the repo</a> → <b>Code</b> → <b>Download ZIP</b>. Open the <b>Files</b> app → Downloads → tap the ZIP → <b>Extract</b>. In Acode: menu → <b>Open Folder</b> → pick the extracted folder.</p>
+<p>⚠️ A ZIP copy can't push. Use it to experiment, then make the real change with option 1 or Spck.</p></div>
+
+<h2 id="tree">Part 3½: What's in the box</h2>
+<div class="step"><h2>4. The folder map</h2>
+<pre class="tree"><b>dystopia-project-moses/</b>
+├─ <b>index.html</b>          the page skeleton: menus, HUD, buttons. Loads the two files below.
+├─ <b>style.css</b>           all the looks: colours, fonts, sizes, menu layout.
+├─ <b>game.js</b>             ALL the game code (~530 KB). Levels, weapons, Sentinels, sound.
+├─ models/            3D models (.glb). Sentinels, guns, props.
+├─ images/            pictures. images/tex/ = wall and floor textures.
+├─ audio/             short sounds and voice lines (.mp3), e.g. colossus_loved.mp3
+├─ music/             background songs (.mp3)
+├─ media/             the trailer video + poster + its sources list
+├─ fonts/             the game's fonts (.woff2) and their licences
+├─ icons/             app icons for phones
+├─ tools/             test robots: regression.js (big test), shots.js (screenshots)
+├─ learn-3d-…/        these tutorials
+├─ manifest.webmanifest  lets phones "install" the game
+├─ CREDITS.md         who made which asset, and its licence
+├─ STORY_BIBLE.md     the lore
+└─ README.md          project notes</pre>
+<p class="lib">VB comparison: <code>index.html</code> = the Form, <code>style.css</code> = the Properties window, <code>game.js</code> = the code module.</p></div>
+
+<h2 id="run">Part 4: Run it on the tablet</h2>
+<div class="step"><h2>5. Why tapping index.html in Files fails</h2>
+<p>Opening the file straight from Files gives a <code>file://</code> or <code>content://</code> address. Browsers won't let that page load other files, so the <b>models and textures don't load</b> (stuck loading bar, grey boxes). You need the app's little web server.</p></div>
+<div class="step"><h2>6S. Spck preview</h2>
+<p>Open <code>index.html</code> and tap the <b>preview</b> (play) button, or press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>. In <b>Settings → Tablet Mode</b> you get editor and preview side by side; <b>Live Preview</b> refreshes it when the code changes.</p>
+<p class="see">👀 Win: DYSTOPIA runs inside Spck.</p></div>
+<div class="step alt"><h2>6A. Acode preview</h2>
+<p>Open <code>index.html</code> and press <kbd>F5</kbd> (or tap the ▶ run button at the top). Acode serves the folder and opens a preview; from its menu you can open it in Chrome.</p>
+<p>Want auto-reload? The <b>Live Server</b> plugin (Extensions → search "Live Server") does that, but it needs <b>Termux</b> running a small server too. It's optional; F5 is enough.</p>
+<p>⚠️ With the GitHub plugin (3A option 1) the files live on GitHub, not on the tablet, so preview may not load the models. Check on the live site after saving (step 20).</p></div>
+<div class="step"><h2>7. Editor + game side by side</h2>
+<p>Open the preview in Chrome, then use split screen (cheat sheet) or <kbd>Alt</kbd>+<kbd>Tab</kbd> to hop between them. After saving, refresh Chrome.</p></div>
+
+<h2 id="edit">Part 5: Change common things</h2>
+<div class="step"><h2>8. Find anything</h2>
+<p>Open <code>game.js</code>, press <kbd>Ctrl</kbd>+<kbd>F</kbd> (or the 🔍 icon), type a word below. Both apps also search the whole project from the side menu.</p>
+<pre>walkSpeed: 14          player run speed (try 20)
+jumpVel: 8.5           jump height
+weapons: [             all guns: damage, ammo, fireRate, spread
+damage: 28             Pulse Cannon damage
+const jobs = [         the list of every 3D model the game loads
+const PROP_BUILDERS    how each prop (powerbox, airduct…) is built
+function genFloorLayout   where props get placed in each level
+CREDITS_HTML           the in-game credits screen
+function playTrailer   the startup trailer</pre>
+<p class="lib"><code>game.js</code> is big (~530 KB). If the app feels slow, scrolling is the slow part; jump with <kbd>Ctrl</kbd>+<kbd>F</kbd> or <kbd>Ctrl</kbd>+<kbd>G</kbd> (Acode).</p>
+<p class="see">👀 Win: change <code>walkSpeed: 14</code> to <code>24</code>, <kbd>Ctrl</kbd>+<kbd>S</kbd>, refresh the preview, and you zoom.</p></div>
+
+<h2 id="assets">Part 6: Assets (models, pictures, sounds)</h2>
+<p>Getting files onto the tablet: download in Chrome, then <b>move</b> them with the Files app into the project's folder (e.g. <code>models/</code>). In Spck you can also import files into the project. With the Acode GitHub plugin, create the file in the right folder from the plugin's file browser.</p>
+<div class="step"><h2>A1. Where each kind lives</h2>
+<pre class="tree">3D models (.glb)        models/          e.g. models/ph_power_box.glb
+Textures (.jpg)         images/tex/      e.g. images/tex/metal_wall_1k.jpg
+Sounds, voices (.mp3)   audio/           e.g. audio/colossus_loved.mp3
+Music (.mp3)            music/
+Video (.mp4)            media/           media/dystopia_trailer_720p.mp4
+Fonts (.woff2)          fonts/           + the licence .txt next to it</pre></div>
+
+<div class="step"><h2>A2. Naming rules</h2>
+<ul><li>all lowercase, words joined with <code>_</code>: <code>crate_metal.glb</code> ✅ <code>Crate Metal(1).GLB</code> ❌</li>
+<li>no spaces (the live site is picky about case: <code>Crate.glb</code> ≠ <code>crate.glb</code>)</li>
+<li>textures end in their size: <code>_1k.jpg</code></li>
+<li>prefix by source if you like: <code>ph_</code> = Poly Haven, <code>pp_</code> = Poly Pizza</li></ul></div>
+
+<div class="step"><h2>A3. Phone budget (so it stays smooth)</h2>
+<pre>One prop          under 5,000 triangles,  under 500 KB
+One enemy model   under 20,000 triangles, under 2 MB
+Textures          1024×1024 (1K) max, .jpg (or .png only if it needs see-through)
+Sounds            .mp3, under 200 KB each
+Music             .mp3, 128 kbps</pre>
+<p>Check a model: drag it onto <a href="https://gltf-viewer.donmccurdy.com/">gltf-viewer.donmccurdy.com</a>. It shows size and triangles.</p></div>
+
+<div class="step"><h2>A4. Shrink a big model (1 command)</h2>
+<p>⚠️ This needs a computer (or Termux). On the tablet: <b>ask Grok Bot to shrink it for you</b>. The command it runs:</p>
+<pre>npx @gltf-transform/cli optimize models/big.glb models/crate_metal.glb --texture-compress webp --texture-size 1024 --simplify-ratio 0.25</pre>
+<p><code>0.25</code> keeps a quarter of the triangles. Too blobby? Try <code>0.5</code>.</p>
+<p class="see">👀 Win: the new file is much smaller. Check it in the viewer from step A3.</p></div>
+
+<div class="step"><h2>A5. Worked example: add a new 3D prop</h2>
+<p><b>A5a. Drop the file in.</b> Download a model (e.g. a crate from <a href="https://poly.pizza">Poly Pizza</a>, or one you made on Meshy). Rename it <code>crate_metal.glb</code>, put it in <code>models/</code>.</p>
+<p><b>A5b. Add it to the loader list.</b> In <code>game.js</code>, <code>Ctrl+F</code> → <code>const jobs = [</code>. Find the <code>ph_airduct</code> line and add ONE line under it:</p>
+<pre>    { file: 'models/ph_airduct.glb', role: 'prop:ph_airduct', height: 0.75 },
+    { file: 'models/crate_metal.glb', role: 'prop:crate_metal', height: 1.0 },</pre>
+<p class="lib"><code>height</code> = how tall it ends up in metres (the game auto-scales it). The part after <code>prop:</code> is its nickname.</p>
+<p><b>A5c. Teach the game how to build it.</b> <code>Ctrl+F</code> → <code>const PROP_BUILDERS = {</code>. Paste this right after that line:</p>
+<pre>  crate(o) {
+    const g = new THREE.Group();
+    const c = cloneProp('crate_metal');               // the nickname from A5b
+    if (c) {
+      c.position.set(0, 0, 0);                        // nudge: x, up, z (metres)
+      c.scale.setScalar(o.scale || 1);                // bigger: { scale: 1.5 }
+      g.add(c);
+    }
+    return { g, collide: null };
+  },</pre>
+<p><b>A5d. Place it in a level.</b> <code>Ctrl+F</code> → <code>add('powerbox', 3.95, 60.5</code>. On a new line under it paste:</p>
+<pre>    add('crate', 3.0, 58.0, { rot: Math.PI / 4, scale: 1.2 });</pre>
+<p class="lib"><code>3.0, 58.0</code> = x and z on the floor map. <code>rot</code> = turn in radians (<code>Math.PI / 2</code> = 90°, <code>Math.PI</code> = 180°), just like TI-89 radian mode.</p>
+<p class="see">👀 Win: <kbd>Ctrl</kbd>+<kbd>S</kbd>, refresh the preview (Part 4), walk to that spot: your crate is there.</p>
+<p class="try">🧪 Try: change <code>rot</code> to <code>Math.PI</code> and <code>scale</code> to <code>2</code>.</p></div>
+
+<div class="step"><h2>A6. Add a sound</h2>
+<p>Put <code>alarm_beep.mp3</code> in <code>audio/</code>. Anywhere you want it to play (e.g. inside a function that runs on an event), paste:</p>
+<pre>try { if (!SFX.muted) { const a = new Audio('audio/alarm_beep.mp3'); a.volume = 0.8; a.play().catch(() =&gt; {}); } } catch (e) {}</pre>
+<p class="lib">This is the same pattern the game uses for <code>audio/sentinel_dispatch.mp3</code> (search it to see).</p>
+<p class="see">👀 Win: you hear it when that event happens.</p></div>
+
+<div class="step"><h2>A7. Swap a texture</h2>
+<p>Make your picture 1024×1024, save as <code>images/tex/rust_wall_1k.jpg</code>. In <code>game.js</code> <code>Ctrl+F</code> → <code>metal_wall_1k.jpg</code> and change just the filename:</p>
+<pre>swap(WALL_PBR.map, 'images/tex/rust_wall_1k.jpg', '#4a5670', true, 3);</pre>
+<p class="see">👀 Win: every wall now wears your texture.</p></div>
+
+<div class="step"><h2>A8. Credit it (every time)</h2>
+<p>Open <code>CREDITS.md</code> and add one line, e.g.:</p>
+<pre>- "Metal Crate" by SomeArtist via Poly Pizza, CC BY 3.0 — models/crate_metal.glb</pre>
+<p>CC0 = no credit needed (still nice). CC BY = you <b>must</b> credit: also add it to the in-game screen (<code>Ctrl+F</code> → <code>CREDITS_HTML</code>). "NC" or "ND" licences: skip that asset.</p></div>
+
+<div class="step"><h2>A9. Test, then publish</h2>
+<p>Check it in the preview (Part 4). Looks good? Commit and push (Part 7).</p></div>
+
+
+<h2 id="push">Part 7: Commit and push</h2>
+<div class="step"><h2>18S. Spck</h2>
+<p><kbd>Ctrl</kbd>+<kbd>S</kbd> to save. <b>Git menu → Commit</b> (or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd>), type a note like <code>Faster walk speed</code>, commit. Then <b>Git menu → Push</b>.</p></div>
+<div class="step alt"><h2>18A. Acode</h2>
+<p>With the GitHub plugin, <kbd>Ctrl</kbd>+<kbd>S</kbd> <b>is</b> the commit: type a message when it asks. Done.</p></div>
+<div class="step"><h2>19. See it live</h2>
+<p>Wait about 1 minute, open <a href="https://ddemby424.github.io/dystopia-project-moses/">the live game</a>, refresh.</p>
+<p class="see">👀 Win: your change is live for everyone.</p></div>
+
+<h2 id="test">Part 8: The test robot</h2>
+<div class="step"><h2>20. Ask Grok Bot to run the tests</h2>
+<p><code>node tools/regression.js</code> needs Node.js and a desktop Chrome. That doesn't run on the tablet (only with a lot of Termux setup). After you push, just say: <b>"run the regression"</b>, and Grok Bot will run all 264 checks and tell you what passed or broke.</p></div>
+
+<h2>You did it</h2><p>Get code → edit → <kbd>Ctrl</kbd>+<kbd>S</kbd> → preview → commit → push. That loop is the whole job.</p>
+</body></html>
