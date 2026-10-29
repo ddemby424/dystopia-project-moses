@@ -6203,7 +6203,7 @@ const CREDITS_HTML = `<div class="gc-t">CREDITS</div>
  <div class="cr-sec"><b>FONTS</b><br>Black Ops One · Chakra Petch · Caveat — SIL Open Font License 1.1</div>
  <div class="cr-sec dim">Now playing: “Feral Angel Waltz” — Kevin MacLeod</div><button id="cr-close">CLOSE</button>`;
 // ---------- Round 19: startup trailer (first launch auto-plays muted; Skip; tap for sound; Watch Trailer in menus) ----------
-const TRAILER_SRC = 'media/dystopia_trailer_720p.mp4', TRAILER_KEY = 'dys_trailer_seen';
+const TRAILER_SRC = 'media/dystopia_trailer_720p.mp4', TRAILER_KEY = 'dys_trailer_seen_v3';
 function playTrailer(manual) {
   if (document.getElementById('trailer-overlay')) return;
   const el = document.createElement('div'); el.id = 'trailer-overlay';

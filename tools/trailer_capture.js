@@ -39,7 +39,7 @@ const SHOTS = [
   const ctx = await br.newContext({ viewport: { width: +(process.env.TW || 1280), height: +(process.env.TH || 720) }, deviceScaleFactor: 1 }); const p = await ctx.newPage();
   p.on('pageerror', e => console.log('pageerror', e.message));
   await p.addInitScript(() => {
-    try { localStorage.setItem('dys_trailer_seen', '1'); } catch (e) {}
+    try { localStorage.setItem('dys_trailer_seen_v3', '1'); } catch (e) {}
     const rRAF = window.requestAnimationFrame.bind(window), rNow = performance.now.bind(performance);
     let virt = false, vt = 0, q = [];
     window.requestAnimationFrame = cb => { if (!virt) return rRAF(cb); q.push(cb); return q.length; };
