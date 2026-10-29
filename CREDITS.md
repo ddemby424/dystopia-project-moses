@@ -44,4 +44,4 @@ Self-hosted in `fonts/` under the SIL Open Font License 1.1 (license texts along
 - Caveat (in-world handwritten notes)
 
 ## Trailer
-Music: "Dark Times" and "Aggressor" by Kevin MacLeod (incompetech.com), CC BY 4.0. Archival footage: Prelinger Archives and Universal Newsreel via archive.org (public domain); captions/dates are fictional. Narrator: Piper TTS voice "john" (public-domain LibriVox data). Full clip list: media/TRAILER_SOURCES.md.
+Music: "Dark Times" and "Aggressor" by Kevin MacLeod (incompetech.com), CC BY 4.0. Footage: U.S. DoD/DVIDS videos via Wikimedia Commons (public domain); "United Nations Headquarters – Security Council chamber, angled view" by Jdforrester (Wikimedia Commons), CC BY 4.0; other stills CC0/public domain. A fictional story; footage used under licence. Narrator: Piper TTS voice "john" (public-domain LibriVox data). Full clip list: media/TRAILER_SOURCES.md.

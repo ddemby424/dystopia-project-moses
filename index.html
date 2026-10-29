@@ -2135,7 +2135,7 @@ function buildColossus(height, opts = {}) {
   const g = new THREE.Group();
   const isMini = !!opts.mini;
   const tpl = isMini ? (MESHY_TEMPLATES.guard || MESHY_TEMPLATES.bot) : (MESHY_TEMPLATES.colossus || MESHY_TEMPLATES.bot || MESHY_TEMPLATES.guard);
-  const C = { root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: null, hand: null };
+  const C = { ownCannon: !isMini && tpl === MESHY_TEMPLATES.colossus && !!tpl, root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: null, hand: null };
   if (tpl && THREE.SkeletonUtils) {
     const c = THREE.SkeletonUtils.clone(tpl.scene);
     c.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; if (o.material) { o.material = o.material.clone(); brightenMat(o.material); if (isMini && o.material.color) o.material.color.multiplyScalar(0.85).lerp(new THREE.Color(0x60a5fa), 0.12); } } });
@@ -3656,7 +3656,7 @@ function buildColossusCannon(C) {
 }
 function updateColossusCannon(C) {
   if (!C.cannon) buildColossusCannon(C);
-  const g = C.cannon; g.visible = !C.dead && C.root.visible;
+  const g = C.cannon; g.visible = !C.dead && C.root.visible && !C.ownCannon; // Round 20: Meshy Colossus has its own arm cannon
   const hp = new THREE.Vector3(); (C.hand || C.fallback).getWorldPosition(hp);
   const tgt = new THREE.Vector3(STATE.player.x, STATE.player.y + 1.2, STATE.player.z);
   const dir = tgt.sub(hp).normalize();
@@ -4623,9 +4623,9 @@ function initSoftSpots(C) {
     const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 1, fog: false });
     const g = new THREE.Group();
     const orb = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), mat); g.add(orb);
-    const halo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 10), new THREE.MeshBasicMaterial({ color: col, fog: false, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false })); g.add(halo);
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 10), new THREE.MeshBasicMaterial({ color: col, fog: false, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false })); halo.material.opacity = 0.14; g.add(halo);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.12, 6, 24), new THREE.MeshBasicMaterial({ color: 0xffe0a0, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false })); g.add(ring);
-    const R = d.r * H; g.scale.setScalar(R * 0.6); g.renderOrder = 4; scene.add(g);
+    const R = d.r * H; g.scale.setScalar(R * 0.38); g.renderOrder = 4; scene.add(g);
     const sp = { def: d, key: d.key, bone, g, orb, halo, ring, mat, R, hp: Math.round(C.maxHp * d.hp), maxHp: Math.round(C.maxHp * d.hp), dead: false, fxT: 0, pos: new THREE.Vector3() };
     if (d.key === 'core') {
       const pm = new THREE.MeshStandardMaterial({ color: 0x3a3330, metalness: 0.85, roughness: 0.35 });
@@ -6921,7 +6921,7 @@ const CREDITS_HTML = `<div class="gc-t">CREDITS</div>
  <div class="cr-sec"><b>MUSIC</b><br>
  “Rising Game” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100593" target="_blank" rel="noopener">source</a><br>“Dark Times” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100747" target="_blank" rel="noopener">source</a><br>“Devastation and Revenge” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100694" target="_blank" rel="noopener">source</a><br>“Metalmania” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1700023" target="_blank" rel="noopener">source</a><br>“Killers” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1600024" target="_blank" rel="noopener">source</a><br>“Aggressor” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1700051" target="_blank" rel="noopener">source</a><br>“Burn The World Waltz” — Kevin MacLeod featuring Alexander Nakarada (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN2100009" target="_blank" rel="noopener">source</a><br>“Feral Angel Waltz” — Kevin MacLeod (incompetech.com) · <a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN2100010" target="_blank" rel="noopener">source</a><br>
  All music licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons: By Attribution 4.0</a></div>
- <div class="cr-sec"><b>3D MODELS</b><br>Characters, Sentinels &amp; props generated with Meshy AI for Darcy Demby<br>"Bot Drone" by Dave404 via Poly Pizza — CC BY 3.0 (creativecommons.org/licenses/by/3.0)<br>Props (security camera, power box, air duct, fire extinguisher) from Poly Haven — CC0<br>Metal plate textures from ambientCG.com — CC0<br><br><b>TRAILER</b><br>Archival footage: Prelinger Archives &amp; Universal Newsreel (archive.org, public domain) · Narrator: Piper TTS "john" · Music: Kevin MacLeod, CC BY 4.0</div>
+ <div class="cr-sec"><b>3D MODELS</b><br>Characters, Sentinels &amp; props generated with Meshy AI for Darcy Demby<br>"Bot Drone" by Dave404 via Poly Pizza — CC BY 3.0 (creativecommons.org/licenses/by/3.0)<br>Props (security camera, power box, air duct, fire extinguisher) from Poly Haven — CC0<br>Metal plate textures from ambientCG.com — CC0<br><br><b>TRAILER</b><br>Footage: U.S. DoD / DVIDS video (public domain) &amp; Wikimedia Commons photos — Security Council chamber photo by Jdforrester, CC BY 4.0; others CC0/PD · Fictional story; footage used under licence · Narrator: Piper TTS "john" · Music: Kevin MacLeod, CC BY 4.0</div>
  <div class="cr-sec"><b>TECH</b><br>three.js (MIT) · PeerJS (MIT) · qrcode-generator by Kazuhiko Arase (MIT)</div>
  <div class="cr-sec"><b>FONTS</b><br>Black Ops One · Chakra Petch · Caveat — SIL Open Font License 1.1</div>
  <div class="cr-sec dim">Now playing: “Feral Angel Waltz” — Kevin MacLeod</div><button id="cr-close">CLOSE</button>`;
