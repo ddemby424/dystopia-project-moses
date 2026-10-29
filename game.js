@@ -1655,7 +1655,7 @@ function buildArenaMap() {
   while (arenaGroup.children.length > 0) arenaGroup.remove(arenaGroup.children[0]);
   colliders = []; walkableSurfaces = []; sirenBeaconMeshes = []; PICKUPS = []; ARENA_LIGHTS = []; STEAM_PARTICLES = []; BLINK_MATS = []; CELL_DOOR = null; COLOSSUS = null;
   COLOSSUS_BOLTS.forEach(b => scene.remove(b.mesh)); COLOSSUS_BOLTS = [];
-  COLOSSI.forEach(C => { if (C.voice && C.voice.isPlaying) C.voice.stop(); if (C.laser) scene.remove(C.laser); if (C.cannon) scene.remove(C.cannon); }); COLOSSI = []; EMP_ARCS.forEach(a => scene.remove(a.mesh)); EMP_ARCS = []; colossusHud(null);
+  COLOSSI.forEach(C => { if (C.voice && C.voice.isPlaying) C.voice.stop(); if (C.laser) scene.remove(C.laser); if (C.cannon) scene.remove(C.cannon); (C.spots || []).forEach(sp => { scene.remove(sp.g); (sp.plates || []).forEach(p => scene.remove(p.m)); }); /* Round 21: soft-spot orbs leaked into the next floor */ }); COLOSSI = []; EMP_ARCS.forEach(a => scene.remove(a.mesh)); EMP_ARCS = []; colossusHud(null);
   const floor = STATE.floor || 0; const theme = FLOOR_THEMES[floor];
   const steelMat = new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.42, metalness: 0.78, bumpMap: WALL_PBR.bumpMap, bumpScale: 0.04 });
   const floorColors = [0xa8a49a, 0x8f9aa8, 0x9a8f80, 0x8a8078];
@@ -3916,7 +3916,7 @@ function softSpotWorld(C, sp, out) {
   const d = sp.def, H = C.height, yaw = C.root.rotation.y, cs = Math.cos(yaw), sn = Math.sin(yaw);
   const local = (lx, ly, lz) => out.set(C.root.position.x + lx * cs + lz * sn, C.root.position.y + ly, C.root.position.z - lx * sn + lz * cs);
   if (d.cannon && C.cannon) { C.cannon.updateMatrixWorld(true); out.set(0, 0, 0).applyMatrix4(C.cannon.matrixWorld); out.y += H * 0.02; return out; }
-  if (sp.bone) { sp.bone.getWorldPosition(out); const o = d.off || [0, 0, 0]; const fw = (d.frac[2] * 0.7 + o[2]) * H; out.x += sn * fw; out.z += cs * fw; out.y += o[1] * H; return out; }
+  if (sp.bone) { sp.bone.getWorldPosition(out); const o = d.off || [0, 0, 0]; const fw = (d.frac[2] * (C.ownCannon ? 0.35 : 0.7) + o[2]) * H; out.x += sn * fw; out.z += cs * fw; out.y += o[1] * H; return out; }
   return local(d.frac[0] * H, d.frac[1] * H, d.frac[2] * H);
 }
 function updateSoftSpots(dt, now) {
@@ -3924,12 +3924,12 @@ function updateSoftSpots(dt, now) {
     if (!C.spots) return;
     const stunned = C.stun > 0;
     C.spots.forEach(sp => {
-      const vis = !C.dead && C.root.visible; sp.g.visible = vis && !sp.dead; if (sp.plates) sp.plates.forEach(p => p.m.visible = vis);
+      const vis = !C.dead && C.root.visible; sp.g.visible = vis && !sp.dead; if (sp.plates) sp.plates.forEach(p => p.m.visible = vis && !C.ownCannon); // Round 21: procedural core plates float off the Meshy body
       if (!vis) return;
-      softSpotWorld(C, sp, sp.pos); sp.g.position.copy(sp.pos); sp.g.rotation.y = C.root.rotation.y; sp.ring.rotation.x = now * 0.004;
+      softSpotWorld(C, sp, sp.pos); { const minY = C.root.position.y + sp.R * 0.4 + 0.08; if (sp.pos.y < minY) sp.pos.y = minY; } sp.g.position.copy(sp.pos); // Round 21: keep foot spots above the floor (was a half-buried dome) sp.g.rotation.y = C.root.rotation.y; sp.ring.rotation.x = now * 0.004;
       const pulse = 0.6 + 0.4 * Math.sin(now * 0.008 + sp.R);
       const glow = stunned ? 1.0 : 0.75 + pulse * 0.25; sp.mat.opacity = glow; sp.halo.material.opacity = (stunned ? 0.5 : 0.18) * (0.7 + pulse * 0.3);
-      sp.g.scale.setScalar(sp.R * (stunned ? 0.85 : 0.6) * (1 + (sp.hitFlash || 0) * 0.6)); sp.hitFlash = Math.max(0, (sp.hitFlash || 0) - dt * 5);
+      const sk = C.ownCannon ? (stunned ? 0.5 : 0.3) : (stunned ? 0.85 : 0.6); sp.g.scale.setScalar(sp.R * sk * (1 + (sp.hitFlash || 0) * 0.6)); if (C.ownCannon) { sp.ring.visible = false; sp.halo.material.opacity *= 0.6; } // Round 21: Meshy Colossus: per-frame scale used to undo the init shrink (big floating discs) sp.hitFlash = Math.max(0, (sp.hitFlash || 0) - dt * 5);
       if (sp.plates) {
         sp.open += ((stunned ? 1 : 0) - sp.open) * Math.min(1, dt * 6);
         const yaw = C.root.rotation.y, cs = Math.cos(yaw), sn = Math.sin(yaw);
