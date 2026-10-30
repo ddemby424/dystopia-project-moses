@@ -339,3 +339,19 @@
     .mc-lab { font-family:var(--font-ui) !important; font-weight:700 !important; letter-spacing:.12em !important; opacity:.85; }
     #dm-board table { font-family:var(--font-ui) !important; } #dm-board tr.me td { color:var(--brand-hi); }
     #mc-tip { bottom:calc(10px + var(--sB)) !important; top:auto !important; width:min(92vw,460px); box-sizing:border-box; font-size:11px !important; }
+
+/* Round 22: simple multiplayer sheet */
+#mp-sheet{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(2,6,12,.82);padding:14px}
+#mp-sheet.hidden{display:none}
+#mp-sheet .mp-card{position:relative;width:min(420px,100%);max-height:100%;overflow:auto;padding:22px 18px;border-radius:18px;text-align:center;color:#e2e8f0;font-family:'Chakra Petch',sans-serif}
+#mp-sheet .mp-title{font-family:'Black Ops One',sans-serif;font-size:22px;letter-spacing:.08em;color:#fde68a;margin-bottom:14px}
+#mp-sheet .mp-col{display:flex;flex-direction:column;gap:12px}#mp-sheet .mp-col.hidden,#mp-sheet .hidden{display:none}
+#mp-sheet .mp-big{min-height:56px;border-radius:14px;border:1px solid rgba(148,163,184,.4);background:#1e293b;color:#fff;font-weight:800;font-size:17px;letter-spacing:.06em}
+#mp-sheet .mp-big.hot{background:linear-gradient(#f59e0b,#d97706);color:#111;border:0}
+#mp-sheet .mp-code{font-family:'Black Ops One',monospace;font-size:56px;letter-spacing:.25em;color:#facc15;line-height:1.1}
+#mp-sheet .mp-in{width:100%;background:#000;border:2px solid #22d3ee;border-radius:14px;text-align:center;font-size:44px;padding:6px 0;color:#67e8f9;text-transform:uppercase}
+#mp-sheet .mp-hint{font-size:14px;color:#94a3b8}
+#mp-sheet .mp-status{margin-top:14px;min-height:22px;font-size:16px;font-weight:700}
+#mp-sheet .mp-status.busy{color:#fde68a}#mp-sheet .mp-status.ok{color:#4ade80}#mp-sheet .mp-status.fail{color:#f87171}
+#mp-sheet #mp-retry{margin-top:10px;width:100%}
+#mp-sheet .mp-x{position:absolute;top:8px;right:10px;width:44px;height:44px;font-size:20px;color:#94a3b8;background:none;border:0}

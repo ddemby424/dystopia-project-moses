@@ -6030,8 +6030,9 @@ function dmClientOnData(m) {
   else if (m.t === 'restart') { DM.ended = false; DM.t = DM.timeLimit; dmBoard(false); dmResetPlayer(); }
 }
 function dmRemoteShot(m) { const a = new THREE.Vector3(...m.a), b = new THREE.Vector3(...m.b); dmTracer(a, b, WCOL[m.w] || 0xfbbf24); dmShotSfx(a); if (m.w === 2) try { spawnImpact(b.x, b.y, b.z, 0xff5500); } catch (e) {} }
-const DM_ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' },
-  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }];
+// Round 22: the free Open Relay TURN logins were retired (no relay candidates), so only STUN here; a TURN entry can be added to DM_TURN later
+const DM_TURN = [];
+const DM_ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }].concat(DM_TURN);
 function dmPeer(id) { const o = { debug: 0, config: { iceServers: DM_ICE } }; return id ? new Peer(id, o) : new Peer(o); }
 // same-device / test transport (BroadcastChannel) — ?net=local
 const DM_LOCAL = /[?&]net=local/.test(location.search) && typeof BroadcastChannel === 'function';
@@ -6228,7 +6229,7 @@ function playTrailer(manual) {
 }
 (function trailerFirstLaunch() {
   let seen = false; try { seen = localStorage.getItem(TRAILER_KEY) === '1'; } catch (e) {}
-  if (!seen && !/[?&]notrailer\b/.test(location.search) && !navigator.webdriver) playTrailer(false);
+  if (!seen && !/[?&](notrailer|room|join)\b/.test(location.search) && !navigator.webdriver) playTrailer(false);
 })();
 function openCredits() {
   if (document.getElementById('credits-screen')) return; musicInit(); MUSIC.creditsOpen = true; musicUpdate(1);
@@ -6294,4 +6295,100 @@ autoLoadMeshyAssets().then(() => {
   // re-draw text textures once the self-hosted fonts are ready (signs drawn before font load)
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!STATE.running && typeof buildArenaMap === 'function') try { buildArenaMap(); } catch (e) {} });
   if (!window.LOADP || !window.LOADP.n) uiLoad(0.15, 'Initializing Triage systems…');
+})();
+
+// ---------- Round 22: simple multiplayer — HOST shows a 4-letter code + share link, JOIN types it, link auto-joins ----------
+(function mpSimple() {
+  const $ = id => document.getElementById(id);
+  const PREFIX = 'dystopia-mp-';
+  const ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const newCode = () => { let c = ''; for (let i = 0; i < 4; i++) c += ABC[Math.floor(Math.random() * ABC.length)]; return c; };
+  const clean = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  const link = c => LIVE_URL + '?room=' + c;
+  const MP = window.MP = { state: 'idle', code: null, mode: null, tries: 0, timer: null, autoT: null };
+  const sheet = document.createElement('div'); sheet.id = 'mp-sheet'; sheet.className = 'hidden';
+  sheet.innerHTML = `<div class="mp-card glass-card">
+    <button id="mp-close" class="mp-x" aria-label="Close">✕</button>
+    <div class="mp-title">PLAY WITH A FRIEND</div>
+    <div id="mp-pick" class="mp-col"><button id="mp-host" class="mp-big hot">HOST A GAME</button><button id="mp-join" class="mp-big">JOIN A GAME</button>
+      <div class="mp-hint">One phone taps HOST. The other taps JOIN and types the code.</div></div>
+    <div id="mp-hostv" class="mp-col hidden"><div class="mp-hint">Your room code</div><div id="mp-code" class="mp-code">····</div>
+      <button id="mp-share" class="mp-big">SHARE INVITE LINK</button><div id="mp-players" class="mp-hint"></div>
+      <button id="mp-go" class="mp-big hot">START NOW</button></div>
+    <div id="mp-joinv" class="mp-col hidden"><div class="mp-hint">Type the code from your friend's screen</div>
+      <input id="mp-input" class="mp-code mp-in" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="CODE">
+      <button id="mp-joingo" class="mp-big hot">JOIN</button></div>
+    <div id="mp-status" class="mp-status"></div>
+    <button id="mp-retry" class="mp-big hidden">TRY AGAIN</button></div>`;
+  document.body.appendChild(sheet);
+  const show = v => { ['mp-pick', 'mp-hostv', 'mp-joinv'].forEach(i => $(i).classList.toggle('hidden', i !== v)); };
+  const status = (t, kind) => { MP.state = kind || MP.state; const e = $('mp-status'); e.textContent = t; e.className = 'mp-status ' + (kind || ''); $('mp-retry').classList.toggle('hidden', kind !== 'fail'); };
+  window.dmStatus = function (t) { const l = $('lobby-status'); if (l) l.textContent = t; const d = $('dm-status'); if (d) d.textContent = t; };
+  const open = () => { sheet.classList.remove('hidden'); show('mp-pick'); status('', 'idle'); };
+  const close = () => { sheet.classList.add('hidden'); };
+  const teardown = () => { clearTimeout(MP.timer); clearTimeout(MP.autoT); try { DM.peer && DM.peer.destroy(); } catch (e) {} DM.peer = null; DM.hostConn = null; DM.conns = {}; };
+  MP.open = open;
+  function players() { const n = Object.values(DM.ents).filter(e => !e.bot).length; $('mp-players').textContent = n ? `✅ ${n} friend${n > 1 ? 's' : ''} joined — starting…` : 'Waiting for your friend to join…'; return n; }
+  function host(code, attempt) {
+    teardown(); attempt = attempt || 0; code = code || newCode(); MP.mode = 'host'; MP.code = code;
+    show('mp-hostv'); $('mp-code').textContent = code; $('mp-players').textContent = ''; status('Opening room…', 'busy');
+    if (typeof Peer !== 'function') { status('Failed: the network library did not load. Check your internet.', 'fail'); return; }
+    DM.host = true; DM.net = true; DM.code = code; DM.ents = {}; DM.conns = {}; DM.me = 'host';
+    const pe = DM.peer = dmPeer(PREFIX + code.toLowerCase());
+    MP.timer = setTimeout(() => { if (MP.state === 'busy') status('Failed: could not reach the game server. Check your internet.', 'fail'); }, 15000);
+    pe.on('open', () => { clearTimeout(MP.timer); status('Room open ✔ Tell your friend the code', 'ok'); players(); dmLobbyList(); });
+    pe.on('connection', c => {
+      c.on('open', () => { if (Object.keys(DM.conns).length >= 7) { c.send({ t: 'full' }); setTimeout(() => c.close(), 300); return; } DM.conns[c.peer] = c; });
+      c.on('data', m => { if (!DM.conns[c.peer]) DM.conns[c.peer] = c; dmHostOnData(c.peer, m); if (m && m.t === 'hello' && !DM.on) { status(`${String(m.name || 'Friend').slice(0, 12)} connected ✔`, 'ok'); players(); clearTimeout(MP.autoT); MP.autoT = setTimeout(startNow, 2500); } });
+      c.on('close', () => { delete DM.conns[c.peer]; const e = DM.ents[c.peer]; if (e) { dmFeed(`${e.name} left`); if (e.A) arenaGroup.remove(e.A.root); delete DM.ents[c.peer]; } if (DM.on) dmFillBots(); dmBroadcastRoster(); if (!DM.on) players(); });
+    });
+    pe.on('disconnected', () => { if (!pe.destroyed) setTimeout(() => { try { pe.reconnect(); } catch (e) {} }, 800); }); // iOS drops the socket when you switch apps to text the code
+    pe.on('error', err => { if (err.type === 'unavailable-id' && attempt < 3) return host(null, attempt + 1); if (err.type === 'network' || err.type === 'disconnected' || err.type === 'server-error' || err.type === 'socket-error') { try { pe.reconnect(); } catch (e) {} return; } status('Failed: ' + (err.type || err), 'fail'); });
+  }
+  function startNow() {
+    if (DM.on || !DM.host) return; const cfg = { mode: ($('dm-mode') || {}).value || 'ffa', fragLimit: +(($('dm-frags') || {}).value || 15), timeLimit: +(($('dm-time') || {}).value || 600) };
+    Object.assign(DM, cfg); close(); dmStartMatch({ host: true }); dmBroadcast({ t: 'start', cfg: Object.assign(cfg, { t: DM.t }) }); dmBroadcastRoster(); showBanner && showBanner('ROOM ' + DM.code, 'Friends can still join with this code', 3000);
+  }
+  function join(code) {
+    teardown(); code = clean(code); MP.mode = 'join'; MP.code = code; show('mp-joinv'); $('mp-input').value = code;
+    if (code.length < 4) { status('Type the 4-letter code first', 'fail'); return; }
+    if (typeof Peer !== 'function') { status('Failed: the network library did not load. Check your internet.', 'fail'); return; }
+    DM.host = false; DM.net = true; DM.code = code; DM.ents = {}; MP.tries = 0; status('Connecting to room ' + code + '…', 'busy');
+    const pe = DM.peer = dmPeer(); const t0 = Date.now(); let linked = false;
+    const fail = why => { if (linked) return; teardown(); status('Failed: ' + why, 'fail'); };
+    MP.timer = setTimeout(() => fail(pe.open ? 'found no answer from the host. Make sure their HOST screen is still open, then try again.' : 'could not reach the game server. Check your internet.'), 25000);
+    const dial = () => {
+      const c = DM.peer.connect(PREFIX + code.toLowerCase(), { reliable: true }); DM.hostConn = c;
+      c.on('open', () => { linked = true; clearTimeout(MP.timer); status('Connected ✔ Starting…', 'ok'); dmSendHello(); });
+      c.on('data', m => { if (m && m.t === 'full') { fail('that room is full (8 players).'); return; } dmClientOnData(m); if (m && m.t === 'start') close(); if (m && m.t === 'roster' && !DM.on) status('Connected ✔ Waiting for host to start…', 'ok'); });
+      c.on('close', () => { if (DM.on) showBanner('HOST LEFT', 'Match ended', 3000); else if (linked) status('Failed: the host closed the room.', 'fail'); });
+    };
+    pe.on('open', id => { DM.me = id; dial(); });
+    pe.on('disconnected', () => { if (!pe.destroyed && !linked) try { pe.reconnect(); } catch (e) {} });
+    pe.on('error', err => {
+      if (err.type === 'peer-unavailable') { if (Date.now() - t0 < 20000) { status(`Looking for room ${code}… (is the host screen open?)`, 'busy'); setTimeout(() => { if (!linked && DM.peer === pe) dial(); }, 2000); } else fail(`no room called ${code}. Check the code with your friend.`); return; }
+      if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') { try { pe.reconnect(); } catch (e) {} return; }
+      fail(String(err.type || err));
+    });
+  }
+  MP.host = host; MP.join = join; MP.startNow = startNow;
+  $('mp-close').onclick = () => { if (!DM.on) teardown(); close(); };
+  $('mp-host').onclick = () => host();
+  $('mp-join').onclick = () => { show('mp-joinv'); status('', 'idle'); setTimeout(() => $('mp-input').focus(), 50); };
+  $('mp-joingo').onclick = () => join($('mp-input').value);
+  $('mp-input').addEventListener('input', e => { e.target.value = clean(e.target.value); });
+  $('mp-input').addEventListener('keydown', e => { if (e.key === 'Enter') join(e.target.value); });
+  $('mp-go').onclick = startNow;
+  $('mp-retry').onclick = () => MP.mode === 'host' ? host() : join(MP.code || $('mp-input').value);
+  $('mp-share').onclick = async () => { const u = link(MP.code); try { if (navigator.share) { await navigator.share({ title: 'DYSTOPIA', text: `Join my DYSTOPIA game · code ${MP.code}`, url: u }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(u); $('mp-share').textContent = 'LINK COPIED ✔'; } catch (e) { prompt('Copy this link', u); } setTimeout(() => { $('mp-share').textContent = 'SHARE INVITE LINK'; }, 2500); };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && DM.peer && DM.peer.disconnected && !DM.peer.destroyed) try { DM.peer.reconnect(); } catch (e) {} });
+  // old lobby buttons now open the simple sheet
+  const hp = $('btn-host-party'), jp = $('btn-join-party'), tab = $('tab-party-mode');
+  if (hp) { hp.textContent = '📲 HOST A GAME'; hp.onclick = () => { open(); host(); }; }
+  if (jp) jp.onclick = () => { const v = clean(($('input-join-code') || {}).value); open(); if (v.length >= 4) join(v); else $('mp-join').onclick(); };
+  const ji = $('input-join-code'); if (ji) ji.maxLength = 6;
+  if (tab) tab.textContent = '👥 PLAY WITH A FRIEND';
+  const q = new URLSearchParams(location.search); const rc = clean(q.get('room') || q.get('join'));
+  if (rc.length >= 4) setTimeout(() => { ['splash-screen', 'game-modal'].forEach(id => $(id) && $(id).classList.add('hidden')); $('trailer-overlay') && $('trailer-overlay').remove(); open(); join(rc); }, 400);
 })();
