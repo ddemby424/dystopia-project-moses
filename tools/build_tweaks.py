@@ -122,6 +122,76 @@ T = [
 ('Multiplayer', 'Room code letters', 'game.js', "const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'", 'no I, O, 0, 1', 'letters/digits', 'Characters that can appear in codes.', E),
 ('Multiplayer', 'Relay (TURN) servers', 'game.js', 'const DM_TURN = [];', 'empty', 'Ask Grok Bot', 'Needed for different networks. Holds a login, so never paste secrets in chat.', X),
 ('Multiplayer', 'Deathmatch bot count', 'game.js', 'DM.maxBots ?? 7', '7', '0 – 7', 'Bots that fill empty deathmatch slots.', E),
+
+# Shadows
+('Shadows', 'Shadows on/off (default)', 'game.js', "let SHADOWS_ON = localStorage.getItem(SHADOW_KEY) !== '0';", 'on (unless the menu turned it off)', "change !== '0' to === '1' for default off", 'Biggest single speed win on phones. The in-game Shadows toggle also sets it.', M),
+('Shadows', 'Shadow softness type', 'game.js', 'renderer.shadowMap.type = THREE.PCFSoftShadowMap;', 'PCFSoftShadowMap', 'BasicShadowMap, PCFShadowMap, PCFSoftShadowMap', 'Basic = hard, pixely, fastest. PCFSoft = smooth, slowest.', E),
+('Shadows', 'Main sun light casts shadow', 'game.js', 'dirLight.castShadow = true;', 'true', 'true / false', 'false = the big overhead light stops making shadows. Much faster.', E),
+('Shadows', 'Sun shadow resolution', 'game.js', 'dirLight.shadow.mapSize.set(SHADOW_RES, SHADOW_RES);', 'SHADOW_RES (1024 phone / 2048 PC)', 'see Graphics: Shadow sharpness', 'Uses the SHADOW_RES number. Change that one instead.', E),
+('Shadows', 'Sun shadow box size', 'game.js', 'sc.left = -45; sc.right = 45; sc.top = 45; sc.bottom = -45;', '±45 m', '25 – 90', 'Area that gets shadows. Smaller = sharper shadows but they stop at the edge. Change all four.', M),
+('Shadows', 'Sun shadow acne fix (bias)', 'game.js', 'dirLight.shadow.bias = -0.0004; dirLight.shadow.normalBias = 0.04; dirLight.shadow.radius = 3;', 'bias -0.0004, normalBias 0.04, radius 3', 'bias -0.002 – 0, radius 1 – 6', 'Stripes on walls ("acne")? Make bias more negative. radius = blur.', M),
+('Shadows', 'Spotlight shadow resolution', 'game.js', 'sp.castShadow = true; sp.shadow.mapSize.set(IS_COARSE ? 512 : 1024', 'phone 512, PC 1024', '256 – 2048 (powers of 2)', 'Shadows from the hanging key spotlights.', M),
+('Shadows', 'How many shadow spotlights', 'game.js', 'keySpots.slice(0, IS_COARSE ? 1 : 2)', 'phone 1, PC 2', '0 – 2', 'Each shadow spotlight costs a full extra render. 0 on phones = smoother.', M),
+('Shadows', 'Catwalks cast shadow', 'game.js', 'deck.castShadow = !IS_COARSE;', 'PC only', 'true / false / !IS_COARSE', 'Catwalk decks throw shadows on the floor.', E),
+('Shadows', 'Enemies cast/receive shadows', 'game.js', "rig.root.traverse(o => { if (o.isMesh && !o.isSprite) { o.castShadow = true; o.receiveShadow = !IS_COARSE; } });", 'cast yes, receive PC only', 'true / false', 'castShadow = makes a shadow. receiveShadow = gets darkened by others.', E),
+('Shadows', 'Props cast/receive shadows', 'game.js', 'c.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });', 'both on', 'true / false', 'Applies to every loaded prop model (crates, racks…).', E),
+# Lighting
+('Lighting & fog', 'Tone mapping style', 'game.js', 'renderer.toneMapping = THREE.ACESFilmicToneMapping;', 'ACESFilmic', 'ACESFilmicToneMapping, ReinhardToneMapping, LinearToneMapping, NoToneMapping', 'Overall "film look". ACES = punchy, Reinhard = soft.', E),
+('Lighting & fog', 'Background colour (start)', 'game.js', 'scene.background = new THREE.Color(0x07090d);', '0x07090d', 'any 0xRRGGBB', 'Colour behind everything. Each level then tints it from its fog colour.', E),
+('Lighting & fog', 'Hemisphere (sky/ground) light', 'game.js', 'const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x1a1e26, 0.05);', 'sky 0xddeeff, ground 0x1a1e26, 0.05', 'intensity 0 – 0.6', 'Soft light from everywhere. Raise to 0.3 to light up dark corners.', E),
+('Lighting & fog', 'Ambient light', 'game.js', 'const ambientLight = new THREE.AmbientLight(0x8090a8, 0.03);', '0.03', '0 – 0.5', 'Flat even light. Too high = everything looks flat and grey.', E),
+('Lighting & fog', 'Blue fill light', 'game.js', 'const fillLight = new THREE.DirectionalLight(0x6f9cff, 0.06);', '0.06', '0 – 0.5', 'Cool moonlight from one side.', E),
+('Lighting & fog', 'Sun/key light', 'game.js', 'const dirLight = new THREE.DirectionalLight(0xffe6c8, 0.12);', '0xffe6c8, 0.12', '0 – 1.5', 'Main shadow-casting light from above.', E),
+('Lighting & fog', 'Sun position', 'game.js', 'dirLight.position.set(45, 85, 35);', 'x 45, y 85, z 35', 'y 30 – 150', 'Where the sun sits. Lower y = long dramatic shadows.', M),
+('Lighting & fog', 'Player lantern (around you)', 'game.js', 'const camFill = new THREE.PointLight(0xffe2c0, 0.12, 10, 1.6);', '0.12, reach 10 m', 'intensity 0 – 1, reach 5 – 25', 'A small light that follows you. Raise it if the game feels too dark.', E),
+('Lighting & fog', 'Gun/hands light', 'game.js', 'const vmLight = new THREE.PointLight(0xfff0dc, 1.7, 3.0, 1.5);', '1.7', '0.5 – 3', 'Lights up the weapon in your hands.', E),
+('Lighting & fog', 'Hanging ceiling lights', 'game.js', "addHangingLight(x, lh, z, i % 3 === 0 ? theme.light : PAL[(i + floor) % PAL.length], 2.2, 22)", 'intensity 2.2, reach 22 m', 'intensity 0.5 – 5, reach 10 – 40', 'The lamps in every room. Last two numbers.', E),
+('Lighting & fog', 'Ceiling light colour palette', 'game.js', 'const PAL = [0xffa24a, 0x4aa8ff, theme.light, 0xff5a3a];', 'orange, blue, theme, red', 'any 0xRRGGBB', 'Colours the ceiling lamps cycle through.', E),
+('Lighting & fog', 'Real lamps on phones', 'game.js', 'const realOK = !IS_COARSE || LIGHT_COUNT < 4;', 'first 4 lamps', '2 – 8', 'Phones fake the rest with glowing floor circles. More real lamps = slower.', M),
+('Lighting & fog', 'Per-floor light tint', 'game.js', "{ key: 'farm', title: 'B1 · SERVER FARM', light: 0x9fd8ff }", 'B1 icy blue', 'any 0xRRGGBB', 'Each floor (G, B1, B2, B3) has a light colour and title in FLOOR_THEMES.', E),
+('Lighting & fog', 'Key spotlights', 'game.js', 'const sp = new THREE.SpotLight(0xfff1dd, 1.4, 60, 0.75, 0.5, 1.5);', 'colour, 1.4, 60 m, angle 0.75', 'intensity 0.5 – 4, angle 0.3 – 1.2', 'The bright cones over the security desk.', E),
+('Lighting & fog', 'Exit door green light', 'game.js', 'const dl = new THREE.PointLight(0x3dff9a, 2.2, 22, 1.6);', 'green, 2.2', 'any colour, 0.5 – 5', 'The glow that shows you where the exit is.', E),
+('Lighting & fog', 'Alarm beacon flash colour', 'game.js', 'sirenBeaconMeshes.forEach(b => b.material.color.setHex(flashOn ? 0xff0000 : 0x2a0505));', 'red / dark red', 'any 0xRRGGBB', 'Siren lights when the alarm goes off.', E),
+('Lighting & fog', 'Alarm length', 'game.js', 'sirenActiveTimer = 4; SFX.playSiren && SFX.playSiren(3);', '4 s, 3 wails', '1 – 15', 'How long the alarm flashes.', E),
+('Lighting & fog', 'Gun-flash light pool', 'game.js', 'const n = IS_COARSE ? 4 : 8; for (let i = 0; i < n; i++) { const L = new THREE.PointLight(0xffffff, 0, 10, 2)', 'phone 4, PC 8', '2 – 12', 'How many short flashes (shots, explosions) can light the room at once.', M),
+('Lighting & fog', 'Pickup glow', 'game.js', 'new THREE.OctahedronGeometry(0.65, 0), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.8 })', 'size 0.65, glow 1.8', 'size 0.3 – 1.2, glow 0 – 4', 'Emissive = glows without a light. Bigger = easier to spot pickups.', E),
+('Lighting & fog', 'Enemy neon glow', 'game.js', 'const glowMat = new THREE.MeshStandardMaterial({ color: neonHex, emissive: neonHex, emissiveIntensity: 2.8 });', '2.8', '0.5 – 5', 'How bright the Sentinels\' neon trims glow.', E),
+# Camera / effects
+('Camera & effects', 'Screen shake strength', 'game.js', 'camera.position.x += (Math.random() - 0.5) * STATE.screenShake * 0.35;', '0.35 (x), 0.25 (y next line)', '0 – 0.8', '0 = no shake from explosions and recoil.', E),
+('Camera & effects', 'Muzzle vignette flash time', 'game.js', "setTimeout(() => { vig.style.opacity = '0'; }, 50);", '50 ms', '0 – 150', 'How long the screen edges flash when you fire.', E),
+('Camera & effects', '180° quick-turn key', 'game.js', "if (e.code === 'KeyX') STATE.player.yaw += Math.PI;", 'X', 'any key code', 'Spin around instantly.', E),
+# Controls
+('Controls', 'Weapon keys', 'game.js', "if (e.code === 'Digit1') switchWeapon(0);", '1 2 3 4', "'KeyZ' etc.", "Key names look like 'KeyA', 'Digit1', 'ShiftLeft'.", E),
+('Controls', 'Grenade key', 'game.js', "if (e.code === 'KeyG' || e.code === 'KeyQ') throwFragGrenade();", 'G or Q', 'any key code', 'Throw a grenade.', E),
+('Controls', 'Sprint key', 'game.js', "const sprint = (KEYS['ShiftLeft']", 'Left Shift', 'any key code', 'Hold to run.', E),
+# HUD
+('HUD layout', 'Minimap size', 'index.html', '<canvas id="minimap-canvas" width="98" height="98"', '98 × 98 px', '70 – 160', 'Change both numbers the same.', E),
+('HUD layout', 'Minimap label', 'index.html', 'Dystopia Radar</div>', 'Dystopia Radar', 'any text', 'Text under the minimap.', E),
+('HUD layout', 'Health number', 'index.html', '<span id="hud-health"', 'green HP', 'Tailwind classes like text-red-400', 'Swap text-… classes to recolour. Never change the id.', M),
+('HUD layout', 'Weapon name style', 'index.html', '<span id="hud-wep-name" class="text-[9px]', '9 px amber', 'text-[8px] – text-[16px]', 'Size of the weapon name on the HUD.', E),
+# Loot
+('Loot & pickups', 'Which pickups spawn', 'game.js', "const types = [['health', 0x22c55e], ['armor', 0x00f0ff]", '2 health, 1 armor, 1 ammo, 1 quad, 3 EMP', 'add or remove entries', 'Copy an entry like [\'health\', 0x22c55e], to add another pickup per floor.', M),
+('Loot & pickups', 'Health pickup amount', 'game.js', "if (p.type === 'health') STATE.player.health = Math.min(100, STATE.player.health + 35);", '+35 (max 100)', '10 – 100', 'If you raised max health, raise the 100 here too.', E),
+('Loot & pickups', 'Armor pickup amount', 'game.js', "if (p.type === 'armor') STATE.player.armor = Math.min(100, STATE.player.armor + 40);", '+40', '10 – 100', 'Armor per pickup.', E),
+('Loot & pickups', 'Quad damage time', 'game.js', "if (p.type === 'quad') STATE.quadTimer = 12;", '12 s', '3 – 30', 'Length of the purple power-up.', E),
+('Loot & pickups', 'Pickup respawn time', 'game.js', 'p.respawnTimer = 15; SFX.playKeyPickup();', '15 s', '5 – 120', 'How soon a used pickup comes back.', E),
+# Save data
+('Save data', 'Brightness save key', 'game.js', "const BRIGHTNESS_KEY = 'dystopia_brightness';", "'dystopia_brightness'", 'rename to reset everyone', 'Saved in the browser (localStorage). Other keys: dystopia_shadows, dys_music_on, dys_music_vol, dys_look, dys_gfx, dys_name, dys_skin, dys_trailer_seen_v4.', M),
+('Save data', 'Touch look speed save', 'game.js', "sens: parseFloat(localStorage.getItem('dys_look') || '') || 1.0", '1.0 default', '0.5 – 2', 'Default touch look speed if nothing is saved.', E),
+]
+
+GUIDE = [
+ ('A1. Which folder', 'Put files here (lowercase names, no spaces): <code>models/</code> 3D (.glb) · <code>images/tex/</code> textures (.jpg/.png) · <code>audio/</code> short sounds (.mp3) · <code>music/</code> songs (.mp3) · <code>media/</code> video (.mp4) · <code>fonts/</code> (.woff2).', []),
+ ('A2. Formats + phone budget', 'Use <b>.glb</b> (one file; .gltf needs its extra files too). Textures .jpg (photos) or .png (see-through), 1024×1024 max. Sounds .mp3 (works on iPhone; .ogg does NOT play on iPhone Safari). Budget per model: <b>under 1.5 MB and under ~15,000 triangles</b>. Characters up to ~25k. Shrink big ones (see the Android tutorial, A4).', []),
+ ('A3. Load a model: one line in the jobs list', 'Add a line inside <code>const jobs = [</code>. Format: <code>{ file: \'models/NAME.glb\', role: \'prop:NAME\', height: METRES },</code>. The game resizes the model so it is exactly that tall. Copy the extinguisher line as your template:', [('game.js', 'const jobs = ['), ('game.js', "{ file: 'models/ph_extinguisher.glb', role: 'prop:ph_extinguisher', height: 0.62 },")]),
+ ('A4. Worked example: a traffic cone', '1) Import <code>cone.glb</code> into <code>models/</code>. 2) Under the extinguisher line add <code>{ file: \'models/cone.glb\', role: \'prop:cone\', height: 0.7 },</code> 3) Teach the map what a "cone" is: inside <code>PROP_BUILDERS = {</code>, copy the <code>extinguisher(o) {</code> block, rename it <code>cone(o) {</code> and change <code>cloneProp(\'ph_extinguisher\')</code> to <code>cloneProp(\'cone\')</code>. 4) Place it (A5). The prop key after <code>prop:</code> must match the name in cloneProp.', [('game.js', 'const PROP_BUILDERS = {'), ('game.js', '  extinguisher(o) {'), ('game.js', 'function cloneProp(key) {')]),
+ ('A5. Place it on a floor', 'Placements live in <code>genFloorLayout</code>, one block per floor. <code>if (floor === 0)</code> is G, <code>floor === 1</code> is B1, <code>floor === 2</code> is B2, the last <code>else</code> is B3. Add <code>add(\'cone\', 2, 60, { rot: 0 });</code> inside a block. x = left/right (-88 to 88), z = front/back (start is near z 70 on G). <code>rot</code> is radians: <code>Math.PI / 2</code> = 90°. Size: add <code>h: 1.2</code> in the {…} for builders that read <code>o.h</code>, or change height in jobs.', [('game.js', 'function genFloorLayout(level, floor) {'), ('game.js', "const add = (type, x, z, extra = {}) =>"), ('game.js', "add('extinguisher', -3.9, 69, { rot: Math.PI / 2 });")]),
+ ('A6. Swap or add a texture', 'Easiest: replace <code>images/tex/metal_wall_1k.jpg</code> with your own picture of the <b>same name</b>. To use a new name, edit the path in the line below. For a single material: <code>map: new THREE.TextureLoader().load(\'images/tex/my.jpg\')</code> inside its <code>MeshStandardMaterial({ … })</code>.', [('game.js', "swap(WALL_PBR.map, 'images/tex/metal_wall_1k.jpg'")]),
+ ('A7. Add a sound effect', 'Copy how the Mender dispatch line plays: <code>const a = new Audio(\'audio/my_sound.mp3\'); a.volume = 0.8; a.play().catch(() => {});</code> Put it where the event happens (e.g. inside <code>firePlayerWeapon</code>).', [('game.js', "const a = new Audio('audio/sentinel_dispatch.mp3'); a.volume = 0.9;"), ('game.js', 'function firePlayerWeapon')]),
+ ('A8. Add or swap music', 'Each slot in MUSIC_TRACKS is a song. Change the <code>url:</code> to your file in <code>music/</code>, and update <code>name</code>/<code>by</code> for the credits. Only use music you have the rights to (CC0/CC BY), and never your own songs in builds.', [('game.js', "title: { url: 'music/title_rising_game.mp3'")]),
+ ('A9. New enemy type', '<b>Risky, ask Grok Bot for the first one.</b> Short version: load the model with <code>role: \'guard\'</code>-style line in jobs, then add an entry to BOT_ROSTER (copy a line, change id, name, maxHealth, tint). Enemies on floors are spawned in startFloor from BOT_ROSTER.', [('game.js', 'let BOT_ROSTER = ['), ('game.js', 'function startFloor(lvl, floor) {')]),
+ ('A10. Upload the file in Spck', 'Spck file tree → long-press the <code>models</code> folder → <b>Import / Upload file</b> → pick from Downloads. Then Git → Changes → tick the new file + game.js → Commit with a message → <b>Push</b>. Live in ~1 minute.', []),
+ ('A11. Common mistakes', '<ul><li><b>Case matters</b> online: <code>Cone.glb</code> ≠ <code>cone.glb</code>. Works in preview, breaks live.</li><li>Path is relative to index.html: <code>models/cone.glb</code>, never <code>/sdcard/…</code> or <code>C:\\</code>.</li><li>Opening index.html from the Files app (file://) blocks model loading (CORS). Use Spck preview.</li><li>Forgot the comma at the end of the jobs line → black screen.</li><li>Big file (10 MB+) → slow load, phone crashes. Shrink first.</li><li>Model is sideways? add <code>yaw: Math.PI / 2</code> to its jobs line.</li></ul>', []),
 ]
 QUICK = ['Walk speed', 'Pulse Cannon fire rate', 'Fog thickness', 'Debris chunk size', 'Bullet color']
 CATS = list(dict.fromkeys(t[0] for t in T))
@@ -129,7 +199,8 @@ rows = []
 for c, title, f, s, cur, rng, eff, tag in T:
     ln, n = find(f, s); rows.append(dict(c=c, t=title, f=f, s=s, ln=ln, cur=cur, rng=rng, eff=eff, tag=tag))
 byt = {r['t']: r for r in rows}
-assert all(q in byt for q in QUICK)
+NEWQ = ['Main sun light casts shadow', 'Player lantern (around you)', 'Health pickup amount']
+assert all(q in byt for q in QUICK + NEWQ)
 # flow chart nodes (label, func or snippet, file)
 FLOW = [('Page loads', 'index.html loads style.css + game.js', None),
  ('Load 3D models', 'function autoLoadMeshyAssets', 'const jobs = ['),
@@ -169,7 +240,7 @@ H.append('''<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="icon" hr
 <p>Every knob in the game, with the file, the line, and the exact text to find. Tags: <span class="tag" style="background:#3c6">easy</span> just a number · <span class="tag" style="background:#fc3">medium</span> read the note first · <span class="tag" style="background:#f55">risky</span> ask Grok Bot.</p>
 <p>Back to <a href="android.html">the Android tutorial</a>. Line numbers match the game as of the commit that made this page. They drift a little once you add lines, so <b>always search with <kbd>Ctrl</kbd>+<kbd>F</kbd></b> using the green text.</p>
 ''')
-toc = ['<a href="#flow">Flow chart</a>', '<a href="#quick">Try these 5 first</a>', '<a href="#test">Test</a>', '<a href="#undo">Undo</a>', '<a href="#rules">Rules</a>'] + [f'<a href="#c{i}">{e(c)}</a>' for i, c in enumerate(CATS)] + ['<a href="#sizes">File sizes</a>']
+toc = ['<a href="#flow">Flow chart</a>', '<a href="#quick">Try these 5 first</a>', '<a href="#newq">New quick wins</a>', '<a href="#assets">Adding assets</a>', '<a href="#test">Test</a>', '<a href="#undo">Undo</a>', '<a href="#rules">Rules</a>'] + [f'<a href="#c{i}">{e(c)}</a>' for i, c in enumerate(CATS)] + ['<a href="#sizes">File sizes</a>']
 H.append('<p class="lib"><b>Contents:</b> ' + ' · '.join(toc) + '</p>')
 # flow
 H.append('<div class="step s0" id="flow"><h2>🗺️ How the game runs (flow chart)</h2><p>Read top to bottom. Each box shows the real function name and line in <code>game.js</code>. Press <kbd>Ctrl</kbd>+<kbd>F</kbd> and type the name to jump there.</p><div class="fc">')
@@ -192,6 +263,12 @@ H.append('</div>')
 H.append('''<div class="step" id="test"><h2>🧪 How to test a change</h2><ol><li>Open the file, press <kbd>Ctrl</kbd>+<kbd>F</kbd>, paste the green text.</li><li>Change <b>only the number</b>.</li><li><kbd>Ctrl</kbd>+<kbd>S</kbd> to save.</li><li>Spck: tap ▶ preview (or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>). Already open? Pull down to refresh, or close and reopen preview.</li><li>Skip the trailer, start, look for the change.</li></ol><p>Black screen or stuck loading? You broke a comma or bracket. Undo (below) and try again.</p><p class="see">👀 Win: you see your change in the game.</p></div>
 <div class="step" id="undo"><h2>↩️ How to undo</h2><ul><li><b>Right away:</b> <kbd>Ctrl</kbd>+<kbd>Z</kbd> until it's back, then save.</li><li><b>Write the old value down</b> (or put it in a comment: <code>walkSpeed: 20, // was 14</code>... careful, only after the comma).</li><li><b>Keep a copy:</b> long-press <code>game.js</code> → Duplicate before big edits.</li><li><b>Reset a file to GitHub's version:</b> Spck Git menu → Changes → tap the file → <b>Discard/Revert</b>. That is the same as <code>git restore game.js</code>.</li><li>Already pushed something bad? Ask Grok Bot to roll it back.</li></ul></div>
 <div class="step" id="rules"><h2>⚠️ Rules so nothing breaks</h2><ul><li>Change <b>numbers, colours and text in quotes</b>. Don't rename functions or names before a <code>:</code>.</li><li>Keep every <code>,</code> <code>;</code> <code>{ }</code> <code>[ ]</code> <code>( )</code> and quote mark.</li><li>Colours in game.js look like <code>0xff4400</code>. In style.css they look like <code>#ff4400</code>.</li><li>Text with an apostrophe inside <code>'...'</code> needs <code>\\'</code>.</li><li><code>IS_COARSE ? A : B</code> means "phone/tablet uses A, PC uses B". Your Fold uses the first number.</li><li>One change at a time. Test. Then the next one.</li></ul></div>''')
+H.append('<div class="step" id="newq"><h2>⚡ New quick wins</h2>')
+for q in NEWQ: H.append(card(byt[q]))
+H.append('</div><details id="assets"><summary>📦 Adding assets, step by step</summary>')
+for h, txt, refs in GUIDE:
+    H.append(f'<div class="tw"><h3>{e(h)}</h3><div>{txt}</div>' + ''.join(f'<div class="meta">📄 <b>{f}</b> · line <b>{find(f, sn)[0]}</b></div><button class="cp">copy</button><pre>{e(sn)}</pre>' for f, sn in refs) + '</div>')
+H.append('</details>')
 for i, c in enumerate(CATS):
     rs = [r for r in rows if r['c'] == c]
     H.append(f'<details id="c{i}"{" open" if i==0 else ""}><summary>{e(c)} ({len(rs)})</summary>' + ''.join(card(r) for r in rs) + '</details>')
@@ -212,6 +289,11 @@ md.append('    ' + ' --> '.join(f'P{i}' for i in range(len(lp)))); md.append('  
 for i, (a, s, ln) in enumerate(br): md.append(f'  P{len(lp)-1} -.-> B{i}["{a}<br/>{s.replace("function ","")} · L{ln}"]')
 md += ['```', '', '## Try these 5 first', '']
 for q in QUICK: r = byt[q]; md.append(f'- **{q}**: `{r["f"]}` line {r["ln"]}, now {r["cur"]}, safe {r["rng"]}. Find: `{r["s"]}`')
+md += ['', '## New quick wins', ''] + [f'- **{q}**: `{byt[q]["f"]}` line {byt[q]["ln"]}. Find: `{byt[q]["s"]}`' for q in NEWQ]
+md += ['', '## Adding assets, step by step', '']
+import re
+for h, txt, refs in GUIDE:
+    md += [f'### {h}', re.sub(r'<[^>]+>', '', txt).replace('&lt;','<'), ''] + [f'- `{f}` line {find(f, sn)[0]}: `{sn}`' for f, sn in refs] + ['']
 md += ['', '## Test', 'Edit one number → Ctrl+S → Spck ▶ preview (refresh) → look.', '', '## Undo', 'Ctrl+Z; keep a duplicate of the file; Spck Git → Changes → Discard (= `git restore game.js`).', '', '## Rules', "Change numbers, colours, quoted text only. Keep commas and brackets. Don't rename functions. `IS_COARSE ? phone : PC`.", '']
 for c in CATS:
     md += [f'## {c}', '', '| What | File:line | Find (Ctrl+F) | Now | Safe range | Effect | Tag |', '|---|---|---|---|---|---|---|']

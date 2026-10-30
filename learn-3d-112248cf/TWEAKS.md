@@ -39,6 +39,73 @@ flowchart TD
 - **Debris chunk size**: `game.js` line 3571, now 0.06 – 0.22, safe 0.02 – 0.3. Find: `const sz = (0.06 + Math.random() * 0.16)`
 - **Bullet color**: `game.js` line 90, now 0xffaa00 (orange), safe any 0xRRGGBB. Find: `color: 0xffaa00, speed: 88`
 
+## New quick wins
+
+- **Main sun light casts shadow**: `game.js` line 317. Find: `dirLight.castShadow = true;`
+- **Player lantern (around you)**: `game.js` line 284. Find: `const camFill = new THREE.PointLight(0xffe2c0, 0.12, 10, 1.6);`
+- **Health pickup amount**: `game.js` line 4555. Find: `if (p.type === 'health') STATE.player.health = Math.min(100, STATE.player.health + 35);`
+
+## Adding assets, step by step
+
+### A1. Which folder
+Put files here (lowercase names, no spaces): models/ 3D (.glb) · images/tex/ textures (.jpg/.png) · audio/ short sounds (.mp3) · music/ songs (.mp3) · media/ video (.mp4) · fonts/ (.woff2).
+
+
+### A2. Formats + phone budget
+Use .glb (one file; .gltf needs its extra files too). Textures .jpg (photos) or .png (see-through), 1024×1024 max. Sounds .mp3 (works on iPhone; .ogg does NOT play on iPhone Safari). Budget per model: under 1.5 MB and under ~15,000 triangles. Characters up to ~25k. Shrink big ones (see the Android tutorial, A4).
+
+
+### A3. Load a model: one line in the jobs list
+Add a line inside const jobs = [. Format: { file: 'models/NAME.glb', role: 'prop:NAME', height: METRES },. The game resizes the model so it is exactly that tall. Copy the extinguisher line as your template:
+
+- `game.js` line 2123: `const jobs = [`
+- `game.js` line 2146: `{ file: 'models/ph_extinguisher.glb', role: 'prop:ph_extinguisher', height: 0.62 },`
+
+### A4. Worked example: a traffic cone
+1) Import cone.glb into models/. 2) Under the extinguisher line add { file: 'models/cone.glb', role: 'prop:cone', height: 0.7 }, 3) Teach the map what a "cone" is: inside PROP_BUILDERS = {, copy the extinguisher(o) { block, rename it cone(o) { and change cloneProp('ph_extinguisher') to cloneProp('cone'). 4) Place it (A5). The prop key after prop: must match the name in cloneProp.
+
+- `game.js` line 964: `const PROP_BUILDERS = {`
+- `game.js` line 1058: `  extinguisher(o) {`
+- `game.js` line 946: `function cloneProp(key) {`
+
+### A5. Place it on a floor
+Placements live in genFloorLayout, one block per floor. if (floor === 0) is G, floor === 1 is B1, floor === 2 is B2, the last else is B3. Add add('cone', 2, 60, { rot: 0 }); inside a block. x = left/right (-88 to 88), z = front/back (start is near z 70 on G). rot is radians: Math.PI / 2 = 90°. Size: add h: 1.2 in the {…} for builders that read o.h, or change height in jobs.
+
+- `game.js` line 1509: `function genFloorLayout(level, floor) {`
+- `game.js` line 1512: `const add = (type, x, z, extra = {}) =>`
+- `game.js` line 1535: `add('extinguisher', -3.9, 69, { rot: Math.PI / 2 });`
+
+### A6. Swap or add a texture
+Easiest: replace images/tex/metal_wall_1k.jpg with your own picture of the same name. To use a new name, edit the path in the line below. For a single material: map: new THREE.TextureLoader().load('images/tex/my.jpg') inside its MeshStandardMaterial({ … }).
+
+- `game.js` line 380: `swap(WALL_PBR.map, 'images/tex/metal_wall_1k.jpg'`
+
+### A7. Add a sound effect
+Copy how the Mender dispatch line plays: const a = new Audio('audio/my_sound.mp3'); a.volume = 0.8; a.play().catch(() => {}); Put it where the event happens (e.g. inside firePlayerWeapon).
+
+- `game.js` line 3258: `const a = new Audio('audio/sentinel_dispatch.mp3'); a.volume = 0.9;`
+- `game.js` line 3441: `function firePlayerWeapon`
+
+### A8. Add or swap music
+Each slot in MUSIC_TRACKS is a song. Change the url: to your file in music/, and update name/by for the credits. Only use music you have the rights to (CC0/CC BY), and never your own songs in builds.
+
+- `game.js` line 6125: `title: { url: 'music/title_rising_game.mp3'`
+
+### A9. New enemy type
+Risky, ask Grok Bot for the first one. Short version: load the model with role: 'guard'-style line in jobs, then add an entry to BOT_ROSTER (copy a line, change id, name, maxHealth, tint). Enemies on floors are spawned in startFloor from BOT_ROSTER.
+
+- `game.js` line 30: `let BOT_ROSTER = [`
+- `game.js` line 1719: `function startFloor(lvl, floor) {`
+
+### A10. Upload the file in Spck
+Spck file tree → long-press the models folder → Import / Upload file → pick from Downloads. Then Git → Changes → tick the new file + game.js → Commit with a message → Push. Live in ~1 minute.
+
+
+### A11. Common mistakes
+Case matters online: Cone.glb ≠ cone.glb. Works in preview, breaks live.Path is relative to index.html: models/cone.glb, never /sdcard/… or C:\.Opening index.html from the Files app (file://) blocks model loading (CORS). Use Spck preview.Forgot the comma at the end of the jobs line → black screen.Big file (10 MB+) → slow load, phone crashes. Shrink first.Model is sideways? add yaw: Math.PI / 2 to its jobs line.
+
+
+
 ## Test
 Edit one number → Ctrl+S → Spck ▶ preview (refresh) → look.
 
@@ -159,6 +226,26 @@ Change numbers, colours, quoted text only. Keep commas and brackets. Don't renam
 | Per-level fog colours | game.js:23 | `const fogs = [0x050911` | 9 colours | any 0xRRGGBB | Background/fog tint per level. | easy |
 | Per-level sky light colour | game.js:24 | `const hemis = [0xddeeff` | 9 colours | any 0xRRGGBB | Main ambient light tint per level. | easy |
 | Default brightness | game.js:238 | `if (!isFinite(BRIGHTNESS)) BRIGHTNESS = 1.0;` | 1.0 | 0.6 – 3 | Only used until the player moves the brightness slider. | easy |
+| Tone mapping style | game.js:234 | `renderer.toneMapping = THREE.ACESFilmicToneMapping;` | ACESFilmic | ACESFilmicToneMapping, ReinhardToneMapping, LinearToneMapping, NoToneMapping | Overall "film look". ACES = punchy, Reinhard = soft. | easy |
+| Background colour (start) | game.js:250 | `scene.background = new THREE.Color(0x07090d);` | 0x07090d | any 0xRRGGBB | Colour behind everything. Each level then tints it from its fog colour. | easy |
+| Hemisphere (sky/ground) light | game.js:278 | `const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x1a1e26, 0.05);` | sky 0xddeeff, ground 0x1a1e26, 0.05 | intensity 0 – 0.6 | Soft light from everywhere. Raise to 0.3 to light up dark corners. | easy |
+| Ambient light | game.js:280 | `const ambientLight = new THREE.AmbientLight(0x8090a8, 0.03);` | 0.03 | 0 – 0.5 | Flat even light. Too high = everything looks flat and grey. | easy |
+| Blue fill light | game.js:282 | `const fillLight = new THREE.DirectionalLight(0x6f9cff, 0.06);` | 0.06 | 0 – 0.5 | Cool moonlight from one side. | easy |
+| Sun/key light | game.js:315 | `const dirLight = new THREE.DirectionalLight(0xffe6c8, 0.12);` | 0xffe6c8, 0.12 | 0 – 1.5 | Main shadow-casting light from above. | easy |
+| Sun position | game.js:316 | `dirLight.position.set(45, 85, 35);` | x 45, y 85, z 35 | y 30 – 150 | Where the sun sits. Lower y = long dramatic shadows. | medium |
+| Player lantern (around you) | game.js:284 | `const camFill = new THREE.PointLight(0xffe2c0, 0.12, 10, 1.6);` | 0.12, reach 10 m | intensity 0 – 1, reach 5 – 25 | A small light that follows you. Raise it if the game feels too dark. | easy |
+| Gun/hands light | game.js:287 | `const vmLight = new THREE.PointLight(0xfff0dc, 1.7, 3.0, 1.5);` | 1.7 | 0.5 – 3 | Lights up the weapon in your hands. | easy |
+| Hanging ceiling lights | game.js:1681 | `addHangingLight(x, lh, z, i % 3 === 0 ? theme.light : PAL[(i + floor) % PAL.length], 2.2, 22)` | intensity 2.2, reach 22 m | intensity 0.5 – 5, reach 10 – 40 | The lamps in every room. Last two numbers. | easy |
+| Ceiling light colour palette | game.js:1680 | `const PAL = [0xffa24a, 0x4aa8ff, theme.light, 0xff5a3a];` | orange, blue, theme, red | any 0xRRGGBB | Colours the ceiling lamps cycle through. | easy |
+| Real lamps on phones | game.js:723 | `const realOK = !IS_COARSE \|\| LIGHT_COUNT < 4;` | first 4 lamps | 2 – 8 | Phones fake the rest with glowing floor circles. More real lamps = slower. | medium |
+| Per-floor light tint | game.js:891 | `{ key: 'farm', title: 'B1 · SERVER FARM', light: 0x9fd8ff }` | B1 icy blue | any 0xRRGGBB | Each floor (G, B1, B2, B3) has a light colour and title in FLOOR_THEMES. | easy |
+| Key spotlights | game.js:1686 | `const sp = new THREE.SpotLight(0xfff1dd, 1.4, 60, 0.75, 0.5, 1.5);` | colour, 1.4, 60 m, angle 0.75 | intensity 0.5 – 4, angle 0.3 – 1.2 | The bright cones over the security desk. | easy |
+| Exit door green light | game.js:758 | `const dl = new THREE.PointLight(0x3dff9a, 2.2, 22, 1.6);` | green, 2.2 | any colour, 0.5 – 5 | The glow that shows you where the exit is. | easy |
+| Alarm beacon flash colour | game.js:4460 | `sirenBeaconMeshes.forEach(b => b.material.color.setHex(flashOn ? 0xff0000 : 0x2a0505));` | red / dark red | any 0xRRGGBB | Siren lights when the alarm goes off. | easy |
+| Alarm length | game.js:1860 | `sirenActiveTimer = 4; SFX.playSiren && SFX.playSiren(3);` | 4 s, 3 wails | 1 – 15 | How long the alarm flashes. | easy |
+| Gun-flash light pool | game.js:294 | `const n = IS_COARSE ? 4 : 8; for (let i = 0; i < n; i++) { const L = new THREE.PointLight(0xffffff, 0, 10, 2)` | phone 4, PC 8 | 2 – 12 | How many short flashes (shots, explosions) can light the room at once. | medium |
+| Pickup glow | game.js:1711 | `new THREE.OctahedronGeometry(0.65, 0), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.8 })` | size 0.65, glow 1.8 | size 0.3 – 1.2, glow 0 – 4 | Emissive = glows without a light. Bigger = easier to spot pickups. | easy |
+| Enemy neon glow | game.js:415 | `const glowMat = new THREE.MeshStandardMaterial({ color: neonHex, emissive: neonHex, emissiveIntensity: 2.8 });` | 2.8 | 0.5 – 5 | How bright the Sentinels' neon trims glow. | easy |
 
 ## Graphics & speed
 
@@ -219,6 +306,64 @@ Change numbers, colours, quoted text only. Keep commas and brackets. Don't renam
 | Room code letters | game.js:5138 | `const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'` | no I, O, 0, 1 | letters/digits | Characters that can appear in codes. | easy |
 | Relay (TURN) servers | game.js:6034 | `const DM_TURN = [];` | empty | Ask Grok Bot | Needed for different networks. Holds a login, so never paste secrets in chat. | risky |
 | Deathmatch bot count | game.js:5837 | `DM.maxBots ?? 7` | 7 | 0 – 7 | Bots that fill empty deathmatch slots. | easy |
+
+## Shadows
+
+| What | File:line | Find (Ctrl+F) | Now | Safe range | Effect | Tag |
+|---|---|---|---|---|---|---|
+| Shadows on/off (default) | game.js:228 | `let SHADOWS_ON = localStorage.getItem(SHADOW_KEY) !== '0';` | on (unless the menu turned it off) | change !== '0' to === '1' for default off | Biggest single speed win on phones. The in-game Shadows toggle also sets it. | medium |
+| Shadow softness type | game.js:230 | `renderer.shadowMap.type = THREE.PCFSoftShadowMap;` | PCFSoftShadowMap | BasicShadowMap, PCFShadowMap, PCFSoftShadowMap | Basic = hard, pixely, fastest. PCFSoft = smooth, slowest. | easy |
+| Main sun light casts shadow | game.js:317 | `dirLight.castShadow = true;` | true | true / false | false = the big overhead light stops making shadows. Much faster. | easy |
+| Sun shadow resolution | game.js:318 | `dirLight.shadow.mapSize.set(SHADOW_RES, SHADOW_RES);` | SHADOW_RES (1024 phone / 2048 PC) | see Graphics: Shadow sharpness | Uses the SHADOW_RES number. Change that one instead. | easy |
+| Sun shadow box size | game.js:319 | `sc.left = -45; sc.right = 45; sc.top = 45; sc.bottom = -45;` | ±45 m | 25 – 90 | Area that gets shadows. Smaller = sharper shadows but they stop at the edge. Change all four. | medium |
+| Sun shadow acne fix (bias) | game.js:320 | `dirLight.shadow.bias = -0.0004; dirLight.shadow.normalBias = 0.04; dirLight.shadow.radius = 3;` | bias -0.0004, normalBias 0.04, radius 3 | bias -0.002 – 0, radius 1 – 6 | Stripes on walls ("acne")? Make bias more negative. radius = blur. | medium |
+| Spotlight shadow resolution | game.js:1687 | `sp.castShadow = true; sp.shadow.mapSize.set(IS_COARSE ? 512 : 1024` | phone 512, PC 1024 | 256 – 2048 (powers of 2) | Shadows from the hanging key spotlights. | medium |
+| How many shadow spotlights | game.js:1685 | `keySpots.slice(0, IS_COARSE ? 1 : 2)` | phone 1, PC 2 | 0 – 2 | Each shadow spotlight costs a full extra render. 0 on phones = smoother. | medium |
+| Catwalks cast shadow | game.js:2742 | `deck.castShadow = !IS_COARSE;` | PC only | true / false / !IS_COARSE | Catwalk decks throw shadows on the floor. | easy |
+| Enemies cast/receive shadows | game.js:3151 | `rig.root.traverse(o => { if (o.isMesh && !o.isSprite) { o.castShadow = true; o.receiveShadow = !IS_COARSE; } });` | cast yes, receive PC only | true / false | castShadow = makes a shadow. receiveShadow = gets darkened by others. | easy |
+| Props cast/receive shadows | game.js:950 | `c.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });` | both on | true / false | Applies to every loaded prop model (crates, racks…). | easy |
+
+## Camera & effects
+
+| What | File:line | Find (Ctrl+F) | Now | Safe range | Effect | Tag |
+|---|---|---|---|---|---|---|
+| Screen shake strength | game.js:4515 | `camera.position.x += (Math.random() - 0.5) * STATE.screenShake * 0.35;` | 0.35 (x), 0.25 (y next line) | 0 – 0.8 | 0 = no shake from explosions and recoil. | easy |
+| Muzzle vignette flash time | game.js:2046 | `setTimeout(() => { vig.style.opacity = '0'; }, 50);` | 50 ms | 0 – 150 | How long the screen edges flash when you fire. | easy |
+| 180° quick-turn key | game.js:4304 | `if (e.code === 'KeyX') STATE.player.yaw += Math.PI;` | X | any key code | Spin around instantly. | easy |
+
+## Controls
+
+| What | File:line | Find (Ctrl+F) | Now | Safe range | Effect | Tag |
+|---|---|---|---|---|---|---|
+| Weapon keys | game.js:4298 | `if (e.code === 'Digit1') switchWeapon(0);` | 1 2 3 4 | 'KeyZ' etc. | Key names look like 'KeyA', 'Digit1', 'ShiftLeft'. | easy |
+| Grenade key | game.js:4303 | `if (e.code === 'KeyG' \|\| e.code === 'KeyQ') throwFragGrenade();` | G or Q | any key code | Throw a grenade. | easy |
+| Sprint key | game.js:4497 | `const sprint = (KEYS['ShiftLeft']` | Left Shift | any key code | Hold to run. | easy |
+
+## HUD layout
+
+| What | File:line | Find (Ctrl+F) | Now | Safe range | Effect | Tag |
+|---|---|---|---|---|---|---|
+| Minimap size | index.html:113 | `<canvas id="minimap-canvas" width="98" height="98"` | 98 × 98 px | 70 – 160 | Change both numbers the same. | easy |
+| Minimap label | index.html:114 | `Dystopia Radar</div>` | Dystopia Radar | any text | Text under the minimap. | easy |
+| Health number | index.html:133 | `<span id="hud-health"` | green HP | Tailwind classes like text-red-400 | Swap text-… classes to recolour. Never change the id. | medium |
+| Weapon name style | index.html:142 | `<span id="hud-wep-name" class="text-[9px]` | 9 px amber | text-[8px] – text-[16px] | Size of the weapon name on the HUD. | easy |
+
+## Loot & pickups
+
+| What | File:line | Find (Ctrl+F) | Now | Safe range | Effect | Tag |
+|---|---|---|---|---|---|---|
+| Which pickups spawn | game.js:1706 | `const types = [['health', 0x22c55e], ['armor', 0x00f0ff]` | 2 health, 1 armor, 1 ammo, 1 quad, 3 EMP | add or remove entries | Copy an entry like ['health', 0x22c55e], to add another pickup per floor. | medium |
+| Health pickup amount | game.js:4555 | `if (p.type === 'health') STATE.player.health = Math.min(100, STATE.player.health + 35);` | +35 (max 100) | 10 – 100 | If you raised max health, raise the 100 here too. | easy |
+| Armor pickup amount | game.js:4556 | `if (p.type === 'armor') STATE.player.armor = Math.min(100, STATE.player.armor + 40);` | +40 | 10 – 100 | Armor per pickup. | easy |
+| Quad damage time | game.js:4559 | `if (p.type === 'quad') STATE.quadTimer = 12;` | 12 s | 3 – 30 | Length of the purple power-up. | easy |
+| Pickup respawn time | game.js:4554 | `p.respawnTimer = 15; SFX.playKeyPickup();` | 15 s | 5 – 120 | How soon a used pickup comes back. | easy |
+
+## Save data
+
+| What | File:line | Find (Ctrl+F) | Now | Safe range | Effect | Tag |
+|---|---|---|---|---|---|---|
+| Brightness save key | game.js:236 | `const BRIGHTNESS_KEY = 'dystopia_brightness';` | 'dystopia_brightness' | rename to reset everyone | Saved in the browser (localStorage). Other keys: dystopia_shadows, dys_music_on, dys_music_vol, dys_look, dys_gfx, dys_name, dys_skin, dys_trailer_seen_v4. | medium |
+| Touch look speed save | game.js:4377 | `sens: parseFloat(localStorage.getItem('dys_look') \|\| '') \|\| 1.0` | 1.0 default | 0.5 – 2 | Default touch look speed if nothing is saved. | easy |
 
 ## File sizes
 
