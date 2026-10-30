@@ -2,7 +2,7 @@
 """Builds learn-3d-112248cf/tweaks.html + TWEAKS.md. Every snippet must appear exactly once-first in its file; line numbers are computed and verified."""
 import os, html, sys
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FILES = {f: open(os.path.join(R, f), encoding='utf-8').read().split('\n') for f in ['game.js', 'style.css', 'index.html']}
+FILES = {f: open(os.path.join(R, f), encoding='utf-8').read().split('\n') for f in ['game.js', 'style.css', 'index.html', 'mods/starter_mod.js']}
 def find(f, s):
     hits = [i + 1 for i, l in enumerate(FILES[f]) if s in l]
     if not hits: sys.exit(f'NOT FOUND in {f}: {s}')
@@ -193,6 +193,59 @@ GUIDE = [
  ('A10. Upload the file in Spck', 'Spck file tree → long-press the <code>models</code> folder → <b>Import / Upload file</b> → pick from Downloads. Then Git → Changes → tick the new file + game.js → Commit with a message → <b>Push</b>. Live in ~1 minute.', []),
  ('A11. Common mistakes', '<ul><li><b>Case matters</b> online: <code>Cone.glb</code> ≠ <code>cone.glb</code>. Works in preview, breaks live.</li><li>Path is relative to index.html: <code>models/cone.glb</code>, never <code>/sdcard/…</code> or <code>C:\\</code>.</li><li>Opening index.html from the Files app (file://) blocks model loading (CORS). Use Spck preview.</li><li>Forgot the comma at the end of the jobs line → black screen.</li><li>Big file (10 MB+) → slow load, phone crashes. Shrink first.</li><li>Model is sideways? add <code>yaw: Math.PI / 2</code> to its jobs line.</li></ul>', []),
 ]
+
+MODS = [
+ ('M1. Make a new JS file', 'In Spck long-press the <code>mods</code> folder → New file → <code>mymod.js</code>. Start by copying <code>mods/starter_mod.js</code> (it is in the repo, tested in headless Chrome: cube spins, M toggles fog, kills print to the console).', [('mods/starter_mod.js', 'const MOD_CUBE = new THREE.Mesh(')]),
+ ('M2. Load it after game.js', 'In index.html, add your line <b>under</b> the game.js line. The <code>?v=1</code> is a cache-buster: bump it to <code>?v=2</code> each time you push so phones grab the new copy.', [('index.html', '<script src="game.js?v=')]),
+ ('M3. Starter mod: what each part does', '1) a glowing cube added to <code>scene</code> · 2) <kbd>M</kbd> toggles <code>scene.fog</code> · 3) wraps <code>finishBotKill</code> to log each kill · 4) its own <code>requestAnimationFrame</code> loop keeps the cube in front of you. 👀 Instant win: change <code>0xff00ff</code> to <code>0x00ff00</code> and the cube turns green.', [('mods/starter_mod.js', 'finishBotKill = function (b) {'), ('mods/starter_mod.js', 'function modLoop() {')]),
+ ('M4. Safe hook points (globals you can use)', '<code>THREE</code> (3D library) · <code>scene</code> (add/remove things) · <code>camera</code> · <code>renderer</code> · <code>STATE</code> (player, weapons, level, floor) · <code>STATE.player</code> (x, y, z, yaw, health) · <code>BOTS</code> (enemy list) · <code>PICKUPS</code> · <code>SFX</code> (sounds) · functions you can call or wrap: <code>startFloor(lvl, floor)</code>, <code>finishBotKill(b)</code>, <code>damagePlayer(dmg, src)</code>, <code>explode(x, y, z, {scale})</code>, <code>addKillFeed(msg)</code>. <b>Wrap</b> = save the old one, replace it, call the old one inside (like M3).', [('game.js', 'const STATE = {'), ('game.js', 'let BOTS = [];'), ('game.js', 'function explode(x, y, z, opt = {}) {'), ('game.js', 'function addKillFeed(msg) {')]),
+ ('M5. Try in the console first', 'Easiest experiment of all: wrap a line, e.g. <code>explode(STATE.player.x, 1, STATE.player.z - 6, { scale: 2 })</code> in a mod, or in Chrome DevTools/Eruda console. Boom in front of you.', []),
+ ('M6. Your own CSS file', 'Make <code>mymod.css</code> and add <code>&lt;link rel="stylesheet" href="mymod.css?v=1"&gt;</code> in index.html <b>under</b> the style.css line. Later rules win, so <code>#crosshair .absolute { background:lime !important; }</code> overrides the game.', [('index.html', '<link rel="stylesheet" href="style.css?v=')]),
+ ('M7. Your own level data file', 'Make <code>mods/mylevel.js</code> that changes data before you play, e.g. <code>LEVEL_CONFIGS[1].name = \'MY LEVEL\'; LEVEL_CONFIGS[1].fogColor = 0x220000;</code>, or pushes props in a wrapped <code>genFloorLayout</code> (call the old one, then <code>out.objects.push({ id: \'my-1\', type: \'crate\', x: 0, z: 60, w: 3, d: 3, h: 3, rot: 0, color: \'#f00\' })</code> and return it). Load it after game.js.', [('game.js', 'const LEVEL_CONFIGS = (() => {'), ('game.js', 'function genFloorLayout(level, floor) {')]),
+ ('M8. New HTML pages', 'Any <code>.html</code> you add is a web page at <code>…/dystopia-project-moses/yourpage.html</code>. Copy <code>learn-3d-112248cf/step1.html</code> as a template. Link to it from anywhere with <code>&lt;a href="yourpage.html"&gt;</code>.', []),
+ ('M9. What NOT to touch', '<ul><li>Don\'t rename game.js functions or top-level names (STATE, BOTS…) — other code calls them.</li><li>Don\'t delete or rename an <code>id="…"</code> in index.html — game.js looks them up.</li><li>Don\'t edit <code>tools/</code> or <code>regression-out/</code> from Spck.</li><li>Never paste tokens or API keys into a file (the Meshy key lives only in the browser).</li><li>Mods can\'t change <code>const</code> numbers inside functions — for those, edit game.js (see the tweak cards).</li></ul>', []),
+]
+TOUR_FILES = [
+ ('index.html', 'The page: HUD, menus and buttons (HTML). Loads style.css then game.js.'),
+ ('style.css', 'All the looks: fonts, colours, touch button sizes.'),
+ ('game.js', 'The whole game (~6,400 lines). Map below.'),
+ ('mods/starter_mod.js', 'Example mod (not loaded until you add its script line).'),
+ ('models/', '3D .glb files (enemies, guns, props).'), ('images/', 'Textures (images/tex/) and the title background.'),
+ ('audio/', 'Voice lines and short sounds.'), ('music/', 'Kevin MacLeod songs (CC BY 4.0).'), ('media/', 'Trailer video + poster + TRAILER_SOURCES.md credits.'),
+ ('fonts/', 'Black Ops One, Chakra Petch, Caveat (.woff2).'), ('icons/, manifest.webmanifest', 'Home-screen app icon and install info.'),
+ ('CREDITS.md', 'Who made each asset. Add a line whenever you add one.'), ('STORY_BIBLE.md', 'The lore: Moses, the Accord, the Sentinels.'), ('README.md', 'Project summary.'),
+ ('learn-3d-112248cf/', 'Tutorials: step1–10, android.html, vscode.html, this page.'),
+ ('dystopia-upgraded.html', 'Old single-file version (history only, not the live game).'),
+ ('unity-test-2f894cad/', 'An old Unity experiment + Android APK. Not used by the web game.'),
+ ('regression-out/', 'Screenshots from the last test run. Safe to ignore.'),
+ ('tools/regression.js', 'Plays every level in headless Chrome and checks 264 things (bots move, doors open…). <b>Computer + Node only, not Spck.</b> Ask Grok Bot to run it.'),
+ ('tools/CHECKLIST.md', 'The list of what regression.js checks.'),
+ ('tools/shots.js', 'Screenshots of every screen at phone sizes. Node only.'),
+ ('tools/peek.js', 'Screenshots of chosen spots in a level. Node only.'),
+ ('tools/trailer_capture.js', 'Records trailer gameplay frame-by-frame at 30 fps. Node only.'),
+ ('tools/mp_test.js + fakepeer.js', 'Tests multiplayer with two fake players. Node only.'),
+ ('tools/mod_test.js', 'Checks the starter mod works. Node only.'),
+ ('tools/build_tweaks.py', 'Builds this page and TWEAKS.md, and checks every line number. Python only.'),
+]
+SECTIONS = [('Header, settings, level data, player/weapons (STATE)', 'let IS_RELEASE_BUILD = false;'), ('Sound synth (SFX)', 'class SoundSynth'), ('Renderer, camera, lights, textures', 'const IS_COARSE ='),
+ ('Enemy bodies (procedural Sentinels)', 'const sinewMat = new THREE.MeshStandardMaterial'), ('World pieces (walls, lights, signs, props)', 'let BOTS = [];'),
+ ('Floor system: Colossus, floor layouts, startFloor', 'const FLOOR_NAMES ='), ('Model loading (jobs list)', 'function normalizeMeshyScene'), ('Squad AI: nav grid, cover, A*', 'const NAV = {'),
+ ('Lore notes and posters', 'const LORE_POSTERS = ['), ('Enemy weapons', 'const ENEMY_WEAPON_TPL ='), ('FPS arms + viewmodel', '// FPS ARMS'), ('Spawning, Menders, firing', '// SPAWN / COMBAT / DEATH GIB'),
+ ('Explosions & particles', 'const FX = { ready: false };'), ('Score, Colossus weak points, wreck', '// SCORE + popups'), ('Barrels and drones', '// EXPLOSIVE BARRELS'),
+ ('Controls + the main game loop', '// CONTROLS + GAME LOOP'), ('Studio, Meshy panel, party, startup', '// STUDIO, MESHY API PANEL'), ('Weapons detail, offices, mobile UI', '// ======================= Round 11: distinct'),
+ ('Cheats, skins, deathmatch multiplayer', '// ROUND 12: CHEAT CODES'), ('Music, trailer, final UI', 'const MUSIC_TRACKS = {')]
+READ_FIRST = [('updateHUD()', 'function updateHUD()', 'Short. Shows how numbers in STATE become text on screen.'),
+ ('firePlayerWeapon()', 'function firePlayerWeapon', 'What happens when you pull the trigger: ammo, recoil, bullets.'),
+ ('explode()', 'function explode(x, y, z, opt = {})', 'Numbered steps 1–7: flash, fire, smoke, sparks, debris. Very readable.'),
+ ('damagePlayer()', 'function damagePlayer(dmg, src)', 'Armor, health, death screen: simple if/else logic.'),
+ ('partyCode()', 'function partyCode()', '3 lines. A loop that builds a random code. Perfect first read.'),
+ ('startFloor()', 'function startFloor(lvl, floor)', 'How a level is built and enemies are spawned.'),
+ ('gameLoop()', 'function gameLoop(now)', 'The heartbeat: runs every frame. Read the first 30 lines.')]
+LEARN = [('1. Turbo legs', 'Change <code>walkSpeed: 14</code> to <code>30</code>. Save, refresh. 👀 you zoom.'),
+ ('2. Paint the bullets', 'Pulse Cannon <code>color: 0x38bdf8</code> → <code>0xff00ff</code>. 👀 pink shots.'),
+ ('3. Load the starter mod', 'Add the script line from M2. 👀 a pink cube floats in front of you.'),
+ ('4. Your first wrap', 'In your mod, add <code>addKillFeed(\'HELLO FROM MY MOD\')</code> inside the finishBotKill wrapper. 👀 your words in the kill feed on every kill.'),
+ ('5. Read and tweak a function', 'Read partyCode(), change <code>i < 5</code> to <code>i < 3</code>. Host a game. 👀 a 3-letter code.')]
 QUICK = ['Walk speed', 'Pulse Cannon fire rate', 'Fog thickness', 'Debris chunk size', 'Bullet color']
 CATS = list(dict.fromkeys(t[0] for t in T))
 rows = []
@@ -240,7 +293,7 @@ H.append('''<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="icon" hr
 <p>Every knob in the game, with the file, the line, and the exact text to find. Tags: <span class="tag" style="background:#3c6">easy</span> just a number · <span class="tag" style="background:#fc3">medium</span> read the note first · <span class="tag" style="background:#f55">risky</span> ask Grok Bot.</p>
 <p>Back to <a href="android.html">the Android tutorial</a>. Line numbers match the game as of the commit that made this page. They drift a little once you add lines, so <b>always search with <kbd>Ctrl</kbd>+<kbd>F</kbd></b> using the green text.</p>
 ''')
-toc = ['<a href="#flow">Flow chart</a>', '<a href="#quick">Try these 5 first</a>', '<a href="#newq">New quick wins</a>', '<a href="#assets">Adding assets</a>', '<a href="#test">Test</a>', '<a href="#undo">Undo</a>', '<a href="#rules">Rules</a>'] + [f'<a href="#c{i}">{e(c)}</a>' for i, c in enumerate(CATS)] + ['<a href="#sizes">File sizes</a>']
+toc = ['<a href="#flow">Flow chart</a>', '<a href="#quick">Try these 5 first</a>', '<a href="#newq">New quick wins</a>', '<a href="#assets">Adding assets</a>', '<a href="#mods">Your own files & scripts</a>', '<a href="#tour">Project tour</a>', '<a href="#learn">Learning path</a>', '<a href="#test">Test</a>', '<a href="#undo">Undo</a>', '<a href="#rules">Rules</a>'] + [f'<a href="#c{i}">{e(c)}</a>' for i, c in enumerate(CATS)] + ['<a href="#sizes">File sizes</a>']
 H.append('<p class="lib"><b>Contents:</b> ' + ' · '.join(toc) + '</p>')
 # flow
 H.append('<div class="step s0" id="flow"><h2>🗺️ How the game runs (flow chart)</h2><p>Read top to bottom. Each box shows the real function name and line in <code>game.js</code>. Press <kbd>Ctrl</kbd>+<kbd>F</kbd> and type the name to jump there.</p><div class="fc">')
@@ -269,6 +322,13 @@ H.append('</div><details id="assets"><summary>📦 Adding assets, step by step</
 for h, txt, refs in GUIDE:
     H.append(f'<div class="tw"><h3>{e(h)}</h3><div>{txt}</div>' + ''.join(f'<div class="meta">📄 <b>{f}</b> · line <b>{find(f, sn)[0]}</b></div><button class="cp">copy</button><pre>{e(sn)}</pre>' for f, sn in refs) + '</div>')
 H.append('</details>')
+def gl(h, txt, refs): return f'<div class="tw"><h3>{e(h)}</h3><div>{txt}</div>' + ''.join(f'<div class="meta">📄 <b>{f}</b> · line <b>{find(f, sn)[0]}</b></div><button class="cp">copy</button><pre>{e(sn)}</pre>' for f, sn in refs) + '</div>'
+H.append('<details id="mods"><summary>🧩 Add your own files & scripts</summary>' + ''.join(gl(*m) for m in MODS) + '</details>')
+SEC = [(n, find('game.js', sn)[0]) for n, sn in SECTIONS]; NL = len(FILES['game.js'])
+SECR = [(n, a, (SEC[i+1][1]-1 if i+1 < len(SEC) else NL)) for i, (n, a) in enumerate(SEC)]
+assert all(a <= b for _, a, b in SECR), SECR
+H.append('<details id="tour"><summary>🗺️ Project tour / code map</summary><h3>Every file and folder</h3><table class="sz">' + ''.join(f'<tr><td><code>{e(a)}</code></td><td>{b}</td></tr>' for a, b in TOUR_FILES) + '</table><p class="lib">tools/ scripts need a computer with Node (or Python) and a headless Chrome. They do not run in Spck. Just ask Grok Bot to run them.</p><h3>game.js in reading order</h3><table class="sz">' + ''.join(f'<tr><td>{a}–{b}</td><td>{e(n)}</td></tr>' for n, a, b in SECR) + '</table><p>Jump there in Acode with <kbd>Ctrl</kbd>+<kbd>G</kbd>, or search the function name in Spck.</p><h3>Good functions to read first</h3>' + ''.join(f'<div class="tw"><b>{e(n)}</b> · line {find("game.js", sn)[0]}<div>{e(w)}</div></div>' for n, sn, w in READ_FIRST) + '</details>')
+H.append('<div class="step" id="learn"><h2>🎓 Learning path: 5 tiny exercises</h2><ol>' + ''.join(f'<li><b>{e(a)}</b>: {b}</li>' for a, b in LEARN) + '</ol></div>')
 for i, c in enumerate(CATS):
     rs = [r for r in rows if r['c'] == c]
     H.append(f'<details id="c{i}"{" open" if i==0 else ""}><summary>{e(c)} ({len(rs)})</summary>' + ''.join(card(r) for r in rs) + '</details>')
@@ -294,6 +354,12 @@ md += ['', '## Adding assets, step by step', '']
 import re
 for h, txt, refs in GUIDE:
     md += [f'### {h}', re.sub(r'<[^>]+>', '', txt).replace('&lt;','<'), ''] + [f'- `{f}` line {find(f, sn)[0]}: `{sn}`' for f, sn in refs] + ['']
+md += ['## Add your own files & scripts', '']
+for h, txt, refs in MODS: md += [f'### {h}', re.sub(r'<[^>]+>', '', txt).replace('&lt;','<').replace('&gt;','>'), ''] + [f'- `{f}` line {find(f, sn)[0]}: `{sn}`' for f, sn in refs] + ['']
+md += ['## Project tour', '', '| File | What |', '|---|---|'] + [f'| `{a}` | {re.sub(r"<[^>]+>", "", b)} |' for a, b in TOUR_FILES]
+md += ['', '### game.js sections', '', '| Lines | Section |', '|---|---|'] + [f'| {a}–{b} | {n} |' for n, a, b in SECR]
+md += ['', '### Read these first', ''] + [f'- **{n}** (line {find("game.js", sn)[0]}): {w}' for n, sn, w in READ_FIRST]
+md += ['', '## Learning path', ''] + [f'{i+1}. **{a[3:]}**: {re.sub(r"<[^>]+>", "", b)}' for i, (a, b) in enumerate(LEARN)]
 md += ['', '## Test', 'Edit one number → Ctrl+S → Spck ▶ preview (refresh) → look.', '', '## Undo', 'Ctrl+Z; keep a duplicate of the file; Spck Git → Changes → Discard (= `git restore game.js`).', '', '## Rules', "Change numbers, colours, quoted text only. Keep commas and brackets. Don't rename functions. `IS_COARSE ? phone : PC`.", '']
 for c in CATS:
     md += [f'## {c}', '', '| What | File:line | Find (Ctrl+F) | Now | Safe range | Effect | Tag |', '|---|---|---|---|---|---|---|']

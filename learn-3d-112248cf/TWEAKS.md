@@ -105,6 +105,128 @@ Spck file tree → long-press the models folder → Import / Upload file → pic
 Case matters online: Cone.glb ≠ cone.glb. Works in preview, breaks live.Path is relative to index.html: models/cone.glb, never /sdcard/… or C:\.Opening index.html from the Files app (file://) blocks model loading (CORS). Use Spck preview.Forgot the comma at the end of the jobs line → black screen.Big file (10 MB+) → slow load, phone crashes. Shrink first.Model is sideways? add yaw: Math.PI / 2 to its jobs line.
 
 
+## Add your own files & scripts
+
+### M1. Make a new JS file
+In Spck long-press the mods folder → New file → mymod.js. Start by copying mods/starter_mod.js (it is in the repo, tested in headless Chrome: cube spins, M toggles fog, kills print to the console).
+
+- `mods/starter_mod.js` line 7: `const MOD_CUBE = new THREE.Mesh(`
+
+### M2. Load it after game.js
+In index.html, add your line under the game.js line. The ?v=1 is a cache-buster: bump it to ?v=2 each time you push so phones grab the new copy.
+
+- `index.html` line 383: `<script src="game.js?v=`
+
+### M3. Starter mod: what each part does
+1) a glowing cube added to scene · 2) M toggles scene.fog · 3) wraps finishBotKill to log each kill · 4) its own requestAnimationFrame loop keeps the cube in front of you. 👀 Instant win: change 0xff00ff to 0x00ff00 and the cube turns green.
+
+- `mods/starter_mod.js` line 21: `finishBotKill = function (b) {`
+- `mods/starter_mod.js` line 27: `function modLoop() {`
+
+### M4. Safe hook points (globals you can use)
+THREE (3D library) · scene (add/remove things) · camera · renderer · STATE (player, weapons, level, floor) · STATE.player (x, y, z, yaw, health) · BOTS (enemy list) · PICKUPS · SFX (sounds) · functions you can call or wrap: startFloor(lvl, floor), finishBotKill(b), damagePlayer(dmg, src), explode(x, y, z, {scale}), addKillFeed(msg). Wrap = save the old one, replace it, call the old one inside (like M3).
+
+- `game.js` line 83: `const STATE = {`
+- `game.js` line 606: `let BOTS = [];`
+- `game.js` line 3550: `function explode(x, y, z, opt = {}) {`
+- `game.js` line 4267: `function addKillFeed(msg) {`
+
+### M5. Try in the console first
+Easiest experiment of all: wrap a line, e.g. explode(STATE.player.x, 1, STATE.player.z - 6, { scale: 2 }) in a mod, or in Chrome DevTools/Eruda console. Boom in front of you.
+
+
+### M6. Your own CSS file
+Make mymod.css and add <link rel="stylesheet" href="mymod.css?v=1"> in index.html under the style.css line. Later rules win, so #crosshair .absolute { background:lime !important; } overrides the game.
+
+- `index.html` line 21: `<link rel="stylesheet" href="style.css?v=`
+
+### M7. Your own level data file
+Make mods/mylevel.js that changes data before you play, e.g. LEVEL_CONFIGS[1].name = 'MY LEVEL'; LEVEL_CONFIGS[1].fogColor = 0x220000;, or pushes props in a wrapped genFloorLayout (call the old one, then out.objects.push({ id: 'my-1', type: 'crate', x: 0, z: 60, w: 3, d: 3, h: 3, rot: 0, color: '#f00' }) and return it). Load it after game.js.
+
+- `game.js` line 21: `const LEVEL_CONFIGS = (() => {`
+- `game.js` line 1509: `function genFloorLayout(level, floor) {`
+
+### M8. New HTML pages
+Any .html you add is a web page at …/dystopia-project-moses/yourpage.html. Copy learn-3d-112248cf/step1.html as a template. Link to it from anywhere with <a href="yourpage.html">.
+
+
+### M9. What NOT to touch
+Don't rename game.js functions or top-level names (STATE, BOTS…) — other code calls them.Don't delete or rename an id="…" in index.html — game.js looks them up.Don't edit tools/ or regression-out/ from Spck.Never paste tokens or API keys into a file (the Meshy key lives only in the browser).Mods can't change const numbers inside functions — for those, edit game.js (see the tweak cards).
+
+
+## Project tour
+
+| File | What |
+|---|---|
+| `index.html` | The page: HUD, menus and buttons (HTML). Loads style.css then game.js. |
+| `style.css` | All the looks: fonts, colours, touch button sizes. |
+| `game.js` | The whole game (~6,400 lines). Map below. |
+| `mods/starter_mod.js` | Example mod (not loaded until you add its script line). |
+| `models/` | 3D .glb files (enemies, guns, props). |
+| `images/` | Textures (images/tex/) and the title background. |
+| `audio/` | Voice lines and short sounds. |
+| `music/` | Kevin MacLeod songs (CC BY 4.0). |
+| `media/` | Trailer video + poster + TRAILER_SOURCES.md credits. |
+| `fonts/` | Black Ops One, Chakra Petch, Caveat (.woff2). |
+| `icons/, manifest.webmanifest` | Home-screen app icon and install info. |
+| `CREDITS.md` | Who made each asset. Add a line whenever you add one. |
+| `STORY_BIBLE.md` | The lore: Moses, the Accord, the Sentinels. |
+| `README.md` | Project summary. |
+| `learn-3d-112248cf/` | Tutorials: step1–10, android.html, vscode.html, this page. |
+| `dystopia-upgraded.html` | Old single-file version (history only, not the live game). |
+| `unity-test-2f894cad/` | An old Unity experiment + Android APK. Not used by the web game. |
+| `regression-out/` | Screenshots from the last test run. Safe to ignore. |
+| `tools/regression.js` | Plays every level in headless Chrome and checks 264 things (bots move, doors open…). Computer + Node only, not Spck. Ask Grok Bot to run it. |
+| `tools/CHECKLIST.md` | The list of what regression.js checks. |
+| `tools/shots.js` | Screenshots of every screen at phone sizes. Node only. |
+| `tools/peek.js` | Screenshots of chosen spots in a level. Node only. |
+| `tools/trailer_capture.js` | Records trailer gameplay frame-by-frame at 30 fps. Node only. |
+| `tools/mp_test.js + fakepeer.js` | Tests multiplayer with two fake players. Node only. |
+| `tools/mod_test.js` | Checks the starter mod works. Node only. |
+| `tools/build_tweaks.py` | Builds this page and TWEAKS.md, and checks every line number. Python only. |
+
+### game.js sections
+
+| Lines | Section |
+|---|---|
+| 18–102 | Header, settings, level data, player/weapons (STATE) |
+| 103–214 | Sound synth (SFX) |
+| 215–413 | Renderer, camera, lights, textures |
+| 414–605 | Enemy bodies (procedural Sentinels) |
+| 606–887 | World pieces (walls, lights, signs, props) |
+| 888–2084 | Floor system: Colossus, floor layouts, startFloor |
+| 2085–2198 | Model loading (jobs list) |
+| 2199–2507 | Squad AI: nav grid, cover, A* |
+| 2508–2670 | Lore notes and posters |
+| 2671–2947 | Enemy weapons |
+| 2948–3118 | FPS arms + viewmodel |
+| 3119–3517 | Spawning, Menders, firing |
+| 3518–3613 | Explosions & particles |
+| 3614–3987 | Score, Colossus weak points, wreck |
+| 3988–4289 | Barrels and drones |
+| 4290–4757 | Controls + the main game loop |
+| 4758–5211 | Studio, Meshy panel, party, startup |
+| 5212–5630 | Weapons detail, offices, mobile UI |
+| 5631–6123 | Cheats, skins, deathmatch multiplayer |
+| 6124–6395 | Music, trailer, final UI |
+
+### Read these first
+
+- **updateHUD()** (line 4419): Short. Shows how numbers in STATE become text on screen.
+- **firePlayerWeapon()** (line 3441): What happens when you pull the trigger: ammo, recoil, bullets.
+- **explode()** (line 3550): Numbered steps 1–7: flash, fire, smoke, sparks, debris. Very readable.
+- **damagePlayer()** (line 4251): Armor, health, death screen: simple if/else logic.
+- **partyCode()** (line 5137): 3 lines. A loop that builds a random code. Perfect first read.
+- **startFloor()** (line 1719): How a level is built and enemies are spawned.
+- **gameLoop()** (line 4448): The heartbeat: runs every frame. Read the first 30 lines.
+
+## Learning path
+
+1. **Turbo legs**: Change walkSpeed: 14 to 30. Save, refresh. 👀 you zoom.
+2. **Paint the bullets**: Pulse Cannon color: 0x38bdf8 → 0xff00ff. 👀 pink shots.
+3. **Load the starter mod**: Add the script line from M2. 👀 a pink cube floats in front of you.
+4. **Your first wrap**: In your mod, add addKillFeed('HELLO FROM MY MOD') inside the finishBotKill wrapper. 👀 your words in the kill feed on every kill.
+5. **Read and tweak a function**: Read partyCode(), change i  to i . Host a game. 👀 a 3-letter code.
 
 ## Test
 Edit one number → Ctrl+S → Spck ▶ preview (refresh) → look.
@@ -454,3 +576,4 @@ Change numbers, colours, quoted text only. Keep commas and brackets. Don't renam
 | game.js | 0.52 |
 | style.css | 0.05 |
 | index.html | 0.04 |
+| mods/starter_mod.js | 0.00 |
