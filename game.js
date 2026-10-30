@@ -3916,12 +3916,13 @@ function softSpotWorld(C, sp, out) {
   const d = sp.def, H = C.height, yaw = C.root.rotation.y, cs = Math.cos(yaw), sn = Math.sin(yaw);
   const local = (lx, ly, lz) => out.set(C.root.position.x + lx * cs + lz * sn, C.root.position.y + ly, C.root.position.z - lx * sn + lz * cs);
   if (d.cannon && C.cannon) { C.cannon.updateMatrixWorld(true); out.set(0, 0, 0).applyMatrix4(C.cannon.matrixWorld); out.y += H * 0.02; return out; }
-  if (sp.bone) { sp.bone.getWorldPosition(out); const o = d.off || [0, 0, 0]; const fw = (d.frac[2] * (C.ownCannon ? 0.35 : 0.7) + o[2]) * H; out.x += sn * fw; out.z += cs * fw; out.y += o[1] * H; return out; }
+  if (sp.bone) { sp.bone.getWorldPosition(out); const o = d.off || [0, 0, 0]; let fw = (d.frac[2] * (C.ownCannon ? 0.35 : 0.7) + o[2]) * H; if (C.ownCannon) fw = Math.min(fw, sp.R * 0.55); /* Round 22: Meshy body is slim; big forward push made spots float ahead */ out.x += sn * fw; out.z += cs * fw; out.y += o[1] * H; return out; }
   return local(d.frac[0] * H, d.frac[1] * H, d.frac[2] * H);
 }
 function updateSoftSpots(dt, now) {
   COLOSSI.forEach(C => {
     if (!C.spots) return;
+    C.root.updateMatrixWorld(true); // Round 22: bones were read from last frame's matrices, so spots lagged/led the moving body
     const stunned = C.stun > 0;
     C.spots.forEach(sp => {
       const vis = !C.dead && C.root.visible; sp.g.visible = vis && !sp.dead; if (sp.plates) sp.plates.forEach(p => p.m.visible = vis && !C.ownCannon); // Round 21: procedural core plates float off the Meshy body
@@ -4560,7 +4561,7 @@ function gameLoop(now) {
     }
   });
 
-  fxUpdate(dt); rtLightsUpdate(); adsUpdate(dt); updateArcPreview(); updateDrones(dt, now); updateSoftSpots(dt, now); updateScorePopups(dt);
+  fxUpdate(dt); rtLightsUpdate(); adsUpdate(dt); updateArcPreview(); updateDrones(dt, now); updateScorePopups(dt); /* Round 22: updateSoftSpots moved after updateFloorLogic (Colossus moves there) */
   for (let i = FLAME_PARTICLES.length - 1; i >= 0; i--) {
     const fp = FLAME_PARTICLES[i]; fp.life -= dt;
     if (fp.fall) { fp.vy -= 16 * dt; if (fp.mesh.position.y <= fp.floor) { fp.mesh.position.y = fp.floor; fp.vy = Math.abs(fp.vy) * 0.1; fp.vx *= 0.5; fp.vz *= 0.5; } }
@@ -4748,6 +4749,7 @@ function gameLoop(now) {
   updateAIGlobal(dt);
   updateLore(dt, now);
   updateFloorLogic(dt, now);
+  updateSoftSpots(dt, now); // Round 22: after the Colossus has moved/animated this frame
   drawMinimap();
   renderFrame();
 }
@@ -6203,7 +6205,7 @@ const CREDITS_HTML = `<div class="gc-t">CREDITS</div>
  <div class="cr-sec"><b>FONTS</b><br>Black Ops One · Chakra Petch · Caveat — SIL Open Font License 1.1</div>
  <div class="cr-sec dim">Now playing: “Feral Angel Waltz” — Kevin MacLeod</div><button id="cr-close">CLOSE</button>`;
 // ---------- Round 19: startup trailer (first launch auto-plays muted; Skip; tap for sound; Watch Trailer in menus) ----------
-const TRAILER_SRC = 'media/dystopia_trailer_720p.mp4', TRAILER_KEY = 'dys_trailer_seen_v3';
+const TRAILER_SRC = 'media/dystopia_trailer_720p.mp4', TRAILER_KEY = 'dys_trailer_seen_v4';
 function playTrailer(manual) {
   if (document.getElementById('trailer-overlay')) return;
   const el = document.createElement('div'); el.id = 'trailer-overlay';

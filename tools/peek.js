@@ -8,7 +8,7 @@ const serve = () => new Promise(r => { const s = http.createServer((q, res) => {
   const [srv, URL] = await serve();
   const br = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const p = await (await br.newContext({ viewport: { width: 1280, height: 720 } })).newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.addInitScript(() => { try { localStorage.setItem('dys_trailer_seen_v3', '1'); } catch (e) {} });
+  await p.addInitScript(() => { try { localStorage.setItem('dys_trailer_seen_v4', '1'); } catch (e) {} });
   await p.goto(URL, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(9000);
   await p.evaluate(() => { document.getElementById('btn-skip-splash')?.click(); }); await p.waitForTimeout(500); await p.evaluate(() => document.getElementById('btn-start').click()); await p.waitForTimeout(4000);
   let cur = '';
