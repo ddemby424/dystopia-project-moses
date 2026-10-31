@@ -1,0 +1,19 @@
+
+/* ===== IRON PROTOCOL robot restyle (appended by tools/build_robot.py from robot/robot.css) ===== */
+#robot-visor { position: fixed; inset: 0; pointer-events: none; z-index: 40;
+  background: repeating-linear-gradient(0deg, rgba(0,229,255,.035) 0 1px, transparent 1px 3px),
+              radial-gradient(ellipse at center, transparent 58%, rgba(0,40,55,.55) 100%); }
+#robot-visor i { position: absolute; width: 38px; height: 38px; border: 2px solid rgba(0,229,255,.7); filter: drop-shadow(0 0 4px #00e5ff); }
+#robot-visor .tl { top: 10px; left: 10px; border-right: 0; border-bottom: 0; }
+#robot-visor .tr { top: 10px; right: 10px; border-left: 0; border-bottom: 0; }
+#robot-visor .bl { bottom: 10px; left: 10px; border-right: 0; border-top: 0; }
+#robot-visor .br { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
+#robot-visor span { position: absolute; top: 100px; left: 14px; font: 600 10px 'Chakra Petch', monospace; letter-spacing: .3em; color: rgba(125,249,255,.75); text-shadow: 0 0 6px #00e5ff; }
+.robot-mode .q3-title, .robot-mode .splash-title { color: #dff9ff !important; text-shadow: 0 0 18px #00e5ff, 0 3px 0 #0a2a33 !important; -webkit-text-fill-color: #dff9ff; background: none !important; }
+.robot-mode .q3-btn { background: linear-gradient(#2d3a44, #10181e) !important; border-color: #00e5ff !important; color: #c9fbff !important; box-shadow: 0 0 12px rgba(0,229,255,.45) !important; }
+.robot-mode .q3-metal { background: linear-gradient(135deg, #3a4752, #151c22) !important; border-color: #5fd8ea !important; }
+.robot-mode #splash-bar { background: linear-gradient(90deg, #00b3ff, #7df9ff) !important; }
+.robot-mode #title-bg { filter: hue-rotate(170deg) saturate(.7) brightness(.8); }
+.robot-mode #hud-health, .robot-mode #hud-armor, .robot-mode #hud-ammo, .robot-mode #hud-wep-name { color: #7df9ff !important; text-shadow: 0 0 8px #00e5ff !important; }
+.robot-mode .text-amber-300, .robot-mode .text-amber-400, .robot-mode .text-orange-400 { color: #7df9ff !important; }
+.robot-mode #crosshair { filter: hue-rotate(160deg) drop-shadow(0 0 3px #00e5ff); }

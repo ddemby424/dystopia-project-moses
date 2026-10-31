@@ -7,7 +7,7 @@ const T = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript' }
 const ok = (n, c, d) => { console.log(`${c ? 'PASS' : 'FAIL'}  mp ${n}${d ? '  — ' + JSON.stringify(d) : ''}`); if (!c) process.exitCode = 1; };
 (async () => {
   const srv = http.createServer((q, r) => { let p = decodeURIComponent(q.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html'; const f = path.join(ROOT, p); if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end(); } r.writeHead(200, { 'Content-Type': T[path.extname(f)] || 'application/octet-stream' }); fs.createReadStream(f).pipe(r); });
-  await new Promise(r => srv.listen(0, '127.0.0.1', r)); const BASE = `http://127.0.0.1:${srv.address().port}/index.html`;
+  await new Promise(r => srv.listen(0, '127.0.0.1', r)); const BASE = `http://127.0.0.1:${srv.address().port}/${process.env.PAGE || "index.html"}`;
   // one browser context = one BroadcastChannel space; real PeerJS/WebRTC is replaced by tools/fakepeer.js (box policy blocks WebRTC UDP)
   const B = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ARGS }); const CTX = await B.newContext({ viewport: { width: 393, height: 659 }, isMobile: true, hasTouch: true });
   await CTX.route(/peerjs/, r => r.abort()); await CTX.addInitScript({ path: path.join(__dirname, 'fakepeer.js') });
