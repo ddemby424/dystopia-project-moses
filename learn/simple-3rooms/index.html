@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<!--
+  SIMPLE FPS: 3 ROOMS + 1 HALL   (learning project for Darcy)
+  ============================================================
+  Everything is in THIS ONE FILE. Read top to bottom:
+    STEP 1  page + three.js loading
+    STEP 2  scene, camera, renderer (the "world", the "eyes", the "painter")
+    STEP 3  lights
+    STEP 4  BUILD THE WORLD: floors + walls for 3 rooms and a hall
+    STEP 5  GUN ASSET (built from boxes, glued to the camera)
+    STEP 6  ENEMY ASSET (built from shapes, PLACED in Room C)
+    STEP 7  CONTROLS: keyboard + touch  -> sets "input" flags
+    STEP 8  MOVEMENT: forward/back/strafe + TURN LEFT/RIGHT + look
+    STEP 9  SHOOTING
+    STEP 10 GAME LOOP (runs ~60 times a second)
+  Search for "<<<" to jump to the most important lines.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Simple FPS - 3 Rooms</title>
+<style>
+  /* Page fills the screen, no scrollbars */
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:sans-serif;touch-action:none}
+  /* The little "+" in the middle of the screen */
+  #crosshair{position:fixed;left:50%;top:50%;color:#fff;font-size:24px;transform:translate(-50%,-50%);pointer-events:none}
+  #hud{position:fixed;left:8px;top:8px;color:#fff;font-size:14px;pointer-events:none;text-shadow:0 0 3px #000}
+  /* On-screen touch buttons (phones) */
+  .btn{position:fixed;width:64px;height:64px;border-radius:12px;background:rgba(255,255,255,.2);
+       color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;user-select:none}
+</style>
+</head>
+<body>
+<div id="crosshair">+</div>
+<div id="hud">WASD move · Q/E or ←/→ turn · mouse/drag look · click/FIRE shoot</div>
+
+<!-- Touch buttons. data-key says which input flag each one turns on (see STEP 7) -->
+<div class="btn" data-key="forward"   style="left:80px; bottom:150px">▲</div>
+<div class="btn" data-key="backward"  style="left:80px; bottom:10px">▼</div>
+<div class="btn" data-key="turnLeft"  style="left:10px; bottom:80px">⟲</div>
+<div class="btn" data-key="turnRight" style="left:150px;bottom:80px">⟳</div>
+<div class="btn" id="fireBtn"         style="right:20px;bottom:40px;width:90px;height:90px">FIRE</div>
+
+<!-- ===== STEP 1: LOAD THREE.JS (r128, same as DYSTOPIA) from the internet ===== -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+
+<script>
+// ===================================================================
+// STEP 2: SCENE (the world), CAMERA (your eyes), RENDERER (the painter)
+// ===================================================================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202030);   // sky/void colour
+scene.fog = new THREE.Fog(0x202030, 5, 40);       // fade far things
+
+// PerspectiveCamera(fieldOfView, aspectRatio, nearClip, farClip)
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 100);
+// rotation.order 'YXZ' = turn left/right (Y) first, then look up/down (X).
+// This is the standard FPS order; without it looking around feels twisted.
+camera.rotation.order = 'YXZ';
+scene.add(camera);   // camera must be in the scene so the gun (child of camera) is drawn
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); // cap for phone speed
+document.body.appendChild(renderer.domElement);        // put the canvas on the page
+
+// When the phone rotates / window resizes, fix the picture
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ===================================================================
+// STEP 3: LIGHTS
+// ===================================================================
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444466, 0.8)); // soft light everywhere
+const sun = new THREE.DirectionalLight(0xffffff, 0.6);          // one "sun" for shading
+sun.position.set(5, 10, 3);
+scene.add(sun);
+
+// ===================================================================
+// STEP 4: BUILD THE WORLD (3 rooms + 1 hall)
+// ===================================================================
+// MAP (looking down from above; X goes right, Z goes DOWN toward you):
+//
+//        [ ROOM B ]==door==[ ROOM C (enemy) ]   z = -20
+//            |
+//          HALL                                 z = -10
+//            |
+//        [ ROOM A ]  <- you start here           z = 0
+//
+//   ROOM A (start)  centre (0, 0)
+//   HALL            centre (0, -10)   long and thin (4 wide, 10 long)
+//   ROOM B          centre (0, -20)
+//   ROOM C (enemy)  centre (12,-20)   to the RIGHT of room B, joined by a doorway
+//
+const WALL_H = 3;          // wall height in metres  <<< change me
+const walls  = [];         // we remember every wall so the player can't walk through them
+
+// Helper: make a box and PLACE it.  x,y,z = centre position; w,h,d = size
+function box(w, h, d, x, y, z, color) {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),                    // the SHAPE
+    new THREE.MeshStandardMaterial({ color })          // the PAINT
+  );
+  mesh.position.set(x, y, z);                          // <<< PLACEMENT happens here
+  scene.add(mesh);                                     // <<< nothing shows until added
+  return mesh;
+}
+
+// Helper: a floor tile (thin box at y = 0)
+function floor(w, d, x, z, color) { box(w, 0.1, d, x, -0.05, z, color); }
+
+// Helper: a wall that also blocks the player
+function wall(w, d, x, z, color = 0x8888aa) {
+  walls.push(box(w, WALL_H, d, x, WALL_H / 2, z, color));
+}
+
+// --- FLOORS ---
+floor(10, 10,  0,   0, 0x556655);  // ROOM A  (green-ish)
+floor( 4, 10,  0, -10, 0x555555);  // HALL    (grey)
+floor(10, 10,  0, -20, 0x665555);  // ROOM B  (red-ish)
+floor(10, 10, 12, -20, 0x555566);  // ROOM C  (blue-ish)
+floor( 2,  4,  6, -20, 0x555555);  // doorway between B and C
+
+// --- ROOM A walls (centre 0,0; edges at x=±5, z=±5) ---
+wall(10, 0.2,  0,  5);             // back wall (behind you at start)
+wall(0.2, 10, -5,  0);             // left wall
+wall(0.2, 10,  5,  0);             // right wall
+wall(3, 0.2, -3.5, -5);            // front wall, left piece  (gap in the
+wall(3, 0.2,  3.5, -5);            // front wall, right piece  middle = door to hall)
+
+// --- HALL walls (4 wide: x=±2, from z=-5 to z=-15) ---
+wall(0.2, 10, -2, -10, 0x777777);
+wall(0.2, 10,  2, -10, 0x777777);
+
+// --- ROOM B walls (centre 0,-20) ---
+wall(3, 0.2, -3.5, -15);           // wall with door to the hall (pieces either side)
+wall(3, 0.2,  3.5, -15);
+wall(10, 0.2, 0, -25);             // far wall
+wall(0.2, 10, -5, -20);            // left wall
+wall(0.2, 3,  5, -23.5);           // right wall split around doorway to room C
+wall(0.2, 3,  5, -16.5);
+
+// --- DOORWAY walls between B and C ---
+wall(2, 0.2, 6, -18, 0x777777);
+wall(2, 0.2, 6, -22, 0x777777);
+
+// --- ROOM C walls (centre 12,-20) ---
+wall(10, 0.2, 12, -15);
+wall(10, 0.2, 12, -25);
+wall(0.2, 10, 17, -20);
+wall(0.2, 3,  7, -23.5);
+wall(0.2, 3,  7, -16.5);
+
+// ===================================================================
+// STEP 5: GUN ASSET (built from boxes, no file needed)
+// ===================================================================
+// A Group is an empty "container"; we put parts inside it and move them as one.
+const gun = new THREE.Group();
+const gunMetal = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.6, roughness: 0.4 });
+const body   = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.10, 0.40), gunMetal); // main body
+const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.30, 12), gunMetal);
+barrel.rotation.x = Math.PI / 2;      // cylinders stand up by default; lay it forward
+barrel.position.set(0, 0.02, -0.33);  // stick out the front (-Z = forward)
+const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.07), gunMetal);
+handle.position.set(0, -0.10, 0.10);  // below and toward the back
+gun.add(body, barrel, handle);
+
+// <<< FPS TRICK: add the gun to the CAMERA, not the scene.
+// Now it moves and turns with your eyes, always bottom-right of the view.
+gun.position.set(0.25, -0.22, -0.5);  // right, down, in front of the eyes  <<< move the gun here
+gun.scale.setScalar(0.6);               // shrink the whole gun  <<< gun size
+camera.add(gun);
+
+/* WANT A REAL MODEL INSTEAD?  (needs GLTFLoader script tag added in STEP 1:
+   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"><\/script>  -- written with a backslash here because a real closing script tag inside JS would end the script early!)
+   new THREE.GLTFLoader().load('models/gun.glb', (gltf) => {   // 1. LOAD the file
+     camera.remove(gun);                                       // 2. drop the box gun
+     gltf.scene.scale.setScalar(0.1);                          // 3. SIZE it
+     gltf.scene.position.set(0.25, -0.22, -0.5);               // 4. PLACE it
+     camera.add(gltf.scene);                                   // 5. ADD it
+   });
+*/
+
+// ===================================================================
+// STEP 6: ENEMY ASSET (a simple robot made of shapes) + PLACEMENT
+// ===================================================================
+function makeEnemy() {
+  const g = new THREE.Group();
+  const red = new THREE.MeshStandardMaterial({ color: 0xaa2222 });
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.5), red);
+  torso.position.y = 1.0;                                  // middle of body 1 m up
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 12), red);
+  head.position.y = 1.75;
+  const eye = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.05),
+                             new THREE.MeshBasicMaterial({ color: 0xffff00 })); // glows (no lighting)
+  eye.position.set(0, 1.78, 0.24);                          // on the FRONT of the head (+Z)
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.2), red);
+  legL.position.set(-0.2, 0.25, 0);
+  const legR = legL.clone(); legR.position.x = 0.2;
+  g.add(torso, head, eye, legL, legR);
+  return g;
+}
+const enemy = makeEnemy();
+enemy.position.set(12, 0, -22);   // <<< ENEMY SPAWN: Room C (x=12,z=-20 is its centre)
+enemy.userData.health = 3;        // 3 hits to defeat   <<< change me
+scene.add(enemy);
+
+// ===================================================================
+// STEP 7: CONTROLS -> "input" flags (true while held)
+// ===================================================================
+const input = { forward:false, backward:false, left:false, right:false, turnLeft:false, turnRight:false };
+
+// Keyboard: which key sets which flag  <<< KEY MAP
+const KEYS = {
+  KeyW:'forward',  ArrowUp:'forward',      // FORWARD
+  KeyS:'backward', ArrowDown:'backward',   // BACKWARD
+  KeyA:'left',     KeyD:'right',           // STRAFE (side-step) left / right
+  KeyQ:'turnLeft', ArrowLeft:'turnLeft',   // TURN LEFT
+  KeyE:'turnRight',ArrowRight:'turnRight', // TURN RIGHT
+};
+addEventListener('keydown', e => { if (KEYS[e.code]) input[KEYS[e.code]] = true; });
+addEventListener('keyup',   e => { if (KEYS[e.code]) input[KEYS[e.code]] = false; });
+
+// Touch buttons: finger down = flag on, finger up = flag off
+document.querySelectorAll('.btn[data-key]').forEach(b => {
+  const k = b.dataset.key;
+  b.addEventListener('pointerdown', e => { input[k] = true; e.stopPropagation(); });
+  b.addEventListener('pointerup',   () => input[k] = false);
+  b.addEventListener('pointerleave',() => input[k] = false);
+});
+
+// LOOK: drag on the screen (touch) or move the mouse (after clicking, pointer lock)
+let yaw = 0;     // left/right angle (radians). 0 = facing -Z (toward the hall)
+let pitch = 0;   // up/down angle
+const LOOK_SPEED = 0.004;                     // <<< look sensitivity
+let dragging = false, lastX = 0, lastY = 0;
+renderer.domElement.addEventListener('pointerdown', e => {
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  if (e.pointerType === 'mouse') { renderer.domElement.requestPointerLock?.(); shoot(); }
+});
+addEventListener('pointerup', () => dragging = false);
+addEventListener('pointermove', e => {
+  let dx, dy;
+  if (document.pointerLockElement) { dx = e.movementX; dy = e.movementY; }  // mouse locked
+  else if (dragging) { dx = e.clientX - lastX; dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; }
+  else return;
+  yaw   -= dx * LOOK_SPEED;                   // drag right -> turn right
+  pitch -= dy * LOOK_SPEED;                   // drag up    -> look up
+  pitch = Math.max(-1.4, Math.min(1.4, pitch)); // don't flip upside down
+});
+document.getElementById('fireBtn').addEventListener('pointerdown', e => { e.stopPropagation(); shoot(); });
+
+// ===================================================================
+// STEP 8: MOVEMENT (called every frame from the game loop)
+// ===================================================================
+const MOVE_SPEED = 4;     // metres per second  <<< walk speed
+const TURN_SPEED = 2;     // radians per second <<< turn speed for Q/E / ⟲⟳
+const EYE_HEIGHT = 1.6;   // camera height above floor
+camera.position.set(0, EYE_HEIGHT, 3);   // <<< PLAYER START: Room A
+
+function updateMovement(dt) {
+  // --- TURN LEFT / TURN RIGHT (changes yaw) ---
+  if (input.turnLeft)  yaw += TURN_SPEED * dt;   // <<< TURN LEFT  (+ = counter-clockwise)
+  if (input.turnRight) yaw -= TURN_SPEED * dt;   // <<< TURN RIGHT
+
+  // Apply look angles to the camera
+  camera.rotation.y = yaw;
+  camera.rotation.x = pitch;
+
+  // Which way is "forward" right now? (flat on the ground, ignores pitch)
+  // At yaw=0 forward is (0,0,-1). sin/cos rotate it by yaw.
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw);   // forward direction
+  const rx =  Math.cos(yaw), rz = -Math.sin(yaw);   // right direction
+
+  let mx = 0, mz = 0;
+  if (input.forward)  { mx += fx; mz += fz; }   // <<< FORWARD
+  if (input.backward) { mx -= fx; mz -= fz; }   // <<< BACKWARD
+  if (input.right)    { mx += rx; mz += rz; }   // <<< STRAFE RIGHT
+  if (input.left)     { mx -= rx; mz -= rz; }   // <<< STRAFE LEFT
+
+  const step = MOVE_SPEED * dt;
+  // Try X and Z separately so you slide along walls instead of sticking
+  tryMove(mx * step, 0);
+  tryMove(0, mz * step);
+}
+
+// Collision: would the new spot be inside any wall? If yes, don't move.
+const PLAYER_RADIUS = 0.3;
+const _box = new THREE.Box3();
+function tryMove(dx, dz) {
+  const nx = camera.position.x + dx, nz = camera.position.z + dz;
+  for (const w of walls) {
+    _box.setFromObject(w).expandByScalar(PLAYER_RADIUS);
+    if (_box.containsPoint(new THREE.Vector3(nx, 1, nz))) return; // blocked
+  }
+  camera.position.x = nx; camera.position.z = nz;
+}
+
+// ===================================================================
+// STEP 9: SHOOTING (a "ray" from the centre of the screen)
+// ===================================================================
+const ray = new THREE.Raycaster();
+let kick = 0;                                  // gun recoil animation amount
+function shoot() {
+  kick = 1;
+  ray.setFromCamera({ x: 0, y: 0 }, camera);   // 0,0 = crosshair
+  const hits = ray.intersectObjects([enemy, ...walls], true);
+  if (hits.length && enemy.visible) {
+    let o = hits[0].object;                    // closest thing hit
+    while (o.parent && o !== enemy) o = o.parent;
+    if (o === enemy) {
+      enemy.userData.health--;
+      if (enemy.userData.health <= 0) {
+        enemy.visible = false;
+        document.getElementById('hud').textContent = 'Enemy down! 🎉';
+      }
+    }
+  }
+}
+
+// ===================================================================
+// STEP 10: GAME LOOP
+// ===================================================================
+const clock = new THREE.Clock();
+function loop() {
+  requestAnimationFrame(loop);                 // run again next frame
+  const dt = Math.min(clock.getDelta(), 0.05); // seconds since last frame
+  updateMovement(dt);
+
+  // Enemy turns to face you (simple "AI")
+  if (enemy.visible) enemy.lookAt(camera.position.x, 0, camera.position.z);
+
+  // Gun recoil: kick back, then settle
+  kick = Math.max(0, kick - dt * 8);
+  gun.position.z = -0.5 + kick * 0.08;
+
+  renderer.render(scene, camera);              // paint the picture
+}
+loop();
+window.__ready = true;   // used by the automatic test
+</script>
+</body>
+</html>
