@@ -1,0 +1,132 @@
+/* Single-player release candidate. Loaded only by release/index.html. */
+body.rc #btn-open-studio,
+body.rc #studio-editor-modal,
+body.rc #tab-party-mode,
+body.rc #panel-party-config,
+body.rc #btn-host-party,
+body.rc #btn-join-party {
+  display: none !important;
+}
+
+body.rc .rc-menu { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+body.rc .rc-menu p { margin: 0; color: #e7d7c0; font-size: 12px; line-height: 1.35; }
+body.rc #btn-rc-epilogue {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: calc(8px + var(--sT, 0px));
+  transform: translateX(-50%);
+  z-index: 35;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #6ee7b7;
+  background: rgba(6, 20, 16, 0.88);
+  color: #d1fae5;
+  font: 800 12px/1 'Chakra Petch', sans-serif;
+  letter-spacing: 0.08em;
+  pointer-events: auto;
+}
+
+#victory-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: #07080c;
+  color: #f5efe4;
+  font-family: 'Chakra Petch', sans-serif;
+}
+#victory-overlay.on { display: block; }
+#victory-overlay video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #07080c;
+}
+#victory-overlay.card video,
+#victory-overlay.live video { opacity: 0; pointer-events: none; }
+#victory-caption, #victory-live {
+  position: absolute;
+  left: 50%;
+  bottom: calc(92px + var(--sB, 0px));
+  transform: translateX(-50%);
+  width: min(640px, calc(100% - 28px));
+  text-align: center;
+  font-size: clamp(16px, 2.4vw, 22px);
+  font-weight: 700;
+  text-shadow: 0 2px 0 #000, 0 0 12px #000;
+  pointer-events: none;
+}
+#victory-skip, #victory-sound {
+  position: absolute;
+  z-index: 2;
+  min-width: 88px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid #f5efe4;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font: 800 14px/1 'Chakra Petch', sans-serif;
+  letter-spacing: 0.08em;
+}
+#victory-skip { right: calc(12px + var(--sR, 0px)); top: calc(12px + var(--sT, 0px)); }
+#victory-sound { left: calc(12px + var(--sL, 0px)); top: calc(12px + var(--sT, 0px)); }
+#victory-card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: calc(24px + var(--sT, 0px)) 18px calc(24px + var(--sB, 0px));
+  text-align: center;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(34, 211, 238, 0.16), transparent 55%),
+    #0c1014;
+}
+#victory-card[hidden] { display: none; }
+#victory-card h2 {
+  margin: 0;
+  font-family: 'Black Ops One', sans-serif;
+  font-size: clamp(32px, 6vw, 64px);
+  letter-spacing: 0.04em;
+  color: #fde68a;
+}
+#victory-card p { max-width: 36rem; margin: 0; color: #e7d7c0; font-size: 15px; line-height: 1.4; }
+#victory-card .rc-kicker { letter-spacing: 0.28em; font-size: 12px; color: #67e8f9; }
+#victory-card .rc-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.rc-btn {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #f5efe4;
+  background: transparent;
+  color: #fff;
+  font: 800 13px/1 'Chakra Petch', sans-serif;
+  letter-spacing: 0.06em;
+}
+.rc-btn.solid { background: #f5efe4; color: #1a120c; }
+
+body.rc #touch-move-zone, body.rc #touch-look-zone { touch-action: none; }
+
+/* The legacy portrait wall (#mc-rotate) covers the whole screen and eats touches.
+   A Galaxy Fold cover is portrait. The candidate keeps play usable and leaves
+   the small "landscape plays best" line instead. */
+body.rc #mc-rotate { display: none !important; }
+
+/* Used only while tools/rc_victory.js records the epilogue. */
+body.rc-filming .hud-top,
+body.rc-filming .hud-bottom,
+body.rc-filming .hud-chrome-btns,
+body.rc-filming #crosshair,
+body.rc-filming .customizable-btn,
+body.rc-filming #touch-move-zone,
+body.rc-filming #touch-look-zone,
+body.rc-filming #virtual-joystick-base,
+body.rc-filming #virtual-joystick-thumb,
+body.rc-filming #btn-rc-epilogue,
+body.rc-filming #rotate-hint { visibility: hidden !important; }
