@@ -99,6 +99,35 @@ function serve() {
   add('standing on the scanner opens the airlock', probes.airlockOpen && probes.open.clear, { open: probes.open, flag: probes.airlockOpen });
   add('routes use different guards', probes.guards.some((g) => g.id === 'rc-dock' && g.guard && g.ai === 'flanker') && probes.guards.some((g) => g.id === 'rc-airlock' && g.heavy && g.hp >= 140), probes.guards);
 
+  const gatePose = await page.evaluate(() => {
+    const f = RC.yard.layoutRef().fence;
+    const gz = f.maxZ, gx = f.gate.cx;
+    RC.fence.holdPose = true;
+    RC.fence.setLive(true); RC.fence.setOpen(0);
+    const closed = playerCollidesAt(gx, gz, 0);
+    const sealed = RC.yard.gateCaption;
+    RC.fence.setLive(false); RC.fence.setOpen(0);
+    const deadShut = playerCollidesAt(gx, gz, 0);
+    const clear = RC.yard.gateCaption;
+    RC.fence.setOpen(1);
+    const gap = playerCollidesAt(gx, gz, 0);
+    const side = playerCollidesAt(f.minX, (f.minZ + gz) / 2, 0);
+    const barY = RC.fence.gate.position.y;
+    const bad = [];
+    for (let i = 0; i <= 24; i++) {
+      const s = RC.victory.shotAt(i / 24);
+      RC.fence.setLive(s.live); RC.fence.setOpen(s.lift);
+      const hit = playerCollidesAt(s.x, s.z, 0);
+      if (hit || (s.z > s.gateZ - 0.15 && s.lift < 0.98)) bad.push({ i, z: +s.z.toFixed(1), hit, lift: s.lift });
+    }
+    RC.fence.setLive(true); RC.fence.setOpen(0); RC.fence.holdPose = false;
+    return { closed, deadShut, gap, side, sealed, clear, barY: +barY.toFixed(2), bad };
+  });
+  add('sealed gate blocks and the sign says SEALED', gatePose.closed === true && /SEALED/.test(gatePose.sealed), gatePose);
+  add('power-down leaves the gate shut until it rises', gatePose.deadShut === true && /CLEAR/.test(gatePose.clear), gatePose);
+  add('fully open gate is a gap; the side fence stays solid', gatePose.gap === false && gatePose.side === true && gatePose.barY > 3.5, gatePose);
+  add('epilogue walk never crosses a closed gate', gatePose.bad.length === 0, gatePose.bad);
+
   const fenceLocked = await page.evaluate(() => {
     const f = RC.yard.layoutRef().fence;
     const gateX = f.gate.cx, gateZ = f.maxZ;
@@ -238,7 +267,7 @@ function serve() {
   await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(OUT, 'victory_overlay.jpg') });
   await page.click('#victory-skip');
-  await page.waitForSelector('#victory-card:not([hidden])', { timeout: 4000 });
+  await page.waitForFunction(() => { const c = document.getElementById('victory-card'); return c && !c.hidden; }, null, { timeout: 8000 });
   const card = await page.evaluate(() => ({
     card: !document.getElementById('victory-card').hidden,
     stay: !!document.getElementById('victory-stay'),

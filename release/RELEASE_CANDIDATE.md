@@ -110,7 +110,7 @@ Headless Chromium, SwiftShader, after the kit loaded and a frame of the yard was
 | Draw calls with the factory also in the scene | 145 |
 | Triangles that frame | 25,881 |
 
-The yard does not load a second copy of the sentinels, music, or the 14 MB trailer. Fence posts and rails are instanced. Sparks are a pool of at most 8 (4 on a coarse pointer). Yard lights are 1 on a coarse pointer and 2 otherwise. The epilogue is a 6 second, 960×540, 24 fps capture. A few seconds of the existing “Feral Angel Waltz” (Kevin MacLeod, already in `CREDITS.md`) sit under it. Captions are the page’s timed line plus `victory.vtt`. They are not burned into the picture. Nobody has signed off on the clip by watching it on a phone.
+The yard does not load a second copy of the sentinels, music, or the 14 MB trailer. Fence posts and rails are instanced. Sparks are a pool of at most 8 (4 on a coarse pointer). Yard lights are 1 on a coarse pointer and 2 otherwise. The epilogue is a 6 second, 960×540, 24 fps capture. It starts already facing the closed south gate (bright LIVE panel, sign reading SEALED), the panel goes dark, the sign changes to PERIMETER CLEAR, the panel rises clear of the wires, and only then does the camera walk through. The last second looks back at the yard through that opening. A few seconds of the existing credits track sit under it. Captions are the page’s timed line plus `victory.vtt`, not burned into the picture. An earlier cut of this file did not show that opening; it has been replaced. It has not been signed off on a phone.
 
 ## Tests that were actually run
 

@@ -167,33 +167,53 @@
     try { playVideo(); } catch (e) { victory.failed = true; showCard('error'); }
   }
 
-  /* t is 0..1 across DURATION seconds. Ends past the open gate, looking out. */
-  function cinematic(t) {
+  /* Staged shot, already facing the south gate. The panel and the gate wires
+     finish rising before the eye crosses the gate line. The last second looks
+     back through that opening at the yard, still standing on the apron. */
+  function shotAt(t) {
     const y = RC.yard && RC.yard.layoutRef ? RC.yard.layoutRef() : null;
-    const spawn = (y && y.spawn) || { x: 0, z: 124 };
     const gateZ = (y && y.fence && y.fence.maxZ) || 150;
-    if (RC.fence && t > 0.22) RC.fence.setLive(false);
-    const turn = Math.min(1, Math.max(0, (t - 0.08) / 0.18));
-    const approach = Math.min(1, Math.max(0, (t - 0.22) / 0.38));
-    const through = Math.min(1, Math.max(0, (t - 0.62) / 0.38));
-    const zGate = gateZ - 6;
-    const zOut = gateZ + 2.2;
-    STATE.player.x = spawn.x + Math.sin(t * 4) * 0.15;
-    STATE.player.z = spawn.z + (zGate - spawn.z) * approach + (zOut - zGate) * through;
-    STATE.player.y = 0;
-    STATE.player.yaw = turn * Math.PI;
-    STATE.player.pitch = -0.08 - through * 0.06;
-    if (typeof viewModelGroup !== 'undefined' && viewModelGroup && RC.victory.filming) viewModelGroup.visible = false;
-    if (RC.fence && RC.fence.gate) {
-      const lift = t > 0.28 ? Math.min(1, (t - 0.28) / 0.22) : 0;
-      RC.fence.open = lift;
-      RC.fence.gate.position.y = lift * 4.6;
+    const holdZ = gateZ - 12;
+    const outZ = gateZ + 3.4;
+    let live = true;
+    let lift = 0;
+    let z = holdZ;
+    let yaw = Math.PI;
+    if (t < 0.18) {
+      live = true; lift = 0;
+    } else if (t < 0.30) {
+      live = false; lift = 0;
+    } else if (t < 0.55) {
+      live = false; lift = Math.min(1, (t - 0.30) / 0.22);
+    } else if (t < 0.82) {
+      live = false; lift = 1;
+      z = holdZ + (outZ - holdZ) * ((t - 0.55) / 0.27);
+    } else {
+      live = false; lift = 1; z = outZ;
+      yaw = Math.PI * (1 - Math.min(1, (t - 0.82) / 0.14));
     }
-    camera.position.set(STATE.player.x, 1.7, STATE.player.z);
+    return { x: 0, z, yaw, live, lift, gateZ, holdZ, outZ };
+  }
+
+  function cinematic(t) {
+    const s = shotAt(t);
+    if (RC.fence) {
+      RC.fence.holdPose = true;
+      if (RC.fence.live !== s.live) RC.fence.setLive(s.live);
+      RC.fence.setOpen(s.lift);
+    }
+    STATE.player.x = s.x;
+    STATE.player.z = s.z;
+    STATE.player.y = 0;
+    STATE.player.yaw = s.yaw;
+    STATE.player.pitch = -0.04;
+    if (typeof viewModelGroup !== 'undefined' && viewModelGroup && RC.victory.filming) viewModelGroup.visible = false;
+    camera.position.set(STATE.player.x, 1.65, STATE.player.z);
     camera.rotation.order = 'YXZ';
     camera.rotation.y = STATE.player.yaw;
     camera.rotation.x = STATE.player.pitch;
     if (typeof renderFrame === 'function') renderFrame();
+    return s;
   }
 
   RC.victory = victory;
@@ -205,5 +225,6 @@
   RC.victory.LINES = LINES;
   RC.victory.DURATION = DURATION;
   RC.victory._cam = cinematic;
+  RC.victory.shotAt = shotAt;
   RC.victory.SRC = SRC;
 })();

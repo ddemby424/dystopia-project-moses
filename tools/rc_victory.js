@@ -70,24 +70,39 @@ function serve() {
 
   const N = 144;
   const dur = 6;
-  const frames = await page.evaluate(async ({ N, dur }) => {
+  const packed = await page.evaluate(async ({ N, dur }) => {
     const out = [];
+    const path = [];
     STATE.pausedForStudio = true;
+    document.body.classList.add('rc-filming');
+    if (viewModelGroup) viewModelGroup.visible = false;
     for (let i = 0; i < N; i++) {
       const t = i / (N - 1);
-      RC.victory._cam(t);
-      const cap = document.getElementById('rc-burn');
-      if (cap) cap.textContent = RC.victory.lineAt(t * dur);
+      const s = RC.victory._cam(t);
+      const hit = playerCollidesAt(s.x, s.z, 0);
+      const crossed = s.z > s.gateZ - 0.15;
+      path.push({ i, t: +t.toFixed(3), z: +s.z.toFixed(2), lift: +s.lift.toFixed(2), live: s.live, hit, crossed, barY: RC.fence.gate ? +RC.fence.gate.position.y.toFixed(2) : -1, caption: RC.yard.gateCaption || '' });
+      if (hit || (crossed && s.lift < 0.98)) {
+        return { error: 'path hits geometry or crosses before the gate is up', bad: path[path.length - 1], path };
+      }
       renderFrame();
-      out.push(renderer.domElement.toDataURL('image/jpeg', 0.78));
+      out.push(renderer.domElement.toDataURL('image/jpeg', 0.8));
     }
-    return out;
+    return { frames: out, path };
   }, { N, dur });
+  if (packed.error) {
+    console.error(JSON.stringify(packed.bad));
+    process.exit(1);
+  }
+  const frames = packed.frames;
+  fs.writeFileSync(path.join(OUT, 'gate-path.json'), JSON.stringify(packed.path.filter((_, i) => i % 6 === 0), null, 2));
   frames.forEach((url, i) => {
     const buf = Buffer.from(url.split(',')[1], 'base64');
     const name = path.join(FR, 'f' + String(i).padStart(3, '0') + '.jpg');
     fs.writeFileSync(name, buf);
-    if (i === 100) fs.copyFileSync(name, path.join(ROOT, 'release/media/victory_poster.jpg'));
+    const keys = { 12: 'gate-closed', 36: 'gate-power-off', 62: 'gate-opening', 78: 'gate-open', 136: 'gate-crossed' };
+    if (keys[i]) fs.copyFileSync(name, path.join(OUT, keys[i] + '.jpg'));
+    if (i === 78) fs.copyFileSync(name, path.join(ROOT, 'release/media/victory_poster.jpg'));
   });
   console.log('frames', frames.length);
   const music = path.join(ROOT, 'music/credits_feral_angel_waltz.mp3');

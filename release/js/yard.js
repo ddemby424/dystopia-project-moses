@@ -127,27 +127,42 @@
       sign.rotation.y = Math.PI;
       yard.group.add(sign);
     });
+    const f = layout().fence;
     const gate = makeSign('SOUTH GATE', 'SEALED UNTIL THE CRADLE FALLS', '#67e8f9');
-    gate.position.set(0, 3.5, layout().fence.maxZ - 2.4);
+    /* Beside the left jamb, not on the walk line through the opening. */
+    gate.position.set((f.gate.cx - f.gate.half) - 2.6, 2.4, f.maxZ);
+    gate.rotation.y = Math.PI;
     yard.group.add(gate);
     yard.gateSign = gate;
+    yard.gateCaption = 'SEALED UNTIL THE CRADLE FALLS';
+  }
+
+  function paintSign(c, title, sub, accent) {
+    const g = c.getContext('2d');
+    g.clearRect(0, 0, c.width, c.height);
+    g.fillStyle = '#14110e'; g.fillRect(0, 0, c.width, c.height);
+    g.strokeStyle = accent; g.lineWidth = 8; g.strokeRect(6, 6, c.width - 12, c.height - 12);
+    g.fillStyle = accent; g.font = '700 42px sans-serif'; g.textAlign = 'center';
+    g.fillText(title, c.width / 2, 68);
+    g.fillStyle = '#e7e0d6'; g.font = '600 22px sans-serif';
+    g.fillText(sub, c.width / 2, 112);
   }
 
   function makeSign(title, sub, accent) {
     const c = document.createElement('canvas');
     c.width = 512; c.height = 160;
-    const g = c.getContext('2d');
-    g.fillStyle = '#14110e'; g.fillRect(0, 0, 512, 160);
-    g.strokeStyle = accent; g.lineWidth = 8; g.strokeRect(6, 6, 500, 148);
-    g.fillStyle = accent; g.font = '700 42px sans-serif'; g.textAlign = 'center';
-    g.fillText(title, 256, 68);
-    g.fillStyle = '#e7e0d6'; g.font = '600 24px sans-serif';
-    g.fillText(sub, 256, 112);
+    paintSign(c, title, sub, accent);
     const tex = new THREE.CanvasTexture(c);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.3), new THREE.MeshBasicMaterial({ map: tex }));
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.05), new THREE.MeshBasicMaterial({ map: tex }));
     const back = m.clone(); back.rotation.y = Math.PI; back.position.z = -0.02;
     const root = new THREE.Group(); root.add(m, back);
+    root.userData.repaint = (t, s, a) => { paintSign(c, t, s, a); tex.needsUpdate = true; yard.gateCaption = s; };
     return root;
+  }
+
+  function setGateCaption(title, sub, accent) {
+    if (!yard.gateSign || !yard.gateSign.userData.repaint) return;
+    yard.gateSign.userData.repaint(title, sub, accent || '#67e8f9');
   }
 
   function addLight(x, z) {
@@ -341,6 +356,7 @@
   RC.yard.spawnGuards = spawnGuards;
   RC.yard.update = update;
   RC.yard.openAirlock = openAirlock;
+  RC.yard.setGateCaption = setGateCaption;
   RC.yard.airlockBlocks = airlockBlocks;
   RC.yard.loadLayout = loadLayout;
   RC.yard.probeRoute = probeRoute;

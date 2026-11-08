@@ -75,9 +75,11 @@
       const len = Math.hypot(s.x1 - s.x0, s.z1 - s.z0);
       // Box rails are authored along local +X. three.js yaw sends +X to (cos y, -sin y).
       const ang = Math.atan2(-(s.z1 - s.z0), (s.x1 - s.x0) || 1e-6);
-      posts.push([(s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2]);
       const n = Math.max(1, Math.round(len / f.postEvery));
-      for (let i = 0; i <= n; i++) posts.push([s.x0 + (s.x1 - s.x0) * (i / n), s.z0 + (s.z1 - s.z0) * (i / n)]);
+      /* The gate opening gets jambs only. A post in the middle of the span is what the camera used to walk into. */
+      const steps = s.kind === 'gate' ? [0, 1] : null;
+      if (steps) steps.forEach((u) => posts.push([s.x0 + (s.x1 - s.x0) * u, s.z0 + (s.z1 - s.z0) * u]));
+      else for (let i = 0; i <= n; i++) posts.push([s.x0 + (s.x1 - s.x0) * (i / n), s.z0 + (s.z1 - s.z0) * (i / n)]);
       s.len = len; s.ang = ang; s.rails = [];
       for (let k = 0; k < 3; k++) rails.push({ s, k, y: 0.7 + k * 0.85 });
     });
@@ -112,11 +114,13 @@
     g.add(rMesh);
     fence.railMesh = rMesh;
     fence.railList = rails;
+    fence.gateRailIdx = rails.map((r, i) => r.s.kind === 'gate' ? i : -1).filter((i) => i >= 0);
 
     const gateSeg = fence.segs.find((s) => s.kind === 'gate');
     const gate = new THREE.Group();
-    const gateTex = gateTexture();
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(gateSeg.len, f.height * 0.92, 0.12), new THREE.MeshStandardMaterial({ color: 0xd7fbff, map: gateTex, emissive: 0x22d3ee, emissiveMap: gateTex, emissiveIntensity: 1.1, metalness: 0.35, roughness: 0.45 }));
+    fence.liveTex = gateTexture('LIVE', true);
+    fence.deadTex = gateTexture('', false);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(gateSeg.len, f.height * 0.92, 0.12), new THREE.MeshStandardMaterial({ color: 0xd7fbff, map: fence.liveTex, emissive: 0x22d3ee, emissiveMap: fence.liveTex, emissiveIntensity: 1.1, metalness: 0.35, roughness: 0.45 }));
     bar.position.y = f.height * 0.46;
     gate.add(bar);
     gate.position.set((gateSeg.x0 + gateSeg.x1) / 2, 0, gateSeg.z0);
@@ -135,13 +139,13 @@
     applyLiveVisual();
   }
 
-  function gateTexture() {
+  function gateTexture(word, bright) {
   const c = document.createElement('canvas');
   c.width = 256; c.height = 256;
   const g = c.getContext('2d');
-  g.fillStyle = '#0b1c22';
+  g.fillStyle = bright ? '#0b1c22' : '#121418';
   g.fillRect(0, 0, 256, 256);
-  g.strokeStyle = '#9ff6ff';
+  g.strokeStyle = bright ? '#9ff6ff' : '#3a4450';
   g.lineWidth = 10;
   for (let i = -4; i < 10; i++) {
     g.beginPath();
@@ -149,30 +153,60 @@
     g.lineTo(280, i * 28 + 70);
     g.stroke();
   }
-  g.fillStyle = '#e7fbff';
-  g.font = '700 42px sans-serif';
-  g.textAlign = 'center';
-  g.fillText('LIVE', 128, 148);
+  if (word) {
+    g.fillStyle = bright ? '#e7fbff' : '#9fb0b8';
+    g.font = '700 42px sans-serif';
+    g.textAlign = 'center';
+    g.fillText(word, 128, 148);
+  }
   const tex = new THREE.CanvasTexture(c);
   tex.needsUpdate = true;
   return tex;
 }
 
-function setLive(on) {
+function setOpen(amount) {
+    const f = spec();
+    const lift = Math.max(0, Math.min(1, amount));
+    fence.open = lift;
+    const rise = lift * (f.height + 0.9);
+    if (fence.gate) fence.gate.position.y = rise;
+    if (fence.railMesh && fence.gateRailIdx) {
+      const M = new THREE.Matrix4();
+      const P = new THREE.Vector3();
+      const Q = new THREE.Quaternion();
+      const S = new THREE.Vector3();
+      fence.gateRailIdx.forEach((i) => {
+        const r = fence.railList[i];
+        const s = r.s;
+        P.set((s.x0 + s.x1) / 2, r.y + rise, (s.z0 + s.z1) / 2);
+        Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), s.ang);
+        S.set(s.len, 1, 1);
+        M.compose(P, Q, S);
+        fence.railMesh.setMatrixAt(i, M);
+      });
+      fence.railMesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  function setLive(on) {
     fence.live = !!on;
     if (!fence.live) fence.hurtT = 0;
     applyLiveVisual();
     if (!fence.live && fence.buzz) fence.buzz.stop();
-    const sign = RC.yard && RC.yard.gateSign;
-    if (sign) sign.visible = true;
+    if (RC.yard && RC.yard.setGateCaption) {
+      RC.yard.setGateCaption(fence.live ? 'SOUTH GATE' : 'SOUTH GATE', fence.live ? 'SEALED UNTIL THE CRADLE FALLS' : 'PERIMETER CLEAR', fence.live ? '#67e8f9' : '#86efac');
+    }
   }
 
   function applyLiveVisual() {
     if (!fence.railMesh) return;
     fence.railMesh.material = fence.live ? railMat : deadMat;
-    if (fence.gateBar && fence.gateBar.material && fence.gateBar.material.emissive) {
-      fence.gateBar.material.emissive.setHex(fence.live ? 0x22d3ee : 0x1f2937);
-      fence.gateBar.material.emissiveIntensity = fence.live ? 0.9 : 0.05;
+    if (fence.gateBar && fence.gateBar.material) {
+      const tex = fence.live ? fence.liveTex : fence.deadTex;
+      if (tex) { fence.gateBar.material.map = tex; fence.gateBar.material.emissiveMap = tex; }
+      fence.gateBar.material.emissive.setHex(fence.live ? 0x22d3ee : 0x1a1e24);
+      fence.gateBar.material.emissiveIntensity = fence.live ? 0.9 : 0.04;
+      fence.gateBar.material.needsUpdate = true;
     }
   }
 
@@ -266,9 +300,10 @@ function setLive(on) {
 
   function update(dt) {
     if (!fence.group) return;
-    const target = fence.live ? 0 : 1;
-    fence.open += (target - fence.open) * Math.min(1, dt * 1.6);
-    if (fence.gate) fence.gate.position.y = fence.open * (spec().height + 0.4);
+    if (!fence.holdPose) {
+      const target = fence.live ? 0 : 1;
+      setOpen(fence.open + (target - fence.open) * Math.min(1, dt * 1.6));
+    }
     if (fence.live && railMat) railMat.opacity = 0.55 + 0.4 * Math.abs(Math.sin(performance.now() * 0.012));
     if (STATE.running && !STATE.pausedForStudio) hitPlayer(dt);
     else buzzTo(0);
@@ -292,6 +327,7 @@ function setLive(on) {
   RC.fence = fence;
   RC.fence.build = build;
   RC.fence.setLive = setLive;
+  RC.fence.setOpen = setOpen;
   RC.fence.blocked = blocked;
   RC.fence.update = update;
   RC.fence.dress = dress;

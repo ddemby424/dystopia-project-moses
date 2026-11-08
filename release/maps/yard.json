@@ -54,7 +54,7 @@
     { "kit": "factory", "id": "piston-square", "x": 30, "z": 128, "rot": 0, "scale": 1.4, "block": true },
     { "kit": "city", "id": "shipping-container-b", "x": 40, "z": 120, "rot": 1.5708, "scale": 2.2, "block": true },
     { "kit": "city", "id": "detail-tank", "x": 36, "z": 108, "rot": 0, "scale": 2.8, "block": true },
-    { "kit": "factory", "id": "screen-wide", "x": 0, "z": 142, "rot": 3.1416, "scale": 1.6, "block": false },
+    { "kit": "factory", "id": "screen-wide", "x": 12, "z": 134, "rot": 2.4, "scale": 1.5, "block": false },
     { "kit": "city", "id": "building-h", "x": -72, "z": 118, "rot": 0.2, "scale": 14, "block": false, "vista": true },
     { "kit": "city", "id": "building-d", "x": 74, "z": 132, "rot": -0.3, "scale": 12, "block": false, "vista": true },
     { "kit": "city", "id": "building-k", "x": -68, "z": 156, "rot": 0.4, "scale": 13, "block": false, "vista": true },
