@@ -1,5 +1,5 @@
 /* DYSTOPIA release candidate — boot.
-   Loads after game.js. Hooks stay thin: collision, floor start, the win
+   Loads after release/js/core. Hooks stay thin: collision, floor start, the win
    elevator, and the weak-point anchor. The legacy index never loads this file. */
 (function () {
   const RC = (window.RC = window.RC || {});

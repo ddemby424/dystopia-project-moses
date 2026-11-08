@@ -14,7 +14,7 @@ python3 -m http.server 8765
 
 Open **http://127.0.0.1:8765/release/index.html**
 
-`release/index.html` sets `<base href="../">`, so it shares `game.js`, `style.css`, `models/`, `music/`, `audio/`, and `fonts/` with the legacy game. It does not copy those files.
+`release/index.html` sets `<base href="../">`, so it shares `style.css`, `models/`, `music/`, `audio/`, and `fonts/` with the legacy game. It does not copy those files. The candidate does **not** load root `game.js`. It loads `release/js/core/engine.js`, a snapshot of that file with the playable seams removed, then the seam modules. Root `index.html` still loads `game.js` and nothing under `release/`.
 
 Tap **Enter Dystopia**, then **New Campaign**. You start in the yard, facing the factory. The west lane is the wide loading dock. The east lane is the narrower personnel airlock. Both are open gaps in the wall, and both come out in Server Hall G. The fence is live until Cradle 09 is cleared (level 9, floor B3). The south gate then opens and the epilogue plays. Skip never leaves you without a button.
 
@@ -28,28 +28,33 @@ https://github.com/ddemby424/dystopia-project-moses/archive/refs/heads/cursor/si
 
 That archive is the whole repo, including folders the candidate does not use.
 
-## What is modular, and what is still `game.js`
+## What is modular, and what is still one file
 
-This is not a rewrite. `game.js` is still the game. The candidate is a set of small scripts that run after it and replace a handful of functions.
+This is not an engine rewrite. Root `game.js` is untouched and is still the whole legacy game. The candidate does not run it.
 
-Still entirely inside `game.js` (the candidate calls these, it does not own them):
+The candidate's source of truth is `release/js/core/`. `engine.js` is the snapshot that still holds the pieces that were not safe to peel off in this pass. The frame loop in `loop.js` calls the other files. Editing `game.js` does nothing to this page.
 
-- Rendering, lights, fog, the viewmodel, and the frame loop
-- Player movement, jumping, weapons, projectiles, damage, and death
-- Bot AI, drones, the Colossus brain, nav mesh, and floor generation for all 9 × 4 floors
-- The elevator, cell door, music engine, and the startup trailer
-- The HUD markup in `index.html` (the candidate page is a copy of that markup)
+A hobbyist changes these without opening `engine.js`:
 
-Owned by `release/js`, with data in `release/maps/yard.json`:
+| File | What it actually runs |
+|---|---|
+| `release/js/core/tuning.js` | Walk speed, jump, gravity, look sensitivity, the four weapons, the nine level names, and `BOT_ROSTER`. Applied before the first map build. |
+| `release/js/core/player.js` | Key, mouse, and touch bindings, look, the movement step, pickups, and the mobile pause sheet. |
+| `release/js/core/combat.js` | `firePlayerWeapon`, `damagePlayer`, grenades, the projectile tick, and napalm. |
+| `release/js/core/enemies.js` | Bot think (`aiThink`, `updateBotAI`), the per-frame bot tick, `damageBot`, and `spawnBotFromArchetype`. |
+| `release/js/core/levels.js` | `genFloorLayout`, `buildArenaMap`, `startFloor`, `advanceFloor`, `updateFloorLogic`, and the keycard elevator step. |
+| `release/js/core/render.js` | The per-frame light, siren, steam, and fx-list updates. |
+| `release/js/core/loop.js` | The order of one frame. It only calls the seams above. |
+| `release/js/core/start.js` | Builds the first map and starts `requestAnimationFrame(gameLoop)`. |
 
-- The yard layout, the two door gaps, and the kit loader for the new GLBs only
-- The fence, the shock, and the south gate
-- When a campaign clear counts as a win, and the save/reset keys
-- The epilogue player (file, live fallback, skip, replay, failure card)
-- A replacement for `softSpotWorld` so weak points use bone positions
-- Extra touch-cancel and portrait handling
+Still inside `release/js/core/engine.js` (called by those seams, not rewritten):
 
-`boot.js` is the seam. It wraps `playerCollidesAt`, `collidesAt`, `buildArenaMap`, `startFloor`, `advanceFloor`, and `updateFloorLogic`. Gameplay inside the factory is the original code.
+- WebGLRenderer, scene, lights, fog, `renderFrame`, and the viewmodel mesh
+- The Colossus brain, drones, nav mesh, and most mesh builders
+- Studio, Doom Party, music, and the startup trailer
+- The HUD markup, which still lives in `release/index.html` (a copy of the legacy page)
+
+The yard, fence, win save, and epilogue stay in `release/js/*.js` with the map in `release/maps/yard.json`. `boot.js` still wraps collision, `buildArenaMap`, `startFloor`, `advanceFloor`, and `updateFloorLogic` after the core has defined them. Those wrappers are the yard and the win. They are not the floor generator.
 
 ## What you play
 
@@ -62,18 +67,24 @@ Owned by `release/js`, with data in `release/maps/yard.json`:
 - An epilogue that is not the startup trailer. Skip, replay, and a missing file all end on a card with Stay / New Campaign.
 - Win and floor progress in `localStorage` (`dys_rc_win_v1`, `dys_rc_save_v1`). **Reset win & save** clears both and locks the fence again.
 
-Studio and Doom Party stay in the DOM because `game.js` binds those buttons at startup. The candidate hides them. The root `index.html` does not load any `release/js` file.
+Studio and Doom Party stay in the DOM because the engine snapshot still binds those buttons at startup. The candidate hides them. The root `index.html` does not load any `release/` script.
 
 ## Folder tour (phone editors: Spck, Acode)
 
-Edit these. You do not need to open `game.js` (about 540 KB) to change the yard.
+Edit these. You do not need to open root `game.js`, or `engine.js`, to change controls, weapons, bots, floors, the win, or the yard.
 
 | File | What you change |
 |---|---|
 | `release/index.html` | The page. It is the legacy HUD plus a `<base>` tag and the scripts below. |
 | `release/css/candidate.css` | Hides studio/party, styles the epilogue, touch rules. |
 | `release/maps/yard.json` | **The map.** Spawn, the two route gaps, fence rectangle, gate, and every placed kit piece. Keep walk x = **-12.5** (dock) and **14** (airlock) clear from z 42 to z 130. |
-| `release/js/boot.js` | Hooks into `game.js`: collision, floor start, the win elevator, viewport fit. |
+| `release/js/core/tuning.js` | Speeds, weapons, level table, bot roster. |
+| `release/js/core/player.js` | Keys, mouse, touch, movement step. |
+| `release/js/core/combat.js` | Firing, damage, projectiles. |
+| `release/js/core/enemies.js` | Bot think, bot tick, spawns. |
+| `release/js/core/levels.js` | Floor generator, map build, elevator, advance. |
+| `release/js/core/loop.js` | Frame order. |
+| `release/js/boot.js` | Yard collision, floor-start hook, win elevator, viewport fit. |
 | `release/js/yard.js` | Builds the yard, carves the two door gaps, spawns the route wardens. |
 | `release/js/fence.js` | Posts, rails, the gate, shock, buzz. Capped sparks. |
 | `release/js/campaign.js` | Save, win, reset, return to the yard. |
@@ -107,15 +118,17 @@ Headless Chromium, SwiftShader, after the kit loaded and a frame of the yard was
 |---|---|
 | Kit GLBs transferred (loader progress) | 1,079,996 bytes, 27 files, 0 failures |
 | Colormaps | about 12 KB each (factory + city) |
-| Draw calls with the factory also in the scene | 145 |
-| Triangles that frame | 25,881 |
+| Draw calls with the factory also in the scene | 144 |
+| Triangles that frame | 28,539 |
 
-The yard does not load a second copy of the sentinels, music, or the 14 MB trailer. Fence posts and rails are instanced. Sparks are a pool of at most 8 (4 on a coarse pointer). Yard lights are 1 on a coarse pointer and 2 otherwise. The epilogue is a 6 second, 960×540, 24 fps capture. It starts already facing the closed south gate (bright LIVE panel, sign reading SEALED), the panel goes dark, the sign changes to PERIMETER CLEAR, the panel rises clear of the wires, and only then does the camera walk through. The last second looks back at the yard through that opening. A few seconds of the existing credits track sit under it. Captions are the page’s timed line plus `victory.vtt`, not burned into the picture. An earlier cut of this file did not show that opening; it has been replaced. It has not been signed off on a phone.
+The yard does not load a second copy of the sentinels, music, or the 14 MB trailer. Fence posts and rails are instanced. Sparks are a pool of at most 8 (4 on a coarse pointer). Yard lights are 1 on a coarse pointer and 2 otherwise. The epilogue is a 6 second, 960×540, 24 fps capture. It starts already facing the closed south gate (bright LIVE panel, sign reading SEALED), the panel goes dark, the sign changes to PERIMETER CLEAR, the panel rises clear of the wires, and only then does the camera walk through. The last second looks back at the yard through that opening. A few seconds of the existing credits track sit under it. Captions are the page’s timed line plus `victory.vtt`, not burned into the picture. An earlier cut of this file did not show that opening; it has been replaced. A later review found a blue-grey block floating in the gate gap after the lift. That was Kenney `building-o`, placed on the gate's center line past the end of the yard pad, so the pad hid its base. It now sits east of the opening on a south apron. It has not been signed off on a phone.
 
 ## Tests that were actually run
 
-`node tools/rc_playthrough.js` (headless Chromium, touch enabled, not a phone) passed **29/29**. That run is `results.json` under the artifact folder. It checked:
+`node tools/rc_playthrough.js` (headless Chromium, touch enabled, not a phone) passed **35/35** after the core extraction. That run is `results.json` under the artifact folder. It checked:
 
+- The page loads `release/js/core/engine.js` and does not load root `game.js`. `gameLoop` calls the player, combat, enemy, and level steps. Tuning set 4 weapons and 10 roster rows.
+- The open-gate sightline does not hit `building-o` (that shell is east of the gap)
 - Yard spawn on floor G, studio and party hidden, kit load with no failures
 - Dock lane clear the whole way into the hall
 - Airlock lane blocked at the shutter, then clear after standing on the scanner

@@ -66,6 +66,33 @@ function serve() {
     soft: String(softSpotWorld).includes('clampToHull') || String(softSpotWorld).includes('maxAhead')
   }));
   add('candidate boots with yard + fence', boot.built && boot.segs > 4 && boot.live && boot.release, boot);
+  const seams = await page.evaluate(() => {
+    const srcs = [...document.scripts].map((s) => s.getAttribute('src') || '');
+    const kit = RC.yard.group.children.find((c) => c.name === 'kit:building-o');
+    RC.victory._cam(0.7);
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(-0.05, 0.08), camera);
+    const seen = ray.intersectObjects(scene.children, true).slice(0, 4).map((h) => {
+      let p = h.object;
+      const names = [];
+      while (p && names.length < 4) { names.push(p.name || p.type); p = p.parent; }
+      return names.join('<');
+    });
+    return {
+      engine: srcs.some((s) => s.includes('core/engine.js')),
+      legacy: srcs.some((s) => /(^|\/)game\.js/.test(s)),
+      loop: String(gameLoop).includes('RC.core.player.step') && String(gameLoop).includes('RC.core.enemies.step'),
+      player: typeof RC.core.player.step === 'function',
+      combat: typeof RC.core.combat.step === 'function' && typeof firePlayerWeapon === 'function',
+      enemies: typeof RC.core.enemies.step === 'function' && typeof aiThink === 'function',
+      levels: typeof buildArenaMap === 'function' && typeof RC.core.levels.elevator === 'function',
+      tuning: STATE.walkSpeed === 14 && STATE.weapons.length === 4 && BOT_ROSTER.length === 10,
+      buildingX: kit ? kit.position.x : null,
+      sight: seen
+    };
+  });
+  add('candidate runs extracted core, not root game.js', seams.engine && !seams.legacy && seams.loop && seams.player && seams.combat && seams.enemies && seams.levels && seams.tuning, seams);
+  add('gate sightline is clear of the south vista block', Math.abs(seams.buildingX) > 24 && !seams.sight.some((s) => s.includes('building-o')), seams);
   add('modular kit loaded (some files, failures allowed only as fallback)', boot.files >= 10, boot);
   add('weak-point anchor replaced', boot.soft, boot.soft);
 

@@ -1,6 +1,6 @@
 # Editing the yard on a phone
 
-You only need this folder. The big game stays in the parent directory and is shared, not copied.
+You edit this folder. Models, music, css, and fonts stay in the parent directory and are shared, not copied. The candidate does not run the parent `game.js`.
 
 1. Serve the repo (`python3 -m http.server`) and open `release/index.html`. Do not use a `file://` link.
 2. Open `maps/yard.json`.
@@ -15,11 +15,17 @@ You only need this folder. The big game stays in the parent directory and is sha
    - `id` is the file name in `assets/kenney-factory/` or `assets/kenney-city/` without `.glb`.
    - Do not park a blocking prop on x = -12.5 or x = 14 between z = 42 and z = 130, or you seal a route.
 4. Reload the page. If a GLB 404s, that spot becomes a plain box and the route still exists.
-5. Logic, if you need it:
+5. Logic, if you need it. Each of these is the code the page runs:
+   - `js/core/tuning.js` — walk speed, weapons, the nine level names, the bot roster.
+   - `js/core/player.js` — keys, mouse, touch, and the movement step.
+   - `js/core/combat.js` — firing, player damage, projectiles.
+   - `js/core/enemies.js` — how guards think and take damage. The Colossus brain is still in `js/core/engine.js`.
+   - `js/core/levels.js` — floor layouts, the map build, stairs, the elevator step.
+   - `js/core/loop.js` — the order of one frame.
    - `js/yard.js` carves the gaps and spawns the two wardens.
    - `js/fence.js` is the shock fence and the gate.
    - `js/campaign.js` is save / win / reset.
    - `js/victory.js` is the epilogue, not the startup trailer.
-   - `js/boot.js` is the only place that reaches into `game.js`.
+   - `js/boot.js` adds the yard collision and the win hook after the core has defined the floor functions.
 
 Licenses: `licenses/ATTRIBUTION.md`. Both kits are Kenney, CC0.

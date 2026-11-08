@@ -59,7 +59,7 @@
     { "kit": "city", "id": "building-d", "x": 74, "z": 132, "rot": -0.3, "scale": 12, "block": false, "vista": true },
     { "kit": "city", "id": "building-k", "x": -68, "z": 156, "rot": 0.4, "scale": 13, "block": false, "vista": true },
     { "kit": "city", "id": "building-a", "x": 70, "z": 100, "rot": 0.5, "scale": 11, "block": false, "vista": true },
-    { "kit": "city", "id": "building-o", "x": 8, "z": 210, "rot": 3.14, "scale": 9, "block": false, "vista": true },
+    { "kit": "city", "id": "building-o", "x": 48, "z": 186, "rot": 2.2, "scale": 8, "block": false, "vista": true },
     { "kit": "city", "id": "water-tower", "x": -64, "z": 98, "rot": 0, "scale": 8, "block": false, "vista": true },
     { "kit": "city", "id": "chimney-medium", "x": 62, "z": 156, "rot": 0, "scale": 9, "block": false, "vista": true },
     { "kit": "city", "id": "solar-panel-flat", "x": -58, "z": 142, "rot": 0.3, "scale": 6, "block": false, "vista": true }

@@ -115,6 +115,15 @@
     mesh.position.set((w.minX + w.maxX) / 2, 0.03, (w.minZ + w.maxZ) / 2 + 2);
     mesh.receiveShadow = true;
     yard.group.add(mesh);
+    /* The pad above stops just past the gate. Vista shells past that edge
+       were standing on the void, so a building read as a block floating in
+       the open gate. This apron is the ground they sit on. */
+    const apron = new THREE.Mesh(new THREE.PlaneGeometry(180, 100), mat);
+    apron.name = 'rc-apron';
+    apron.rotation.x = -Math.PI / 2;
+    apron.position.set(0, 0.02, 198);
+    apron.receiveShadow = true;
+    yard.group.add(apron);
   }
 
   function addSigns() {
