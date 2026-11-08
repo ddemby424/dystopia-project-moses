@@ -44,10 +44,11 @@ function serve() {
     RC.victory.filming = true;
     if (viewModelGroup) viewModelGroup.visible = false;
     renderer.setPixelRatio(1);
-    renderer.setSize(640, 360, false);
+    renderer.setSize(960, 540, false);
+    renderer.shadowMap.enabled = false;
     const c = renderer.domElement;
-    c.style.width = '1280px';
-    c.style.height = '720px';
+    c.style.width = '960px';
+    c.style.height = '540px';
     const cap = document.createElement('div');
     cap.id = 'rc-burn';
     cap.style.cssText = "position:fixed;left:0;right:0;bottom:48px;text-align:center;z-index:80;font:700 28px/1.35 sans-serif;color:#f8f3ea;text-shadow:0 2px 0 #000,0 0 12px #000;padding:0 48px";
@@ -67,29 +68,30 @@ function serve() {
   });
   await page.screenshot({ path: path.join(OUT, 'vista_gate.jpg') });
 
-  const N = 32;
-  const frames = await page.evaluate(async (N) => {
+  const N = 144;
+  const dur = 6;
+  const frames = await page.evaluate(async ({ N, dur }) => {
     const out = [];
+    STATE.pausedForStudio = true;
     for (let i = 0; i < N; i++) {
       const t = i / (N - 1);
-      RC.fence.setLive(t < 0.32);
       RC.victory._cam(t);
       const cap = document.getElementById('rc-burn');
-      if (cap) cap.textContent = RC.victory.lineAt(t * 8);
+      if (cap) cap.textContent = RC.victory.lineAt(t * dur);
       renderFrame();
-      out.push(renderer.domElement.toDataURL('image/jpeg', 0.72));
-      await new Promise((r) => requestAnimationFrame(r));
+      out.push(renderer.domElement.toDataURL('image/jpeg', 0.78));
     }
     return out;
-  }, N);
+  }, { N, dur });
   frames.forEach((url, i) => {
     const buf = Buffer.from(url.split(',')[1], 'base64');
     const name = path.join(FR, 'f' + String(i).padStart(3, '0') + '.jpg');
     fs.writeFileSync(name, buf);
-    if (i === 10) fs.copyFileSync(name, path.join(ROOT, 'release/media/victory_poster.jpg'));
+    if (i === 100) fs.copyFileSync(name, path.join(ROOT, 'release/media/victory_poster.jpg'));
   });
   console.log('frames', frames.length);
-  const ff = spawnSync('ffmpeg', ['-y', '-framerate', '4', '-i', path.join(FR, 'f%03d.jpg'), '-c:v', 'libvpx-vp9', '-b:v', '280k', '-pix_fmt', 'yuv420p', '-an', path.join(ROOT, 'release/media/victory.webm')], { stdio: 'inherit' });
+  const music = path.join(ROOT, 'music/credits_feral_angel_waltz.mp3');
+  const ff = spawnSync('ffmpeg', ['-y', '-framerate', '24', '-i', path.join(FR, 'f%03d.jpg'), '-ss', '18', '-t', '6', '-i', music, '-filter_complex', '[1:a]aformat=sample_fmts=fltp:channel_layouts=stereo,volume=0.35,afade=t=in:st=0:d=0.35,afade=t=out:st=5.3:d=0.7[a]', '-map', '0:v', '-map', '[a]', '-c:v', 'libvpx-vp9', '-b:v', '900k', '-pix_fmt', 'yuv420p', '-c:a', 'libopus', '-b:a', '64k', '-shortest', path.join(ROOT, 'release/media/victory.webm')], { stdio: 'inherit' });
   if (ff.status !== 0) process.exit(ff.status || 1);
   const st = fs.statSync(path.join(ROOT, 'release/media/victory.webm'));
   console.log('victory.webm', st.size);

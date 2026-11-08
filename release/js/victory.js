@@ -8,10 +8,11 @@
   const RC = (window.RC = window.RC || {});
   const SRC = 'release/media/victory.webm';
   const POSTER = 'release/media/victory_poster.jpg';
+  const DURATION = 6;
   const LINES = [
     { t: 0.0, text: 'Cradle 09. The Moses Protocol is terminated.' },
-    { t: 3.0, text: 'The perimeter fence powers down.' },
-    { t: 6.2, text: 'The south gate is open. Walk out, or stay.' }
+    { t: 1.8, text: 'The fence drops. The south gate opens.' },
+    { t: 3.8, text: 'Walk out. The yard is no longer a cage.' }
   ];
   const victory = { open: false, mode: null, played: false, failed: false, node: null };
 
@@ -144,8 +145,8 @@
       if (!victory.open || victory.node.classList.contains('card')) return;
       const t = (now - t0) / 1000;
       victory.cap.textContent = lineAt(t);
-      RC.victory._cam(Math.min(1, t / 8));
-      if (t >= 8.2) { finish('live-end'); return; }
+      RC.victory._cam(Math.min(1, t / DURATION));
+      if (t >= DURATION + 0.2) { finish('live-end'); return; }
       victory._raf = requestAnimationFrame(step);
     };
     victory._raf = requestAnimationFrame(step);
@@ -166,27 +167,29 @@
     try { playVideo(); } catch (e) { victory.failed = true; showCard('error'); }
   }
 
-  /* Called by the capture tool and the live fallback. t is 0..1 over ~8s. */
+  /* t is 0..1 across DURATION seconds. Ends past the open gate, looking out. */
   function cinematic(t) {
     const y = RC.yard && RC.yard.layoutRef ? RC.yard.layoutRef() : null;
-    const spawn = (y && y.spawn) || { x: 0, z: 126 };
+    const spawn = (y && y.spawn) || { x: 0, z: 124 };
     const gateZ = (y && y.fence && y.fence.maxZ) || 150;
-    if (RC.fence && t > 0.28) RC.fence.setLive(false);
-    /* First look at the two doors, then turn south and walk up to the gate as it dies. */
-    const turn = Math.min(1, Math.max(0, (t - 0.16) / 0.22));
-    const walk = Math.min(1, Math.max(0, (t - 0.38) / 0.55));
-    STATE.player.x = spawn.x;
-    STATE.player.z = spawn.z + ((gateZ - 8) - spawn.z) * walk;
+    if (RC.fence && t > 0.22) RC.fence.setLive(false);
+    const turn = Math.min(1, Math.max(0, (t - 0.08) / 0.18));
+    const approach = Math.min(1, Math.max(0, (t - 0.22) / 0.38));
+    const through = Math.min(1, Math.max(0, (t - 0.62) / 0.38));
+    const zGate = gateZ - 6;
+    const zOut = gateZ + 2.2;
+    STATE.player.x = spawn.x + Math.sin(t * 4) * 0.15;
+    STATE.player.z = spawn.z + (zGate - spawn.z) * approach + (zOut - zGate) * through;
     STATE.player.y = 0;
     STATE.player.yaw = turn * Math.PI;
-    STATE.player.pitch = -0.1;
+    STATE.player.pitch = -0.08 - through * 0.06;
     if (typeof viewModelGroup !== 'undefined' && viewModelGroup && RC.victory.filming) viewModelGroup.visible = false;
     if (RC.fence && RC.fence.gate) {
-      const lift = t > 0.34 ? Math.min(1, (t - 0.34) / 0.3) : 0;
+      const lift = t > 0.28 ? Math.min(1, (t - 0.28) / 0.22) : 0;
       RC.fence.open = lift;
-      RC.fence.gate.position.y = lift * 4.4;
+      RC.fence.gate.position.y = lift * 4.6;
     }
-    camera.position.set(STATE.player.x, 1.75, STATE.player.z);
+    camera.position.set(STATE.player.x, 1.7, STATE.player.z);
     camera.rotation.order = 'YXZ';
     camera.rotation.y = STATE.player.yaw;
     camera.rotation.x = STATE.player.pitch;
@@ -200,6 +203,7 @@
   RC.victory.showCard = showCard;
   RC.victory.lineAt = lineAt;
   RC.victory.LINES = LINES;
+  RC.victory.DURATION = DURATION;
   RC.victory._cam = cinematic;
   RC.victory.SRC = SRC;
 })();

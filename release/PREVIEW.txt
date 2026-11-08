@@ -1,0 +1,13 @@
+DYSTOPIA single-player candidate — local preview
+
+Unzip this folder. From the folder that contains both game.js and the release directory:
+
+  python3 -m http.server 8765
+
+Then open http://127.0.0.1:8765/release/index.html
+
+Do not open the html file directly. The page shares game.js, models, and music with the parent folder.
+
+This zip leaves out the Unity test build, the learn pages, the robot remake, and the old launch trailer so it stays smaller. The candidate does not need those.
+
+The live site is not this build. Do not copy these files over a deployed main.

@@ -18,18 +18,51 @@ Open **http://127.0.0.1:8765/release/index.html**
 
 Tap **Enter Dystopia**, then **New Campaign**. You start in the yard, facing the factory. The west lane is the wide loading dock. The east lane is the narrower personnel airlock. Both are open gaps in the wall, and both come out in Server Hall G. The fence is live until Cradle 09 is cleared (level 9, floor B3). The south gate then opens and the epilogue plays. Skip never leaves you without a button.
 
-Direct link on a machine that is already serving the repo: `/release/index.html?notrailer=1` skips the startup trailer. That trailer is still the old one (`media/dystopia_trailer_720p.mp4`). The win movie is `release/media/victory.webm`.
+Direct link on a machine that is already serving the repo: `/release/index.html?notrailer=1` skips the startup trailer. That trailer is still the old one (`media/dystopia_trailer_720p.mp4`). The win movie is `release/media/victory.webm` (960×540, 24 fps, 6 seconds, about 467 KB, with a short bed from `music/credits_feral_angel_waltz.mp3`).
 
-## What this candidate is
+A smaller zip for a phone editor, without the Unity test, the learn pages, the robot remake, or the old trailer, is `dystopia-candidate-preview.zip` (about 33 MB) next to the review artifacts. Unzip it, serve that folder, and open `/release/index.html`. Instructions are in `release/PREVIEW.txt`.
 
-- The existing 9 levels × 4 floors, single player only.
-- A compact yard on the south side of Floor G, not an open world.
-- Two real routes in, each with its own width, dressing, and a warden.
-- An electrified fence that blocks, buzzes, and chips health until the win. After the win only the south gate opens. The side spans stay solid so the exit is the gate.
-- A separate epilogue (captured in-engine from this yard) with on-screen captions, a WebVTT track, skip, replay, and a card if the file fails.
+The full branch archive, after this branch is on GitHub, is:
+
+https://github.com/ddemby424/dystopia-project-moses/archive/refs/heads/cursor/single-player-release-de72.zip
+
+That archive is the whole repo, including folders the candidate does not use.
+
+## What is modular, and what is still `game.js`
+
+This is not a rewrite. `game.js` is still the game. The candidate is a set of small scripts that run after it and replace a handful of functions.
+
+Still entirely inside `game.js` (the candidate calls these, it does not own them):
+
+- Rendering, lights, fog, the viewmodel, and the frame loop
+- Player movement, jumping, weapons, projectiles, damage, and death
+- Bot AI, drones, the Colossus brain, nav mesh, and floor generation for all 9 × 4 floors
+- The elevator, cell door, music engine, and the startup trailer
+- The HUD markup in `index.html` (the candidate page is a copy of that markup)
+
+Owned by `release/js`, with data in `release/maps/yard.json`:
+
+- The yard layout, the two door gaps, and the kit loader for the new GLBs only
+- The fence, the shock, and the south gate
+- When a campaign clear counts as a win, and the save/reset keys
+- The epilogue player (file, live fallback, skip, replay, failure card)
+- A replacement for `softSpotWorld` so weak points use bone positions
+- Extra touch-cancel and portrait handling
+
+`boot.js` is the seam. It wraps `playerCollidesAt`, `collidesAt`, `buildArenaMap`, `startFloor`, `advanceFloor`, and `updateFloorLogic`. Gameplay inside the factory is the original code.
+
+## What you play
+
+- The existing 9 levels × 4 floors, single player.
+- A compact yard on the south side of Floor G.
+- Two routes into the same Server Hall G, with different access:
+  - **Loading dock (west, walk x = -12.5).** The mouth is wide and already open. Crates and a conveyor sit beside the lane so you can step off the center line into cover. The warden is a lighter flanker standing off the lane (x = -18).
+  - **Personnel airlock (east, walk x = 14).** The mouth is narrower. A shutter blocks it until you stand on the scanner just east of the door for about 1.5 seconds. Pipes are the only cover, and they form a wall rather than a flank. The warden past the door is a heavy (150 hp) standing in the choke.
+- An electrified fence that blocks, buzzes, and chips health until level 9 floor B3 is cleared through the normal `advanceFloor` path. The south gate then opens. The side spans stay solid.
+- An epilogue that is not the startup trailer. Skip, replay, and a missing file all end on a card with Stay / New Campaign.
 - Win and floor progress in `localStorage` (`dys_rc_win_v1`, `dys_rc_save_v1`). **Reset win & save** clears both and locks the fence again.
 
-Studio, the Meshy panel, and Doom Party stay in the DOM because `game.js` binds those buttons at startup. The candidate hides them and sets `IS_RELEASE_BUILD` so Tab does not open the studio. The root `index.html` does not load any `release/js` file, so those features still work there.
+Studio and Doom Party stay in the DOM because `game.js` binds those buttons at startup. The candidate hides them. The root `index.html` does not load any `release/js` file.
 
 ## Folder tour (phone editors: Spck, Acode)
 
@@ -72,25 +105,35 @@ Headless Chromium, SwiftShader, after the kit loaded and a frame of the yard was
 
 | Measure | Result |
 |---|---|
-| Kit GLBs transferred (loader progress) | 1,176,272 bytes, 34 files, 0 failures |
+| Kit GLBs transferred (loader progress) | 1,079,996 bytes, 27 files, 0 failures |
 | Colormaps | about 12 KB each (factory + city) |
-| Whole `release/` folder | about 1.7 MB including the 138 KB epilogue |
 | Draw calls with the factory also in the scene | 145 |
 | Triangles that frame | 25,881 |
 
-The yard does not load a second copy of the sentinels, music, or the 14 MB trailer. Floor tiles and fence posts/rails are instanced. Sparks are a pool of at most 8 (4 on a coarse pointer). Yard lights are 1 on a coarse pointer and 2 otherwise. The epilogue file is 640×360, 8 seconds, 4 frames/s, silent, about 138 KB. Captions are drawn by the page from `victory.vtt` and a timed line, not burned into the pixels.
+The yard does not load a second copy of the sentinels, music, or the 14 MB trailer. Fence posts and rails are instanced. Sparks are a pool of at most 8 (4 on a coarse pointer). Yard lights are 1 on a coarse pointer and 2 otherwise. The epilogue is a 6 second, 960×540, 24 fps capture. A few seconds of the existing “Feral Angel Waltz” (Kevin MacLeod, already in `CREDITS.md`) sit under it. Captions are the page’s timed line plus `victory.vtt`. They are not burned into the picture. Nobody has signed off on the clip by watching it on a phone.
 
 ## Tests that were actually run
 
-`node tools/rc_playthrough.js` (headless Chromium, touch enabled, not a phone):
+`node tools/rc_playthrough.js` (headless Chromium, touch enabled, not a phone) passed **29/29**. That run is `results.json` under the artifact folder. It checked:
 
-Passed, in one run before the movie file existed: boot, kit load, studio and party hidden, yard spawn, both routes clear into the hall (sampled every 1.25 m), live fence blocks the gate and a side, fence contact drops health, both wardens exist, weak points within 0.42 m on the facing axis, draw-call budget, win clears the fence and opens the epilogue, skip reaches the card, replay, stay returns control, the open gate starts the epilogue again, a missing file still shows the card, reset clears the win and locks the fence, death on G returns you to the yard at full health, stuck inputs clear, canvas matches a 390×844 viewport.
+- Yard spawn on floor G, studio and party hidden, kit load with no failures
+- Dock lane clear the whole way into the hall
+- Airlock lane blocked at the shutter, then clear after standing on the scanner
+- Dock warden is a flanker; airlock warden is a 150 hp heavy
+- Live fence blocks the gate and a side span, and contact drops health
+- A weak-point marker followed a bone moved 1.2 m (spot stayed on the bone, distance 0) and followed a 3 m body slide
+- Clearing floor G with `advanceFloor` goes to B1 and leaves the fence live
+- Advancing 9-B2 goes to 9-B3 and leaves the fence live
+- `advanceFloor` on 9-B3, the same call the elevator makes, is the win: fence dead, epilogue open
+- Skip, replay, stay, and a missing file
+- Reset locks the fence; death on G returns to the yard
+- Stuck inputs clear; canvas matches a 390×844 viewport; no page errors
 
-A second run, after `release/media/victory.webm` was in place, passed **24/24**, including no page errors. Skip then landed on the normal epilogue card (“The fence is cold…”), which means the file played. `results.json` in the artifact folder is that run. Portrait no longer puts up the legacy full-screen “rotate your phone” wall; that wall blocks touches, and a Fold cover is portrait. The candidate hides `#mc-rotate` only. The root game still shows it.
+Portrait on the candidate does not show the legacy full-screen “rotate your phone” wall. The root game still does.
 
-`node tools/rc_victory.js` writes `release/media/victory.webm` from the live yard (gate rises, captions timed to 8 s).
+`node tools/rc_victory.js` writes the epilogue from the live yard: the camera turns to the gate, the gate rises, and the last frames are past the opening.
 
-The legacy suite in `tools/regression.js` (the long per-level pass described in `tools/CHECKLIST.md`) was **not** re-run. `index.html`, `game.js`, and `style.css` are unmodified on this branch, so that suite still describes the root game, not this page. Re-run it before anyone deploys the root. A headless pass is not proof on a Galaxy Fold or an iPhone. Nothing here was played on those devices.
+The root suite `node tools/regression.js` was re-run against `index.html` and passed **264/264**, including boot with no console errors, all 9 levels × 4 floors, weapon shots, and Doom Party. Shared `game.js`, models, and music still load on the original page. The report is `/tmp/root-regression/report.md` (also copied beside the review artifacts). That suite does not open `release/index.html`. A headless pass is not proof on a Galaxy Fold or an iPhone. Nothing here was played on those devices.
 
 ## Screenshots and recording
 
@@ -113,9 +156,9 @@ Written by the test and the capture script under `/opt/cursor/artifacts/rc/` (al
 ## Known issues (do not call this launch-ready)
 
 - No real-device pass. Touch, rotate, and audio were only exercised in headless Chromium.
-- The epilogue is a short, low-rate, silent capture. The page supplies captions, skip, replay, and a fallback card. It is not a scored trailer.
+- The epilogue is a 6 second capture at 24 fps with a short bed from an existing music track. Captions are on the page, not in the pixels. It has not been reviewed by watching it as a finished trailer.
 - Floor G always starts in the yard, including after death. Continue of B1–B3 resumes that floor. There is no mid-corridor checkpoint.
-- Weak points are clamped onto the hull instead of pushed out in front of it. They are still glowing discs, and a fast animation can leave one a few tenths of a metre off a bone.
+- Weak points follow bones. They are still glowing discs. A bone the skeleton does not actually drive will not move.
 - The fence is posts, rails, and a striped gate, not a chain-link model. Shock range is short. Side spans stay closed after the win.
 - Same-WiFi multiplayer is unchanged and is not part of this flow. The old failure is not fixed here.
 - Opening the candidate from `file://` will not load the JSON or the GLBs. Use a local server.
@@ -124,6 +167,6 @@ Written by the test and the capture script under `/opt/cursor/artifacts/rc/` (al
 
 1. Serve the branch and open `/release/index.html` on the phone (same Wi-Fi, or whatever host you use). Confirm the address is the candidate, not the live GitHub root.
 2. Splash: Enter is reachable in portrait. Skip the startup trailer if it plays. You should not see Studio or Doom Party.
-3. New Campaign. You are outdoors. Walk the west dock into the building, then the east airlock. Both should let you through.
+3. New Campaign. You are outdoors. Walk the west dock straight in. On the east, stand by the scanner until the shutter rises, then walk in. The east guard is the heavier one.
 4. Walk into the south gate. It should stop you, tick health, and say the fence is live. Rotate or unfold once. The sticks and Fire should still match the screen, and letting go must stop you.
 5. From the menu, Reset, then Continue if you had a save. After a real clear of 9-B3 (or don’t, if you are only checking the yard), the gate should open, the epilogue should play, Skip should land on the card, and Stay should put you back in the yard with the gate still open.

@@ -72,7 +72,21 @@
     if (!inWalk(x, z, 0) && !inMouth(x, z, r)) return true;
     for (const b of yard.blockers) if (boxHit(b, x, z, y, r)) return true;
     if (RC.fence && RC.fence.blocked(x, z, y, r)) return true;
+    if (airlockBlocks(x, z, r)) return true;
     return false;
+  }
+
+  function shutterSpec() {
+    const route = (layout().routes || []).find((r) => r.id === 'airlock');
+    return route && route.shutter;
+  }
+
+  function airlockBlocks(x, z, r) {
+    if (yard.airlockOpen) return false;
+    const s = shutterSpec();
+    if (!s) return false;
+    r = r || 0;
+    return x + r > s.x0 && x - r < s.x1 && z + r > s.z0 && z - r < s.z1;
   }
 
   function ensureGroup() {
@@ -104,15 +118,17 @@
   }
 
   function addSigns() {
+    /* One sign per route, set to the side of the lane so the opening stays readable.
+       The factory-wall twin (addSign inside the hall) is intentionally not used. */
     (layout().routes || []).forEach((route) => {
-      const sign = makeSign(route.name.toUpperCase(), route.id === 'dock' ? 'FREIGHT LANE  ·  WIDE' : 'STAFF LANE  ·  NARROW', route.id === 'dock' ? '#f59e0b' : '#38bdf8');
-      const x = route.walkX;
-      sign.position.set(x, 3.4, 97.2);
+      const side = route.sign || { x: route.walkX, z: 99 };
+      const sign = makeSign(route.name.toUpperCase(), route.blurb || '', route.id === 'dock' ? '#f59e0b' : '#38bdf8');
+      sign.position.set(side.x, 3.2, side.z);
       sign.rotation.y = Math.PI;
       yard.group.add(sign);
     });
-    const gate = makeSign('PERIMETER GATE', 'LIVE UNTIL THE CRADLE FALLS', '#67e8f9');
-    gate.position.set(0, 3.6, layout().fence.maxZ - 1.2);
+    const gate = makeSign('SOUTH GATE', 'SEALED UNTIL THE CRADLE FALLS', '#67e8f9');
+    gate.position.set(0, 3.5, layout().fence.maxZ - 2.4);
     yard.group.add(gate);
     yard.gateSign = gate;
   }
@@ -147,8 +163,9 @@
     clearGroup();
     addGround();
     addSigns();
-    addLight(-12.5, 104);
-    addLight(14, 104);
+    addShutter();
+    addLight(-18, 108);
+    addLight(18, 108);
     /* Stand-ins first so a slow GLB never leaves the lane without cover or the vista empty. */
     (layout().props || []).forEach((spec) => {
       const placed = RC.kit.place(yard.group, spec);
@@ -157,6 +174,47 @@
     RC.kit.tileRun(yard.group, layout().tiles);
     yard.built = true;
     yard.upgraded = false;
+    yard.airlockOpen = false;
+    yard.scanT = 0;
+  }
+
+  function addShutter() {
+    const s = shutterSpec();
+    if (!s || !yard.group) return;
+    const w = s.x1 - s.x0, d = Math.max(0.25, s.z1 - s.z0), h = 3.1;
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: 0x1c2830, emissive: 0x38bdf8, emissiveIntensity: 0.35, metalness: 0.6, roughness: 0.4 });
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    slab.position.y = h / 2;
+    g.add(slab);
+    g.position.set((s.x0 + s.x1) / 2, 0, (s.z0 + s.z1) / 2);
+    yard.group.add(g);
+    yard.shutter = g;
+    yard.shutterMat = mat;
+  }
+
+  function openAirlock(reason) {
+    if (yard.airlockOpen) return;
+    yard.airlockOpen = true;
+    yard.scanT = 0;
+    if (typeof showBanner === 'function') showBanner('AIRLOCK CYCLED', reason || 'The staff shutter is up. The dock was already open.', 2400);
+  }
+
+  function update(dt) {
+    const s = shutterSpec();
+    if (yard.shutter) {
+      const target = yard.airlockOpen ? 3.4 : 0;
+      yard.shutter.position.y += (target - yard.shutter.position.y) * Math.min(1, dt * 3);
+      if (yard.shutterMat) yard.shutterMat.emissiveIntensity = yard.airlockOpen ? 0.05 : 0.45 + 0.25 * Math.sin(performance.now() * 0.008);
+    }
+    if (yard.airlockOpen || !s || !STATE.running || STATE.pausedForStudio) return;
+    const scan = (layout().routes.find((r) => r.id === 'airlock') || {}).scanner;
+    if (!scan) return;
+    const d = Math.hypot(STATE.player.x - scan.x, STATE.player.z - scan.z);
+    if (d < (scan.radius || 2.2)) {
+      yard.scanT += dt;
+      if (yard.scanT >= (scan.seconds || 1.5)) openAirlock('Scanner held. Staff shutter opening.');
+    } else yard.scanT = Math.max(0, yard.scanT - dt * 0.5);
   }
 
   function upgradeVisuals() {
@@ -192,7 +250,6 @@
       });
       doomed.forEach((mesh) => { splitMeshX(mesh, vol); carved++; });
     });
-    try { markDoors(); } catch (e) {}
     if (typeof buildNavGrid === 'function') try { buildNavGrid(); } catch (e) {}
     return { carved };
   }
@@ -219,14 +276,6 @@
     if (mesh.geometry && !mesh.geometry.userData.shared) mesh.geometry.dispose();
   }
 
-  function markDoors() {
-    (layout().routes || []).forEach((route) => {
-      if (typeof addSign !== 'function') return;
-      const accent = route.id === 'dock' ? '#f59e0b' : '#38bdf8';
-      addSign(route.walkX, 5.2, 89.4, Math.PI, route.id === 'dock' ? 'LOADING DOCK' : 'PERSONNEL AIRLOCK', route.id === 'dock' ? 'WEST ROUTE  ·  FREIGHT' : 'EAST ROUTE  ·  STAFF', accent, 5.5);
-    });
-  }
-
   function spawnPlayer() {
     const s = layout().spawn;
     STATE.player.x = s.x; STATE.player.y = 0; STATE.player.z = s.z;
@@ -239,18 +288,19 @@
     (layout().routes || []).forEach((route) => {
       if (BOTS.some((b) => b.id === 'rc-' + route.id)) return;
       try {
+        const g = route.guard || {};
         spawnBotFromArchetype({
           id: 'rc-' + route.id,
           name: route.guardName || route.name,
-          role: 'human_guard',
-          aiRole: 'suppressor',
-          squad: 3,
-          x: route.guard.x,
+          role: g.role || 'human_guard',
+          aiRole: g.ai || 'suppressor',
+          squad: route.id === 'dock' ? 2 : 4,
+          x: g.x,
           y: 0,
-          z: route.guard.z,
-          maxHealth: 90,
+          z: g.z,
+          maxHealth: g.hp || 90,
           patrolType: 'ground',
-          armorColor: 0x3f2a1a,
+          armorColor: route.id === 'dock' ? 0x3f2a1a : 0x1e293b,
           tint: route.id === 'dock' ? 0xf59e0b : 0x38bdf8
         }, STATE.botSkill || 1);
       } catch (e) { console.warn('rc guard', e); }
@@ -289,6 +339,9 @@
   RC.yard.carve = carve;
   RC.yard.spawnPlayer = spawnPlayer;
   RC.yard.spawnGuards = spawnGuards;
+  RC.yard.update = update;
+  RC.yard.openAirlock = openAirlock;
+  RC.yard.airlockBlocks = airlockBlocks;
   RC.yard.loadLayout = loadLayout;
   RC.yard.probeRoute = probeRoute;
   RC.yard.layoutRef = layout;

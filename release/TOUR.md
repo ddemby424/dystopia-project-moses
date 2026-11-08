@@ -5,8 +5,8 @@ You only need this folder. The big game stays in the parent directory and is sha
 1. Serve the repo (`python3 -m http.server`) and open `release/index.html`. Do not use a `file://` link.
 2. Open `maps/yard.json`.
    - `spawn` is where a new visit to Floor G stands.
-   - `routes[0]` is the wide west dock. Its walk line is x = -12.5.
-   - `routes[1]` is the narrow east airlock. Its walk line is x = 14.
+   - `routes[0]` is the wide west dock. Its walk line is x = -12.5. It has no shutter.
+   - `routes[1]` is the narrow east airlock. Its walk line is x = 14. `shutter` blocks that line until the player stands on `scanner`.
    - `mouth` is the gap in the factory's south wall. `inner` is the gap in the hall wall at z ≈ 47.
    - `fence.gate` is the south exit. It stays shut until the campaign win.
    - `props` is the kit. `block: true` means you bump it. `vista: true` means it is scenery outside the fence and has no collision.

@@ -67,6 +67,7 @@
     updateFloorLogic = function (dt, now) {
       const ret = RC._updateFloor.apply(this, arguments);
       if (RC.fence) RC.fence.update(dt);
+      if (RC.yard && RC.yard.update) RC.yard.update(dt);
       /* The visible pill is rewritten from FLOOR_NAMES on a timer inside game.js. */
       const inYard = (STATE.floor || 0) === 0 && STATE.player.z > 86;
       FLOOR_NAMES[0] = inYard ? (RC.campaign.won() ? 'GATE' : 'YARD') : 'G';

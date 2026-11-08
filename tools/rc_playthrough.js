@@ -85,8 +85,19 @@ function serve() {
   const spawned = await page.evaluate(() => ({ x: +STATE.player.x.toFixed(1), z: +STATE.player.z.toFixed(1), floor: STATE.floor, level: STATE.level }));
   add('new campaign starts in the yard on floor G', spawned.floor === 0 && spawned.z > 110 && Math.abs(spawned.x) < 2, spawned);
 
-  const probes = await page.evaluate(() => RC.yard.layoutRef().routes.map((r) => RC.yard.probeRoute(r, 1.25)));
-  probes.forEach((p) => add(`route ${p.id} is walkable into the hall`, p.clear, p));
+  const probes = await page.evaluate(() => {
+    const dock = RC.yard.probeRoute(RC.yard.layoutRef().routes.find((r) => r.id === 'dock'), 1.25);
+    const shut = RC.yard.probeRoute(RC.yard.layoutRef().routes.find((r) => r.id === 'airlock'), 1.25);
+    STATE.player.x = 21; STATE.player.z = 100;
+    for (let i = 0; i < 20; i++) RC.yard.update(0.1);
+    const open = RC.yard.probeRoute(RC.yard.layoutRef().routes.find((r) => r.id === 'airlock'), 1.25);
+    const guards = BOTS.filter((b) => /^rc-/.test(b.id)).map((b) => ({ id: b.id, ai: b.role, guard: !!b.isHumanGuard, heavy: !!b.heavy, hp: b.maxHealth, x: +b.x.toFixed(1), z: +b.z.toFixed(1) }));
+    return { dock, shut, open, airlockOpen: RC.yard.airlockOpen, guards };
+  });
+  add('dock route is open freight into the hall', probes.dock.clear, probes.dock);
+  add('airlock shutter blocks the staff lane before the scan', !probes.shut.clear, probes.shut);
+  add('standing on the scanner opens the airlock', probes.airlockOpen && probes.open.clear, { open: probes.open, flag: probes.airlockOpen });
+  add('routes use different guards', probes.guards.some((g) => g.id === 'rc-dock' && g.guard && g.ai === 'flanker') && probes.guards.some((g) => g.id === 'rc-airlock' && g.heavy && g.hp >= 140), probes.guards);
 
   const fenceLocked = await page.evaluate(() => {
     const f = RC.yard.layoutRef().fence;
@@ -117,7 +128,7 @@ function serve() {
   });
   await page.screenshot({ path: path.join(OUT, 'route_dock.jpg') });
   await page.evaluate(() => {
-    STATE.player.x = 14; STATE.player.z = 100; STATE.player.yaw = 0; STATE.player.pitch = -0.04;
+    STATE.player.x = 14; STATE.player.z = 108; STATE.player.yaw = 0; STATE.player.pitch = -0.02;
     renderFrame();
   });
   await page.screenshot({ path: path.join(OUT, 'route_airlock.jpg') });
@@ -159,22 +170,42 @@ function serve() {
   const combat = await page.evaluate(() => {
     const names = BOTS.filter((b) => !b.dying).map((b) => b.name);
     const C = COLOSSI.find((c) => !c.dead);
-    let spots = null;
+    let track = null;
     if (C) {
+      const sp = (C.spots || []).find((s) => s.bone) || (C.spots || [])[0];
       C.root.updateMatrixWorld(true);
       updateSoftSpots(0.016, performance.now());
-      const f = RC.fixes;
-      spots = (C.spots || []).map((sp) => {
-        const dx = sp.pos.x - C.root.position.x, dz = sp.pos.z - C.root.position.z;
-        const yaw = C.root.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw);
-        const ahead = dx * fx + dz * fz;
-        return { key: sp.key, ahead: +ahead.toFixed(2), y: +sp.pos.y.toFixed(2), max: +f.maxAhead(C).toFixed(2) };
-      });
+      const bone0 = new THREE.Vector3();
+      if (sp.bone) sp.bone.getWorldPosition(bone0); else bone0.copy(sp.pos);
+      const spot0 = sp.pos.clone();
+      const saved = sp.bone ? sp.bone.position.clone() : null;
+      if (sp.bone && sp.bone.parent) {
+        const desired = bone0.clone(); desired.x += 1.2;
+        sp.bone.parent.updateMatrixWorld(true);
+        sp.bone.position.copy(sp.bone.parent.worldToLocal(desired.clone()));
+      }
+      C.root.updateMatrixWorld(true);
+      updateSoftSpots(0.016, performance.now() + 50);
+      const bone1 = new THREE.Vector3();
+      if (sp.bone) sp.bone.getWorldPosition(bone1);
+      const boneMove = bone1.distanceTo(bone0);
+      const spotMove = sp.pos.distanceTo(spot0);
+      const follow = sp.pos.distanceTo(bone1);
+      if (sp.bone && saved) sp.bone.position.copy(saved);
+      const root0 = C.root.position.clone();
+      C.root.position.x += 3;
+      C.root.updateMatrixWorld(true);
+      if (sp.bone) sp.bone.updateMatrixWorld(true);
+      updateSoftSpots(0.016, performance.now() + 80);
+      const rootMove = C.root.position.x - root0.x;
+      const spotSlide = sp.pos.x - spot0.x;
+      C.root.position.copy(root0);
+      track = { key: sp.key, boneMove: +boneMove.toFixed(2), spotMove: +spotMove.toFixed(2), follow: +follow.toFixed(2), rootMove: +rootMove.toFixed(2), spotSlide: +spotSlide.toFixed(2) };
     }
-    return { guards: names.filter((n) => /Warden|Dock|Airlock/i.test(n)), bots: names.length, spots };
+    return { guards: names.filter((n) => /Warden|Dock|Airlock|Heavy/i.test(n)), bots: names.length, track };
   });
   add('both route wardens exist', combat.guards.length >= 2, combat.guards);
-  add('weak points sit on the hull, not metres ahead', combat.spots && combat.spots.length >= 4 && combat.spots.every((s) => Math.abs(s.ahead) <= s.max + 0.05), combat.spots);
+  add('weak points follow the skeleton when a bone and the body move', combat.track && combat.track.boneMove > 0.5 && combat.track.follow < 0.35 && Math.abs(combat.track.spotSlide - combat.track.rootMove) < 0.45, combat.track);
 
   const info = await page.evaluate(() => {
     renderFrame();
@@ -184,8 +215,23 @@ function serve() {
   fs.writeFileSync(path.join(OUT, 'budget.json'), JSON.stringify(info, null, 2));
   add('draw calls stayed in a phone-sized budget', info.calls < 450, info);
 
-  // victory
-  await page.evaluate(() => { STATE.player.health = 100; RC.campaign.forceWin(); });
+  // Campaign progression uses advanceFloor, the same call the elevator makes.
+  // Clearing an early floor must not open the fence. Only 9-B3 does.
+  const progress = await page.evaluate(() => {
+    const liveBefore = RC.fence.live;
+    const lvl = STATE.level, fl = STATE.floor;
+    advanceFloor();
+    const afterFirst = { level: STATE.level, floor: STATE.floor, win: RC.campaign.won(), live: RC.fence.live };
+    STATE.level = 9; STATE.floor = 2; STATE.floorCleared = true;
+    advanceFloor();
+    const afterB2 = { level: STATE.level, floor: STATE.floor, win: RC.campaign.won(), live: RC.fence.live };
+    STATE.level = 9; STATE.floor = 3;
+    advanceFloor();
+    return { liveBefore, from: { lvl, fl }, afterFirst, afterB2, win: RC.campaign.won(), live: RC.fence.live, overlay: RC.victory.open };
+  });
+  add('clearing floor G advances inside the factory and the fence stays live', progress.afterFirst.level === 1 && progress.afterFirst.floor === 1 && progress.afterFirst.win === false && progress.afterFirst.live === true, progress.afterFirst);
+  add('level 9 floor B2 still does not open the fence', progress.afterB2.level === 9 && progress.afterB2.floor === 3 && progress.afterB2.win === false && progress.afterB2.live === true, progress.afterB2);
+  add('the real 9-B3 advanceFloor is the win', progress.win === true && progress.live === false && progress.overlay === true, progress);
   await page.waitForSelector('#victory-overlay.on', { timeout: 8000 });
   const during = await page.evaluate(() => ({ live: RC.fence.live, open: RC.victory.open, win: RC.campaign.won(), running: STATE.running }));
   add('win powers the fence down and opens the epilogue', during.live === false && during.open && during.win, during);
@@ -286,7 +332,7 @@ function serve() {
 
   // fence after win already covered; one more post-reset live fence shot was earlier.
   // re-win fence dead shot
-  await page.evaluate(() => { RC.campaign.forceWin(); });
+  await page.evaluate(() => { STATE.level = 9; STATE.floor = 3; advanceFloor(); });
   await page.waitForTimeout(300);
   await page.evaluate(() => { if (RC.victory.open) RC.victory.close('shot'); STATE.pausedForStudio = false; });
   await page.evaluate(() => {
