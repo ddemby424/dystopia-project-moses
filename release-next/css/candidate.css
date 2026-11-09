@@ -1,0 +1,215 @@
+/* Single-player release candidate. Loaded only by release/index.html. */
+body.rc #btn-open-studio,
+body.rc #studio-editor-modal,
+body.rc #tab-party-mode,
+body.rc #panel-party-config,
+body.rc #btn-host-party,
+body.rc #btn-join-party {
+  display: none !important;
+}
+
+body.rc .rc-menu { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+body.rc .rc-menu p { margin: 0 0 4px; color: #f3e6d4; font-size: 13px; line-height: 1.35; }
+body.rc #rc-tabrow,
+body.rc #btn-choose-op,
+body.rc #btn-start,
+body.rc #btn-credits,
+body.rc #btn-trailer-menu,
+body.rc #panel-solo-config > details:not(#rc-settings),
+body.rc #mcs-qr,
+body.rc #qr-live,
+body.rc #mp-sheet,
+body.rc #btn-edit-hud { display: none !important; }
+body.rc #rc-settings { margin-top: 8px; border: 1px solid rgba(245, 215, 168, 0.35); border-radius: 10px; padding: 8px 10px; background: rgba(0, 0, 0, 0.28); }
+body.rc #rc-settings summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font: 800 13px/1 'Chakra Petch', sans-serif; letter-spacing: 0.08em; color: #f5d7a8; }
+body.rc #rc-toggles { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+body.rc #rc-toggles button { display: block !important; width: 100%; margin: 0; min-height: 44px; border-radius: 10px; border: 1px solid rgba(245, 215, 168, 0.45); background: rgba(0, 0, 0, 0.35); color: #fff8ee; font: 700 12px/1.2 'Chakra Petch', sans-serif; letter-spacing: 0.04em; }
+body.rc #rc-toggles button.danger { color: #fecaca; border-color: rgba(248, 113, 113, 0.55); }
+body.rc #btn-rc-credits { display: block; width: 100%; margin-top: 8px; }
+body.rc #btn-rc-use {
+  position: absolute;
+  left: 50%;
+  bottom: calc(118px + var(--sB, 0px));
+  transform: translateX(-50%);
+  z-index: 36;
+  min-width: 88px;
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid #f5d7a8;
+  background: rgba(20, 14, 8, 0.9);
+  color: #fff8ee;
+  font: 800 16px/1 'Chakra Petch', sans-serif;
+  letter-spacing: 0.12em;
+  pointer-events: auto;
+}
+body.rc #rc-objective {
+  display: block !important;
+  position: absolute;
+  top: calc(44px + var(--sT, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 24;
+  width: min(720px, calc(100% - 20px));
+  padding: 6px 10px;
+  text-align: center;
+  pointer-events: none;
+  font: 700 13px/1.35 'Chakra Petch', sans-serif;
+  letter-spacing: 0.01em;
+  color: #fff8ee;
+  background: rgba(8, 6, 4, 0.82);
+  border: 1px solid rgba(255, 214, 160, 0.55);
+  text-shadow: 0 1px 0 #000;
+}
+@media (max-width: 820px) {
+  body.rc #rc-objective {
+    top: calc(92px + var(--sT, 0px));
+    bottom: auto;
+    font-size: 12px;
+  }
+}
+/* The score pill and weapon row belong to a running game, not the title card. */
+body.rc:not(.playing) #mh-top,
+body.rc:not(.playing) #rc-objective,
+body.rc:not(.playing) #mh-mini,
+body.rc:not(.playing) #mc-menu,
+body.rc:not(.playing) #weapon-bar-container,
+body.rc:not(.playing) #mh-vitals,
+body.rc:not(.playing) #mh-ammo,
+body.rc:not(.playing) .customizable-btn,
+body.rc:not(.playing) #virtual-joystick-base,
+body.rc:not(.playing) #virtual-joystick-thumb { visibility: hidden !important; }
+body.rc.rc-contrast #rc-objective,
+body.rc.rc-contrast #mh-top,
+body.rc.rc-contrast #mh-vitals,
+body.rc.rc-contrast #mh-ammo {
+  color: #fff !important;
+  background: #000 !important;
+  border-color: #fff !important;
+}
+body.rc.rc-reduced #damage-flash { display: none !important; }
+body.rc #btn-fire,
+body.rc #btn-jump,
+body.rc #btn-grenade,
+body.rc #btn-reload,
+body.rc #btn-crouch,
+body.rc #mc-menu { min-width: 44px; min-height: 44px; }
+body.rc #btn-rc-epilogue {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: calc(8px + var(--sT, 0px));
+  transform: translateX(-50%);
+  z-index: 35;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #6ee7b7;
+  background: rgba(6, 20, 16, 0.88);
+  color: #d1fae5;
+  font: 800 12px/1 'Chakra Petch', sans-serif;
+  letter-spacing: 0.08em;
+  pointer-events: auto;
+}
+
+#victory-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: #07080c;
+  color: #f5efe4;
+  font-family: 'Chakra Petch', sans-serif;
+}
+#victory-overlay.on { display: block; }
+#victory-overlay video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #07080c;
+}
+#victory-overlay.card video,
+#victory-overlay.live video { opacity: 0; pointer-events: none; }
+#victory-caption, #victory-live {
+  position: absolute;
+  left: 50%;
+  bottom: calc(92px + var(--sB, 0px));
+  transform: translateX(-50%);
+  width: min(640px, calc(100% - 28px));
+  text-align: center;
+  font-size: clamp(16px, 2.4vw, 22px);
+  font-weight: 700;
+  text-shadow: 0 2px 0 #000, 0 0 12px #000;
+  pointer-events: none;
+}
+#victory-skip, #victory-sound {
+  position: absolute;
+  z-index: 2;
+  min-width: 88px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid #f5efe4;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font: 800 14px/1 'Chakra Petch', sans-serif;
+  letter-spacing: 0.08em;
+}
+#victory-skip { right: calc(12px + var(--sR, 0px)); top: calc(12px + var(--sT, 0px)); }
+#victory-sound { left: calc(12px + var(--sL, 0px)); top: calc(12px + var(--sT, 0px)); }
+#victory-card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: calc(24px + var(--sT, 0px)) 18px calc(24px + var(--sB, 0px));
+  text-align: center;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(34, 211, 238, 0.16), transparent 55%),
+    #0c1014;
+}
+#victory-card[hidden] { display: none; }
+#victory-card h2 {
+  margin: 0;
+  font-family: 'Black Ops One', sans-serif;
+  font-size: clamp(32px, 6vw, 64px);
+  letter-spacing: 0.04em;
+  color: #fde68a;
+}
+#victory-card p { max-width: 36rem; margin: 0; color: #e7d7c0; font-size: 15px; line-height: 1.4; }
+#victory-card .rc-kicker { letter-spacing: 0.28em; font-size: 12px; color: #67e8f9; }
+#victory-card .rc-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.rc-btn {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #f5efe4;
+  background: transparent;
+  color: #fff;
+  font: 800 13px/1 'Chakra Petch', sans-serif;
+  letter-spacing: 0.06em;
+}
+.rc-btn.solid { background: #f5efe4; color: #1a120c; }
+
+body.rc #touch-move-zone, body.rc #touch-look-zone { touch-action: none; }
+
+/* The legacy portrait wall (#mc-rotate) covers the whole screen and eats touches.
+   A Galaxy Fold cover is portrait. The candidate keeps play usable and leaves
+   the small "landscape plays best" line instead. */
+body.rc #mc-rotate { display: none !important; }
+
+/* Used only while tools/rc_victory.js records the epilogue. */
+body.rc-filming .hud-top,
+body.rc-filming .hud-bottom,
+body.rc-filming .hud-chrome-btns,
+body.rc-filming #crosshair,
+body.rc-filming .customizable-btn,
+body.rc-filming #touch-move-zone,
+body.rc-filming #touch-look-zone,
+body.rc-filming #virtual-joystick-base,
+body.rc-filming #virtual-joystick-thumb,
+body.rc-filming #btn-rc-epilogue,
+body.rc-filming #rotate-hint { visibility: hidden !important; }
