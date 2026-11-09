@@ -6,7 +6,7 @@ Unzip this folder. From the folder that contains both game.js and the release di
 
 Then open http://127.0.0.1:8765/release/index.html
 
-Do not open the html file directly. The candidate page loads release/js/core instead of game.js. It still needs the parent folder for models, music, css, and fonts. Root index.html is the legacy game and still uses game.js.
+Do not open the html file directly. The candidate page loads release/js/core instead of game.js. It still needs the parent folder for models, music, css, and fonts. A candidate-only zip is the same layout: release/ next to models/, music/, fonts/, audio/, icons/, and style.css. Root index.html is the legacy game and still uses game.js.
 
 This zip leaves out the Unity test build, the learn pages, the robot remake, and the old launch trailer so it stays smaller. The candidate does not need those.
 
