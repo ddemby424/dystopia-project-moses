@@ -18,7 +18,7 @@ const add = (check, pass, detail) => {
 };
 
 function serve() {
-  const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.vtt': 'text/vtt', '.webm': 'video/webm', '.woff2': 'font/woff2', '.mp4': 'video/mp4' };
+  const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.vtt': 'text/vtt', '.webm': 'video/webm', '.woff2': 'font/woff2', '.mp4': 'video/mp4' };
   return new Promise((res) => {
     const s = http.createServer((q, r) => {
       let p = decodeURIComponent(q.url.split('?')[0]);
@@ -328,7 +328,7 @@ function serve() {
     for (let i = 0; i < 40; i++) updateBotAI(b, 0.05, performance.now() + i * 50);
     crowd.forEach((o) => { o.dying = o._dy; });
     const blocked = { x: +b.x.toFixed(2), stuckN: b.stuckN || 0, tunneled: b.x < -89 };
-    b.x = 10; b.z = 10; b.y = 0; b.goal = { x: 18, z: 10 }; b.path = [{ x: 18, z: 10 }]; b.pathI = 0; b.stuck = 0; b.stuckN = 0; b.cover = null; b.aiState = 'alert';
+    b.x = 10; b.z = 10; b.y = 0; b.goal = { x: 18, z: 10 }; b.path = [{ x: 18, z: 10 }]; b.pathI = 0; b.stuck = 0; b.stuckN = 0; b.cover = null; b.aiState = 'alert'; b.thinkT = 30; b.lastKnown = null; b.los = false; b.yaw = Math.atan2(1, 0); b.role = 'pusher';
     const x0 = b.x;
     for (let i = 0; i < 40; i++) updateBotAI(b, 0.05, performance.now() + i * 50);
     const walked = Math.abs(b.x - x0);
@@ -338,6 +338,77 @@ function serve() {
   });
   add('a blocked bot repaths instead of tunnelling the wall', ai.blocked && ai.blocked.tunneled === false && ai.blocked.stuckN >= 1, ai);
   add('an open-floor bot actually moves toward its goal', ai.walked > 1.5, ai);
+  const motion = await page.evaluate(async () => {
+    if (RC.rigs && RC.rigs.load) await RC.rigs.load();
+    const b = BOTS.find((o) => !o.dying && !o.isBoss) || null;
+    if (b && RC.rigs && RC.rigs.ready()) RC.rigs.adopt(b);
+    if (!b || !b.clips) return { missing: true, ready: !!(RC.rigs && RC.rigs.ready()), bytes: RC.rigs && RC.rigs.bytes };
+    const samples = {};
+    const run = (key, moved, extra) => {
+      for (let i = 0; i < 12; i++) RC.rigs.tick(b, 0.05, Object.assign({ moved, twist: 0, faceYaw: b.yaw || 0, attack: false }, extra || {}));
+      const act = b.clips.actions[b.clips.current];
+      samples[key] = { clip: b.clips.current, scale: act ? +act.timeScale.toFixed(2) : 0, twist: +((b.clips.spine && b.clips.spine.rotation.y) || 0).toFixed(2) };
+    };
+    b.dying = false; b.flinchTimer = 0; b._attackT = 0;
+    run('idle', 0);
+    run('walk', 1.4);
+    run('run', 4.2);
+    b._attackT = 0.4; run('attack', 0, { attack: true });
+    b._attackT = 0; b.dying = true; run('death', 0);
+    b.dying = false; b.flinchTimer = 0.2; run('hit', 0);
+    b.flinchTimer = 0;
+    const idleStill = samples.idle && samples.idle.clip === 'Idle';
+    return { samples, idleStill, bytes: RC.rigs.bytes, failed: RC.rigs.failed };
+  });
+  add('guard clips blend idle, walk, run, attack, and death', motion.samples && motion.idleStill && motion.samples.walk.clip === 'Walking' && motion.samples.run.clip === 'Running' && motion.samples.attack.clip === 'Punch' && motion.samples.death.clip === 'Death', motion);
+  const stuckUnits = await page.evaluate(() => {
+    const C = (COLOSSI || []).find((c) => !c.dead && c.root);
+    let col = null;
+    if (C) {
+      const px = STATE.player.x, pz = STATE.player.z, pyaw = STATE.player.yaw;
+      const ox = C.root.position.x, oz = C.root.position.z;
+      C.root.position.set(-84, 0, 10);
+      C.moving = false; C.charge = -1; C.path = null; C.stuckN = 0; C.stuckT = 0;
+      STATE.player.x = -84; STATE.player.z = 10;
+      colossusLocomotion(C, 0.05, 1);
+      const idleScale = C.mixer ? C.mixer.timeScale : 0;
+      STATE.player.x = -120; STATE.player.z = 10;
+      C.root.rotation.y = Math.PI / 2;
+      const x0 = C.root.position.x;
+      for (let i = 0; i < 30; i++) colossusLocomotion(C, 0.05, 40);
+      col = { idleScale, x: +C.root.position.x.toFixed(2), stuckN: C.stuckN || 0, tunneled: C.root.position.x < -86.2 };
+      C.root.position.set(ox, 0, oz); colossusSyncCol(C);
+      STATE.player.x = px; STATE.player.z = pz; STATE.player.yaw = pyaw;
+    }
+    const d = (DRONES || [])[0];
+    let drone = null;
+    if (d) {
+      const saved = { x: d.x, y: d.y, z: d.z, state: d.state, vx: d.vx, vz: d.vz };
+      d.state = 'hunt'; d.x = -86; d.z = 0; d.y = 10; d.vx = -6; d.vz = 0; d.vy = 0; d.stuckT = 0.7; d.stuckN = 0; d.wp = null;
+      updateDrones(0.05, performance.now());
+      drone = { stuckN: d.stuckN || 0, x: +d.x.toFixed(2) };
+      Object.assign(d, saved);
+    }
+    return { col, drone };
+  });
+  add('a stopped Colossus freezes its walk and does not tunnel the wall', !stuckUnits.col || (stuckUnits.col.idleScale === 0 && stuckUnits.col.tunneled === false), stuckUnits.col);
+  add('a drone pinned on the boundary counts as stuck and shoves free', !stuckUnits.drone || stuckUnits.drone.stuckN >= 1, stuckUnits.drone);
+  add('idle clip is not a sliding walk', motion.samples && motion.samples.idle.clip === 'Idle', motion.samples && motion.samples.idle);
+  const crowdMove = await page.evaluate(() => {
+    const live = BOTS.filter((o) => !o.dying && !o.isBoss);
+    if (live.length < 2) return { n: live.length };
+    const a = live[0], c = live[1];
+    const saved = live.map((o) => ({ o, x: o.x, z: o.z, dying: o.dying }));
+    a.x = 4; a.z = 4; c.x = 4.4; c.z = 4.1;
+    a.dying = false; c.dying = false;
+    const d0 = Math.hypot(a.x - c.x, a.z - c.z);
+    a.aiState = 'combat'; a.los = true; a.role = 'pusher'; a.cover = null; a.path = null; a.goal = null;
+    updateBotAI(a, 0.2, performance.now());
+    const d1 = Math.hypot(a.x - c.x, a.z - c.z);
+    saved.forEach((s) => { s.o.x = s.x; s.o.z = s.z; s.o.dying = s.dying; if (s.o.rig && s.o.rig.root) s.o.rig.root.position.set(s.o.x, s.o.y || 0, s.o.z); });
+    return { d0: +d0.toFixed(2), d1: +d1.toFixed(2) };
+  });
+  add('packed guards separate instead of staying stacked', crowdMove.d1 > crowdMove.d0 + 0.15, crowdMove);
   const secretReport = await page.evaluate(() => {
     const rows = [];
     for (let f = 0; f < 4; f++) {
@@ -349,21 +420,42 @@ function serve() {
       const d = (window.RC_SECRET_DOORS || [])[0];
       const approachBlocked = d ? playerCollidesAt(d.ax, d.az, 0) : true;
       const doorBlocked = d ? playerCollidesAt(d.obj.x, d.obj.z, 0) : false;
+      const anchors = [[0, 30], [0, 0], [0, -40], [20, 10], [-20, 10]];
+      let path = null;
+      if (d && typeof aStar === 'function') {
+        for (const [x, z] of anchors) {
+          const p = aStar(x, z, d.ax, d.az);
+          if (p && p.length) { path = p.length; break; }
+        }
+      }
       if (d) RC.secrets.open(d, 'test');
       const doorAfter = d ? playerCollidesAt(d.obj.x, d.obj.z, 0) : true;
+      let walkIn = false;
+      if (d) {
+        walkIn = true;
+        for (let i = 0; i <= 8; i++) {
+          const x = d.ax + (d.rx - d.ax) * (i / 8);
+          const z = d.az + (d.rz - d.az) * (i / 8);
+          if (playerCollidesAt(x, z, 0)) walkIn = false;
+        }
+      }
       rows.push({
         floor: ['G', 'B1', 'B2', 'B3'][f],
         where: d && d.where,
         tell: d && d.tell,
-        x: d && d.obj.x, z: d && d.obj.z,
-        approachBlocked, doorBlocked, doorAfter, opened: !!(d && d.open)
+        x: d && +d.obj.x.toFixed(1), z: d && +d.obj.z.toFixed(1),
+        ax: d && d.ax, az: d && d.az, rx: d && d.rx, rz: d && d.rz,
+        room: !!(d && d.room),
+        approachBlocked, doorBlocked, doorAfter, opened: !!(d && d.open),
+        path, walkIn
       });
     }
     STATE.level = 1;
     STATE.floor = 0;
     return rows;
   });
-  add('each floor generates a secret panel that blocks, then opens', secretReport.length === 4 && secretReport.every((r) => r.opened && r.doorBlocked === true && r.doorAfter === false && r.approachBlocked === false), secretReport);
+  add('each floor generates a secret room that blocks, then opens', secretReport.length === 4 && secretReport.every((r) => r.room && r.opened && r.doorBlocked === true && r.doorAfter === false && r.approachBlocked === false), secretReport);
+  add('each secret room is reachable from the hall and walkable once open', secretReport.every((r) => r.path > 0 && r.walkIn), secretReport);
   fs.writeFileSync(path.join(OUT, 'secrets.json'), JSON.stringify(secretReport, null, 2));
 
   // Campaign progression uses advanceFloor, the same call the elevator makes.

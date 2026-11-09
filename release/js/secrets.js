@@ -30,14 +30,18 @@
     d.how = how;
     colliders = colliders.filter((c) => c !== d.col);
     d.mesh.userData.opening = true;
-    if (d.bulb) d.bulb.intensity = 1.1;
-    const box = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.45, 0.7), new THREE.MeshStandardMaterial({ color: 0x8a5a32, roughness: 0.6, metalness: 0.35 }));
-    box.position.set(d.rx, 0.28, d.rz);
-    arenaGroup.add(box);
-    d.reward = box;
+    if (d.bulb) d.bulb.intensity = 1.2;
+    if (d.bulbMesh && d.bulbMesh.material && d.bulbMesh.material.emissiveIntensity != null) d.bulbMesh.material.emissiveIntensity = 1.6;
+    if (!d.reward) {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.9, 0.4), new THREE.MeshStandardMaterial({ color: 0x8a8d92, roughness: 0.45, metalness: 0.7 }));
+      box.position.set(d.rx, 0.48, d.rz);
+      arenaGroup.add(box);
+      d.reward = box;
+    }
     secrets.found++;
-    if (typeof showBanner === 'function') showBanner('CACHE', 'A maintenance locker was behind the panel.', 2200);
+    if (typeof showBanner === 'function') showBanner('CACHE', 'The panel lifts. A locker is inside.', 2200);
     try { if (window.SFX) SFX.playKeyPickup(); } catch (e) {}
+    try { if (typeof buildNavGrid === 'function') buildNavGrid(); } catch (e) {}
   }
 
   function update(dt) {
@@ -46,8 +50,9 @@
     let near = null;
     list.forEach((d) => {
       if (d.bulb && !d.open) {
-        const flick = Math.sin(performance.now() * 0.02 + d.obj.x) > 0.35 ? 0.7 : 0.05;
+        const flick = Math.sin(performance.now() * 0.02 + d.obj.x) > 0.35 ? 0.85 : 0.04;
         d.bulb.intensity = flick;
+        if (d.bulbMesh && d.bulbMesh.material) d.bulbMesh.material.emissiveIntensity = flick > 0.4 ? 1.3 : 0.05;
       }
       if (!d.open && d.mesh && d.mesh.userData.opening) { /* opened this frame */ }
       if (d.open && d.mesh) {
@@ -69,7 +74,10 @@
       if (d.open && d.reward && !d.looted) {
         if (Math.hypot(STATE.player.x - d.rx, STATE.player.z - d.rz) < 1.4) {
           d.looted = true;
-          arenaGroup.remove(d.reward);
+          if (d.reward && d.reward.material && d.reward.material.emissive) {
+            d.reward.material.emissive.setHex(0x14301c);
+            d.reward.material.emissiveIntensity = 0.4;
+          }
           STATE.player.armor = Math.min(STATE.player.maxArmor || 100, (STATE.player.armor || 0) + 35);
           if (typeof addScore === 'function') addScore(250, 'CACHE', null);
           if (typeof updateHUD === 'function') updateHUD();
@@ -113,13 +121,12 @@
     const out = [];
     for (let f = 0; f < 4; f++) {
       const lay = genFloorLayout(1, f);
-      const w = (lay.objects || []).find((o) => o.type === 'secretwall');
+      const s = lay.secret || {};
       out.push({
         floor: f,
         name: ['G', 'B1', 'B2', 'B3'][f],
-        x: w && w.x, z: w && w.z, ax: w && w.ax, az: w && w.az,
-        where: secretSpot(f).where,
-        tell: secretSpot(f).tell
+        x: s.x, z: s.z, ax: s.ax, az: s.az, rx: s.rx, rz: s.rz,
+        where: s.where, tell: s.tell, fallback: !!s.fallback
       });
     }
     return out;

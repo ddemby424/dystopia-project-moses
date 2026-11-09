@@ -1359,7 +1359,7 @@ function colossusLocomotion(C, dt, pd) {
     }
   } else C.path = null;
   const charging = C.charge >= 0;
-  if (pd <= keep || charging) { C.moving = false; return clear ? null : heading; }
+  if (pd <= keep || charging) { C.moving = false; if (C.mixer) C.mixer.timeScale = 0; return clear ? null : heading; }
   // walk forward along the current facing once roughly lined up (no strafing / orbiting)
   let dy = heading - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   if (!clear) { const t = (C.isMini ? 1.1 : 0.8) * dt; C.root.rotation.y += Math.max(-t, Math.min(t, dy)); }
@@ -1372,10 +1372,11 @@ function colossusLocomotion(C, dt, pd) {
     if (colossusFree(C, P.x + sx, P.z + sz, r)) { P.x += sx; P.z += sz; moved = Math.hypot(sx, sz); }
     else if (colossusFree(C, P.x + sx, P.z, r)) { P.x += sx; moved = Math.abs(sx); }
     else if (colossusFree(C, P.x, P.z + sz, r)) { P.z += sz; moved = Math.abs(sz); }
-    else { C.pathT = 0; C.stuckT = (C.stuckT || 0) + dt; }
+    else { C.pathT = 0; C.stuckT = (C.stuckT || 0) + dt; if (C.stuckT > 0.55) { C.stuckN = (C.stuckN || 0) + 1; C.stuckT = 0; C.path = null; } }
     if (moved) { C.stuckT = 0; colossusSyncCol(C); C.stride = (C.stride || 0) + moved; const L = Math.max(1.6, C.height * 0.14); if (C.stride >= L) { C.stride -= L; colossusFootfall(C); } }
   }
-  if (C.mixer) C.mixer.timeScale = C.moving ? 1.6 : 1;
+  /* Freeze the walk clip when the body is still so the feet are not skating in place. */
+  if (C.mixer) C.mixer.timeScale = C.moving ? 1.6 : 0;
   return clear ? null : heading;
 }
 function colossusFootfall(C) {
@@ -3619,8 +3620,13 @@ function updateDrones(dt, now) {
     d.vx += (dx / dl * spd - d.vx) * Math.min(1, dt * 2.2); d.vy += (dy / dl * spd * 0.7 - d.vy) * Math.min(1, dt * 2.2); d.vz += (dz / dl * spd - d.vz) * Math.min(1, dt * 2.2);
     const look = 2.2; if (collidesAt(d.x + d.vx * dt * 8 + Math.sign(d.vx) * 0.5, d.z, 0.6) && d.y < 9) { d.vx *= -0.6; d.vy += 3 * dt * 10; } if (collidesAt(d.x, d.z + d.vz * dt * 8 + Math.sign(d.vz) * 0.5, 0.6) && d.y < 9) { d.vz *= -0.6; d.vy += 3 * dt * 10; }
     DRONES.forEach(o => { if (o !== d) { const ox = d.x - o.x, oz = d.z - o.z, od = Math.hypot(ox, oz); if (od < 2.5 && od > 0.01) { d.vx += ox / od * 4 * dt; d.vz += oz / od * 4 * dt; } } });
+    const _px = d.x, _pz = d.z;
     d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt;
     d.x = Math.max(-86, Math.min(86, d.x)); d.z = Math.max(-81, Math.min(81, d.z));
+    if (d.state !== 'falling' && spd > 2 && Math.hypot(d.x - _px, d.z - _pz) < 0.02) {
+      d.stuckT = (d.stuckT || 0) + dt;
+      if (d.stuckT > 0.65) { d.stuckN = (d.stuckN || 0) + 1; d.stuckT = 0; d.vy += 4; d.vx *= -0.8; d.vz *= -0.8; d.wp = null; }
+    } else d.stuckT = 0;
     const fl = getGroundHeightAt(d.x, d.z, d.y); d.y = Math.max(fl + 1.3, Math.min(11.5, d.y));
     const wantYaw = d.aggro ? Math.atan2(P.x - d.x, P.z - d.z) : Math.atan2(d.vx, d.vz); let dyw = Math.atan2(Math.sin(wantYaw - d.yaw), Math.cos(wantYaw - d.yaw)); d.yaw += dyw * Math.min(1, dt * 4);
     g.position.set(d.x, d.y + Math.sin(now * 0.004 + i) * 0.08, d.z); g.rotation.set(Math.max(-0.4, Math.min(0.4, d.vz * 0.03 * Math.cos(d.yaw) + d.vx * 0.03 * Math.sin(d.yaw))) + Math.sin(now * 0.011 + i) * 0.04, d.yaw, Math.sin(now * 0.009 + i * 2) * 0.05);

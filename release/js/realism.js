@@ -73,9 +73,8 @@
       if (surf === 'floor' && mats.floor) paint(o, mats.floor);
       else if (surf === 'wall' && mats.wall) paint(o, mats.wall);
       else if (surf === 'steel' && mats.plate) paint(o, mats.plate);
-      else if (surf === 'secret' && mats.wall) {
-        /* Keep the crack map. Only warm the color so it is not a flat grey slab. */
-        if (o.material && o.material.color) o.material.color.setHex(0x9a8b78);
+      else if (surf === 'secret' && mats.wall && o.material && !(o.material.userData && o.material.userData.secretReady)) {
+        if (typeof secretDoorMaterial === 'function') o.material = secretDoorMaterial();
       }
     });
     (window.COLOSSI || []).forEach((C) => C.root && dressRig(C.root, 'heavy'));
@@ -101,17 +100,24 @@
 
   function dressRig(root, kind) {
     if (!root || !realism.ready) return;
+    if (root.userData && root.userData.rcRobot && window.RC && RC.rigs && RC.rigs.paint) {
+      RC.rigs.paint(root, kind);
+      return;
+    }
     const src = kind === 'heavy' ? mats.plate : (kind === 'drone' ? mats.plate : mats.rust);
     if (!src) return;
     root.traverse((o) => {
-      if (!o.isMesh || !o.material || o.isSprite) return;
+      if (!o.isMesh || !o.material || o.isSprite || o.userData.rcGlow) return;
       const list = Array.isArray(o.material) ? o.material : [o.material];
       let changed = false;
       const next = list.map((m) => {
         if (!m || !m.isMeshStandardMaterial) return m;
+        if (m.map) return m;
         if ((m.emissiveIntensity || 0) > 0.55) return m;
         changed = true;
-        return src;
+        const clone = src.clone();
+        clone.color.multiply(m.color || new THREE.Color(0xffffff));
+        return clone;
       });
       if (changed) o.material = Array.isArray(o.material) ? next : next[0];
     });

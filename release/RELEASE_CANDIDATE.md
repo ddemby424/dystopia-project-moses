@@ -58,22 +58,22 @@ The yard, fence, win save, and epilogue stay in `release/js/*.js` with the map i
 
 ## Realistic surfaces and secret caches
 
-This branch keeps the same routes, collision, and win. It adds photographic CC0 color maps (Poly Haven, 1024 WebP, about 519 KB for the six files) on the yard asphalt, interior concrete floor, concrete walls, corrugated distant shells, and rusted metal on props, guards, heavies, the Colossus, and drones. There is no HDRI and no normal map. The meshes are still the Kenney kit and the procedural halls, so the shapes stay simple. See `release/licenses/ATTRIBUTION.md`.
+This branch keeps the same routes, collision, and win. It adds photographic CC0 color maps (Poly Haven, 1024 WebP, about 519 KB for the six files) on the yard asphalt, interior concrete floor, concrete walls, corrugated distant shells, and flat armor. Textured meshes (the Colossus, the Bot Drone shell) keep their own maps. There is no HDRI and no normal map. See `release/licenses/ATTRIBUTION.md`.
+
+Guards and heavies are the CC0 RobotExpressive rig (`robot/models/robot_trooper.glb`, 463,988 bytes), cloned per bot, with Idle / Walking / Running / Punch / Death crossfades. The root turns toward travel so the feet walk the direction the body moves. While strafing, the spine twists toward the player. The Colossus walk clip pauses when the body is still. A bot that stops making progress repaths. A drone held on the boundary gets a shove.
 
 A representative interior frame after the materials were on was about 145 draw calls and 26,000 triangles. The yard with the factory also up stayed near 145 calls and 28,500 triangles. Kenney GLBs are still about 1.1 MB. Together that is under the 8 MB yard target.
 
-There were no secret rooms in the candidate. Every floor now has one cracked panel:
+There were no secret rooms in the candidate. Every floor now builds one maintenance closet on the first clear spot along the wall. On a new game (level 1) the closets are:
 
 | Floor | Where | How to find it |
 |---|---|---|
-| G | x = -72, z = 36, west side of Server Hall G | A cracked panel and a flickering bulb. Walk up to it from the east. |
-| B1 | x = 80, z = 68, northeast of the server rows | Same panel, darker than the racks. Face it from the west. |
-| B2 | x = -74, z = 62, northwest of the generators | Face it from the south. |
-| B3 | x = 72, z = 60, east of the archive stacks | Face it from the west. |
+| G | x = -85.2, z = 21 | West wall of Server Hall G, south of the checkpoint. Face it from the east. |
+| B1 | x = 85.2, z = 71 | East wall of the server farm, near the north end. Face it from the west. |
+| B2 | x = -85.2, z = 45 | West wall of the generator plant, between the cooling units. Face it from the east. |
+| B3 | x = 47, z = 80.6 | North wall of the archive, right of center. The east-wall spots were blocked by cabinets, so level 1 uses this one. Face it from the south. |
 
-Shoot the panel, press E, or tap USE when you are close. It slides up. The locker behind it is +35 armor and 250 points. A faint map mark appears only when you are within 16 m. A quiet beep starts inside 9 m.
-
-Guards still use the existing nav grid, cover, and flank roles. They now turn before they slide, strafe while shooting in the open, keep a wider gap from each other, and repath when their feet stop against a wall. Walk motion is scaled to speed so the legs rest when the body rests. There is no downloaded walk cycle. The poses are still procedural.
+The tell is a panel a shade lighter than the concrete, a hairline crack, and a bulb that cannot stay lit. There is no sign. Shoot the panel, press E, or tap USE. It slides up. Walk in. The locker is +35 armor and 250 points. A faint map dot appears only inside 16 m. A quiet beep starts inside 9 m. If a later level's props cover the first spot, the closet slides to the next clear wall on that floor. The level 1 spots above are the ones in a new game.
 
 ## What you play
 
