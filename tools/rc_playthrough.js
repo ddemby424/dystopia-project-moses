@@ -318,6 +318,53 @@ function serve() {
   });
   fs.writeFileSync(path.join(OUT, 'budget.json'), JSON.stringify(info, null, 2));
   add('draw calls stayed in a phone-sized budget', info.calls < 450, info);
+  const ai = await page.evaluate(() => {
+    const b = BOTS.find((o) => !o.dying && !o.isBoss);
+    if (!b) return { missing: true };
+    const saved = { x: b.x, z: b.z, y: b.y, ai: b.aiState, goal: b.goal, path: b.path, cover: b.cover, stuckN: b.stuckN || 0 };
+    const crowd = BOTS.filter((o) => o !== b);
+    crowd.forEach((o) => { o._dy = o.dying; o.dying = true; });
+    b.x = -84; b.z = 8; b.y = 0; b.aiState = 'alert'; b.los = false; b.goal = { x: -96, z: 8 }; b.path = [{ x: -96, z: 8 }]; b.pathI = 0; b.cover = null; b.stuck = 0; b.stuckN = 0; b.role = 'pusher';
+    for (let i = 0; i < 40; i++) updateBotAI(b, 0.05, performance.now() + i * 50);
+    crowd.forEach((o) => { o.dying = o._dy; });
+    const blocked = { x: +b.x.toFixed(2), stuckN: b.stuckN || 0, tunneled: b.x < -89 };
+    b.x = 10; b.z = 10; b.y = 0; b.goal = { x: 18, z: 10 }; b.path = [{ x: 18, z: 10 }]; b.pathI = 0; b.stuck = 0; b.stuckN = 0; b.cover = null; b.aiState = 'alert';
+    const x0 = b.x;
+    for (let i = 0; i < 40; i++) updateBotAI(b, 0.05, performance.now() + i * 50);
+    const walked = Math.abs(b.x - x0);
+    b.x = saved.x; b.z = saved.z; b.y = saved.y; b.aiState = saved.ai; b.goal = saved.goal; b.path = saved.path; b.cover = saved.cover; b.stuckN = saved.stuckN;
+    if (b.rig && b.rig.root) b.rig.root.position.set(b.x, b.y, b.z);
+    return { blocked, walked: +walked.toFixed(2) };
+  });
+  add('a blocked bot repaths instead of tunnelling the wall', ai.blocked && ai.blocked.tunneled === false && ai.blocked.stuckN >= 1, ai);
+  add('an open-floor bot actually moves toward its goal', ai.walked > 1.5, ai);
+  const secretReport = await page.evaluate(() => {
+    const rows = [];
+    for (let f = 0; f < 4; f++) {
+      STATE.floor = f;
+      const lay = genFloorLayout(1, f);
+      MAP_OBJECTS = lay.objects;
+      FLOOR_INFO = lay.info;
+      buildArenaMap();
+      const d = (window.RC_SECRET_DOORS || [])[0];
+      const approachBlocked = d ? playerCollidesAt(d.ax, d.az, 0) : true;
+      const doorBlocked = d ? playerCollidesAt(d.obj.x, d.obj.z, 0) : false;
+      if (d) RC.secrets.open(d, 'test');
+      const doorAfter = d ? playerCollidesAt(d.obj.x, d.obj.z, 0) : true;
+      rows.push({
+        floor: ['G', 'B1', 'B2', 'B3'][f],
+        where: d && d.where,
+        tell: d && d.tell,
+        x: d && d.obj.x, z: d && d.obj.z,
+        approachBlocked, doorBlocked, doorAfter, opened: !!(d && d.open)
+      });
+    }
+    STATE.level = 1;
+    STATE.floor = 0;
+    return rows;
+  });
+  add('each floor generates a secret panel that blocks, then opens', secretReport.length === 4 && secretReport.every((r) => r.opened && r.doorBlocked === true && r.doorAfter === false && r.approachBlocked === false), secretReport);
+  fs.writeFileSync(path.join(OUT, 'secrets.json'), JSON.stringify(secretReport, null, 2));
 
   // Campaign progression uses advanceFloor, the same call the elevator makes.
   // Clearing an early floor must not open the fence. Only 9-B3 does.

@@ -104,10 +104,80 @@ function genFloorLayout(level, floor) {
     add('sign', 0, -83.4, { y: 6, rot: 0, title: level < 9 ? 'EXIT ▲ LEVEL ' + (level + 1) : 'EXIT', sub: 'MINOTAUR KEYCARD REQUIRED', color: '#22c55e', w: 7 });
   }
   addElevatedStructures(O, add, info, level, floor, rnd);
-  return { objects: O, info };
+  /* One secret cache per floor. The door is a solid collider until it is shot or used.
+     Approach is the open side. The reward sits on the far side of the slab. */
+  const sp = secretSpot(floor);
+  const rx = sp.x + (sp.axis === 'x' ? -sp.approach * 1.6 : 0);
+  const rz = sp.z + (sp.axis === 'z' ? -sp.approach * 1.6 : 0);
+  const ax = sp.x + (sp.axis === 'x' ? sp.approach * 2.3 : 0);
+  const az = sp.z + (sp.axis === 'z' ? sp.approach * 2.3 : 0);
+  add('secretwall', sp.x, sp.z, {
+    w: sp.axis === 'x' ? 0.42 : 3.3,
+    d: sp.axis === 'x' ? 3.3 : 0.42,
+    h: 3.25,
+    axis: sp.axis,
+    approach: sp.approach,
+    rx, rz, ax, az,
+    floor
+  });
+  return { objects: O, info, secret: { x: sp.x, z: sp.z, ax, az, rx, rz, floor, where: sp.where, tell: sp.tell } };
+}
+
+function secretSpot(floor) {
+  return [
+    { x: -72, z: 36, axis: 'x', approach: 1, where: 'Level any, Floor G', tell: 'West side of Server Hall G, a cracked panel with a flickering bulb. Face it from the east.' },
+    { x: 80, z: 68, axis: 'x', approach: -1, where: 'Level any, Floor B1', tell: 'Northeast corner of the server farm. The panel is darker than the racks. Face it from the west.' },
+    { x: -74, z: 62, axis: 'z', approach: -1, where: 'Level any, Floor B2', tell: 'Northwest of the generator rows. A bulb stutters over a cracked slab. Face it from the south.' },
+    { x: 72, z: 60, axis: 'x', approach: -1, where: 'Level any, Floor B3', tell: 'East of the archive stacks, before the vault. Same cracked panel. Face it from the west.' }
+  ][floor] || { x: -72, z: 36, axis: 'x', approach: 1, where: 'Floor G', tell: 'West side of Server Hall G.' };
+}
+
+function secretCrackTexture() {
+  if (secretCrackTexture.tex) return secretCrackTexture.tex;
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#5c5348';
+  g.fillRect(0, 0, 256, 256);
+  g.strokeStyle = '#1a1612';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(40, 20); g.lineTo(90, 110); g.lineTo(70, 200); g.lineTo(130, 250);
+  g.moveTo(160, 10); g.lineTo(150, 90); g.lineTo(200, 160);
+  g.stroke();
+  g.strokeStyle = '#8a7a68';
+  g.lineWidth = 1;
+  for (let i = 0; i < 8; i++) { g.strokeRect(8 + i * 30, 8, 22, 240); }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  secretCrackTexture.tex = tex;
+  return tex;
+}
+
+function buildSecretWall(obj) {
+  const h = obj.h || 3.25;
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(obj.w || 0.42, h, obj.d || 3.3), new THREE.MeshStandardMaterial({
+    map: secretCrackTexture(), color: 0x8a7b6a, roughness: 0.92, metalness: 0.04
+  }));
+  mesh.position.set(obj.x, h / 2, obj.z);
+  mesh.userData.secretDoor = true;
+  mesh.userData.rcSurface = 'secret';
+  arenaGroup.add(mesh);
+  registerCollider(obj.x - obj.w / 2, obj.x + obj.w / 2, 0, h, obj.z - obj.d / 2, obj.z + obj.d / 2);
+  const col = colliders[colliders.length - 1];
+  const bulb = new THREE.PointLight(0xffb060, 0.35, 7, 2);
+  bulb.position.set(obj.x + (obj.axis === 'x' ? obj.approach * 0.8 : 0), 2.7, obj.z + (obj.axis === 'z' ? obj.approach * 0.8 : 0));
+  arenaGroup.add(bulb);
+  window.RC_SECRET_DOORS.push({
+    obj, mesh, col, bulb, open: false, looted: false,
+    ax: obj.ax, az: obj.az, rx: obj.rx, rz: obj.rz,
+    where: secretSpot(obj.floor || 0).where,
+    tell: secretSpot(obj.floor || 0).tell
+  });
 }
 
 function buildArenaMap() {
+  window.RC_SECRET_DOORS = [];
   while (arenaGroup.children.length > 0) arenaGroup.remove(arenaGroup.children[0]);
   colliders = []; walkableSurfaces = []; sirenBeaconMeshes = []; PICKUPS = []; ARENA_LIGHTS = []; STEAM_PARTICLES = []; BLINK_MATS = []; CELL_DOOR = null; COLOSSUS = null;
   COLOSSUS_BOLTS.forEach(b => scene.remove(b.mesh)); COLOSSUS_BOLTS = [];
@@ -116,6 +186,7 @@ function buildArenaMap() {
   const steelMat = new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.42, metalness: 0.78, bumpMap: WALL_PBR.bumpMap, bumpScale: 0.04 });
   const floorColors = [0xa8a49a, 0x8f9aa8, 0x9a8f80, 0x8a8078];
   const fm = new THREE.Mesh(new THREE.PlaneGeometry(220, 190), new THREE.MeshStandardMaterial({ map: FLOOR_PBR.map, bumpMap: FLOOR_PBR.bumpMap, bumpScale: 0.06, color: floorColors[floor], roughness: 0.58, metalness: 0.32, envMapIntensity: 0.45 }));
+  fm.userData.rcSurface = 'floor';
   fm.material.userData._bright = true;
   fm.rotation.x = -Math.PI / 2; fm.receiveShadow = true; arenaGroup.add(fm);
   // raised-floor tile lines for server floors
@@ -125,7 +196,7 @@ function buildArenaMap() {
   // ceiling trusses (skip centre on G so the colossus can tower)
   for (let tz = -72; tz <= 72; tz += 24) {
     const segs = floor === 0 ? [[-56, 64], [56, 64]] : [[0, 176]];
-    segs.forEach(([cx, len]) => { const t = new THREE.Mesh(new THREE.BoxGeometry(len, 0.8, 0.9), steelMat); t.position.set(cx, floor === 0 ? 14.6 : 13.2, tz); arenaGroup.add(t); });
+    segs.forEach(([cx, len]) => { const t = new THREE.Mesh(new THREE.BoxGeometry(len, 0.8, 0.9), steelMat); t.userData.rcSurface = 'steel'; t.position.set(cx, floor === 0 ? 14.6 : 13.2, tz); arenaGroup.add(t); });
     [-36, 36].forEach(bx => { const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.5, 10), new THREE.MeshBasicMaterial({ color: 0x330a0a })); beacon.position.set(bx, floor === 0 ? 14.0 : 12.6, tz); arenaGroup.add(beacon); sirenBeaconMeshes.push(beacon); });
   }
   createSecurityElevator(FLOOR_INFO.exit.x, FLOOR_INFO.exit.z - 1.2);
@@ -151,6 +222,7 @@ function buildArenaMap() {
     if (obj.type === 'catwalk2' || obj.type === 'tower2') { buildElevated(obj); return; }
     if (obj.type === 'lamp') { addHangingLight(obj.x, 4.8, obj.z, obj.color || 0xffaa66, 1.2, 12); return; }
     if (obj.type === 'sign') { addSign(obj.x, obj.y || 5.2, obj.z, obj.rot || 0, obj.title || 'SECTOR', obj.sub || '', obj.color || '#f59e0b', obj.w || 7); return; }
+    if (obj.type === 'secretwall') { buildSecretWall(obj); return; }
     if (renderMapObject(obj)) return;
     renderLegacyObject(obj, steelMat);
   });
@@ -273,6 +345,7 @@ function updateFloorLogic(dt, now) {
     showBanner('⚠ INTRUDER ALERT', 'COLOSSUS UNIT DETECTED — ONLY EMP CAN BREACH ITS SHIELDING. Switch to Ion EMP [4], destroy it and the sentinels to unlock the stairwell.', 5500);
     SFX.playRadioChatter('Detainee escaped holding! All Strogg units converge on Server Hall G!', 'SECTOR COMMAND');
   }
+  if (window.RC && RC.secrets) RC.secrets.update(dt);
 }
 
 

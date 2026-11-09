@@ -35,7 +35,8 @@ function serve() {
   });
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 90000 });
-  await page.waitForFunction(() => window.RC && RC.yard && RC.yard.upgraded && RC.fence && RC.fence.group, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.RC && RC.yard && RC.yard.upgraded && RC.fence && RC.fence.group && RC.realism && RC.realism.ready, null, { timeout: 30000 });
+  await page.evaluate(() => { try { RC.realism.dressYard(); RC.realism.dressArena(); } catch (e) {} });
   await page.evaluate(() => {
     document.getElementById('splash-screen').classList.add('hidden');
     document.getElementById('game-modal').classList.add('hidden');

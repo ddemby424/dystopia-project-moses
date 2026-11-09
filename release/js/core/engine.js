@@ -658,6 +658,7 @@ function createWall(x, z, w, d, h = 9, y = 0) {
   });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(x, y + h / 2, z); mesh.castShadow = true; mesh.receiveShadow = true;
+  mesh.userData.rcSurface = 'wall';
   arenaGroup.add(mesh);
   registerCollider(x - w / 2, x + w / 2, y, y + h, z - d / 2, z + d / 2);
 }

@@ -56,6 +56,25 @@ Still inside `release/js/core/engine.js` (called by those seams, not rewritten):
 
 The yard, fence, win save, and epilogue stay in `release/js/*.js` with the map in `release/maps/yard.json`. `boot.js` still wraps collision, `buildArenaMap`, `startFloor`, `advanceFloor`, and `updateFloorLogic` after the core has defined them. Those wrappers are the yard and the win. They are not the floor generator.
 
+## Realistic surfaces and secret caches
+
+This branch keeps the same routes, collision, and win. It adds photographic CC0 color maps (Poly Haven, 1024 WebP, about 519 KB for the six files) on the yard asphalt, interior concrete floor, concrete walls, corrugated distant shells, and rusted metal on props, guards, heavies, the Colossus, and drones. There is no HDRI and no normal map. The meshes are still the Kenney kit and the procedural halls, so the shapes stay simple. See `release/licenses/ATTRIBUTION.md`.
+
+A representative interior frame after the materials were on was about 145 draw calls and 26,000 triangles. The yard with the factory also up stayed near 145 calls and 28,500 triangles. Kenney GLBs are still about 1.1 MB. Together that is under the 8 MB yard target.
+
+There were no secret rooms in the candidate. Every floor now has one cracked panel:
+
+| Floor | Where | How to find it |
+|---|---|---|
+| G | x = -72, z = 36, west side of Server Hall G | A cracked panel and a flickering bulb. Walk up to it from the east. |
+| B1 | x = 80, z = 68, northeast of the server rows | Same panel, darker than the racks. Face it from the west. |
+| B2 | x = -74, z = 62, northwest of the generators | Face it from the south. |
+| B3 | x = 72, z = 60, east of the archive stacks | Face it from the west. |
+
+Shoot the panel, press E, or tap USE when you are close. It slides up. The locker behind it is +35 armor and 250 points. A faint map mark appears only when you are within 16 m. A quiet beep starts inside 9 m.
+
+Guards still use the existing nav grid, cover, and flank roles. They now turn before they slide, strafe while shooting in the open, keep a wider gap from each other, and repath when their feet stop against a wall. Walk motion is scaled to speed so the legs rest when the body rests. There is no downloaded walk cycle. The poses are still procedural.
+
 ## What you play
 
 - The existing 9 levels × 4 floors, single player.
