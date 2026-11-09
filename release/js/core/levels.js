@@ -104,237 +104,10 @@ function genFloorLayout(level, floor) {
     add('sign', 0, -83.4, { y: 6, rot: 0, title: level < 9 ? 'EXIT ▲ LEVEL ' + (level + 1) : 'EXIT', sub: 'MINOTAUR KEYCARD REQUIRED', color: '#22c55e', w: 7 });
   }
   addElevatedStructures(O, add, info, level, floor, rnd);
-  /* One maintenance closet per floor, tucked against the perimeter so it reads as a wall.
-     The door stays solid until it is shot or used. The locker is inside, on the far wall. */
-  const sp = pickSecret(floor, O);
-  add('secretwall', sp.x, sp.z, {
-    w: sp.axis === 'x' ? 0.28 : sp.width,
-    d: sp.axis === 'x' ? sp.width : 0.28,
-    h: 2.75,
-    axis: sp.axis,
-    approach: sp.approach,
-    depth: sp.depth,
-    width: sp.width,
-    rx: sp.rx, rz: sp.rz, ax: sp.ax, az: sp.az,
-    where: sp.where, tell: sp.tell,
-    floor
-  });
-  return { objects: O, info, secret: { x: sp.x, z: sp.z, ax: sp.ax, az: sp.az, rx: sp.rx, rz: sp.rz, floor, where: sp.where, tell: sp.tell, fallback: !!sp.fallback } };
-}
-
-function secretCandidates(floor) {
-  const names = ['G', 'B1', 'B2', 'B3'];
-  const name = names[floor] || 'G';
-  const where = 'Any level, Floor ' + name;
-  /* Door sits just inside the perimeter (inner face is about 88.5). Room extends inward. */
-  const west = (z, tell) => ({ x: -85.2, z, axis: 'x', approach: 1, where, tell });
-  const east = (z, tell) => ({ x: 85.2, z, axis: 'x', approach: -1, where, tell });
-  const north = (x, tell) => ({ x, z: 80.6, axis: 'z', approach: -1, where, tell });
-  if (floor === 0) return [
-    west(21, 'West wall of Server Hall G, south of the checkpoint (z = 21). A lighter concrete panel, a hairline crack, and a bulb that cannot stay lit. Face it from the east.'),
-    west(-45, 'West wall of Server Hall G, deeper in the hall (z = -45). Same lighter panel and stuttering bulb. Face it from the east.'),
-    east(21, 'East wall of Server Hall G (z = 21). Lighter panel, crack, stuttering bulb. Face it from the west.'),
-    east(-45, 'East wall of Server Hall G, deeper in (z = -45). Face it from the west.')
-  ];
-  if (floor === 1) return [
-    east(71, 'East wall of the server farm, near the north end (z = 71). Lighter than the concrete around it, with a crack and a bulb that flickers. Face it from the west.'),
-    west(71, 'West wall of the server farm, near the north end (z = 71). Face it from the east.'),
-    east(-61, 'East wall of the server farm, south end (z = -61). Face it from the west.'),
-    north(19, 'North wall of Floor B1, right of center. Face it from the south.')
-  ];
-  if (floor === 2) return [
-    west(45, 'West wall of the generator plant, between the cooling units (z = 45). Lighter panel, crack, stuttering bulb. Face it from the east.'),
-    east(45, 'East wall of the generator plant (z = 45). Face it from the west.'),
-    west(-57, 'West wall of the generator plant, south of the rows (z = -57). Face it from the east.'),
-    north(-21, 'North wall of Floor B2, left of center. Face it from the south.')
-  ];
-  return [
-    east(-17, 'East wall of the archive, past the cabinet rows (z = -17). Lighter panel, crack, stuttering bulb. Face it from the west.'),
-    west(-17, 'West wall of the archive (z = -17). Face it from the east.'),
-    east(9, 'East wall of the archive, just north of the vault gap (z = 9). Face it from the west.'),
-    north(47, 'North wall of Floor B3, right of center. Face it from the south.')
-  ];
-}
-
-function footprintHits(objects, x, z, w, d) {
-  for (const o of objects) {
-    if (o.type === 'sign' || o.type === 'lamp' || o.type === 'seccam' || o.type === 'secretwall') continue;
-    const ow = o.w || (o.type === 'colossus' ? 8 : 2.4);
-    const od = o.d || (o.type === 'colossus' ? 8 : 2.4);
-    if (Math.abs(x - o.x) * 2 < w + ow && Math.abs(z - o.z) * 2 < d + od) return true;
-  }
-  return false;
-}
-
-function pickSecret(floor) {
-  const list = secretCandidates(floor);
-  const objects = arguments[1] || [];
-  const depth = 2.05;
-  const width = 4.4;
-  for (const sp of list) {
-    const sign = -sp.approach;
-    const cx = sp.x + (sp.axis === 'x' ? sign * depth * 0.5 : 0);
-    const cz = sp.z + (sp.axis === 'z' ? sign * depth * 0.5 : 0);
-    const fw = sp.axis === 'x' ? depth + 0.4 : width + 0.4;
-    const fd = sp.axis === 'x' ? width + 0.4 : depth + 0.4;
-    if (Math.abs(cx) > 88.2 || Math.abs(cz) > 83.2) continue;
-    if (footprintHits(objects, cx, cz, fw, fd)) continue;
-    const ax = sp.x + (sp.axis === 'x' ? sp.approach * 2.3 : 0);
-    const az = sp.z + (sp.axis === 'z' ? sp.approach * 2.3 : 0);
-    if (Math.abs(ax) > 84 || Math.abs(az) > 80) continue;
-    if (footprintHits(objects, ax, az, 1.3, 1.3)) continue;
-    const rx = sp.x + (sp.axis === 'x' ? sign * 1.05 : 0);
-    const rz = sp.z + (sp.axis === 'z' ? sign * 1.05 : 0);
-    return Object.assign({ depth, width, ax, az, rx, rz }, sp);
-  }
-  const sp = list[0];
-  const sign = -sp.approach;
-  return Object.assign({
-    depth, width, fallback: true,
-    ax: sp.x + (sp.axis === 'x' ? sp.approach * 2.3 : 0),
-    az: sp.z + (sp.axis === 'z' ? sp.approach * 2.3 : 0),
-    rx: sp.x + (sp.axis === 'x' ? sign * 1.05 : 0),
-    rz: sp.z + (sp.axis === 'z' ? sign * 1.05 : 0)
-  }, sp);
-}
-
-function secretSpot(floor) {
-  return pickSecret(floor, []);
-}
-
-function secretCrackTexture() {
-  if (secretCrackTexture.tex) return secretCrackTexture.tex;
-  const c = document.createElement('canvas');
-  c.width = 256; c.height = 256;
-  const g = c.getContext('2d');
-  g.clearRect(0, 0, 256, 256);
-  g.strokeStyle = 'rgba(28, 22, 16, 0.92)';
-  g.lineWidth = 2;
-  g.beginPath();
-  g.moveTo(30, 18); g.lineTo(78, 90); g.lineTo(54, 150); g.lineTo(96, 230);
-  g.moveTo(150, 12); g.lineTo(138, 80); g.lineTo(188, 140); g.lineTo(170, 220);
-  g.moveTo(90, 40); g.lineTo(120, 70);
-  g.stroke();
-  const tex = new THREE.CanvasTexture(c);
-  tex.needsUpdate = true;
-  secretCrackTexture.tex = tex;
-  return tex;
-}
-
-function secretDoorMaterial() {
-  const src = window.RC && RC.realism && RC.realism.mats && RC.realism.mats.wall;
-  const m = src ? src.clone() : new THREE.MeshStandardMaterial({ color: 0xd9cbb6, roughness: 0.9, metalness: 0.05 });
-  if (src) m.color.setHex(0xe4d7c4);
-  m.roughness = 0.92;
-  m.metalness = 0.04;
-  m.userData.secretReady = true;
-  return m;
-}
-
-function buildSecretWall(obj) {
-  const h = obj.h || 2.75;
-  const depth = obj.depth || 2.15;
-  const width = obj.width || 2.55;
-  const t = 0.2;
-  const approach = obj.approach || 1;
-  const axis = obj.axis || 'x';
-  const sign = -approach;
-  const group = new THREE.Group();
-  group.position.set(obj.x, 0, obj.z);
-  const wallMat = (window.RC && RC.realism && RC.realism.mats && RC.realism.mats.wall)
-    ? RC.realism.mats.wall
-    : new THREE.MeshStandardMaterial({ color: 0xb8a090, roughness: 0.78, metalness: 0.06 });
-  const plateSrc = window.RC && RC.realism && RC.realism.mats && RC.realism.mats.plate;
-  const plateMat = plateSrc ? plateSrc.clone() : new THREE.MeshStandardMaterial({ color: 0x6e675f, roughness: 0.45, metalness: 0.72 });
-  const addBox = (w, hh, d, mat, x, y, z) => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), mat);
-    mesh.position.set(x, y, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.userData.rcSurface = mat === plateMat ? 'steel' : 'wall';
-    group.add(mesh);
-    return mesh;
-  };
-  const lx = (localX, localZ) => axis === 'x' ? localX : localZ;
-  const lz = (localX, localZ) => axis === 'x' ? localZ : localX;
-  /* Local X is "into the room" along the door normal before axis swap.
-     For an X-axis door, localX maps to world X. For a Z-axis door, localX maps to world Z. */
-  const place = (w, hh, d, mat, localX, y, localZ) => addBox(
-    axis === 'x' ? w : d, hh, axis === 'x' ? d : w, mat, lx(localX, localZ), y, lz(localX, localZ)
-  );
-  place(depth, 0.06, width, plateMat, sign * depth * 0.5, 0.03, 0);
-  place(depth, h, t, wallMat, sign * depth * 0.5, h / 2, width / 2);
-  place(depth, h, t, wallMat, sign * depth * 0.5, h / 2, -width / 2);
-  place(t, h, width, wallMat, sign * (depth - t * 0.5), h / 2, 0);
-  const worldCol = (localX, localZ, w, d) => {
-    const x = obj.x + lx(localX, localZ);
-    const z = obj.z + lz(localX, localZ);
-    const ww = axis === 'x' ? w : d;
-    const dd = axis === 'x' ? d : w;
-    registerCollider(x - ww / 2, x + ww / 2, 0, h, z - dd / 2, z + dd / 2);
-  };
-  worldCol(sign * depth * 0.5, width / 2, depth, t);
-  worldCol(sign * depth * 0.5, -width / 2, depth, t);
-  worldCol(sign * (depth - t * 0.5), 0, t, width);
-  arenaGroup.add(group);
-
-  const door = new THREE.Mesh(new THREE.BoxGeometry(axis === 'x' ? 0.28 : width * 0.82, h * 0.96, axis === 'x' ? width * 0.82 : 0.28), secretDoorMaterial());
-  door.position.set(obj.x, h * 0.48, obj.z);
-  door.userData.secretDoor = true;
-  door.userData.rcSurface = 'secret';
-  door.castShadow = true;
-  arenaGroup.add(door);
-  const dw = axis === 'x' ? 0.28 : width * 0.82;
-  const dd = axis === 'x' ? width * 0.82 : 0.28;
-  registerCollider(obj.x - dw / 2, obj.x + dw / 2, 0, h, obj.z - dd / 2, obj.z + dd / 2);
-  const col = colliders[colliders.length - 1];
-
-  const crack = new THREE.Mesh(new THREE.PlaneGeometry((axis === 'x' ? width : 0.28) * 0.9, h * 0.9), new THREE.MeshBasicMaterial({
-    map: secretCrackTexture(), transparent: true, depthWrite: false
-  }));
-  crack.position.set(
-    axis === 'x' ? approach * 0.16 : 0,
-    0,
-    axis === 'z' ? approach * 0.16 : 0
-  );
-  if (axis === 'x') crack.rotation.y = approach > 0 ? Math.PI / 2 : -Math.PI / 2;
-  else crack.rotation.y = approach > 0 ? 0 : Math.PI;
-  crack.userData.secretDoor = true;
-  door.add(crack);
-
-  const bulbMesh = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshStandardMaterial({
-    color: 0xffd7a1, emissive: 0xffa040, emissiveIntensity: 0.9
-  }));
-  bulbMesh.position.set(
-    obj.x + (axis === 'x' ? approach * 0.35 : 0),
-    h - 0.05,
-    obj.z + (axis === 'z' ? approach * 0.35 : 0)
-  );
-  bulbMesh.userData.rcGlow = true;
-  arenaGroup.add(bulbMesh);
-  const bulb = new THREE.PointLight(0xffb060, 0.55, 6.5, 2);
-  bulb.position.copy(bulbMesh.position);
-  arenaGroup.add(bulb);
-
-  const locker = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.95, 0.42), plateMat.clone());
-  const into = axis === 'x' ? Math.sign(obj.rx - obj.x) || -1 : Math.sign(obj.rz - obj.z) || -1;
-  locker.position.set(axis === 'x' ? obj.x + into * 1.55 : obj.x, 0.5, axis === 'z' ? obj.z + into * 1.55 : obj.z);
-  locker.userData.rcSurface = 'steel';
-  locker.castShadow = true;
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.05), new THREE.MeshStandardMaterial({ color: 0xc7b299, metalness: 0.8, roughness: 0.3 }));
-  handle.position.set(axis === 'x' ? approach * 0.22 : 0.16, 0.05, axis === 'z' ? approach * 0.22 : 0.16);
-  locker.add(handle);
-  arenaGroup.add(locker);
-
-  window.RC_SECRET_DOORS.push({
-    obj, mesh: door, col, bulb, bulbMesh, reward: locker, room: true, open: false, looted: false,
-    ax: obj.ax, az: obj.az, rx: obj.rx, rz: obj.rz,
-    where: obj.where, tell: obj.tell
-  });
+  return { objects: O, info };
 }
 
 function buildArenaMap() {
-  window.RC_SECRET_DOORS = [];
   while (arenaGroup.children.length > 0) arenaGroup.remove(arenaGroup.children[0]);
   colliders = []; walkableSurfaces = []; sirenBeaconMeshes = []; PICKUPS = []; ARENA_LIGHTS = []; STEAM_PARTICLES = []; BLINK_MATS = []; CELL_DOOR = null; COLOSSUS = null;
   COLOSSUS_BOLTS.forEach(b => scene.remove(b.mesh)); COLOSSUS_BOLTS = [];
@@ -343,7 +116,6 @@ function buildArenaMap() {
   const steelMat = new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.42, metalness: 0.78, bumpMap: WALL_PBR.bumpMap, bumpScale: 0.04 });
   const floorColors = [0xa8a49a, 0x8f9aa8, 0x9a8f80, 0x8a8078];
   const fm = new THREE.Mesh(new THREE.PlaneGeometry(220, 190), new THREE.MeshStandardMaterial({ map: FLOOR_PBR.map, bumpMap: FLOOR_PBR.bumpMap, bumpScale: 0.06, color: floorColors[floor], roughness: 0.58, metalness: 0.32, envMapIntensity: 0.45 }));
-  fm.userData.rcSurface = 'floor';
   fm.material.userData._bright = true;
   fm.rotation.x = -Math.PI / 2; fm.receiveShadow = true; arenaGroup.add(fm);
   // raised-floor tile lines for server floors
@@ -353,7 +125,7 @@ function buildArenaMap() {
   // ceiling trusses (skip centre on G so the colossus can tower)
   for (let tz = -72; tz <= 72; tz += 24) {
     const segs = floor === 0 ? [[-56, 64], [56, 64]] : [[0, 176]];
-    segs.forEach(([cx, len]) => { const t = new THREE.Mesh(new THREE.BoxGeometry(len, 0.8, 0.9), steelMat); t.userData.rcSurface = 'steel'; t.position.set(cx, floor === 0 ? 14.6 : 13.2, tz); arenaGroup.add(t); });
+    segs.forEach(([cx, len]) => { const t = new THREE.Mesh(new THREE.BoxGeometry(len, 0.8, 0.9), steelMat); t.position.set(cx, floor === 0 ? 14.6 : 13.2, tz); arenaGroup.add(t); });
     [-36, 36].forEach(bx => { const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.5, 10), new THREE.MeshBasicMaterial({ color: 0x330a0a })); beacon.position.set(bx, floor === 0 ? 14.0 : 12.6, tz); arenaGroup.add(beacon); sirenBeaconMeshes.push(beacon); });
   }
   createSecurityElevator(FLOOR_INFO.exit.x, FLOOR_INFO.exit.z - 1.2);
@@ -379,7 +151,6 @@ function buildArenaMap() {
     if (obj.type === 'catwalk2' || obj.type === 'tower2') { buildElevated(obj); return; }
     if (obj.type === 'lamp') { addHangingLight(obj.x, 4.8, obj.z, obj.color || 0xffaa66, 1.2, 12); return; }
     if (obj.type === 'sign') { addSign(obj.x, obj.y || 5.2, obj.z, obj.rot || 0, obj.title || 'SECTOR', obj.sub || '', obj.color || '#f59e0b', obj.w || 7); return; }
-    if (obj.type === 'secretwall') { buildSecretWall(obj); return; }
     if (renderMapObject(obj)) return;
     renderLegacyObject(obj, steelMat);
   });
@@ -502,7 +273,6 @@ function updateFloorLogic(dt, now) {
     showBanner('⚠ INTRUDER ALERT', 'COLOSSUS UNIT DETECTED — ONLY EMP CAN BREACH ITS SHIELDING. Switch to Ion EMP [4], destroy it and the sentinels to unlock the stairwell.', 5500);
     SFX.playRadioChatter('Detainee escaped holding! All Strogg units converge on Server Hall G!', 'SECTOR COMMAND');
   }
-  if (window.RC && RC.secrets) RC.secrets.update(dt);
 }
 
 

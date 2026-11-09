@@ -6,8 +6,7 @@ function initBotAI(b) {
   b.aiState = 'idle'; b.phase = 'move'; b.thinkT = Math.random() * 0.6; b.path = null; b.pathI = 0; b.cover = null; b.coverHits = 0;
   b.lockT = 0; b.reactT = 0; b.burstLeft = 0; b.shotT = 0; b.phaseT = 0; b.crouch = 0; b.los = false; b.lastSeenT = -1e9; b.lastKnown = null;
   b.speed = b.isHuman ? 6.6 : (b.heavy ? 3.9 : 4.8); b.patrolT = 2 + Math.random() * 4;
-  if (b.clips) b.action = null;
-  else if (b.mixer && b.mixer._actions && b.mixer._actions[0]) b.action = b.mixer._actions[0];
+  if (b.mixer && b.mixer._actions && b.mixer._actions[0]) b.action = b.mixer._actions[0];
   b.callsign = b.isHuman ? ['Ruiz', 'Okafor', 'Brandt', 'Ivanova', 'Kade', 'Mercer', 'Holt', 'Sato', 'Varga', 'Pike', 'Reyes', 'Lund'][Math.floor(Math.random() * 12)] : b.name;
 }
 
@@ -163,45 +162,23 @@ function updateBotAI(b, dt, now) {
     const dx = target.x - b.x, dz = target.z - b.z, d = Math.hypot(dx, dz);
     if (d > 0.25) { const spd = (b.aiState === 'idle' ? 0.45 : 1) * b.speed * (STATE.botSkill || 1) * (b.phase === 'peek' ? 0.6 : 1); mvx = dx / d * spd; mvz = dz / d * spd; }
   }
-  // separation — don't clump. A wider bubble than the old 2.2 m pack.
-  if (b.role !== 'sniper') BOTS.forEach(o => { if (o === b || o.dying) return; const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz); if (d < 3.1 && d > 0.01) { mvx += dx / d * (3.1 - d) * 4.2; mvz += dz / d * (3.1 - d) * 4.2; } });
-  /* Strafe while shooting in the open, so a pack does not stack on one line. */
-  if (b.aiState === 'combat' && b.los && !atCover && b.role !== 'sniper') {
-    if ((b._strafeT = (b._strafeT || 1.6) - dt) <= 0) { b._strafe = -(b._strafe || 1); b._strafeT = 1.2 + Math.random() * 0.8; }
-    const side = b._strafe || 1;
-    mvx += Math.cos(b.yaw) * side * b.speed * 0.45;
-    mvz += -Math.sin(b.yaw) * side * b.speed * 0.45;
-  }
-  b._moved = 0;
+  // separation — don't clump
+  if (b.role !== 'sniper') BOTS.forEach(o => { if (o === b || o.dying) return; const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz); if (d < 2.2 && d > 0.01) { mvx += dx / d * (2.2 - d) * 3; mvz += dz / d * (2.2 - d) * 3; } });
   if (Math.abs(mvx) + Math.abs(mvz) > 0.05) {
     b.moving = true;
-    const faceP0 = b.aiState === 'combat' && (b.los || b.phase !== 'move');
-    const want0 = faceP0 ? Math.atan2(P.x - b.x, P.z - b.z) : Math.atan2(mvx, mvz);
-    let err = want0 - b.yaw; err = Math.atan2(Math.sin(err), Math.cos(err));
-    /* Turn before sliding. A large facing error cuts speed so the feet are not skating sideways. */
-    const turnCut = Math.abs(err) > 0.9 ? 0.22 : (Math.abs(err) > 0.45 ? 0.55 : 1);
-    const ox = b.x, oz = b.z;
-    const nx = b.x + mvx * turnCut * dt, nz = b.z + mvz * turnCut * dt;
-    if (!collidesAt(nx, b.z, 0.55)) b.x = nx;
-    if (!collidesAt(b.x, nz, 0.55)) b.z = nz;
-    const progressed = Math.hypot(b.x - ox, b.z - oz);
-    b._moved = dt > 0 ? progressed / dt : 0;
-    const wanted = Math.hypot(mvx, mvz) * turnCut * dt;
-    if (wanted > 0.03 && progressed < wanted * 0.3) {
-      b.stuck = (b.stuck || 0) + dt;
-      if (b.stuck > 0.55) {
-        b.stuck = 0; b.stuckN = (b.stuckN || 0) + 1;
-        b.path = b.goal ? aStar(b.x, b.z, b.goal.x, b.goal.z) : null; b.pathI = 0;
-        aiTrace(b, 'stuck, repath');
-        if (b.stuckN >= 2) { b.stuckN = 0; const fr = botNearestFree(b.x, b.z, 0.6); if (fr) { b.x = fr[0]; b.z = fr[1]; } b.goal = null; b.path = null; b.cover = null; b.thinkT = 0; }
-      }
-    } else if (progressed > 0.02) b.stuck = 0;
+    const nx = b.x + mvx * dt, nz = b.z + mvz * dt;
+    let moved = false;
+    if (!collidesAt(nx, b.z, 0.55)) { b.x = nx; moved = true; } if (!collidesAt(b.x, nz, 0.55)) { b.z = nz; moved = true; }
+    if (!moved) { b.stuck = (b.stuck || 0) + dt; if (b.stuck > 0.8) { b.stuck = 0; b.stuckN = (b.stuckN || 0) + 1; b.path = b.goal ? aStar(b.x, b.z, b.goal.x, b.goal.z) : null; b.pathI = 0;
+      // Round 17: repeated stalls → embedded in geometry or unreachable goal. Pop to the nearest free spot and re-think.
+      if (b.stuckN >= 2) { b.stuckN = 0; const fr = botNearestFree(b.x, b.z, 0.6); if (fr) { b.x = fr[0]; b.z = fr[1]; } b.goal = null; b.path = null; b.cover = null; b.thinkT = 0; } } }
+    else b.stuckN = 0;
   }
   // facing
   const faceP = b.aiState === 'combat' && (b.los || b.phase !== 'move');
   const wantYaw = faceP ? Math.atan2(P.x - b.x, P.z - b.z) : (b.moving && Math.hypot(mvx, mvz) > 0.6 ? Math.atan2(mvx, mvz) : (b.role === 'sniper' && b.scanYaw !== undefined ? b.yaw + Math.sin(now * 0.0006 + b.x) * 0.02 : b.yaw));
   let dy = wantYaw - b.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); b.yaw += dy * Math.min(1, dt * (b.isHuman ? 9 : 5));
-  if (!b.clips) b.rig.root.rotation.y = b.yaw;
+  b.rig.root.rotation.y = b.yaw;
   // crouch (humans duck behind low cover)
   const wantCrouch = b.isHuman && atCover && b.phase === 'hide' ? 1 : 0; b.crouch += (wantCrouch - b.crouch) * Math.min(1, dt * 8);
   if (b.isHuman) b.rig.root.scale.y = 1 - b.crouch * 0.3;
@@ -210,40 +187,17 @@ function updateBotAI(b, dt, now) {
   const canFire = b.aiState === 'combat' && b.los && b.reactT <= 0 && b.lockT > 0.25;
   if (canFire && b.shotT <= 0) {
     const fireMult = (STATE.botSkill || 1) * (STATE.diff?.fire || 1);
-    if (atCover && b.phase === 'peek') { if ((b.aimT -= dt) <= 0 && b.burstLeft > 0) { aiShoot(b); b._attackT = 0.32; b.burstLeft--; b.shotT = (b.isHuman ? 0.13 : 0.24) / fireMult; } }
-    else if (!atCover && (!b.isHuman || b.role === 'pusher' || !b.cover)) { aiShoot(b); b._attackT = 0.32; b.shotT = (b.role === 'sniper' ? 1.7 : b.isHuman ? 0.9 : (b.role === 'suppressor' ? 0.55 : 0.8)) / fireMult; }
-    else if (!b.isHuman && b.role === 'suppressor') { aiShoot(b); b._attackT = 0.32; b.shotT = 0.6 / fireMult; }
+    if (atCover && b.phase === 'peek') { if ((b.aimT -= dt) <= 0 && b.burstLeft > 0) { aiShoot(b); b.burstLeft--; b.shotT = (b.isHuman ? 0.13 : 0.24) / fireMult; } }
+    else if (!atCover && (!b.isHuman || b.role === 'pusher' || !b.cover)) { aiShoot(b); b.shotT = (b.role === 'sniper' ? 1.7 : b.isHuman ? 0.9 : (b.role === 'suppressor' ? 0.55 : 0.8)) / fireMult; }
+    else if (!b.isHuman && b.role === 'suppressor') { aiShoot(b); b.shotT = 0.6 / fireMult; }
   }
   // physics + anim
   const botFloor = getGroundHeightAt(b.x, b.z, b.y); b.y += b.vy * dt; b.vy -= STATE.gravity * dt; if (b.y <= botFloor) { b.y = botFloor; b.vy = 0; }
   b.rig.root.position.set(b.x, b.y, b.z);
-  const planar = Math.hypot(mvx, mvz);
-  const aim = (b.aiState === 'combat' && b.los) ? 1 : 0;
-  b._aim = (b._aim || 0) + (aim - (b._aim || 0)) * Math.min(1, dt * 6);
-  if (b.clips && window.RC && RC.rigs) {
-    const travel = Math.atan2(mvx, mvz);
-    const fwd = mvx * Math.sin(b.yaw) + mvz * Math.cos(b.yaw);
-    const lat = mvx * Math.cos(b.yaw) - mvz * Math.sin(b.yaw);
-    const strafing = b.moving && Math.abs(lat) > 0.45 && Math.abs(lat) > Math.abs(fwd) * 0.75;
-    let twist = 0;
-    if (strafing) {
-      twist = Math.atan2(Math.sin(b.yaw - travel), Math.cos(b.yaw - travel));
-      twist = Math.max(-1.05, Math.min(1.05, twist));
-    }
-    RC.rigs.tick(b, dt, { moved: b._moved || 0, attack: b._attackT > 0, twist, faceYaw: strafing ? travel : b.yaw });
-  } else if (b.mixer) {
-    if (b.action) b.action.timeScale = planar > 0.4 ? Math.min(1.5, planar / 3.2) : 0;
-    b.mixer.update(planar > 0.25 ? dt : 0);
-  } else if (b.rig.leftLeg && b.rig.leftLeg !== b.rig.root) {
-    /* Pose blend: idle, walk scaled to speed, and an aim pose. Legs stop when the body stops. */
-    const swingAmp = Math.min(0.65, planar * 0.14);
-    b.walkPhase += dt * (3.2 + planar * 1.15);
-    const swing = Math.sin(b.walkPhase) * swingAmp;
-    b.rig.leftLeg.rotation.x = swing;
-    b.rig.rightLeg.rotation.x = -swing;
-    if (b.rig.leftArm && b.rig.leftArm !== b.rig.root) b.rig.leftArm.rotation.x = -swing * 0.4 * (1 - b._aim);
-    if (b.rig.rightArm && b.rig.rightArm !== b.rig.root) b.rig.rightArm.rotation.x = -0.25 * (1 - b._aim) + (-1.05) * b._aim;
-    if (b.rig.torso && b.rig.torso !== b.rig.root) b.rig.torso.rotation.x = -0.12 * b._aim + (b.flinchTimer > 0 ? -0.2 : 0);
+  if (b.mixer) { if (b.action) b.action.timeScale = b.moving ? (b.isHuman ? 1.25 : 0.9) : 0.05; b.mixer.update(dt); }
+  else if (b.rig.leftLeg && b.rig.leftLeg !== b.rig.root) {
+    b.walkPhase += dt * (b.moving ? 8 : 1.5); const swing = Math.sin(b.walkPhase) * (b.moving ? 0.6 : 0.05);
+    b.rig.leftLeg.rotation.x = swing; b.rig.rightLeg.rotation.x = -swing; b.rig.leftArm.rotation.x = -swing * 0.45; b.rig.rightArm.rotation.x = -0.3;
   }
   updateEnemyWeapon(b);
   if (b.flinchTimer > 0) { b.flinchTimer -= dt; if (b.rig.armorMat && b.rig.armorMat.emissive) { b.rig.armorMat.emissive.setHex(0xffffff); b.rig.armorMat.emissiveIntensity = 0.85; } }
@@ -261,9 +215,7 @@ function spawnBotFromArchetype(spec, levelMult = 1.0) {
   const isHuman = spec.role === 'human';
   const heavy = !isHumanGuard && !isHuman;
   let rig, procHuman = false;
-  if (window.RC && RC.rigs && RC.rigs.ready()) {
-    rig = RC.rigs.build(heavy ? 'heavy' : 'guard', spec.name);
-  } else if (isHuman) {
+  if (isHuman) {
     if (MESHY_TEMPLATES.human) rig = buildRigFromMeshyTemplate(MESHY_TEMPLATES.human, spec.name, false);
     else { rig = createDoomSentinel(0x1f2937, 0x38bdf8, spec.name, false); rig.root.scale.multiplyScalar(0.8); procHuman = true; }
   } else if (isHumanGuard && MESHY_TEMPLATES.guard) {
@@ -281,13 +233,12 @@ function spawnBotFromArchetype(spec, levelMult = 1.0) {
   rig.root.traverse(o => { if (o.isMesh && !o.isSprite) { o.castShadow = true; o.receiveShadow = !IS_COARSE; } });
   applyRim(rig.root, isHuman ? 0x9fd0ff : 0xffa060, isHuman ? 0.85 : 0.7);
   scene.add(rig.root);
-  if (window.RC && RC.realism && RC.realism.dressRig) RC.realism.dressRig(rig.root, heavy ? 'heavy' : (isHuman ? 'human' : 'guard'));
   const maxHp = Math.round(spec.maxHealth * levelMult);
   rig.hb.update(maxHp, maxHp);
   BOTS.push({
     id: spec.id, name: spec.name, isBoss: false, isHumanGuard, isHuman, procHuman, heavy, role: spec.aiRole || 'pusher', squad: spec.squad || 0,
     patrolType: spec.patrolType || 'ground', homeX: spec.x, homeZ: spec.z,
-    rig, mixer: rig.mixer || null, clips: rig.clips || null,
+    rig, mixer: rig.mixer || null,
     x: spec.x, y: spawnY, z: spec.z, vy: 0, yaw: 0,
     health: maxHp, maxHealth: maxHp, weaponIdx: spec.weapon || 0,
     fireCooldown: 1.0 + Math.random(), walkPhase: Math.random() * Math.PI * 2,
@@ -328,9 +279,8 @@ function rcEnemyStep(dt, now) {
     if (b.dying) {
       b.deathTimer -= dt;
       if (b.rig.root) {
-        if (b.clips && window.RC && RC.rigs) RC.rigs.tick(b, dt, { moved: 0, faceYaw: b.rig.root.rotation.y });
-        else b.rig.root.rotation.x = Math.min(1.2, b.rig.root.rotation.x + dt * 2.2);
-        b.rig.root.position.y = Math.max(b.y - 0.15, b.rig.root.position.y - dt * 0.8);
+        b.rig.root.rotation.x = Math.min(1.2, b.rig.root.rotation.x + dt * 2.2);
+        b.rig.root.position.y = Math.max(b.y - 0.4, b.rig.root.position.y - dt * 1.5);
         if (b.rig.armorMat && b.rig.armorMat.emissive) { b.rig.armorMat.emissive.setHex(0xff4400); b.rig.armorMat.emissiveIntensity = 1.2; }
       }
       if (b.weapon) { b.weapon.position.y = Math.max(b.y + 0.1, b.weapon.position.y - dt * 2.5); b.weapon.rotateX(dt * 2); }

@@ -18,7 +18,7 @@ const add = (check, pass, detail) => {
 };
 
 function serve() {
-  const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.vtt': 'text/vtt', '.webm': 'video/webm', '.woff2': 'font/woff2', '.mp4': 'video/mp4' };
+  const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.hdr': 'application/octet-stream', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.vtt': 'text/vtt', '.webm': 'video/webm', '.woff2': 'font/woff2', '.mp4': 'video/mp4' };
   return new Promise((res) => {
     const s = http.createServer((q, r) => {
       let p = decodeURIComponent(q.url.split('?')[0]);
@@ -28,7 +28,7 @@ function serve() {
       r.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream' });
       fs.createReadStream(f).pipe(r);
     });
-    s.listen(0, '127.0.0.1', () => res([s, `http://127.0.0.1:${s.address().port}/release/index.html?notrailer=1`]));
+    s.listen(0, '127.0.0.1', () => res([s, `http://127.0.0.1:${s.address().port}/release-next/index.html?notrailer=1`]));
   });
 }
 

@@ -56,25 +56,6 @@ Still inside `release/js/core/engine.js` (called by those seams, not rewritten):
 
 The yard, fence, win save, and epilogue stay in `release/js/*.js` with the map in `release/maps/yard.json`. `boot.js` still wraps collision, `buildArenaMap`, `startFloor`, `advanceFloor`, and `updateFloorLogic` after the core has defined them. Those wrappers are the yard and the win. They are not the floor generator.
 
-## Realistic surfaces and secret caches
-
-This branch keeps the same routes, collision, and win. It adds photographic CC0 color maps (Poly Haven, 1024 WebP, about 519 KB for the six files) on the yard asphalt, interior concrete floor, concrete walls, corrugated distant shells, and flat armor. Textured meshes (the Colossus, the Bot Drone shell) keep their own maps. There is no HDRI and no normal map. See `release/licenses/ATTRIBUTION.md`.
-
-Guards and heavies are the CC0 RobotExpressive rig (`robot/models/robot_trooper.glb`, 463,988 bytes), cloned per bot, with Idle / Walking / Running / Punch / Death crossfades. The root turns toward travel so the feet walk the direction the body moves. While strafing, the spine twists toward the player. The Colossus walk clip pauses when the body is still. A bot that stops making progress repaths. A drone held on the boundary gets a shove.
-
-A representative interior frame after the materials were on was about 145 draw calls and 26,000 triangles. The yard with the factory also up stayed near 145 calls and 28,500 triangles. Kenney GLBs are still about 1.1 MB. Together that is under the 8 MB yard target.
-
-There were no secret rooms in the candidate. Every floor now builds one maintenance closet on the first clear spot along the wall. On a new game (level 1) the closets are:
-
-| Floor | Where | How to find it |
-|---|---|---|
-| G | x = -85.2, z = 21 | West wall of Server Hall G, south of the checkpoint. Face it from the east. |
-| B1 | x = 85.2, z = 71 | East wall of the server farm, near the north end. Face it from the west. |
-| B2 | x = -85.2, z = 45 | West wall of the generator plant, between the cooling units. Face it from the east. |
-| B3 | x = 47, z = 80.6 | North wall of the archive, right of center. The east-wall spots were blocked by cabinets, so level 1 uses this one. Face it from the south. |
-
-The tell is a panel a shade lighter than the concrete, a hairline crack, and a bulb that cannot stay lit. There is no sign. Shoot the panel, press E, or tap USE. It slides up. Walk in. The locker is +35 armor and 250 points. A faint map dot appears only inside 16 m. A quiet beep starts inside 9 m. If a later level's props cover the first spot, the closet slides to the next clear wall on that floor. The level 1 spots above are the ones in a new game.
-
 ## What you play
 
 - The existing 9 levels × 4 floors, single player.
