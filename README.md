@@ -1,5 +1,11 @@
 # DYSTOPIA — Project Moses (Strogg Sentinel Upgrade)
 
+## Single-player release candidate
+
+The first-release candidate is **`release/index.html`** (yard, two doors, electric fence, epilogue). It does not replace this root game. Serve the repo and open `/release/index.html`. Notes, licenses, and the phone checklist: `release/RELEASE_CANDIDATE.md`.
+
+
+
 Upgraded single-file Three.js r128 FPS for Darcy D. Demby.
 
 ## Play
