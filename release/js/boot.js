@@ -130,7 +130,7 @@
         kitBytes: st.bytes,
         when: new Date().toISOString()
       };
-      splashStatus(st.failed ? 'Kit loaded with ' + st.failed + ' fallback(s)' : 'Yard kit ready');
+      splashStatus(st.failed ? 'Some yard models did not load. Enter anyway — both routes still open.' : 'Yard ready. New Campaign starts outside.');
       if (params.get('capture') === 'victory') runCapture();
     }).catch((e) => { console.warn('rc boot', e); splashStatus('Yard fallback (kit failed)'); });
   }

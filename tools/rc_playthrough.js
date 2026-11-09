@@ -111,6 +111,54 @@ function serve() {
   await page.waitForTimeout(400);
   const spawned = await page.evaluate(() => ({ x: +STATE.player.x.toFixed(1), z: +STATE.player.z.toFixed(1), floor: STATE.floor, level: STATE.level }));
   add('new campaign starts in the yard on floor G', spawned.floor === 0 && spawned.z > 110 && Math.abs(spawned.x) < 2, spawned);
+  const presentation = await page.evaluate(() => {
+    const show = (id) => {
+      const el = document.getElementById(id);
+      if (!el) return 'missing';
+      return getComputedStyle(el).display;
+    };
+    const obj = document.getElementById('rc-objective');
+    const snap = window.__RC_LEGACY_SNAP || {};
+    setBrightness(1.35);
+    const legacy = localStorage.getItem('dystopia_brightness');
+    const rc = JSON.parse(localStorage.getItem('dys_rc_settings_v1') || '{}');
+    STATE.screenShake = 1;
+    STATE.rcReduced = true;
+    RC.core.player.step(0.016, performance.now());
+    return {
+      deploy: show('btn-start'),
+      party: show('tab-party-mode'),
+      qr: show('mcs-qr'),
+      settings: show('rc-settings'),
+      studio: show('btn-open-studio'),
+      objective: obj ? obj.textContent : '',
+      objDisplay: obj ? getComputedStyle(obj).display : 'missing',
+      legacyBright: legacy,
+      snapBright: snap.dystopia_brightness,
+      rcBright: rc.bright,
+      shake: STATE.screenShake,
+      saveKey: !!localStorage.getItem('dys_rc_save_v1')
+    };
+  });
+  add('menu hides deploy, party, and the phone QR', presentation.deploy === 'none' && presentation.party === 'none' && presentation.qr === 'none' && presentation.studio === 'none' && presentation.settings !== 'none', presentation);
+  add('objective line is visible in the yard', presentation.objDisplay !== 'none' && /dock/i.test(presentation.objective) && /scanner/i.test(presentation.objective), presentation);
+  add('settings stay in the candidate key and leave legacy brightness alone', presentation.rcBright > 1.2 && presentation.legacyBright === presentation.snapBright && presentation.shake === 0, presentation);
+
+  /* Headless Chromium often blurs the page between Playwright calls, and the
+     candidate drops keys on blur so a finger cannot stick. Drive the same
+     movement function the frame loop calls, for about two thirds of a second. */
+  const walked = await page.evaluate(() => {
+    const z0 = STATE.player.z;
+    const x0 = STATE.player.x;
+    KEYS.KeyW = true;
+    let now = performance.now();
+    for (let i = 0; i < 40; i++) { now += 16; RC.core.player.step(0.016, now); }
+    renderFrame();
+    KEYS.KeyW = false;
+    return { z0: +z0.toFixed(2), x0: +x0.toFixed(2), z1: +STATE.player.z.toFixed(2), x1: +STATE.player.x.toFixed(2), moved: +(z0 - STATE.player.z).toFixed(2) };
+  });
+  add('holding forward walks through collision for a stretch of the yard', walked.moved > 2, walked);
+  await page.evaluate(() => { RC.settings.write({ bright: 1, reduced: false }); RC.settings.apply(); });
 
   const probes = await page.evaluate(() => {
     const dock = RC.yard.probeRoute(RC.yard.layoutRef().routes.find((r) => r.id === 'dock'), 1.25);

@@ -153,9 +153,12 @@ function rcPlayerStep(dt, now) {
   const sway = Math.sin(now * 0.0022) * 0.01;
   camera.position.set(STATE.player.x, STATE.player.y + (STATE.player.crouch ? 1.05 : 1.68) + bob * 0.3, STATE.player.z);
   if (STATE.screenShake > 0) {
-    camera.position.x += (Math.random() - 0.5) * STATE.screenShake * 0.35;
-    camera.position.y += (Math.random() - 0.5) * STATE.screenShake * 0.25;
-    STATE.screenShake = Math.max(0, STATE.screenShake - dt * 2.8);
+    if (STATE.rcReduced) STATE.screenShake = 0;
+    else {
+      camera.position.x += (Math.random() - 0.5) * STATE.screenShake * 0.35;
+      camera.position.y += (Math.random() - 0.5) * STATE.screenShake * 0.25;
+      STATE.screenShake = Math.max(0, STATE.screenShake - dt * 2.8);
+    }
   }
   camera.rotation.order = 'YXZ'; camera.rotation.y = STATE.player.yaw; camera.rotation.x = STATE.player.pitch;
   if (gunMesh) {

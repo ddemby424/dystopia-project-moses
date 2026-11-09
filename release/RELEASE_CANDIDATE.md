@@ -125,10 +125,14 @@ The yard does not load a second copy of the sentinels, music, or the 14 MB trail
 
 ## Tests that were actually run
 
-`node tools/rc_playthrough.js` (headless Chromium, touch enabled, not a phone) passed **35/35** after the core extraction. That run is `results.json` under the artifact folder. It checked:
+The title card is New Campaign, Settings, and Credits. Deploy, the party tab, the operator picker, and the phone QR are not on that card. Settings (brightness, shadows, sensitivity, aim assist, reduced effects, contrast, sound, erase progress) are stored in `dys_rc_settings_v1`. Campaign progress stays in `dys_rc_save_v1` and `dys_rc_win_v1`. Changing them puts the legacy keys back to whatever they were before this page loaded. A line under the score pill states the dock, the scanner, and the fence. Reduced effects drops screen shake and yard steam.
+
+`node tools/rc_playthrough.js` (headless Chromium, touch enabled, not a phone) passed **39/39**. That run is `results.json` under the artifact folder. It checked:
 
 - The page loads `release/js/core/engine.js` and does not load root `game.js`. `gameLoop` calls the player, combat, enemy, and level steps. Tuning set 4 weapons and 10 roster rows.
 - The open-gate sightline does not hit `building-o` (that shell is east of the gap)
+- Holding forward runs the real movement step through yard collision for about 9 meters
+- The objective line is on screen, and a brightness change does not stick to `dystopia_brightness`
 - Yard spawn on floor G, studio and party hidden, kit load with no failures
 - Dock lane clear the whole way into the hall
 - Airlock lane blocked at the shutter, then clear after standing on the scanner

@@ -16,7 +16,7 @@ function rcRenderAtmosphere(dt, now) {
     else L.light.intensity = L.base * (0.9 + 0.1 * Math.sin(now * 0.004 + L.phase));
   });
   // steam vents
-  if (!IS_COARSE) {
+  if (!IS_COARSE && !STATE.rcReduced) {
     STEAM_PARTICLES.forEach(v => {
       v.t += dt;
       if (v.t > 0.2) {

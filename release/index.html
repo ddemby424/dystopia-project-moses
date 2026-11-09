@@ -390,7 +390,14 @@
 
 <canvas id="webgl-canvas"></canvas>
 <div id="fx-fade"></div><div id="kia"><div class="t">K.I.A.</div><div class="s" id="kia-s"></div><div class="bar"><div id="kia-bar"></div></div></div>
-<script src="release/js/core/engine.js"></script>
+  <script>
+    /* Snapshot legacy keys before the engine writes them, so this page can put them back. */
+    window.__RC_LEGACY_SNAP = {};
+    ['dystopia_brightness','dystopia_shadows','dys_music_vol','dys_music_on','dys_gfx','dys_look','dys_trailer_seen_v4','dys_name','dys_skin'].forEach(function (k) {
+      try { window.__RC_LEGACY_SNAP[k] = localStorage.getItem(k); } catch (e) { window.__RC_LEGACY_SNAP[k] = null; }
+    });
+  </script>
+  <script src="release/js/core/engine.js"></script>
 <script src="release/js/core/tuning.js"></script>
 <script src="release/js/core/player.js"></script>
 <script src="release/js/core/combat.js"></script>
@@ -399,6 +406,7 @@
 <script src="release/js/core/render.js"></script>
 <script src="release/js/core/loop.js"></script>
 <script src="release/js/core/start.js"></script>
+<script src="release/js/settings.js"></script>
 <script src="release/js/asset-cache.js"></script>
 <script src="release/js/map-kit.js"></script>
 <script src="release/js/yard.js"></script>
