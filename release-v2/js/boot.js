@@ -133,6 +133,8 @@
         when: new Date().toISOString()
       };
       splashStatus('Yard ready. New Campaign starts outside.');
+      try { if (typeof prewarmShaders === 'function') prewarmShaders(); } catch (e) {}
+      try { if (RC.v2 && RC.v2.debug) RC.v2.debug('units ' + ((RC.rigs && RC.rigs.bytes) || 0) + 'b mech ' + (RC.v2.mechBytes || 0) + 'b' + (RC.rigs && RC.rigs.failed ? ' RIG FAIL' : '') + (RC.v2.mechFailed ? ' MECH FAIL' : '')); } catch (e) {}
       if (params.get('capture') === 'victory') runCapture();
     }).catch((e) => { console.warn('rc boot', e); splashStatus('Yard fallback (kit failed)'); });
   }

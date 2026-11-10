@@ -231,7 +231,7 @@ function viewSize() {
 (function initRendererSize() {
   const { w, h } = viewSize();
   renderer.setSize(w, h, false);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, IS_COARSE ? 1.1 : 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, (IS_COARSE || (navigator.maxTouchPoints || 0) > 0) ? 1.25 : 1.5));
 })();
 const SHADOW_KEY = 'dystopia_shadows';
 let SHADOWS_ON = localStorage.getItem(SHADOW_KEY) !== '0';
@@ -1276,8 +1276,10 @@ function updateColossi(dt, now) {
     }
     if (C.mixer && C.stun <= 0) C.mixer.update(dt);
     updateColossusCannon(C);
-    const alertOn = STATE.combatActive && STATE.running && (STATE.floor > 0 || STATE.player.z < (FLOOR_INFO.activateZ ?? 46));
     const pd = Math.hypot(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
+    const inFactory = (STATE.floor || 0) > 0 || STATE.player.z < 92;
+    const seen = pd < (C.v2Sentinel ? 96 : 90);
+    const alertOn = STATE.running && (STATE.combatActive || (C.v2Sentinel && inFactory && seen));
     if (alertOn && !C.alerted) { C.alerted = true; C.voiceT = 20 + Math.random() * 10; colossusSpeak(C); }
     if (C.engaged > 0) C.engaged -= dt;
     if (alertOn && (pd < 90 || C.engaged > 0) && pd < hudD) { hudD = pd; hudC = C; }
@@ -1340,7 +1342,13 @@ function updateColossus(dt, now) { updateColossi(dt, now); }
 // ---- Round 17: Sentinel locomotion, footfalls, shockwave ----
 function colossusFree(C, x, z, r) {
   if (x < -86 || x > 86 || z < -81 || z > 81) return false;
-  for (const c of colliders) { if (c === C.col || c.hi || c.minY > 2) continue; if (x + r > c.minX && x - r < c.maxX && z + r > c.minZ && z - r < c.maxZ) return false; }
+  const P = C.root.position;
+  for (const c of colliders) {
+    if (c === C.col || c.hi || c.minY > 2) continue;
+    const standingIn = P.x + r > c.minX && P.x - r < c.maxX && P.z + r > c.minZ && P.z - r < c.maxZ;
+    if (standingIn) continue;
+    if (x + r > c.minX && x - r < c.maxX && z + r > c.minZ && z - r < c.maxZ) return false;
+  }
   return true;
 }
 function colossusSyncCol(C) { if (!C.col) return; const p = C.root.position, rr = C.rad; C.col.minX = p.x - rr; C.col.maxX = p.x + rr; C.col.minZ = p.z - rr; C.col.maxZ = p.z + rr; }
@@ -1364,7 +1372,7 @@ function colossusLocomotion(C, dt, pd) {
   let dy = heading - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   if (!clear) { const t = (C.isMini ? 1.1 : 0.8) * dt; C.root.rotation.y += Math.max(-t, Math.min(t, dy)); }
   const face = C.root.rotation.y; const err = Math.abs(Math.atan2(Math.sin(heading - face), Math.cos(heading - face)));
-  const speed = (C.isMini ? 2.8 : 2.1) * (1 - Math.min(0.6, C.limp || 0)) * Math.max(0, 1 - err / 1.1);
+  const speed = (C.v2Sentinel ? 4.6 : (C.isMini ? 2.8 : 2.1)) * (1 - Math.min(0.6, C.limp || 0)) * Math.max(0, 1 - err / 1.4);
   C.moving = speed > 0.05;
   if (C.moving) {
     const r = C.rad * 0.75, sx = Math.sin(face) * speed * dt, sz = Math.cos(face) * speed * dt;
@@ -1372,7 +1380,12 @@ function colossusLocomotion(C, dt, pd) {
     if (colossusFree(C, P.x + sx, P.z + sz, r)) { P.x += sx; P.z += sz; moved = Math.hypot(sx, sz); }
     else if (colossusFree(C, P.x + sx, P.z, r)) { P.x += sx; moved = Math.abs(sx); }
     else if (colossusFree(C, P.x, P.z + sz, r)) { P.z += sz; moved = Math.abs(sz); }
-    else { C.pathT = 0; C.stuckT = (C.stuckT || 0) + dt; if (C.stuckT > 0.55) { C.stuckN = (C.stuckN || 0) + 1; C.stuckT = 0; C.path = null; } }
+    else {
+      const side = ((C.stuckN || 0) % 2 ? 1 : -1) * Math.max(1.4, r);
+      const lx = P.x + Math.cos(face) * side, lz = P.z - Math.sin(face) * side;
+      if (colossusFree(C, lx, lz, r * 0.8)) { P.x = lx; P.z = lz; moved = Math.abs(side); }
+      C.pathT = 0; C.stuckT = (C.stuckT || 0) + dt; if (C.stuckT > 0.55) { C.stuckN = (C.stuckN || 0) + 1; C.stuckT = 0; C.path = null; }
+    }
     if (moved) { C.stuckT = 0; colossusSyncCol(C); C.stride = (C.stride || 0) + moved; const L = Math.max(1.6, C.height * 0.14); if (C.stride >= L) { C.stride -= L; colossusFootfall(C); } }
   }
   /* Freeze the walk clip when the body is still so the feet are not skating in place. */
@@ -1424,7 +1437,7 @@ function buildColossus(height, opts = {}) {
   const isMini = !!opts.mini;
   const v2 = window.RC && RC.v2 && typeof RC.v2.sentinelTemplate === 'function' ? RC.v2.sentinelTemplate() : null;
   const tpl = v2 || (isMini ? (MESHY_TEMPLATES.guard || MESHY_TEMPLATES.bot) : (MESHY_TEMPLATES.colossus || MESHY_TEMPLATES.bot || MESHY_TEMPLATES.guard));
-  const C = { ownCannon: !!((v2 && tpl === v2) || (!isMini && tpl === MESHY_TEMPLATES.colossus && tpl)), root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: null, hand: null };
+  const C = { ownCannon: !!((v2 && tpl === v2) || (!isMini && tpl === MESHY_TEMPLATES.colossus && tpl)), v2Sentinel: !!(v2 && tpl === v2), turnMult: (v2 && tpl === v2) ? 2.6 : 1, root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: null, hand: null };
   if (tpl && THREE.SkeletonUtils) {
     const c = THREE.SkeletonUtils.clone(tpl.scene);
     c.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; if (o.userData.rcGlow) return; if (o.material) { o.material = o.material.clone(); brightenMat(o.material); if (isMini && !v2 && o.material.color) o.material.color.multiplyScalar(0.85).lerp(new THREE.Color(0x60a5fa), 0.12); } } });
@@ -4478,8 +4491,9 @@ const WEP_ICONS = [
 window.GFX_LEVEL = localStorage.getItem('dys_gfx') || (IS_COARSE ? 'med' : 'high');
 function gfxPixelRatio() {
   const dpr = window.devicePixelRatio || 1;
-  if (IS_COARSE) return Math.min(dpr, { low: 1.0, med: 1.1, high: 1.35 }[GFX_LEVEL] || 1.1);
-  return Math.min(dpr, { low: 1.0, med: 1.5, high: 2 }[GFX_LEVEL] || 2);
+  const touch = IS_COARSE || (navigator.maxTouchPoints || 0) > 0;
+  if (touch) return Math.min(dpr, { low: 1.0, med: 1.25, high: 1.5 }[GFX_LEVEL] || 1.25);
+  return Math.min(dpr, 1.5, { low: 1.0, med: 1.25, high: 1.5 }[GFX_LEVEL] || 1.5);
 }
 function applyGfx(level) {
   GFX_LEVEL = level; window.GFX_LEVEL = level; localStorage.setItem('dys_gfx', level);

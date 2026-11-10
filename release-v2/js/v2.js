@@ -158,7 +158,7 @@
           resolve(sentinel);
         }, reject);
       }).catch(reject);
-    })).catch((e) => { console.warn('mech', e); v2.mechFailed = true; return sentinelTemplate(); });
+    })).catch((e) => { console.warn('mech', e); v2.mechFailed = true; if (v2.debug) v2.debug('mech load failed ' + (e && e.message ? e.message : e)); return sentinelTemplate(); });
     return v2._mechPromise;
   }
 
@@ -559,12 +559,7 @@
       const far = (b.x - px) * (b.x - px) + (b.z - pz) * (b.z - pz) > 36 * 36;
       const show = !outside && !far;
       showRig(b.rig.root, show);
-      if (b.weapon) b.weapon.visible = show;
-      if (b.rig.root.userData.rcRobot) {
-        b.rig.root.traverse((o) => {
-          if (o.isMesh && !o.userData.v2Armor && !o.isSprite) o.visible = false;
-        });
-      }
+      if (b.weapon) b.weapon.visible = show && !b.dying;
     });
     (typeof COLOSSI !== 'undefined' ? COLOSSI : []).forEach((C) => {
       if (C.root) C.root.visible = !outside;
@@ -588,7 +583,13 @@
         }
         const dx = (ch.position.x || 0) - px;
         const dz = (ch.position.z || 0) - pz;
-        ch.visible = dx * dx + dz * dz < 64 * 64;
+        let lim = 38;
+        if (ch.isMesh && ch.geometry) {
+          const g = ch.geometry;
+          const n = g.index ? g.index.count / 3 : (g.attributes.position ? g.attributes.position.count / 3 : 0);
+          if (n > 2000) lim = 24;
+        }
+        ch.visible = dx * dx + dz * dz < lim * lim;
       });
     }
     if (typeof COLOSSI !== 'undefined') {
@@ -605,11 +606,39 @@
         if (step < 0.15) C._stepped = false;
         const eye = mech.getObjectByName('v2-eye');
         if (eye && eye.material) eye.material.emissiveIntensity = 2.4 + 0.8 * (0.5 + 0.5 * Math.sin(now * 6));
+        if (v2.debug && C.v2Sentinel && !C._dbgAt) {
+          C._dbgAt = now;
+          v2.debug('sentinel alert=' + !!C.alerted + ' move=' + !!C.moving + ' stuck=' + (C.stuckN || 0) + ' pos=' + C.root.position.x.toFixed(1) + ',' + C.root.position.z.toFixed(1));
+        } else if (v2.debug && C.v2Sentinel && now - C._dbgAt > 2) C._dbgAt = 0;
       });
     }
   }
 
+  function mobileBudget() {
+    const touch = (navigator.maxTouchPoints || 0) > 0 || (typeof IS_COARSE !== 'undefined' && IS_COARSE);
+    return touch;
+  }
+
+  function installDebug() {
+    if (!/[?&]debug=1(?:&|$)/.test(location.search)) return;
+    const el = document.createElement('pre');
+    el.id = 'rc-debug';
+    el.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:100000;max-width:92vw;max-height:42vh;overflow:auto;margin:0;padding:8px;background:rgba(0,0,0,.78);color:#d1fae5;font:11px/1.35 ui-monospace,monospace;pointer-events:none;white-space:pre-wrap';
+    document.body.appendChild(el);
+    const lines = [];
+    v2.debug = function (line) {
+      lines.push(String(line));
+      if (lines.length > 14) lines.shift();
+      el.textContent = lines.join('\n');
+    };
+    v2.debug('debug overlay on');
+  }
+
   function installBloom() {
+    if (mobileBudget()) {
+      if (v2.debug) v2.debug('bloom off (mobile)');
+      return;
+    }
     if (v2._bloom || typeof THREE.EffectComposer !== 'function' || typeof THREE.UnrealBloomPass !== 'function') return;
     if (typeof renderFrame !== 'function' || typeof renderer === 'undefined') return;
     const composer = new THREE.EffectComposer(renderer);
@@ -651,7 +680,11 @@
   v2.load = loadMech;
   v2.mechBytes = 0;
   RC.v2 = v2;
+  installDebug();
   installBloom();
+  if (mobileBudget() && typeof renderer !== 'undefined') {
+    try { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25)); } catch (e) {}
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => loadMech());
   else loadMech();
 })();
