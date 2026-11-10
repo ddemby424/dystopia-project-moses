@@ -1440,7 +1440,7 @@ function buildColossus(height, opts = {}) {
   const C = { ownCannon: !!((v2 && tpl === v2) || (!isMini && tpl === MESHY_TEMPLATES.colossus && tpl)), v2Sentinel: !!(v2 && tpl === v2), turnMult: (v2 && tpl === v2) ? 2.6 : 1, root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: null, hand: null };
   if (tpl && THREE.SkeletonUtils) {
     const c = THREE.SkeletonUtils.clone(tpl.scene);
-    c.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; if (o.userData.rcGlow) return; if (o.material) { o.material = o.material.clone(); brightenMat(o.material); if (isMini && !v2 && o.material.color) o.material.color.multiplyScalar(0.85).lerp(new THREE.Color(0x60a5fa), 0.12); } } });
+    c.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; if (o.geometry && o.geometry.attributes && o.geometry.attributes.tangent) o.geometry.deleteAttribute('tangent'); if (o.userData.rcGlow) return; if (o.material) { o.material = o.material.clone(); if (!(o.material.userData && o.material.userData.v2Plain)) brightenMat(o.material); if (isMini && !v2 && o.material.color) o.material.color.multiplyScalar(0.85).lerp(new THREE.Color(0x60a5fa), 0.12); } } });
     const holder = new THREE.Group(); holder.scale.setScalar(height / (tpl.targetHeight || 2.5)); holder.add(c); g.add(holder);
     if (tpl.animations && tpl.animations.length) { C.mixer = new THREE.AnimationMixer(c); const a = C.mixer.clipAction(tpl.animations[0]); a.play(); a.timeScale = v2 ? 1 : (isMini ? 0.14 : 0.08); }
     const bones = []; c.traverse(o => { if (o.isBone) bones.push(o); });
@@ -1459,12 +1459,15 @@ function buildColossus(height, opts = {}) {
   C.eye = new RTLight(0xff3300, isMini ? 1.6 : 2.5, isMini ? 18 : 40, 2); C.eye.position.set(0, height * 0.92, height * 0.08); g.add(C.eye);
   C.plate = null; // Round 17: no base disc — the Sentinel walks freely
   g.userData.v2Keep = true;
+  g.userData.v2Boss = true;
+  g.frustumCulled = false;
+  g.traverse(o => { o.frustumCulled = false; });
   if (C.glow) C.glow.userData.v2Keep = true;
   const L = STATE.level || 1, F = STATE.floor || 0;
   C.maxHp = C.hp = isMini ? Math.round(240 + 50 * L + 30 * F) : Math.round(450 + 100 * L);
   C.dmg = isMini ? Math.round(10 + 2.5 * L + 2 * F) : Math.round(14 + 3 * L);
   C.rate = isMini ? Math.max(3, 5.2 - 0.15 * L - 0.3 * F) : Math.max(3.2, 4.2 - 0.08 * L);
-  try { applyRim(g, 0xff7040, 0.6); } catch (e) {}
+  if (!C.v2Sentinel) { try { applyRim(g, 0xff7040, 0.6); } catch (e) {} }
   COLOSSI.push(C);
   try { initSoftSpots(C); } catch (e) { console.warn('softspots', e); }
   return g;
