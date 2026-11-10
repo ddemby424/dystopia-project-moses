@@ -157,7 +157,7 @@
     const src = kind === 'heavy' || kind === 'drone' ? mats.plate : mats.rust;
     if (!src) return;
     root.traverse((o) => {
-      if (!o.isMesh || !o.material || o.isSprite || o.userData.rcGlow) return;
+      if (!o.isMesh || !o.material || o.isSprite || o.userData.rcGlow || o.userData.v2Boss) return;
       const list = Array.isArray(o.material) ? o.material : [o.material];
       let changed = false;
       const next = list.map((m) => {

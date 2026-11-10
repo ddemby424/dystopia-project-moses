@@ -71,6 +71,66 @@
     mesh.matrixAutoUpdate = true;
   }
 
+  /* Phone GPUs drop this mesh when the glTF keeps tangent + normal + AO +
+     emissive maps and the rim shader rewrites the fragment program.
+     One albedo map and constant roughness/metalness is enough to read the boss. */
+  function plainMechMat(src) {
+    const map = src && src.map ? src.map : null;
+    const m = new THREE.MeshStandardMaterial({
+      name: 'v2-sentinel-body',
+      color: map ? 0xffffff : 0x8d5a40,
+      map: map,
+      roughness: 0.55,
+      metalness: 0.18,
+      emissive: 0x4a2a18,
+      emissiveIntensity: map ? 0.22 : 0.4,
+      envMapIntensity: 0.15,
+      side: THREE.DoubleSide
+    });
+    m.userData.v2Plain = true;
+    m.userData._bright = true;
+    m.userData._rim = true;
+    return m;
+  }
+
+  function hardenMechMesh(mesh) {
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.frustumCulled = false;
+    mesh.userData.v2Boss = true;
+    if (mesh.geometry) {
+      if (mesh.geometry.attributes && mesh.geometry.attributes.tangent) mesh.geometry.deleteAttribute('tangent');
+      if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
+    }
+    if (/plane/i.test(mesh.name || '')) {
+      mesh.visible = false;
+      return;
+    }
+    const src = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+    mesh.material = plainMechMat(src);
+  }
+
+  function blockPart(mat, w, h, d, x, y, z) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z);
+    m.name = 'v2-sentinel-block';
+    hardenMechMesh(m);
+    m.material = mat;
+    return m;
+  }
+
+  function addBlockBody(root) {
+    const mat = plainMechMat(null);
+    const found = {};
+    root.traverse((o) => { if (o.isBone) found[o.name] = o; });
+    if (found.Spine2) found.Spine2.add(blockPart(mat, 1.2, 1.4, 0.72, 0, 0.2, 0));
+    if (found.Head) found.Head.add(blockPart(mat, 0.58, 0.42, 0.52, 0, 0.12, 0.06));
+    if (found.LeftLeg) found.LeftLeg.add(blockPart(mat, 0.36, 1.2, 0.4, 0, -0.72, 0));
+    if (found.RightLeg) found.RightLeg.add(blockPart(mat, 0.36, 1.2, 0.4, 0, -0.72, 0));
+    if (found.RightForeArm) found.RightForeArm.add(blockPart(mat, 0.28, 0.28, 1.25, 0.05, -0.05, 0.55));
+    if (found.LeftForeArm) found.LeftForeArm.add(blockPart(mat, 0.22, 0.7, 0.22, 0, -0.2, 0));
+  }
+
   function sentinelFromMech(gltf) {
     const root = boneRig();
     const found = {};
@@ -82,23 +142,11 @@
     src.traverse((o) => { if (o.isMesh) meshes.push(o); });
     const attached = [];
     meshes.forEach((mesh) => {
-      mesh.castShadow = false;
-      mesh.frustumCulled = false;
-      const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      list.forEach((m) => {
-        if (!m || !m.color) return;
-        m.color.multiplyScalar(0.72);
-        if (m.metalness != null) m.metalness = Math.min(0.82, Math.max(m.metalness || 0, 0.45));
-        if (m.roughness != null) m.roughness = Math.max(0.38, m.roughness || 0.5);
-        if (m.emissive && (m.emissiveIntensity || 0) > 0.05) {
-          m.emissive.setHex(0xff2200);
-          m.emissiveIntensity = Math.max(1.1, m.emissiveIntensity);
-        }
-      });
-      if (/plane/i.test(mesh.name || '')) mesh.visible = false;
+      hardenMechMesh(mesh);
       holder.add(mesh);
-      if (/attach/i.test(mesh.name || '')) attached.push(mesh);
+      if (mesh.visible && /attach/i.test(mesh.name || '')) attached.push(mesh);
     });
+    if (!meshes.some((mesh) => mesh.visible)) addBlockBody(root);
     holder.updateWorldMatrix(true, true);
     const box = new THREE.Box3().setFromObject(holder);
     const h = Math.max(0.01, box.max.y - box.min.y);
@@ -110,8 +158,12 @@
     attached.forEach((mesh) => { if (mesh.visible) reparent(mesh, found.RightForeArm); });
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0x200000, emissive: 0xff1a1a, emissiveIntensity: 3.2, roughness: 0.2 });
     eyeMat.userData._bright = true;
+    eyeMat.userData._rim = true;
+    eyeMat.userData.v2Plain = true;
     const eye = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.06), eyeMat);
     eye.userData.rcGlow = true;
+    eye.userData.v2Boss = true;
+    eye.frustumCulled = false;
     eye.name = 'v2-eye';
     eye.position.set(0, 0.05, 0.2);
     found.Head.add(eye);
@@ -128,9 +180,14 @@
   function sentinelTemplate() {
     if (sentinel) return sentinel;
     const root = boneRig();
+    addBlockBody(root);
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0x200000, emissive: 0xff1a1a, emissiveIntensity: 2.4, roughness: 0.2 });
+    eyeMat.userData._bright = true;
+    eyeMat.userData._rim = true;
+    eyeMat.userData.v2Plain = true;
     const eye = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.07, 0.05), eyeMat);
     eye.userData.rcGlow = true;
+    eye.frustumCulled = false;
     let head = null;
     root.traverse((o) => { if (o.name === 'Head') head = o; });
     if (head) head.add(eye);
@@ -562,7 +619,7 @@
       if (b.weapon) b.weapon.visible = show && !b.dying;
     });
     (typeof COLOSSI !== 'undefined' ? COLOSSI : []).forEach((C) => {
-      if (C.root) C.root.visible = !outside;
+      showBoss(C, !outside);
       (C.spots || []).forEach((sp) => { if (sp.g) sp.g.visible = !outside && !sp.dead && !C.dead; });
     });
     (typeof DRONES !== 'undefined' ? DRONES : []).forEach((d) => {
@@ -577,8 +634,8 @@
       });
     } else if (arenaGroup.visible) {
       arenaGroup.children.forEach((ch) => {
-        if (ch.name === 'rc-v2-shell' || ch.name === 'rc-v2-merged' || ch.name === 'rc-ceiling' || (ch.userData && (ch.userData.v2Keep || ch.userData.v2Shell || ch.userData.rcSurface === 'wall' || ch.userData.rcSurface === 'floor'))) {
-          ch.visible = true;
+        if (isBossNode(ch) || ch.name === 'rc-v2-shell' || ch.name === 'rc-v2-merged' || ch.name === 'rc-ceiling' || (ch.userData && (ch.userData.v2Keep || ch.userData.v2Shell || ch.userData.rcSurface === 'wall' || ch.userData.rcSurface === 'floor'))) {
+          if (!isBossNode(ch)) ch.visible = true;
           return;
         }
         const dx = (ch.position.x || 0) - px;
@@ -610,8 +667,67 @@
           C._dbgAt = now;
           v2.debug('sentinel alert=' + !!C.alerted + ' move=' + !!C.moving + ' stuck=' + (C.stuckN || 0) + ' pos=' + C.root.position.x.toFixed(1) + ',' + C.root.position.z.toFixed(1));
         } else if (v2.debug && C.v2Sentinel && now - C._dbgAt > 2) C._dbgAt = 0;
+        if (v2.debugStatus && C.v2Sentinel) v2.debugStatus(sentinelLine(C));
       });
     }
+  }
+
+  function isBossNode(ch) {
+    if (!ch) return false;
+    if (ch.userData && (ch.userData.v2Boss || ch.userData.v2Mech)) return true;
+    if (ch.name === 'v2-sentinel') return true;
+    if (ch.getObjectByName && ch.getObjectByName('v2-sentinel')) return true;
+    return false;
+  }
+
+  function showBoss(C, on) {
+    if (!C || !C.root) return;
+    C.root.visible = on;
+    C.root.userData.v2Boss = true;
+    C.root.userData.v2Keep = true;
+    C.root.frustumCulled = false;
+    C.root.traverse((o) => {
+      o.frustumCulled = false;
+      if (!o.isMesh) return;
+      o.userData.v2Boss = true;
+      if (/plane/i.test(o.name || '')) { o.visible = false; return; }
+      o.visible = on;
+    });
+  }
+
+  function sentinelLine(C) {
+    let meshes = 0;
+    let drawn = 0;
+    let tris = 0;
+    let mat = 'none';
+    let maps = 'none';
+    C.root.traverse((o) => {
+      if (!o.isMesh || /plane/i.test(o.name || '')) return;
+      meshes++;
+      const g = o.geometry;
+      const n = g && g.index ? g.index.count / 3 : (g && g.attributes.position ? g.attributes.position.count / 3 : 0);
+      if (o.visible && C.root.visible) {
+        drawn++;
+        tris += n;
+      }
+      const m = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (!m) return;
+      mat = m.type || mat;
+      const bits = [];
+      if (m.map) bits.push('albedo');
+      if (m.normalMap) bits.push('normal');
+      if (m.aoMap) bits.push('ao');
+      if (m.emissiveMap) bits.push('emissive');
+      if (m.onBeforeCompile && String(m.onBeforeCompile).length > 40) bits.push('rim');
+      maps = bits.length ? bits.join('+') : 'flat';
+    });
+    const d = Math.hypot(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
+    const hidden = !C.root.visible || drawn === 0;
+    const cull = hidden ? 'HIDDEN' : 'exempt';
+    const would = d > 24 ? 'would-hide-24m' : 'in-range';
+    const line = 'sentinel vis=' + (C.root.visible ? 1 : 0) + ' scene=' + (C.root.parent ? 1 : 0) + ' drawn=' + drawn + '/' + meshes + ' tris=' + Math.round(tris) + ' mat=' + mat + ' maps=' + maps + ' dist=' + d.toFixed(1) + ' cull=' + cull + ' ' + would + ' frustum=off';
+    v2.sentinelReport = { visible: !!C.root.visible, drawn, meshes, tris: Math.round(tris), mat, maps, dist: d, cull, would };
+    return line;
   }
 
   function mobileBudget() {
@@ -626,10 +742,18 @@
     el.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:100000;max-width:92vw;max-height:42vh;overflow:auto;margin:0;padding:8px;background:rgba(0,0,0,.78);color:#d1fae5;font:11px/1.35 ui-monospace,monospace;pointer-events:none;white-space:pre-wrap';
     document.body.appendChild(el);
     const lines = [];
+    let status = '';
+    function paint() {
+      el.textContent = (status ? status + '\n' : '') + lines.join('\n');
+    }
     v2.debug = function (line) {
       lines.push(String(line));
-      if (lines.length > 14) lines.shift();
-      el.textContent = lines.join('\n');
+      if (lines.length > 12) lines.shift();
+      paint();
+    };
+    v2.debugStatus = function (line) {
+      status = String(line);
+      paint();
     };
     v2.debug('debug overlay on');
   }
