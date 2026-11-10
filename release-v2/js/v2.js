@@ -8,6 +8,25 @@
   let glowMat = null;
   let fill = null;
 
+  function dequantizeGeo(geo) {
+    if (!geo || geo.userData.deq) return;
+    geo.userData.deq = true;
+    Object.keys(geo.attributes).forEach((name) => {
+      const attr = geo.attributes[name];
+      if (!attr || !attr.normalized) return;
+      const src = attr.array;
+      let max = 1;
+      if (src instanceof Int8Array) max = 127;
+      else if (src instanceof Uint8Array) max = 255;
+      else if (src instanceof Int16Array) max = 32767;
+      else if (src instanceof Uint16Array) max = 65535;
+      else return;
+      const dst = new Float32Array(src.length);
+      for (let i = 0; i < src.length; i++) dst[i] = src[i] / max;
+      geo.setAttribute(name, new THREE.BufferAttribute(dst, attr.itemSize, false));
+    });
+  }
+
   function bone(name, parent, x, y, z) {
     const b = new THREE.Bone();
     b.name = name;
@@ -16,56 +35,131 @@
     return b;
   }
 
-  function sentinelTemplate() {
-    if (sentinel) return sentinel;
+  function stompClip() {
+    const times = [0, 0.45, 0.9];
+    return new THREE.AnimationClip('Stomp', 0.9, [
+      new THREE.NumberKeyframeTrack('LeftLeg.rotation[x]', times, [0.5, -0.45, 0.5]),
+      new THREE.NumberKeyframeTrack('RightLeg.rotation[x]', times, [-0.45, 0.5, -0.45]),
+      new THREE.NumberKeyframeTrack('Spine2.rotation[x]', times, [0.06, -0.04, 0.06]),
+      new THREE.NumberKeyframeTrack('RightForeArm.rotation[x]', times, [-0.2, 0.15, -0.2]),
+      new THREE.NumberKeyframeTrack('Hips.position[y]', times, [1.05, 0.92, 1.05])
+    ]);
+  }
+
+  function boneRig() {
     const root = new THREE.Group();
     root.name = 'v2-sentinel';
-    const hips = bone('Hips', root, 0, 1.2, 0);
-    const spine = bone('Spine', hips, 0, 0.16, 0);
-    const spine1 = bone('Spine1', spine, 0, 0.28, 0);
-    const spine2 = bone('Spine2', spine1, 0, 0.34, 0);
-    bone('Head', spine2, 0, 0.42, 0.04);
-    bone('LeftLeg', hips, -0.28, -0.06, 0);
-    bone('RightLeg', hips, 0.28, -0.06, 0);
-    bone('LeftForeArm', spine2, -0.78, -0.08, 0);
-    bone('RightForeArm', spine2, 0.78, -0.08, 0.08);
-    const plate = new THREE.MeshStandardMaterial({ color: 0x8e99a3, metalness: 0.74, roughness: 0.42, envMapIntensity: 0.4 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x23282e, metalness: 0.82, roughness: 0.5 });
-    const eye = new THREE.MeshStandardMaterial({ color: 0x140000, emissive: 0xff1a1a, emissiveIntensity: 2.8, roughness: 0.2, metalness: 0.1 });
-    eye.userData._bright = true;
-    plate.userData._bright = true;
-    dark.userData._bright = true;
+    root.userData.v2Mech = true;
+    const hips = bone('Hips', root, 0, 1.05, 0);
+    const spine2 = bone('Spine2', hips, 0, 0.35, 0);
+    bone('Head', spine2, 0, 0.7, 0.05);
+    bone('LeftLeg', hips, -0.32, -0.08, 0);
+    bone('RightLeg', hips, 0.32, -0.08, 0);
+    bone('LeftForeArm', spine2, -0.7, 0.15, 0);
+    bone('RightForeArm', spine2, 0.7, 0.15, 0.1);
+    return root;
+  }
+
+  function reparent(mesh, parent) {
+    mesh.updateWorldMatrix(true, false);
+    const wm = mesh.matrixWorld.clone();
+    parent.add(mesh);
+    parent.updateWorldMatrix(true, false);
+    const inv = new THREE.Matrix4().copy(parent.matrixWorld).invert();
+    mesh.matrix.copy(wm.premultiply(inv));
+    mesh.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
+    mesh.matrixAutoUpdate = true;
+  }
+
+  function sentinelFromMech(gltf) {
+    const root = boneRig();
     const found = {};
     root.traverse((o) => { if (o.isBone) found[o.name] = o; });
-    function box(bname, w, h, d, x, y, z, mat, glow) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-      mesh.position.set(x, y, z);
+    const holder = new THREE.Group();
+    found.Spine2.add(holder);
+    const src = gltf.scene || gltf.scenes[0];
+    const meshes = [];
+    src.traverse((o) => { if (o.isMesh) meshes.push(o); });
+    const attached = [];
+    meshes.forEach((mesh) => {
       mesh.castShadow = false;
-      mesh.receiveShadow = true;
-      if (glow) mesh.userData.rcGlow = true;
-      found[bname].add(mesh);
-    }
-    box('Hips', 0.9, 0.36, 0.55, 0, 0.02, 0, dark);
-    box('Spine2', 1.35, 0.85, 0.7, 0, -0.05, 0.02, plate);
-    box('Spine2', 0.28, 0.28, 0.08, 0, 0.05, 0.4, eye, true);
-    box('Head', 0.46, 0.38, 0.48, 0, 0.06, 0, dark);
-    box('Head', 0.4, 0.1, 0.08, 0, 0.08, 0.28, eye, true);
-    box('LeftLeg', 0.34, 1.05, 0.38, 0, -0.55, 0, plate);
-    box('RightLeg', 0.34, 1.05, 0.38, 0, -0.55, 0, plate);
-    box('LeftForeArm', 0.28, 0.95, 0.32, 0, -0.55, 0, dark);
-    box('RightForeArm', 0.32, 0.9, 0.36, 0, -0.5, 0.05, plate);
-    box('RightForeArm', 0.16, 0.16, 0.85, 0.08, -0.95, 0.35, eye, true);
-    const times = [0, 0.45, 0.9];
-    const clip = new THREE.AnimationClip('Stomp', 0.9, [
-      new THREE.NumberKeyframeTrack('LeftLeg.rotation[x]', times, [0.55, -0.5, 0.55]),
-      new THREE.NumberKeyframeTrack('RightLeg.rotation[x]', times, [-0.5, 0.55, -0.5]),
-      new THREE.NumberKeyframeTrack('LeftForeArm.rotation[x]', times, [0.35, -0.25, 0.35]),
-      new THREE.NumberKeyframeTrack('RightForeArm.rotation[x]', times, [-0.2, 0.25, -0.2]),
-      new THREE.NumberKeyframeTrack('Spine1.rotation[z]', times, [-0.04, 0.04, -0.04]),
-      new THREE.NumberKeyframeTrack('Hips.position[y]', times, [1.2, 1.08, 1.2])
-    ]);
-    sentinel = { scene: root, animations: [clip], targetHeight: 2.7 };
+      mesh.frustumCulled = false;
+      const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      list.forEach((m) => {
+        if (!m || !m.color) return;
+        m.color.multiplyScalar(0.72);
+        if (m.metalness != null) m.metalness = Math.min(0.82, Math.max(m.metalness || 0, 0.45));
+        if (m.roughness != null) m.roughness = Math.max(0.38, m.roughness || 0.5);
+        if (m.emissive && (m.emissiveIntensity || 0) > 0.05) {
+          m.emissive.setHex(0xff2200);
+          m.emissiveIntensity = Math.max(1.1, m.emissiveIntensity);
+        }
+      });
+      if (/plane/i.test(mesh.name || '')) mesh.visible = false;
+      holder.add(mesh);
+      if (/attach/i.test(mesh.name || '')) attached.push(mesh);
+    });
+    holder.updateWorldMatrix(true, true);
+    const box = new THREE.Box3().setFromObject(holder);
+    const h = Math.max(0.01, box.max.y - box.min.y);
+    holder.scale.setScalar(2.35 / h);
+    holder.updateWorldMatrix(true, true);
+    const box2 = new THREE.Box3().setFromObject(holder);
+    holder.position.y -= box2.min.y;
+    holder.position.y += 0.05;
+    attached.forEach((mesh) => { if (mesh.visible) reparent(mesh, found.RightForeArm); });
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x200000, emissive: 0xff1a1a, emissiveIntensity: 3.2, roughness: 0.2 });
+    eyeMat.userData._bright = true;
+    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.06), eyeMat);
+    eye.userData.rcGlow = true;
+    eye.name = 'v2-eye';
+    eye.position.set(0, 0.05, 0.2);
+    found.Head.add(eye);
+    root.userData.eye = eye;
+    root.updateMatrixWorld(true);
+    const full = new THREE.Box3().setFromObject(root);
+    const th = Math.max(0.8, full.max.y - full.min.y);
+    sentinel = { scene: root, animations: [stompClip()], targetHeight: th };
+    v2.mechBytes = v2._mechBlob || 0;
+    v2.mechReady = true;
     return sentinel;
+  }
+
+  function sentinelTemplate() {
+    if (sentinel) return sentinel;
+    const root = boneRig();
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x200000, emissive: 0xff1a1a, emissiveIntensity: 2.4, roughness: 0.2 });
+    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.07, 0.05), eyeMat);
+    eye.userData.rcGlow = true;
+    let head = null;
+    root.traverse((o) => { if (o.name === 'Head') head = o; });
+    if (head) head.add(eye);
+    sentinel = { scene: root, animations: [stompClip()], targetHeight: 2.7 };
+    return sentinel;
+  }
+
+  function loadMech() {
+    if (v2._mechPromise) return v2._mechPromise;
+    v2._mechPromise = fetch('release-v2/assets/units/military_mech.glb').then((r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.blob();
+    }).then((blob) => {
+      v2._mechBlob = blob.size;
+      v2.mechBytes = blob.size;
+      return blob.arrayBuffer();
+    }).then((buf) => new Promise((resolve, reject) => {
+      const loader = new THREE.GLTFLoader();
+      const readyDec = (typeof MeshoptDecoder !== 'undefined' && MeshoptDecoder.ready) ? MeshoptDecoder.ready : Promise.resolve();
+      readyDec.then(() => {
+        if (typeof MeshoptDecoder !== 'undefined') loader.setMeshoptDecoder(MeshoptDecoder);
+        loader.parse(buf, '', (gltf) => {
+          sentinel = null;
+          sentinelFromMech(gltf);
+          resolve(sentinel);
+        }, reject);
+      }).catch(reject);
+    })).catch((e) => { console.warn('mech', e); v2.mechFailed = true; return sentinelTemplate(); });
+    return v2._mechPromise;
   }
 
   function tuneMats() {
@@ -194,6 +288,8 @@
     arenaGroup.traverse((o) => { if (o.isMesh) meshes.push(o); });
     meshes.forEach((mesh) => {
       if (!mesh.geometry || !mesh.geometry.attributes || !mesh.geometry.attributes.position) return;
+      const srcCount = mesh.geometry.index ? mesh.geometry.index.count : mesh.geometry.attributes.position.count;
+      if (srcCount / 3 > 280) return;
       if (mesh.isSkinnedMesh || mesh.geometry.attributes.skinIndex || mesh.geometry.attributes.color) return;
       const mat = classify(mesh);
       if (!mat) return;
@@ -380,6 +476,33 @@
       { x: 46, y: 1.4, z: 122, sx: 0.2, sy: 1, sz: 56 }
     ]);
     if (rails) root.add(rails);
+    const stain = document.createElement('canvas');
+    stain.width = 512; stain.height = 512;
+    const sg = stain.getContext('2d');
+    sg.clearRect(0, 0, 512, 512);
+    for (let i = 0; i < 36; i++) {
+      const shade = 12 + Math.floor(Math.random() * 28);
+      sg.fillStyle = 'rgba(' + shade + ',' + (shade - 4) + ',' + (shade - 6) + ',' + (0.35 + Math.random() * 0.4) + ')';
+      sg.beginPath();
+      sg.ellipse(Math.random() * 512, Math.random() * 512, 18 + Math.random() * 80, 8 + Math.random() * 36, Math.random() * 6, 0, Math.PI * 2);
+      sg.fill();
+    }
+    const stainTex = new THREE.CanvasTexture(stain);
+    const stainMat = new THREE.MeshBasicMaterial({ map: stainTex, transparent: true, opacity: 0.55, depthWrite: false });
+    const spots = [];
+    for (let i = 0; i < 18; i++) {
+      spots.push({
+        x: -30 + Math.random() * 60,
+        y: 0.045,
+        z: 98 + Math.random() * 46,
+        rot: Math.random() * 6,
+        sx: 2.5 + Math.random() * 5,
+        sy: 1,
+        sz: 1.6 + Math.random() * 3.5
+      });
+    }
+    const stainMesh = instanced(new THREE.BoxGeometry(1, 0.02, 1), stainMat, spots);
+    if (stainMesh) root.add(stainMesh);
     g.add(root);
   }
 
@@ -441,11 +564,67 @@
         ch.visible = dx * dx + dz * dz < 64 * 64;
       });
     }
+    if (typeof COLOSSI !== 'undefined') {
+      const now = performance.now() * 0.001;
+      COLOSSI.forEach((C) => {
+        const mech = C.root.getObjectByName && C.root.getObjectByName('v2-sentinel');
+        if (!mech || C.dead) return;
+        const step = Math.sin(now * (C.moving ? 7.5 : 1.4));
+        if (C.moving && step > 0.94 && !C._stepped) {
+          C._stepped = true;
+          const d = Math.hypot(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
+          if (d < 22) STATE.screenShake = Math.max(STATE.screenShake || 0, 0.35 * (1 - d / 22));
+        }
+        if (step < 0.15) C._stepped = false;
+        const eye = mech.getObjectByName('v2-eye');
+        if (eye && eye.material) eye.material.emissiveIntensity = 2.4 + 0.8 * (0.5 + 0.5 * Math.sin(now * 6));
+      });
+    }
+  }
+
+  function installBloom() {
+    if (v2._bloom || typeof THREE.EffectComposer !== 'function' || typeof THREE.UnrealBloomPass !== 'function') return;
+    if (typeof renderFrame !== 'function' || typeof renderer === 'undefined') return;
+    const composer = new THREE.EffectComposer(renderer);
+    composer.addPass(new THREE.RenderPass(scene, camera));
+    const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(256, 256), 0.18, 0.32, 0.9);
+    composer.addPass(bloom);
+    v2.bloom = bloom;
+    renderFrame = function () {
+      const reduced = typeof STATE !== 'undefined' && STATE.rcReduced;
+      if (reduced) {
+        renderer.render(scene, camera);
+      } else {
+        const c = renderer.domElement;
+        const rw = Math.max(2, c.width || 2);
+        const rh = Math.max(2, c.height || 2);
+        if (composer._lw !== rw || composer._lh !== rh) {
+          composer.setSize(rw, rh);
+          composer._lw = rw;
+          composer._lh = rh;
+        }
+        composer.render();
+      }
+      if (!gunMesh || !viewModelGroup.visible) return;
+      syncVmCam();
+      if (vmFlash.intensity > 0) vmFlash.intensity = Math.max(0, vmFlash.intensity - 0.35);
+      const ac = renderer.autoClear;
+      renderer.autoClear = false;
+      renderer.clearDepth();
+      renderer.render(vmScene, vmCam);
+      renderer.autoClear = ac;
+    };
+    v2._bloom = true;
   }
 
   v2.sentinelTemplate = sentinelTemplate;
   v2.dressArena = dressArena;
   v2.dressYard = dressYard;
   v2.zone = zone;
+  v2.load = loadMech;
+  v2.mechBytes = 0;
   RC.v2 = v2;
+  installBloom();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => loadMech());
+  else loadMech();
 })();

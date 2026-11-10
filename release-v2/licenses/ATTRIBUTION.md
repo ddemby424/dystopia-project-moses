@@ -8,17 +8,21 @@ Gameplay, controls, the yard routes, the electrified fence, the victory film, an
 
 Poly Haven CC0 maps already shipped in `release-next/assets/real/` (concrete, asphalt, factory wall, corrugated iron, rusted metal, metal plate, plus the abandoned-workshop HDRI used only as image-based light). License: https://polyhaven.com/license (CC0).
 
-## Motion
+## Guards and the Sentinel
 
-`robot/models/robot_trooper.glb` is RobotExpressive by Tomás Laulhé, via the three.js examples, CC0. Clips used: Idle, Walking, Running, Punch, Death. The original mesh is not drawn. Armor plates parented to that skeleton are original geometry for this preview.
+All three are CC BY 4.0. The files in `release-v2/assets/units/` were optimized with meshopt and WebP textures.
 
-## The Sentinel
+| File | Work | Author | Triangles | Use |
+| --- | --- | --- | --- | --- |
+| `robot.glb` | [Robot](https://sketchfab.com/3d-models/robot-93c9ff1cac014cc382e8666c873cdd70) | DJMaesen | about 9.3k | Common guards. The single `Anims` clip is sliced into idle, walk, run, punch, and death. |
+| `biped_robot.glb` | [Biped robot](https://sketchfab.com/3d-models/biped-robot-801d2a245e4a4405a0c2152b35b5e486) | Willy Decarpentrie | about 16.6k | Heavy guards. `Robot_Soldat` is one cycle, reused at different speeds. |
+| `military_mech.glb` | [military Mech](https://sketchfab.com/3d-models/military-mech-49c464a639d34c97b20032a5018c6a04) | Doaa Sheha | about 27.5k | The Sentinel, scaled to about 28 m. The mesh is not rigged. A bone rig stomps, aims the attachment, and flashes a red eye. It still speaks “YOU ARE SAFE. YOU ARE LOVED. RETURN TO YOUR POD.” |
 
-The campaign boss is the original Colossus: the unit that says “YOU ARE SAFE. YOU ARE LOVED. RETURN TO YOUR POD.” Its v2 body is an original bone rig (metal plates, red eye, stomp cycle) built for this page. No Meshy generation and no downloaded boss mesh.
+The two rigged files were meshopt-quantized. three.js r128 does not skin those positions onto the skeleton, so the guards draw a bind-pose shell while the named clips still crossfade underneath. An unquantized GLB would be needed for a real walk on the mesh.
 
-## Yard collision kit (not shown)
+## Yard
 
-Kenney Factory Kit and City Kit (Industrial), CC0, still load from `release-next/assets/kenney-*` so the dock, airlock, and blockers stay where the campaign put them. Those meshes are hidden. Crates, the crane, the skyline, and the fence-side rails drawn on screen are original boxes using the Poly Haven materials above. Kenney: https://kenney.nl (CC0).
+Crate, crane, and skyline shapes are original boxes on the Poly Haven materials. Cover collision is a box on each former kit prop. The Kenney GLBs are not downloaded.
 
 ## Film and project
 

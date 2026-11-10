@@ -232,7 +232,7 @@
       if (!card || card.querySelector('.rc-cred')) return;
       const extra = document.createElement('div');
       extra.className = 'cr-sec rc-cred';
-      extra.innerHTML = '<b>RELEASE V2</b><br>Industrial surfaces: Poly Haven, CC0, via the shared release-next texture set.<br>Guard motion: RobotExpressive by Tomás Laulhé / three.js, CC0. The toy mesh is hidden. Armor on that skeleton is original.<br>The Sentinel is an original rig. It speaks the campaign lines, including “You are safe. You are loved.”<br>Hidden yard collision still loads Kenney Factory Kit and City Kit (Industrial), CC0.<br>Ledger: release-v2/licenses/ATTRIBUTION.md';
+      extra.innerHTML = '<b>RELEASE V2</b><br>Industrial surfaces: Poly Haven, CC0.<br>Guards: Robot by DJMaesen, CC BY 4.0.<br>Heavy guards: Biped robot by Willy Decarpentrie, CC BY 4.0.<br>The Sentinel: military Mech by Doaa Sheha, CC BY 4.0. It still says “You are safe. You are loved.”<br>Ledger: release-v2/licenses/ATTRIBUTION.md';
       card.insertBefore(extra, card.querySelector('#cr-close'));
     };
   }

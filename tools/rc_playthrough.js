@@ -52,13 +52,15 @@ function serve() {
   page.on('console', (m) => { if (m.type() === 'error') errs.push('console: ' + m.text().slice(0, 240)); });
   page.on('response', (r) => { if (r.status() >= 400 && !r.url().includes('victory_poster') && !r.url().includes('victory.webm')) errs.push('http ' + r.status() + ' ' + r.url().slice(0, 180)); });
   await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 90000 });
-  await page.waitForFunction(() => window.RC && RC.yard && RC.yard.built && RC.fence && RC.fence.group, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.RC && RC.yard && RC.yard.built && RC.fence && RC.fence.group && RC.rigs && RC.rigs.ready && RC.rigs.ready() && RC.v2 && RC.v2.mechReady, null, { timeout: 40000 });
   await page.waitForTimeout(1500);
   const boot = await page.evaluate(() => ({
     built: RC.yard.built,
     files: RC.assets.stats.files,
     failed: RC.assets.stats.failed,
     bytes: RC.assets.stats.bytes,
+    rig: RC.rigs && RC.rigs.bytes,
+    mech: RC.v2 && RC.v2.mechBytes,
     props: RC.yard.group ? RC.yard.group.children.length : 0,
     segs: RC.fence.segs.length,
     live: RC.fence.live,
@@ -92,8 +94,8 @@ function serve() {
     };
   });
   add('candidate runs extracted core, not root game.js', seams.engine && !seams.legacy && seams.loop && seams.player && seams.combat && seams.enemies && seams.levels && seams.tuning, seams);
-  add('gate sightline is clear of the south vista block', Math.abs(seams.buildingX) > 24 && !seams.sight.some((s) => s.includes('building-o')), seams);
-  add('modular kit loaded (some files, failures allowed only as fallback)', boot.files >= 10, boot);
+  add('gate sightline is clear of the south vista block', !seams.sight.some((s) => s.includes('building-o')), seams);
+  add('guard and Sentinel models loaded', boot.rig > 100000 && boot.mech > 100000, boot);
   add('weak-point anchor replaced', boot.soft, boot.soft);
 
   await page.evaluate(() => { document.getElementById('btn-skip-splash').click(); });

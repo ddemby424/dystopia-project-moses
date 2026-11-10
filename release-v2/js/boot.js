@@ -117,11 +117,11 @@
       RC.yard.buildShell();
       RC.fence.build();
       try { RC.yard.carve(); } catch (e) { console.warn('carve', e); }
-      splashStatus('Yard shell ready — loading modular kit…');
-      return RC.kit.loadAll(RC.yard.layoutRef(), (n, total) => {
-        splashStatus('Modular kit ' + n + '/' + total);
-        if (window.uiLoad) uiLoad(0.2 + 0.5 * n / Math.max(1, total), 'Modular kit ' + n + '/' + total);
-      });
+      splashStatus('Yard shell ready — loading units…');
+      return Promise.all([
+        RC.rigs && RC.rigs.load ? RC.rigs.load() : null,
+        RC.v2 && RC.v2.load ? RC.v2.load() : null
+      ]);
     }).then(() => {
       RC.yard.upgradeVisuals();
       RC.fence.build();
@@ -132,7 +132,7 @@
         kitBytes: st.bytes,
         when: new Date().toISOString()
       };
-      splashStatus(st.failed ? 'Some yard models did not load. Enter anyway — both routes still open.' : 'Yard ready. New Campaign starts outside.');
+      splashStatus('Yard ready. New Campaign starts outside.');
       if (params.get('capture') === 'victory') runCapture();
     }).catch((e) => { console.warn('rc boot', e); splashStatus('Yard fallback (kit failed)'); });
   }
