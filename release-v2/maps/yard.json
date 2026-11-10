@@ -1,0 +1,67 @@
+{
+  "note": "Yard map. Dock (west, x=-12.5) is an open freight lane with crate cover beside it. Airlock (east, x=14) is a narrow staff door: a shutter blocks it until the player stands on the scanner. Both gaps enter Server Hall G. Do not block x=-12.5 or, once the shutter is open, x=14, from z=42 to z=130.",
+  "spawn": { "x": 0, "z": 124, "yaw": 0 },
+  "walk": { "minX": -48, "maxX": 48, "minZ": 90, "maxZ": 156 },
+  "routes": [
+    {
+      "id": "dock",
+      "name": "Loading dock",
+      "blurb": "OPEN FREIGHT  ·  USE THE CRATES",
+      "walkX": -12.5,
+      "mouth": { "x0": -17, "x1": -8, "z0": 78, "z1": 93 },
+      "inner": { "x0": -17, "x1": -8, "z0": 46.15, "z1": 47.95 },
+      "sign": { "x": -22, "z": 102 },
+      "guard": { "x": -18, "z": 54, "role": "human_guard", "ai": "flanker", "hp": 80 },
+      "guardName": "Dock Warden"
+    },
+    {
+      "id": "airlock",
+      "name": "Personnel airlock",
+      "blurb": "HOLD AT THE SCANNER",
+      "walkX": 14,
+      "mouth": { "x0": 11.2, "x1": 16.8, "z0": 78, "z1": 93 },
+      "inner": { "x0": 11.2, "x1": 16.8, "z0": 46.15, "z1": 47.95 },
+      "sign": { "x": 22, "z": 102 },
+      "shutter": { "x0": 11.1, "x1": 16.9, "z0": 95.15, "z1": 95.85 },
+      "scanner": { "x": 21, "z": 100, "radius": 2.1, "seconds": 1.5 },
+      "guard": { "x": 14, "z": 64, "role": "bot", "ai": "suppressor", "hp": 150 },
+      "guardName": "Airlock Heavy"
+    }
+  ],
+  "fence": {
+    "minX": -46, "maxX": 46, "minZ": 94, "maxZ": 150,
+    "height": 3.15,
+    "postEvery": 4,
+    "gate": { "side": "maxZ", "cx": 0, "half": 3.2 }
+  },
+  "props": [
+    { "kit": "factory", "id": "crane", "x": 0, "z": 112, "rot": 0.15, "scale": 1.65, "block": true },
+    { "kit": "factory", "id": "box-long", "x": -7.2, "z": 116, "rot": 0.05, "scale": 1.8, "block": true },
+    { "kit": "factory", "id": "box-small", "x": 7.2, "z": 117, "rot": -0.2, "scale": 1.6, "block": true },
+    { "kit": "factory", "id": "conveyor-long", "x": -23, "z": 108, "rot": 1.5708, "scale": 2, "block": true },
+    { "kit": "factory", "id": "conveyor", "x": -23, "z": 116, "rot": 1.5708, "scale": 2, "block": true },
+    { "kit": "factory", "id": "box-large", "x": -23, "z": 122, "rot": 0.1, "scale": 2.1, "block": true },
+    { "kit": "factory", "id": "box-wide", "x": -23.5, "z": 128, "rot": 0, "scale": 2, "block": true },
+    { "kit": "factory", "id": "box-small", "x": -26, "z": 122, "rot": 0.4, "scale": 1.5, "block": true },
+    { "kit": "factory", "id": "hopper-square", "x": -32, "z": 114, "rot": 0, "scale": 1.8, "block": true },
+    { "kit": "city", "id": "shipping-container-a", "x": -40, "z": 108, "rot": 1.5708, "scale": 2.2, "block": true },
+    { "kit": "city", "id": "shipping-container-c", "x": -40, "z": 124, "rot": 1.5708, "scale": 2.2, "block": true },
+    { "kit": "factory", "id": "scanner-high", "x": 21, "z": 100, "rot": -1.2, "scale": 1.5, "block": false },
+    { "kit": "factory", "id": "pipe-large", "x": 22, "z": 110, "rot": 1.5708, "scale": 1.7, "block": true },
+    { "kit": "factory", "id": "pipe-large-bend", "x": 22, "z": 116, "rot": 0, "scale": 1.6, "block": true },
+    { "kit": "factory", "id": "pipe-large-valve", "x": 22, "z": 122, "rot": 0.4, "scale": 1.5, "block": true },
+    { "kit": "factory", "id": "machine", "x": 30, "z": 116, "rot": -0.5, "scale": 1.7, "block": true },
+    { "kit": "factory", "id": "piston-square", "x": 30, "z": 128, "rot": 0, "scale": 1.4, "block": true },
+    { "kit": "city", "id": "shipping-container-b", "x": 40, "z": 120, "rot": 1.5708, "scale": 2.2, "block": true },
+    { "kit": "city", "id": "detail-tank", "x": 36, "z": 108, "rot": 0, "scale": 2.8, "block": true },
+    { "kit": "factory", "id": "screen-wide", "x": 12, "z": 134, "rot": 2.4, "scale": 1.5, "block": false },
+    { "kit": "city", "id": "building-h", "x": -72, "z": 118, "rot": 0.2, "scale": 14, "block": false, "vista": true },
+    { "kit": "city", "id": "building-d", "x": 74, "z": 132, "rot": -0.3, "scale": 12, "block": false, "vista": true },
+    { "kit": "city", "id": "building-k", "x": -68, "z": 156, "rot": 0.4, "scale": 13, "block": false, "vista": true },
+    { "kit": "city", "id": "building-a", "x": 70, "z": 100, "rot": 0.5, "scale": 11, "block": false, "vista": true },
+    { "kit": "city", "id": "building-o", "x": 48, "z": 186, "rot": 2.2, "scale": 8, "block": false, "vista": true },
+    { "kit": "city", "id": "water-tower", "x": -64, "z": 98, "rot": 0, "scale": 8, "block": false, "vista": true },
+    { "kit": "city", "id": "chimney-medium", "x": 62, "z": 156, "rot": 0, "scale": 9, "block": false, "vista": true },
+    { "kit": "city", "id": "solar-panel-flat", "x": -58, "z": 142, "rot": 0.3, "scale": 6, "block": false, "vista": true }
+  ]
+}

@@ -1,0 +1,9 @@
+DYSTOPIA release v2 — local preview
+
+From the repo root:
+
+  python3 -m http.server 8765
+
+Then open http://127.0.0.1:8765/release-v2/index.html
+
+The page uses <base href="../"> so models, music, and the shared Poly Haven textures stay in the parent tree. Do not open the html file directly. Root, /release/, /release-next/, and /release-warehouse/ are separate builds.
