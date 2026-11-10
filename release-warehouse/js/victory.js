@@ -6,8 +6,8 @@
    start a new campaign, or drop the player back in the open yard. */
 (function () {
   const RC = (window.RC = window.RC || {});
-  const SRC = 'release-warehouse/media/victory.webm';
-  const POSTER = 'release-warehouse/media/victory_poster.jpg';
+  const SRC = 'release-next/media/victory.webm';
+  const POSTER = 'release-next/media/victory_poster.jpg';
   const DURATION = 6;
   const LINES = [
     { t: 0.0, text: 'Cradle 09. The Moses Protocol is terminated.' },
@@ -29,7 +29,7 @@
     el.innerHTML = `
       <video id="victory-video" playsinline webkit-playsinline muted preload="none" poster="${POSTER}">
         <source src="${SRC}" type="video/webm">
-        <track kind="captions" src="release-warehouse/media/victory.vtt" srclang="en" label="English" default>
+        <track kind="captions" src="release-next/media/victory.vtt" srclang="en" label="English" default>
       </video>
       <div id="victory-caption"></div>
       <div id="victory-live"></div>

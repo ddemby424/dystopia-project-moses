@@ -3,7 +3,7 @@
    One shared set for the yard and every factory floor. */
 (function () {
   const RC = (window.RC = window.RC || {});
-  const ROOT = 'release-warehouse/assets/real/';
+  const ROOT = 'release-next/assets/real/';
   const SETS = {
     floor: { map: 'concrete.webp', normal: 'concrete_floor_worn_001_nor.webp', rough: 'concrete_floor_worn_001_rough.webp', rx: 16, ry: 12, roughness: 0.92, metalness: 0.02, color: 0xffffff, normalScale: 0.65 },
     asphalt: { map: 'asphalt.webp', normal: 'asphalt_02_nor.webp', rough: 'asphalt_02_rough.webp', rx: 10, ry: 12, roughness: 0.96, metalness: 0.0, color: 0xffffff, normalScale: 0.9 },

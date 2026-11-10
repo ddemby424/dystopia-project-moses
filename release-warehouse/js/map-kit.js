@@ -5,7 +5,7 @@
    Hobbyists: add a row to release/maps/yard.json, keep the lane x values clear. */
 (function () {
   const RC = (window.RC = window.RC || {});
-  const URL = (kit, id) => `release-warehouse/assets/kenney-${kit}/${id}.glb`;
+  const URL = (kit, id) => `release-next/assets/kenney-${kit}/${id}.glb`;
 
   function idsIn(layout) {
     const set = new Map();
