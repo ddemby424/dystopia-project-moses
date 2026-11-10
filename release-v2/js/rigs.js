@@ -54,12 +54,36 @@
     });
   }
 
+  function plainStandard(m) {
+    if (!m || !m.isGLTFSpecularGlossinessMaterial) return m;
+    const metal = /metal/i.test(m.name || '');
+    const std = new THREE.MeshStandardMaterial({
+      name: m.name || 'standard',
+      color: m.color ? m.color.clone() : new THREE.Color(0xb8b2a6),
+      map: m.map || null,
+      normalMap: m.normalMap || null,
+      roughness: metal ? 0.42 : 0.58,
+      metalness: metal ? 0.7 : 0.16,
+      emissive: new THREE.Color(0x000000),
+      emissiveIntensity: 1,
+      aoMap: m.aoMap || null,
+      skinning: true,
+      side: m.side
+    });
+    if (m.normalScale) std.normalScale.copy(m.normalScale);
+    return std;
+  }
+
   function menace(root) {
     root.traverse((o) => {
       if (!o.isMesh || !o.material) return;
       const list = Array.isArray(o.material) ? o.material : [o.material];
       list.forEach((m) => {
-        if (!m || !m.color) return;
+        if (!m || !m.color || !m.isMeshStandardMaterial) return;
+        if (m.isGLTFSpecularGlossinessMaterial) {
+          m.color.multiply(new THREE.Color(0.82, 0.74, 0.62));
+          return;
+        }
         const named = /visor|eye|glow|light|emissive|lamp|screen/i.test(m.name || '');
         const warm = m.color.r > 0.55 && m.color.g > 0.35 && m.color.r > m.color.b + 0.15;
         if (warm || named) {
@@ -151,9 +175,111 @@
     });
   }
 
+  function note(msg) {
+    try { if (RC.v2 && RC.v2.debug) RC.v2.debug(msg); } catch (e) {}
+  }
+
+  function boneBudget() {
+    try {
+      const cap = renderer.capabilities;
+      if (cap.floatVertexTextures) return 56;
+      const n = cap.maxVertexUniforms || 128;
+      return Math.max(12, Math.min(28, Math.floor((n - 24) / 4)));
+    } catch (e) { return 24; }
+  }
+
+  function read4(attr, i) {
+    return [attr.getX(i), attr.getY(i), attr.getZ(i), attr.getW(i)];
+  }
+
+  function write4(attr, i, v) {
+    attr.setX(i, v[0]); attr.setY(i, v[1]); attr.setZ(i, v[2]); attr.setW(i, v[3]);
+  }
+
+  function remapInfluence(mesh, removeAt, parentAt) {
+    const si = mesh.geometry.attributes.skinIndex;
+    const sw = mesh.geometry.attributes.skinWeight;
+    if (!si || !sw) return;
+    const parent = parentAt > removeAt ? parentAt - 1 : parentAt;
+    for (let i = 0; i < si.count; i++) {
+      const idx = read4(si, i);
+      const w = read4(sw, i);
+      for (let k = 0; k < 4; k++) {
+        if (idx[k] === removeAt) idx[k] = parent;
+        else if (idx[k] > removeAt) idx[k] -= 1;
+      }
+      const acc = [0, 0, 0, 0];
+      const map = {};
+      for (let k = 0; k < 4; k++) {
+        if (!w[k]) continue;
+        map[idx[k]] = (map[idx[k]] || 0) + w[k];
+      }
+      const keys = Object.keys(map);
+      for (let k = 0; k < 4; k++) {
+        if (k < keys.length) { idx[k] = +keys[k]; acc[k] = map[keys[k]]; }
+        else { idx[k] = 0; acc[k] = 0; }
+      }
+      write4(si, i, idx);
+      write4(sw, i, acc);
+    }
+    si.needsUpdate = true;
+    sw.needsUpdate = true;
+  }
+
+  function fitBones(root) {
+    const budget = boneBudget();
+    const meshes = [];
+    let skeleton = null;
+    root.traverse((o) => { if (o.isSkinnedMesh && o.skeleton) { meshes.push(o); skeleton = o.skeleton; } });
+    if (!skeleton) return { bones: 0, budget, dropped: 0, fallback: false };
+    let dropped = 0;
+    const prefer = /finger|thumb|toe|pole|goal|helper|end$/i;
+    while (skeleton.bones.length > budget) {
+      let idx = -1;
+      const bones = skeleton.bones;
+      for (let i = bones.length - 1; i >= 1; i--) {
+        const b = bones[i];
+        if (b.children.some((c) => c.isBone)) continue;
+        if (prefer.test(b.name || '')) { idx = i; break; }
+        if (idx < 0) idx = i;
+      }
+      if (idx < 1) break;
+      const bone = bones[idx];
+      const pidx = bones.indexOf(bone.parent);
+      if (pidx < 0) break;
+      meshes.forEach((m) => remapInfluence(m, idx, pidx));
+      bone.parent.remove(bone);
+      bones.splice(idx, 1);
+      if (skeleton.boneInverses) skeleton.boneInverses.splice(idx, 1);
+      dropped++;
+    }
+    let fallback = false;
+    if (skeleton.bones.length > budget) {
+      meshes.forEach((o) => {
+        const mat = Array.isArray(o.material) ? o.material[0].clone() : o.material.clone();
+        mat.skinning = false;
+        const mesh = new THREE.Mesh(o.geometry, mat);
+        mesh.name = 'v2-body-fallback';
+        mesh.frustumCulled = false;
+        mesh.castShadow = false;
+        o.parent.add(mesh);
+        o.visible = false;
+      });
+      fallback = true;
+    }
+    return { bones: skeleton.bones.length, budget, dropped, fallback };
+  }
+
   function prepare(kind, gltf) {
     const scene = gltf.scene || gltf.scenes[0];
     hideHelpers(scene);
+    scene.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      if (Array.isArray(o.material)) o.material = o.material.map(plainStandard);
+      else o.material = plainStandard(o.material);
+    });
+    const bones = fitBones(scene);
+    note(kind + ' bones ' + bones.bones + '/' + bones.budget + ' dropped ' + bones.dropped + (bones.fallback ? ' FALLBACK' : ''));
     menace(scene);
     fit(scene, kind === 'heavy' ? 2.35 : 2.05);
     addVisor(scene);
@@ -321,7 +447,7 @@
       (window.BOTS || []).forEach((b) => { try { adopt(b); } catch (e) {} });
       if (typeof BOTS !== 'undefined') BOTS.forEach((b) => { try { adopt(b); } catch (e) {} });
       return rigs;
-    }).catch((e) => { console.warn('rigs', e); rigs.failed = true; return rigs; });
+    }).catch((e) => { console.warn('rigs', e); rigs.failed = true; note('rig load failed ' + (e && e.message ? e.message : e)); return rigs; });
     return rigs._p;
   }
 
