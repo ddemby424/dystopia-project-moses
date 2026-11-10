@@ -1,13 +1,9 @@
-DYSTOPIA single-player candidate — local preview
+DYSTOPIA release v2 — local preview
 
-Unzip this folder. From the folder that contains both game.js and the release directory:
+From the repo root:
 
   python3 -m http.server 8765
 
-Then open http://127.0.0.1:8765/release/index.html
+Then open http://127.0.0.1:8765/release-v2/index.html
 
-Do not open the html file directly. The candidate page loads release/js/core instead of game.js. It still needs the parent folder for models, music, css, and fonts. A candidate-only zip is the same layout: release/ next to models/, music/, fonts/, audio/, icons/, and style.css. Root index.html is the legacy game and still uses game.js.
-
-This zip leaves out the Unity test build, the learn pages, the robot remake, and the old launch trailer so it stays smaller. The candidate does not need those.
-
-The live site is not this build. Do not copy these files over a deployed main.
+The page uses <base href="../"> so models, music, and the shared Poly Haven textures stay in the parent tree. Do not open the html file directly. Root, /release/, /release-next/, and /release-warehouse/ are separate builds.
