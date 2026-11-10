@@ -450,6 +450,33 @@
       return { x: p.x, y: h / 2, z: p.z, rot: p.rot || 0, sx: 1.2 + (i % 3) * 0.35, sy: h, sz: 1.2 + (i % 2) * 0.4 };
     }));
     if (towerMesh) root.add(towerMesh);
+    const windows = [];
+    const roofs = [];
+    towers.forEach((p, i) => {
+      const h = 16 + (i % 5) * 6;
+      const sx = 1.2 + (i % 3) * 0.35;
+      const sz = 1.2 + (i % 2) * 0.4;
+      const rot = p.rot || 0;
+      const half = 2 * sz + 0.06;
+      const ox = Math.sin(rot) * half;
+      const oz = Math.cos(rot) * half;
+      const floors = Math.max(3, Math.floor(h / 3.4));
+      for (let f = 1; f < floors; f++) {
+        if ((f + i) % 4 === 0) continue;
+        windows.push({
+          x: p.x + ox, y: 2.2 + f * 3.15, z: p.z + oz, rot: rot,
+          sx: sx * 1.15, sy: 0.28, sz: 0.05
+        });
+      }
+      roofs.push({ x: p.x, y: h + 0.35, z: p.z, rot: rot, sx: sx * 1.08, sy: 0.7, sz: sz * 1.08 });
+    });
+    const winMat = new THREE.MeshStandardMaterial({ color: 0x141a20, emissive: 0xffb060, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.15 });
+    const roofMat = siding.clone ? siding.clone() : siding;
+    if (roofMat !== siding && roofMat.color) roofMat.color.multiplyScalar(0.45);
+    const winMesh = instanced(new THREE.BoxGeometry(4, 1, 4), winMat, windows);
+    const roofMesh = instanced(new THREE.BoxGeometry(4, 1, 4), roofMat, roofs);
+    if (winMesh) root.add(winMesh);
+    if (roofMesh) root.add(roofMesh);
     if (THREE.BufferGeometryUtils) {
       const bits = [];
       function put(w, h, d, x, y, z) {

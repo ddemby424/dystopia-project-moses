@@ -10,7 +10,7 @@ Poly Haven CC0 maps already shipped in `release-next/assets/real/` (concrete, as
 
 ## Guards and the Sentinel
 
-All three are CC BY 4.0. The files in `release-v2/assets/units/` were optimized with meshopt and WebP textures.
+All three are CC BY 4.0. Textures are WebP at 1024. The two guards are unquantized so three.js r128 can skin them. The Sentinel file is the meshopt build.
 
 | File | Work | Author | Triangles | Use |
 | --- | --- | --- | --- | --- |
@@ -18,11 +18,9 @@ All three are CC BY 4.0. The files in `release-v2/assets/units/` were optimized 
 | `biped_robot.glb` | [Biped robot](https://sketchfab.com/3d-models/biped-robot-801d2a245e4a4405a0c2152b35b5e486) | Willy Decarpentrie | about 16.6k | Heavy guards. `Robot_Soldat` is one cycle, reused at different speeds. |
 | `military_mech.glb` | [military Mech](https://sketchfab.com/3d-models/military-mech-49c464a639d34c97b20032a5018c6a04) | Doaa Sheha | about 27.5k | The Sentinel, scaled to about 28 m. The mesh is not rigged. A bone rig stomps, aims the attachment, and flashes a red eye. It still speaks “YOU ARE SAFE. YOU ARE LOVED. RETURN TO YOUR POD.” |
 
-The two rigged files were meshopt-quantized. three.js r128 does not skin those positions onto the skeleton, so the guards draw a bind-pose shell while the named clips still crossfade underneath. An unquantized GLB would be needed for a real walk on the mesh.
-
 ## Yard
 
-Crate, crane, and skyline shapes are original boxes on the Poly Haven materials. Cover collision is a box on each former kit prop. The Kenney GLBs are not downloaded.
+Crate, crane, and skyline shapes are original boxes on the Poly Haven materials, with lit window strips on the skyline. Cover collision is a box on each former kit prop. The Kenney GLBs are not downloaded.
 
 ## Film and project
 

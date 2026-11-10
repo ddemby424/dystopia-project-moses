@@ -1,7 +1,7 @@
 /* CC BY 4.0 guards.
    Common: Robot by DJMaesen. Heavy: Biped robot by Willy Decarpentrie.
-   Both files are meshopt + WebP. Clips are slices of one timeline, named so
-   the campaign still crossfades Idle, Walking, Running, Punch, and Death. */
+   Unquantized WebP glbs. Clips are slices of one timeline, named so the
+   campaign still crossfades Idle, Walking, Running, Punch, and Death. */
 (function () {
   const RC = (window.RC = window.RC || {});
   const URLS = {
@@ -47,40 +47,6 @@
     return new THREE.AnimationClip(name, Math.max(0.25, t1 - t0), tracks);
   }
 
-  function quantFix(root) {
-    let factor = 1;
-    root.updateMatrixWorld(true);
-    root.traverse((o) => {
-      if (!o.isSkinnedMesh || !o.skeleton) return;
-      let m = 0;
-      o.skeleton.boneInverses.forEach((mat) => {
-        const e = mat.elements;
-        m = Math.max(m, Math.abs(e[12]), Math.abs(e[13]), Math.abs(e[14]));
-      });
-      if (m > 5) factor = m / 1.15;
-    });
-    root.traverse((o) => {
-      if (!o.isMesh || !o.geometry) return;
-      ['position', 'normal'].forEach((name) => {
-        const attr = o.geometry.attributes[name];
-        if (!attr || !attr.normalized) return;
-        const src = attr.array;
-        let max = 1;
-        if (src instanceof Int8Array) max = 127;
-        else if (src instanceof Uint8Array) max = 255;
-        else if (src instanceof Int16Array) max = 32767;
-        else if (src instanceof Uint16Array) max = 65535;
-        else return;
-        const mul = name === 'position' ? factor : 1;
-        const dst = new Float32Array(src.length);
-        for (let i = 0; i < src.length; i++) dst[i] = (src[i] / max) * mul;
-        o.geometry.setAttribute(name, new THREE.BufferAttribute(dst, attr.itemSize, false));
-      });
-      o.geometry.computeBoundingBox();
-      o.geometry.computeBoundingSphere();
-    });
-  }
-
   function hideHelpers(root) {
     root.traverse((o) => {
       if (!o.isMesh) return;
@@ -88,27 +54,49 @@
     });
   }
 
-  function bindShape(root, factor) {
-    const found = [];
-    root.traverse((o) => { if (o.isSkinnedMesh) found.push(o); });
-    found.forEach((skinned) => {
-      const geo = skinned.geometry.clone();
-      const src = skinned.geometry.attributes.position;
-      const pos = src.clone();
-      for (let i = 0; i < pos.count; i++) pos.setXYZ(i, src.getX(i) / factor, src.getY(i) / factor, src.getZ(i) / factor);
-      geo.setAttribute('position', pos);
-      geo.computeBoundingBox();
-      geo.computeBoundingSphere();
-      const mats = Array.isArray(skinned.material) ? skinned.material : [skinned.material];
-      mats.forEach((m) => { if (m) m.skinning = false; });
-      const mesh = new THREE.Mesh(geo, skinned.material);
-      mesh.name = 'v2-bind';
-      mesh.castShadow = false;
-      mesh.frustumCulled = false;
-      mesh.userData.v2Bind = true;
-      skinned.visible = false;
-      skinned.parent.add(mesh);
+  function menace(root) {
+    root.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const list = Array.isArray(o.material) ? o.material : [o.material];
+      list.forEach((m) => {
+        if (!m || !m.color) return;
+        const named = /visor|eye|glow|light|emissive|lamp|screen/i.test(m.name || '');
+        const warm = m.color.r > 0.55 && m.color.g > 0.35 && m.color.r > m.color.b + 0.15;
+        if (warm || named) {
+          m.emissive.setHex(0xff2a12);
+          m.emissiveIntensity = Math.max(m.emissiveIntensity || 0, 1.8);
+          m.color.multiply(new THREE.Color(1.1, 0.45, 0.2));
+        } else {
+          m.color.multiply(new THREE.Color(0.62, 0.58, 0.54));
+          if (m.metalness != null) m.metalness = Math.min(0.88, Math.max(m.metalness || 0, 0.42));
+          if (m.roughness != null) m.roughness = Math.min(0.72, Math.max(m.roughness || 0.5, 0.38));
+        }
+        m.envMapIntensity = Math.min(m.envMapIntensity || 0.5, 0.45);
+        m.needsUpdate = true;
+      });
     });
+  }
+
+  function addVisor(root) {
+    let bone = null;
+    root.traverse((o) => {
+      if (!o.isBone) return;
+      if (/head/i.test(o.name)) bone = o;
+      else if (!bone && /chest|neck/i.test(o.name)) bone = o;
+    });
+    if (!bone) return;
+    const k = 1 / Math.max(1e-4, root.scale.x);
+    const eye = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 0.045, 0.025),
+      new THREE.MeshStandardMaterial({ color: 0x1a0000, emissive: 0xff2200, emissiveIntensity: 2.6, roughness: 0.22 })
+    );
+    eye.userData.rcGlow = true;
+    eye.name = 'v2-visor';
+    eye.scale.setScalar(k);
+    eye.position.set(0, 0.04 * k, 0.12 * k);
+    eye.castShadow = false;
+    eye.frustumCulled = false;
+    bone.add(eye);
   }
 
   function fit(root, target) {
@@ -165,9 +153,10 @@
 
   function prepare(kind, gltf) {
     const scene = gltf.scene || gltf.scenes[0];
-    scene.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
-    bindShape(scene, kind === 'heavy' ? 71.39 : 230.43);
+    hideHelpers(scene);
+    menace(scene);
     fit(scene, kind === 'heavy' ? 2.35 : 2.05);
+    addVisor(scene);
     const src = (gltf.animations || [])[0];
     const ranges = RANGES[kind];
     const clips = {};
@@ -176,7 +165,11 @@
         clips[name] = sliceClip(src, name, ranges[name][0], ranges[name][1]);
       });
     }
-    scene.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = true; } });
+    scene.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = false;
+      o.frustumCulled = !o.isSkinnedMesh;
+    });
     return { scene, clips };
   }
 
