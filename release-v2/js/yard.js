@@ -191,12 +191,19 @@
     addShutter();
     addLight(-18, 108);
     addLight(18, 108);
-    /* Stand-ins first so a slow GLB never leaves the lane without cover or the vista empty. */
+    /* Collision only. The Kenney meshes are not downloaded. */
     (layout().props || []).forEach((spec) => {
-      const placed = RC.kit.place(yard.group, spec);
-      if (placed && spec.block && !spec.vista) yard.blockers.push(placed.box);
+      if (!spec || spec.vista || spec.block === false) return;
+      const s = spec.scale || 1;
+      const swap = Math.abs(Math.sin(spec.rot || 0)) > 0.7;
+      const w = s * (swap ? 1.05 : 1.45);
+      const d = s * (swap ? 1.45 : 1.05);
+      const h = Math.max(1.1, s * 1.25);
+      yard.blockers.push(new THREE.Box3(
+        new THREE.Vector3(spec.x - w / 2, 0, spec.z - d / 2),
+        new THREE.Vector3(spec.x + w / 2, h, spec.z + d / 2)
+      ));
     });
-    RC.kit.tileRun(yard.group, layout().tiles);
     yard.built = true;
     yard.upgraded = false;
     yard.airlockOpen = false;
