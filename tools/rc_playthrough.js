@@ -28,7 +28,7 @@ function serve() {
       r.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream' });
       fs.createReadStream(f).pipe(r);
     });
-    s.listen(0, '127.0.0.1', () => res([s, `http://127.0.0.1:${s.address().port}/release-warehouse/index.html?notrailer=1`]));
+    s.listen(0, '127.0.0.1', () => res([s, `http://127.0.0.1:${s.address().port}/release-v2/index.html?notrailer=1`]));
   });
 }
 
