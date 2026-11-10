@@ -28,7 +28,7 @@ function serve() {
       r.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream' });
       fs.createReadStream(f).pipe(r);
     });
-    s.listen(0, '127.0.0.1', () => res([s, `http://127.0.0.1:${s.address().port}/release-next/index.html?notrailer=1`]));
+    s.listen(0, '127.0.0.1', () => res([s, `http://127.0.0.1:${s.address().port}/release-warehouse/index.html?notrailer=1`]));
   });
 }
 
@@ -490,7 +490,11 @@ function serve() {
   add('skip lands on the epilogue card (not a dead end)', card.card && card.stay, card);
   await page.screenshot({ path: path.join(OUT, 'victory_card.jpg') });
   await page.click('#victory-replay');
-  await page.waitForTimeout(300);
+  await page.waitForFunction(() => {
+    const overlay = document.getElementById('victory-overlay');
+    const card = document.getElementById('victory-card');
+    return overlay && overlay.classList.contains('on') && card && card.hidden;
+  }, null, { timeout: 4000 });
   const replay = await page.evaluate(() => document.getElementById('victory-overlay').classList.contains('on') && document.getElementById('victory-card').hidden);
   add('epilogue can be replayed', replay, { replay });
   await page.click('#victory-skip');
