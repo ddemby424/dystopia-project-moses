@@ -1274,7 +1274,7 @@ function updateColossi(dt, now) {
     if (C.dead) {
       C.deathT += dt; if (C.cannon && C.cannon.visible) C.cannon.visible = false; if (C.glow && C.glow.visible) C.glow.visible = false; updateWreck(C, dt, now); return;
     }
-    if (C.mixer && C.stun <= 0) C.mixer.update(dt);
+    if (!C.v2Sentinel && C.mixer && C.stun <= 0) C.mixer.update(dt);
     updateColossusCannon(C);
     const pd = Math.hypot(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
     const inFactory = (STATE.floor || 0) > 0 || STATE.player.z < 92;
@@ -1293,6 +1293,7 @@ function updateColossi(dt, now) {
     // Round 17: free-moving Sentinel — pursue the player, path around obstacles, booming footfalls
     let want = Math.atan2(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
     try { const mv = colossusLocomotion(C, dt, pd); if (mv != null) want = mv; } catch (e) {}
+    if (C.v2Sentinel && window.RC && RC.v2 && RC.v2.stridePose) C.stepPhase = RC.v2.stridePose(C.root, !!C.moving, dt, C.stepPhase || 0);
     let dy = want - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     const turn = (C.isMini ? 0.7 : 0.45) * (C.turnMult || 1) * dt; C.root.rotation.y += Math.max(-turn, Math.min(turn, dy)); C.facingErr = Math.abs(dy);
     const hp = colossusHandPos(new THREE.Vector3(), C);
@@ -1399,15 +1400,17 @@ function colossusFootfall(C) {
   if (d < 45) STATE.screenShake = Math.max(STATE.screenShake, 0.32 * k * (1 - d / 45));
   try { if (d < 60 && typeof fxEmit === 'function' && FX.ready) for (let i = 0; i < 3; i++) { const a = Math.random() * 6.28; fxEmit('smoke', P.x + Math.sin(a) * C.rad, 0.2, P.z + Math.cos(a) * C.rad, { life: 0.9, s0: 0.5, s1: 1.8, vx: Math.sin(a) * 1.5, vz: Math.cos(a) * 1.5, vy: 0.4 }); } } catch (e) {}
 }
+let FOOT_NOISE = null;
 function playFootfallBoom(vol, mini) {
   if (SFX.muted) return; try { SFX.init(); } catch (e) { return; } const ctx = SFX.ctx; if (!ctx) return; const now = ctx.currentTime;
   const o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 180;
   o.type = 'sine'; o.frequency.setValueAtTime(mini ? 78 : 58, now); o.frequency.exponentialRampToValueAtTime(mini ? 34 : 24, now + 0.45);
   g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.9 * vol + 0.0001, now + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
   o.connect(g); g.connect(lp); lp.connect(ctx.destination); o.start(now); o.stop(now + 0.8);
-  // gravel crunch on top
-  const n = Math.floor(ctx.sampleRate * 0.25), b = ctx.createBuffer(1, n, ctx.sampleRate), dd = b.getChannelData(0); for (let i = 0; i < n; i++) dd[i] = (Math.random() * 2 - 1) * (1 - i / n) ** 3;
-  const ns = ctx.createBufferSource(), ng = ctx.createGain(), nf = ctx.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 600; ns.buffer = b; ng.gain.value = 0.35 * vol;
+  if (!FOOT_NOISE) {
+    const n = Math.floor(ctx.sampleRate * 0.25); FOOT_NOISE = ctx.createBuffer(1, n, ctx.sampleRate); const dd = FOOT_NOISE.getChannelData(0); for (let i = 0; i < n; i++) dd[i] = (Math.random() * 2 - 1) * (1 - i / n) ** 3;
+  }
+  const ns = ctx.createBufferSource(), ng = ctx.createGain(), nf = ctx.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 600; ns.buffer = FOOT_NOISE; ng.gain.value = 0.35 * vol;
   ns.connect(nf); nf.connect(ng); ng.connect(ctx.destination); ns.start(now);
 }
 const SHOCKWAVES = [];
@@ -2025,11 +2028,15 @@ function buildCoverPoints() {
   if (COVER_POINTS.length > 700) COVER_POINTS = COVER_POINTS.filter((_, i) => i % Math.ceil(COVER_POINTS.length / 700) === 0);
 }
 // --- A* on the 2 m grid ---
+let ASTAR_G = null, ASTAR_CAME = null, ASTAR_CLOSED = null, ASTAR_N = 0;
 function aStar(sx, sz, gx, gz) {
   const W = NAV.w, H = NAV.h; let s = navIdx(sx, sz), g = navIdx(gx, gz);
   const nearestFree = k => { if (k < 0) return -1; if (!NAV.move[k]) return k; const i = k % W, j = (k / W) | 0; for (let r = 1; r < 4; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii < W && jj < H && !NAV.move[jj * W + ii]) return jj * W + ii; } return -1; };
   s = nearestFree(s); g = nearestFree(g); if (s < 0 || g < 0) return null;
-  const gScore = new Float32Array(W * H).fill(1e9), came = new Int32Array(W * H).fill(-1), closed = new Uint8Array(W * H);
+  const nCells = W * H;
+  if (ASTAR_N !== nCells) { ASTAR_G = new Float32Array(nCells); ASTAR_CAME = new Int32Array(nCells); ASTAR_CLOSED = new Uint8Array(nCells); ASTAR_N = nCells; }
+  const gScore = ASTAR_G, came = ASTAR_CAME, closed = ASTAR_CLOSED;
+  gScore.fill(1e9); came.fill(-1); closed.fill(0);
   const heap = []; const push = (k, f) => { heap.push([f, k]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
   const pop = () => { const top = heap[0]; const last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
   const gi = g % W, gj = (g / W) | 0; const hfn = k => { const dx = Math.abs(k % W - gi), dz = Math.abs(((k / W) | 0) - gj); return Math.max(dx, dz) + 0.41 * Math.min(dx, dz); };
@@ -4504,7 +4511,17 @@ function applyGfx(level) {
   try { setShadows(level !== 'low'); } catch (e) {}
   document.querySelectorAll('[data-gfx]').forEach(b => b.classList.toggle('on', b.dataset.gfx === level));
 }
-function prewarmShaders() { try { fxInit(); renderer.compile(scene, camera); } catch (e) {} }
+function prewarmShaders() {
+  try {
+    fxInit();
+    renderer.compile(scene, camera);
+    if (typeof vmScene !== 'undefined') renderer.compile(vmScene, vmCam);
+    const prev = renderer.autoClear;
+    renderer.autoClear = true;
+    renderer.render(scene, camera);
+    renderer.autoClear = prev;
+  } catch (e) {}
+}
 
 // ---- QR (inline qrcode-generator, offline) ----
 function drawQR(canvas, text, px = 8) {

@@ -113,6 +113,30 @@ function serve() {
   await page.waitForTimeout(400);
   const spawned = await page.evaluate(() => ({ x: +STATE.player.x.toFixed(1), z: +STATE.player.z.toFixed(1), floor: STATE.floor, level: STATE.level }));
   add('new campaign starts in the yard on floor G', spawned.floor === 0 && spawned.z > 110 && Math.abs(spawned.x) < 2, spawned);
+  const mechs = await page.evaluate(() => {
+    const list = BOTS.filter((b) => b.smallMech && !b.dying);
+    const C = COLOSSI.find((c) => c.v2Sentinel && !c.dead);
+    let swung = 0;
+    if (C && RC.v2 && RC.v2.stridePose) {
+      const hip = C.root.getObjectByName('Hips');
+      const y0 = hip ? hip.position.y : 0;
+      let phase = 0;
+      for (let i = 0; i < 12; i++) phase = RC.v2.stridePose(C.root, true, 0.1, phase);
+      swung = Math.abs((hip ? hip.position.y : 0) - y0);
+    }
+    const aisle = arenaGroup.getObjectByName('rc-center-floor');
+    const sample = list[0];
+    return {
+      n: list.length,
+      hp: list.map((b) => b.maxHealth),
+      walker: !!(sample && sample.rig && sample.rig.root && sample.rig.root.getObjectByName('v2-sentinel')),
+      swung: +swung.toFixed(2),
+      aisle: !!(aisle && aisle.userData.rcSurface === 'center')
+    };
+  });
+  add('level 1 has cannon-damageable triage mechs', mechs.n >= 2 && mechs.hp.length >= 2 && mechs.hp.every((h) => h >= 250) && mechs.walker, mechs);
+  add('sentinel stride shifts its weight', mechs.swung > 0.25, mechs);
+  add('center aisle keeps the metal floor', mechs.aisle, mechs);
   const presentation = await page.evaluate(() => {
     const show = (id) => {
       const el = document.getElementById(id);

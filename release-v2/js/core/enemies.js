@@ -220,7 +220,11 @@ function updateBotAI(b, dt, now) {
   const planar = Math.hypot(mvx, mvz);
   const aim = (b.aiState === 'combat' && b.los) ? 1 : 0;
   b._aim = (b._aim || 0) + (aim - (b._aim || 0)) * Math.min(1, dt * 6);
-  if (b.clips && window.RC && RC.rigs) {
+  if (b.smallMech && window.RC && RC.v2 && RC.v2.stridePose) {
+    b.stepPhase = RC.v2.stridePose(b.rig.root, planar > 0.35, dt, b.stepPhase || 0);
+  } else if (b.rig && b.rig.root && !b.rig.root.visible) {
+    /* Off-screen guards keep their last pose. Skinning them is a phone hitch. */
+  } else if (b.clips && window.RC && RC.rigs) {
     const travel = Math.atan2(mvx, mvz);
     const fwd = mvx * Math.sin(b.yaw) + mvz * Math.cos(b.yaw);
     const lat = mvx * Math.cos(b.yaw) - mvz * Math.sin(b.yaw);
@@ -259,9 +263,12 @@ function updateAIGlobal(dt) {
 function spawnBotFromArchetype(spec, levelMult = 1.0) {
   const isHumanGuard = spec.role === 'human_guard';
   const isHuman = spec.role === 'human';
-  const heavy = !isHumanGuard && !isHuman;
+  const smallMech = spec.role === 'small_mech';
+  const heavy = !isHumanGuard && !isHuman && !smallMech;
   let rig, procHuman = false;
-  if (window.RC && RC.rigs && RC.rigs.ready()) {
+  if (smallMech && window.RC && RC.v2 && RC.v2.buildWalker) {
+    rig = RC.v2.buildWalker(spec.name, 3.5);
+  } else if (window.RC && RC.rigs && RC.rigs.ready()) {
     rig = RC.rigs.build(heavy ? 'heavy' : 'guard', spec.name);
   } else if (isHuman) {
     if (MESHY_TEMPLATES.human) rig = buildRigFromMeshyTemplate(MESHY_TEMPLATES.human, spec.name, false);
@@ -278,14 +285,14 @@ function spawnBotFromArchetype(spec, levelMult = 1.0) {
   }
   const spawnY = Number(spec.y) || getGroundHeightAt(spec.x, spec.z, 6);
   rig.root.position.set(spec.x, spawnY, spec.z);
-  rig.root.traverse(o => { if (o.isMesh && !o.isSprite) { o.castShadow = true; o.receiveShadow = !IS_COARSE; } });
-  applyRim(rig.root, isHuman ? 0x9fd0ff : 0xffa060, isHuman ? 0.85 : 0.7);
+  rig.root.traverse(o => { if (o.isMesh && !o.isSprite) { o.castShadow = !smallMech && !IS_COARSE; o.receiveShadow = !IS_COARSE; } });
+  if (!smallMech) applyRim(rig.root, isHuman ? 0x9fd0ff : 0xffa060, isHuman ? 0.85 : 0.7);
   scene.add(rig.root);
   if (window.RC && RC.realism && RC.realism.dressRig) RC.realism.dressRig(rig.root, heavy ? 'heavy' : (isHuman ? 'human' : 'guard'));
   const maxHp = Math.round(spec.maxHealth * levelMult);
   rig.hb.update(maxHp, maxHp);
   BOTS.push({
-    id: spec.id, name: spec.name, isBoss: false, isHumanGuard, isHuman, procHuman, heavy, role: spec.aiRole || 'pusher', squad: spec.squad || 0,
+    id: spec.id, name: spec.name, isBoss: false, isHumanGuard, isHuman, procHuman, heavy, smallMech, role: spec.aiRole || 'pusher', squad: spec.squad || 0,
     patrolType: spec.patrolType || 'ground', homeX: spec.x, homeZ: spec.z,
     rig, mixer: rig.mixer || null, clips: rig.clips || null,
     x: spec.x, y: spawnY, z: spec.z, vy: 0, yaw: 0,
@@ -296,7 +303,7 @@ function spawnBotFromArchetype(spec, levelMult = 1.0) {
     hitRadius: rig.hitRadius || (heavy ? 1.05 : 0.9),
     hitHeight: isHuman ? 1.85 : (rig.hitHeight || (heavy ? 2.55 : 2.25))
   });
-  initBotAI(BOTS[BOTS.length - 1]); equipEnemyWeapon(BOTS[BOTS.length - 1]);
+  initBotAI(BOTS[BOTS.length - 1]); if (!smallMech) equipEnemyWeapon(BOTS[BOTS.length - 1]);
 }
 
 function damageBot(b, dmg) {

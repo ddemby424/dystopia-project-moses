@@ -232,7 +232,7 @@
       if (!card || card.querySelector('.rc-cred')) return;
       const extra = document.createElement('div');
       extra.className = 'cr-sec rc-cred';
-      extra.innerHTML = '<b>RELEASE V2</b><br>Hall and yard surfaces: Poly Haven CC0 concrete, asphalt, and metal plate, with original paint and grime in release-v2/assets/surf.<br>Guards: Robot by DJMaesen, CC BY 4.0.<br>Heavy guards: Biped robot by Willy Decarpentrie, CC BY 4.0.<br>The Sentinel: military Mech by Doaa Sheha, CC BY 4.0. It still says “You are safe. You are loved.”<br>Ledger: release-v2/licenses/ATTRIBUTION.md';
+      extra.innerHTML = '<b>RELEASE V2</b><br>Hall and yard surfaces: Poly Haven CC0 concrete, asphalt, and metal plate, with original paint and grime in release-v2/assets/surf.<br>Guards: Robot by DJMaesen, CC BY 4.0.<br>Heavy guards: Biped robot by Willy Decarpentrie, CC BY 4.0.<br>The Sentinel and the smaller triage mechs: military Mech by Doaa Sheha, CC BY 4.0. The Sentinel still says “You are safe. You are loved.” The small mechs can be broken with the cannon.<br>Ledger: release-v2/licenses/ATTRIBUTION.md';
       card.insertBefore(extra, card.querySelector('#cr-close'));
     };
   }
