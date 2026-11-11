@@ -6,7 +6,9 @@ Gameplay, controls, the yard routes, the electrified fence, the victory film, an
 
 ## Surfaces
 
-Poly Haven CC0 maps already shipped in `release-next/assets/real/` (concrete, asphalt, factory wall, corrugated iron, rusted metal, metal plate, plus the abandoned-workshop HDRI used only as image-based light). License: https://polyhaven.com/license (CC0).
+Poly Haven CC0 maps already shipped in `release-next/assets/real/` (concrete, asphalt, corrugated iron, rusted metal, metal plate, plus the abandoned-workshop HDRI used only as image-based light on desktop). License: https://polyhaven.com/license (CC0).
+
+`release-v2/assets/surf/` bakes those albedos into 1024 WebP: hall floor (concrete, bay lines, hazard band, oil grime), hall wall (worn plate and corrugation, girts, rivets), and yard asphalt (cracks and oil). The painted marks are original. Touch devices load albedo only.
 
 ## Guards and the Sentinel
 

@@ -254,6 +254,7 @@
     buildShell();
     yard.upgraded = true;
     if (RC.fence) RC.fence.dress();
+    try { if (RC.realism && RC.realism.dressYard) RC.realism.dressYard(); } catch (e) { console.warn('yard dress', e); }
   }
 
   /* Split factory wall colliders and box meshes so the two mouths are real gaps. */

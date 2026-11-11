@@ -223,32 +223,38 @@
     const mats = RC.realism && RC.realism.mats;
     if (!mats) return;
     if (mats.floor) {
-      mats.floor.color.setRGB(1.65, 1.55, 1.42);
-      mats.floor.roughness = 0.62;
-      mats.floor.metalness = 0.16;
-      mats.floor.envMapIntensity = 0.28;
-      mats.floor.emissive = new THREE.Color(0x4a4036);
-      mats.floor.emissiveIntensity = 0.28;
-      if (mats.floor.map) mats.floor.emissiveMap = mats.floor.map;
+      mats.floor.color.setRGB(0.92, 0.9, 0.86);
+      mats.floor.roughness = 0.88;
+      mats.floor.metalness = 0.05;
+      mats.floor.envMapIntensity = 0.18;
+      mats.floor.emissive = new THREE.Color(0x000000);
+      mats.floor.emissiveIntensity = 0;
+      mats.floor.emissiveMap = null;
       mats.floor.needsUpdate = true;
     }
     if (mats.wall && mats.wall.map) {
-      mats.wall.color.setRGB(1.25, 1.2, 1.12);
-      mats.wall.roughness = 0.88;
-      mats.wall.metalness = 0.04;
-      mats.wall.map.repeat.set(4, 8);
-      if (mats.wall.normalMap) mats.wall.normalMap.repeat.set(4, 8);
-      if (mats.wall.roughnessMap) mats.wall.roughnessMap.repeat.set(4, 8);
+      mats.wall.color.setRGB(0.78, 0.8, 0.82);
+      mats.wall.roughness = 0.56;
+      mats.wall.metalness = 0.46;
+      mats.wall.envMapIntensity = 0.22;
+      mats.wall.map.repeat.set(12, 8);
+      if (mats.wall.normalMap) mats.wall.normalMap.repeat.set(12, 8);
+      if (mats.wall.roughnessMap) mats.wall.roughnessMap.repeat.set(12, 8);
     }
     if (mats.ceiling) {
-      mats.ceiling.color.setRGB(0.72, 0.7, 0.66);
+      mats.ceiling.color.setRGB(0.42, 0.43, 0.44);
       mats.ceiling.roughness = 0.9;
+      mats.ceiling.metalness = 0.2;
+      mats.ceiling.emissiveMap = null;
+      mats.ceiling.emissiveIntensity = 0;
     }
     if (mats.asphalt) {
-      mats.asphalt.color.setRGB(1.15, 1.12, 1.08);
-      mats.asphalt.emissive = new THREE.Color(0x2a2824);
-      mats.asphalt.emissiveIntensity = 0.18;
-      if (mats.asphalt.map) mats.asphalt.emissiveMap = mats.asphalt.map;
+      mats.asphalt.color.setRGB(0.86, 0.85, 0.82);
+      mats.asphalt.roughness = 0.94;
+      mats.asphalt.metalness = 0.02;
+      mats.asphalt.emissive = new THREE.Color(0x000000);
+      mats.asphalt.emissiveIntensity = 0;
+      mats.asphalt.emissiveMap = null;
     }
   }
 
@@ -416,8 +422,58 @@
     });
     im.castShadow = false;
     im.receiveShadow = true;
+    im.frustumCulled = false;
     im.userData.noMerge = true;
     return im;
+  }
+
+  function windowGridMat() {
+    if (windowGridMat._m) return windowGridMat._m;
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = '#10141a';
+    g.fillRect(0, 0, 64, 128);
+    for (let y = 3; y < 128; y += 9) {
+      for (let x = 2; x < 64; x += 7) {
+        const n = (x * 13 + y * 7) % 11;
+        if (n === 0) continue;
+        g.fillStyle = n % 3 === 0 ? '#ffb15a' : (n % 3 === 1 ? '#f4ead4' : '#8eb0d4');
+        g.globalAlpha = 0.45 + (n % 4) * 0.12;
+        g.fillRect(x, y, 4, 5);
+      }
+    }
+    g.globalAlpha = 1;
+    const tex = new THREE.CanvasTexture(c);
+    tex.encoding = THREE.sRGBEncoding;
+    windowGridMat._m = new THREE.MeshStandardMaterial({
+      color: 0x1a1e24, map: tex, emissive: 0xffe0c0, emissiveMap: tex,
+      emissiveIntensity: 0.85, roughness: 0.45, metalness: 0.2
+    });
+    return windowGridMat._m;
+  }
+
+  function hazardMat() {
+    if (hazardMat._m) return hazardMat._m;
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    const g = c.getContext('2d');
+    g.fillStyle = '#16130e';
+    g.fillRect(0, 0, 64, 64);
+    g.fillStyle = '#c8962a';
+    for (let i = -2; i < 6; i++) {
+      g.beginPath();
+      g.moveTo(i * 18, 0);
+      g.lineTo(i * 18 + 12, 0);
+      g.lineTo(i * 18 + 4, 64);
+      g.lineTo(i * 18 - 8, 64);
+      g.fill();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.encoding = THREE.sRGBEncoding;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    hazardMat._m = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.72, metalness: 0.08, color: 0xffffff });
+    return hazardMat._m;
   }
 
   function addShell() {
@@ -430,17 +486,44 @@
     const plate = mats.plate || new THREE.MeshStandardMaterial({ color: 0x8d969e, metalness: 0.7, roughness: 0.4 });
     const rust = mats.rust || plate;
     const cols = [];
-    for (let z = -70; z <= 70; z += 16) cols.push({ x: -78, y: 16, z, sy: 32, sx: 0.7, sz: 0.7 });
-    for (let z = -70; z <= 70; z += 16) cols.push({ x: 78, y: 16, z, sy: 32, sx: 0.7, sz: 0.7 });
+    const girts = [];
+    const risers = [];
+    const vents = [];
+    for (let z = -72; z <= 72; z += 12) {
+      cols.push({ x: -86.6, y: 17, z, sy: 34, sx: 0.55, sz: 0.42 });
+      cols.push({ x: 86.6, y: 17, z, sy: 34, sx: 0.55, sz: 0.42 });
+      if (z % 24 === 0) {
+        risers.push({ x: -86.2, y: 16, z: z + 1.2, sx: 0.28, sy: 32, sz: 0.28 });
+        risers.push({ x: 86.2, y: 16, z: z + 1.2, sx: 0.28, sy: 32, sz: 0.28 });
+      }
+    }
+    [-86.35, 86.35].forEach((x) => {
+      [7.2, 16.4, 25.6].forEach((y) => girts.push({ x, y, z: 0, sx: 0.22, sy: 0.28, sz: 150 }));
+    });
+    [ -83.2, 83.2 ].forEach((z) => {
+      [7.2, 16.4].forEach((y) => girts.push({ x: 0, y, z, sx: 160, sy: 0.28, sz: 0.22 }));
+    });
+    for (let z = -60; z <= 60; z += 24) {
+      vents.push({ x: -86.15, y: 11.5, z, sx: 0.12, sy: 1.4, sz: 2.4 });
+      vents.push({ x: 86.15, y: 11.5, z, sx: 0.12, sy: 1.4, sz: 2.4 });
+    }
     const col = instanced(new THREE.BoxGeometry(1, 1, 1), plate, cols);
     if (col) shell.add(col);
+    const girt = instanced(new THREE.BoxGeometry(1, 1, 1), plate, girts);
+    if (girt) shell.add(girt);
     const pipes = [];
     for (let z = -60; z <= 60; z += 8) {
-      pipes.push({ x: -16, y: 31.5, z, sx: 0.35, sy: 0.35, sz: 6 });
-      pipes.push({ x: 16, y: 31.5, z, sx: 0.35, sy: 0.35, sz: 6 });
+      pipes.push({ x: -16, y: 31.6, z, sx: 0.32, sy: 0.32, sz: 6 });
+      pipes.push({ x: 16, y: 31.6, z, sx: 0.32, sy: 0.32, sz: 6 });
+      pipes.push({ x: -40, y: 29.4, z, sx: 0.22, sy: 0.22, sz: 6 });
+      pipes.push({ x: 40, y: 29.4, z, sx: 0.22, sy: 0.22, sz: 6 });
     }
+    risers.forEach((p) => pipes.push(p));
     const pipe = instanced(new THREE.BoxGeometry(1, 1, 1), rust, pipes);
     if (pipe) shell.add(pipe);
+    const ventMat = new THREE.MeshStandardMaterial({ color: 0x1a1c20, emissive: 0x2a2418, emissiveIntensity: 0.25, roughness: 0.7, metalness: 0.4 });
+    const vent = instanced(new THREE.BoxGeometry(1, 1, 1), ventMat, vents);
+    if (vent) shell.add(vent);
     const lamps = [];
     for (let x = -48; x <= 48; x += 24) {
       for (let z = -48; z <= 60; z += 24) lamps.push({ x, y: 33.2, z, sx: 3.2, sy: 0.12, sz: 1.1 });
@@ -448,10 +531,21 @@
     const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff1dd, emissive: 0xffd7a0, emissiveIntensity: 0.85, roughness: 0.4, metalness: 0.05 });
     const lamp = instanced(new THREE.BoxGeometry(1, 1, 1), lampMat, lamps);
     if (lamp) shell.add(lamp);
+    const signMat = new THREE.MeshStandardMaterial({ color: 0xfff4e4, emissive: 0xffe2b0, emissiveIntensity: 0.7, roughness: 0.45, metalness: 0.1 });
+    const signs = [
+      { x: -86.1, y: 8.4, z: 20, sx: 0.08, sy: 0.7, sz: 6.5 },
+      { x: 86.1, y: 8.4, z: -24, sx: 0.08, sy: 0.7, sz: 6.5 },
+      { x: -30, y: 8.6, z: -82.4, sx: 7, sy: 0.7, sz: 0.08 },
+      { x: 34, y: 14.2, z: 82.4, sx: 7, sy: 0.55, sz: 0.08 }
+    ];
+    const sign = instanced(new THREE.BoxGeometry(1, 1, 1), signMat, signs);
+    if (sign) shell.add(sign);
     const lanes = [];
-    for (let z = -70; z <= 70; z += 14) lanes.push({ x: 0, y: 0.06, z, sx: 3.2, sy: 0.04, sz: 8 });
-    const laneMat = new THREE.MeshStandardMaterial({ color: 0x6e675c, roughness: 0.8, metalness: 0.05 });
-    const lane = instanced(new THREE.BoxGeometry(1, 1, 1), laneMat, lanes);
+    for (let z = -72; z <= 72; z += 12) lanes.push({ x: 0, y: 0.045, z, sx: 1.15, sy: 0.02, sz: 7.2 });
+    [-14, 14].forEach((x) => {
+      for (let z = -70; z <= 70; z += 18) lanes.push({ x, y: 0.045, z, sx: 0.18, sy: 0.02, sz: 10 });
+    });
+    const lane = instanced(new THREE.BoxGeometry(1, 1, 1), hazardMat(), lanes);
     if (lane) shell.add(lane);
     arenaGroup.add(shell);
   }
@@ -488,6 +582,7 @@
     const root = new THREE.Group();
     root.name = 'rc-v2-yard';
     root.userData.noMerge = true;
+    g.add(root);
     const mats = (RC.realism && RC.realism.mats) || {};
     const rust = mats.rust || new THREE.MeshStandardMaterial({ color: 0x7a5a42, metalness: 0.55, roughness: 0.6 });
     const plate = mats.plate || rust;
@@ -502,38 +597,36 @@
       x: p.x, y: 0.55 * (p.scale || 1), z: p.z, rot: p.rot || 0, sx: p.scale || 1, sy: (p.scale || 1) * 0.9, sz: p.scale || 1
     })));
     if (crateMesh) root.add(crateMesh);
-    const towerMesh = instanced(new THREE.BoxGeometry(4, 1, 4), siding, towers.map((p, i) => {
-      const h = 16 + (i % 5) * 6;
-      return { x: p.x, y: h / 2, z: p.z, rot: p.rot || 0, sx: 1.2 + (i % 3) * 0.35, sy: h, sz: 1.2 + (i % 2) * 0.4 };
-    }));
-    if (towerMesh) root.add(towerMesh);
+    const masses = [];
+    const crowns = [];
+    const antennas = [];
     const windows = [];
-    const roofs = [];
     towers.forEach((p, i) => {
-      const h = 16 + (i % 5) * 6;
-      const sx = 1.2 + (i % 3) * 0.35;
-      const sz = 1.2 + (i % 2) * 0.4;
+      const h = 28 + (i % 6) * 9 + (i % 3) * 4;
+      const sx = 1.35 + (i % 4) * 0.38;
+      const sz = 1.15 + (i % 3) * 0.42;
       const rot = p.rot || 0;
-      const half = 2 * sz + 0.06;
-      const ox = Math.sin(rot) * half;
-      const oz = Math.cos(rot) * half;
-      const floors = Math.max(3, Math.floor(h / 3.4));
-      for (let f = 1; f < floors; f++) {
-        if ((f + i) % 4 === 0) continue;
-        windows.push({
-          x: p.x + ox, y: 2.2 + f * 3.15, z: p.z + oz, rot: rot,
-          sx: sx * 1.15, sy: 0.28, sz: 0.05
-        });
-      }
-      roofs.push({ x: p.x, y: h + 0.35, z: p.z, rot: rot, sx: sx * 1.08, sy: 0.7, sz: sz * 1.08 });
+      masses.push({ x: p.x, y: h / 2, z: p.z, rot, sx, sy: h, sz });
+      const h2 = h * (0.28 + (i % 3) * 0.08);
+      crowns.push({ x: p.x + (i % 2 ? 0.4 : -0.3), y: h + h2 / 2, z: p.z, rot, sx: sx * 0.58, sy: h2, sz: sz * 0.55 });
+      if (i % 2 === 0) antennas.push({ x: p.x, y: h + h2 + 5, z: p.z, sx: 0.06, sy: 10, sz: 0.06 });
+      const face = (ox, oz, yaw, fw, fh) => windows.push({
+        x: p.x + ox, y: h * 0.52, z: p.z + oz, rot: yaw, sx: fw, sy: fh, sz: 0.04
+      });
+      face(Math.sin(rot) * (2 * sz + 0.08), Math.cos(rot) * (2 * sz + 0.08), rot, sx * 3.3, h * 0.72);
+      face(-Math.cos(rot) * (2 * sx + 0.08), Math.sin(rot) * (2 * sx + 0.08), rot + Math.PI / 2, sz * 3.1, h * 0.62);
     });
-    const winMat = new THREE.MeshStandardMaterial({ color: 0x141a20, emissive: 0xffb060, emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.15 });
+    const towerMesh = instanced(new THREE.BoxGeometry(4, 1, 4), siding, masses);
+    if (towerMesh) root.add(towerMesh);
     const roofMat = siding.clone ? siding.clone() : siding;
-    if (roofMat !== siding && roofMat.color) roofMat.color.multiplyScalar(0.45);
-    const winMesh = instanced(new THREE.BoxGeometry(4, 1, 4), winMat, windows);
-    const roofMesh = instanced(new THREE.BoxGeometry(4, 1, 4), roofMat, roofs);
+    if (roofMat !== siding && roofMat.color) roofMat.color.multiplyScalar(0.55);
+    const crownMesh = instanced(new THREE.BoxGeometry(4, 1, 4), roofMat, crowns);
+    if (crownMesh) root.add(crownMesh);
+    const ant = instanced(new THREE.BoxGeometry(1, 1, 1), plate, antennas);
+    if (ant) root.add(ant);
+    const winMat = windowGridMat();
+    const winMesh = instanced(new THREE.BoxGeometry(1, 1, 1), winMat, windows);
     if (winMesh) root.add(winMesh);
-    if (roofMesh) root.add(roofMesh);
     if (THREE.BufferGeometryUtils) {
       const bits = [];
       function put(w, h, d, x, y, z) {
@@ -587,7 +680,6 @@
     }
     const stainMesh = instanced(new THREE.BoxGeometry(1, 0.02, 1), stainMat, spots);
     if (stainMesh) root.add(stainMesh);
-    g.add(root);
   }
 
   function showRig(obj, on) {
@@ -601,6 +693,20 @@
     const floor = STATE.floor || 0;
     const outside = !victory && floor === 0 && z > 100;
     const inside = !victory && (floor > 0 || z < 86);
+    if (outside && RC.yard && RC.yard.group && !RC.yard.group.getObjectByName('rc-v2-yard')) {
+      try { dressYard(); } catch (e) { console.warn('yard skyline', e); }
+    }
+    if (typeof scene !== 'undefined' && scene.fog && scene.background) {
+      if (outside) {
+        scene.fog.color.setHex(0x8b939e);
+        scene.fog.density = 0.009;
+        scene.background.setHex(0x9aa3ae);
+      } else {
+        scene.fog.color.setHex(0x1a212b);
+        scene.fog.density = 0.0042;
+        scene.background.setHex(0x121820);
+      }
+    }
     /* Keep the shell up from the yard so the factory reads. Hide the boss and the guards instead. */
     arenaGroup.visible = true;
     if (RC.yard && RC.yard.group) {
