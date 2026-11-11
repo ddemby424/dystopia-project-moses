@@ -1,17 +1,19 @@
-/* CC0 PBR for the preview. Poly Haven color, normal, and roughness maps,
-   plus the abandoned-workshop HDRI used only as image-based light.
-   One shared set for the yard and every factory floor. */
+/* CC0 surfaces for release v2. Albedo is a 1K WebP.
+   Touch devices skip normal maps, roughness maps, and the HDRI so the
+   Fold does not compile the stack that dropped meshes on Adreno. */
 (function () {
   const RC = (window.RC = window.RC || {});
-  const ROOT = 'release-next/assets/real/';
+  const REAL = 'release-next/assets/real/';
+  const SURF = 'release-v2/assets/surf/';
+  const touch = window.matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window);
   const SETS = {
-    floor: { map: 'concrete.webp', normal: 'concrete_floor_worn_001_nor.webp', rough: 'concrete_floor_worn_001_rough.webp', rx: 16, ry: 12, roughness: 0.92, metalness: 0.02, color: 0xffffff, normalScale: 0.65 },
-    asphalt: { map: 'asphalt.webp', normal: 'asphalt_02_nor.webp', rough: 'asphalt_02_rough.webp', rx: 10, ry: 12, roughness: 0.96, metalness: 0.0, color: 0xffffff, normalScale: 0.9 },
-    wall: { map: 'wall.webp', normal: 'concrete_wall_004_nor.webp', rough: 'concrete_wall_004_rough.webp', rx: 5, ry: 2.4, roughness: 0.88, metalness: 0.04, color: 0xffffff, normalScale: 0.55 },
-    ceiling: { map: 'wall.webp', normal: 'concrete_wall_004_nor.webp', rough: 'concrete_wall_004_rough.webp', rx: 7, ry: 6, roughness: 0.9, metalness: 0.06, color: 0x8d8680, normalScale: 0.4 },
-    siding: { map: 'siding.webp', normal: 'corrugated_iron_nor.webp', rough: 'corrugated_iron_rough.webp', rx: 2, ry: 1.5, roughness: 0.48, metalness: 0.62, color: 0xd5d0c8, normalScale: 0.8 },
-    rust: { map: 'rust.webp', normal: 'rusty_metal_02_nor.webp', rough: 'rusty_metal_02_rough.webp', rx: 1, ry: 1, roughness: 0.62, metalness: 0.58, color: 0xffffff, normalScale: 0.7 },
-    plate: { map: 'plate.webp', normal: 'metal_plate_02_nor.webp', rough: 'metal_plate_02_rough.webp', rx: 1, ry: 1, roughness: 0.38, metalness: 0.82, color: 0xffffff, normalScale: 0.55 }
+    floor: { map: SURF + 'hall_floor.webp', normal: touch ? null : REAL + 'concrete_floor_worn_001_nor.webp', rough: null, rx: 18, ry: 16, roughness: 0.88, metalness: 0.05, color: 0xffffff, normalScale: 0.28 },
+    asphalt: { map: SURF + 'yard_asphalt.webp', normal: null, rough: null, rx: 12, ry: 10, roughness: 0.94, metalness: 0.02, color: 0xffffff, normalScale: 0 },
+    wall: { map: SURF + 'hall_wall.webp', normal: touch ? null : REAL + 'corrugated_iron_nor.webp', rough: null, rx: 12, ry: 8, roughness: 0.56, metalness: 0.48, color: 0xffffff, normalScale: 0.35 },
+    ceiling: { map: SURF + 'hall_wall.webp', normal: null, rough: null, rx: 8, ry: 5, roughness: 0.9, metalness: 0.22, color: 0x5c5954, normalScale: 0 },
+    siding: { map: REAL + 'siding.webp', normal: touch ? null : REAL + 'corrugated_iron_nor.webp', rough: null, rx: 2, ry: 1.5, roughness: 0.5, metalness: 0.55, color: 0xc5c2ba, normalScale: 0.45 },
+    rust: { map: REAL + 'rust.webp', normal: null, rough: null, rx: 1, ry: 1, roughness: 0.64, metalness: 0.48, color: 0xffffff, normalScale: 0 },
+    plate: { map: REAL + 'plate.webp', normal: touch ? null : REAL + 'metal_plate_02_nor.webp', rough: null, rx: 1, ry: 1, roughness: 0.46, metalness: 0.62, color: 0xd0ccc4, normalScale: 0.3 }
   };
   const tex = {};
   const mats = {};
@@ -26,7 +28,7 @@
   }
 
   function loadOne(file) {
-    const url = ROOT + file;
+    const url = file;
     return new Promise((resolve) => {
       fetch(url).then((r) => {
         if (!r.ok) throw new Error(String(r.status));
@@ -41,9 +43,9 @@
   }
 
   function makeMat(spec) {
-    const map = tex[spec.map] ? prep(tex[spec.map].clone(), spec.rx, spec.ry, true) : null;
-    const normal = tex[spec.normal] ? prep(tex[spec.normal].clone(), spec.rx, spec.ry, false) : null;
-    const rough = tex[spec.rough] ? prep(tex[spec.rough].clone(), spec.rx, spec.ry, false) : null;
+    const map = spec.map && tex[spec.map] ? prep(tex[spec.map].clone(), spec.rx, spec.ry, true) : null;
+    const normal = !touch && spec.normal && tex[spec.normal] ? prep(tex[spec.normal].clone(), spec.rx, spec.ry, false) : null;
+    const rough = !touch && spec.rough && tex[spec.rough] ? prep(tex[spec.rough].clone(), spec.rx, spec.ry, false) : null;
     if (map) map.needsUpdate = true;
     if (normal) normal.needsUpdate = true;
     if (rough) rough.needsUpdate = true;
@@ -63,7 +65,8 @@
   function loadHDR() {
     return new Promise((resolve) => {
       if (typeof THREE.RGBELoader !== 'function' || typeof renderer === 'undefined') { resolve(null); return; }
-      const url = ROOT + 'workshop.hdr';
+      if (touch) { resolve(null); return; }
+      const url = REAL + 'workshop.hdr';
       fetch(url).then((r) => {
         if (!r.ok) throw new Error(String(r.status));
         return r.blob();
@@ -209,6 +212,7 @@
     Object.keys(SETS).forEach((k) => {
       ['map', 'normal', 'rough'].forEach((slot) => {
         const name = SETS[k][slot];
+        if (!name || (touch && slot !== 'map')) return;
         if (files.indexOf(name) < 0) files.push(name);
       });
     });

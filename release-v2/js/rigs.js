@@ -49,8 +49,15 @@
 
   function hideHelpers(root) {
     root.traverse((o) => {
-      if (!o.isMesh) return;
-      if (/ground|plane|shadow/i.test(o.name || '')) o.visible = false;
+      if (!o.isMesh || !o.geometry) return;
+      const name = ((o.name || '') + ' ' + ((o.parent && o.parent.name) || '')).toLowerCase();
+      if (/ground|plane|shadow|disc|circle/.test(name)) { o.visible = false; return; }
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      const b = o.geometry.boundingBox;
+      if (!b) return;
+      const dims = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z].sort((a, c) => a - c);
+      /* Sketchfab rigs ship a flat yellow catch-disc under the pose. */
+      if (dims[2] > 0.8 && dims[0] < dims[2] * 0.08) o.visible = false;
     });
   }
 
