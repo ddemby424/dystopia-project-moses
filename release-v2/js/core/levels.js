@@ -346,6 +346,18 @@ function buildArenaMap() {
   fm.userData.rcSurface = 'floor';
   fm.material.userData._bright = true;
   fm.rotation.x = -Math.PI / 2; fm.receiveShadow = true; arenaGroup.add(fm);
+  /* Center aisle: the original server-hall metal floor (FLOOR_PBR / metal_floor_1k.jpg),
+     the slab the campaign used before the worn-concrete pass covered the whole hall. */
+  const aisle = new THREE.Mesh(new THREE.PlaneGeometry(22, 148), new THREE.MeshStandardMaterial({
+    map: FLOOR_PBR.map, color: 0x6e7680, roughness: 0.58, metalness: 0.48, envMapIntensity: 0.16
+  }));
+  aisle.name = 'rc-center-floor';
+  aisle.userData.v2Keep = true;
+  aisle.userData.rcSurface = 'center';
+  aisle.rotation.x = -Math.PI / 2;
+  aisle.position.y = 0.04;
+  aisle.receiveShadow = true;
+  arenaGroup.add(aisle);
   // raised-floor tile lines for server floors
   if (floor === 1) { const grid = new THREE.GridHelper(180, 90, 0x64748b, 0x475569); grid.position.y = 0.02; grid.material.opacity = 0.35; grid.material.transparent = true; arenaGroup.add(grid); }
   createWall(0, -85, 180, 3, 36); createWall(0, 85, 180, 3, 36);
@@ -437,7 +449,14 @@ function startFloor(lvl, floor) {
     else spawnBotFromArchetype({ ...tpl, id: `f${floor}-b${i}`, name: heavy ? `Heavy Triage Unit ${FLOOR_NAMES[floor]}-${i + 1}` : `Triage Unit ${FLOOR_NAMES[floor]}-${i + 1}`, role: heavy ? 'bot' : 'human_guard', aiRole, squad, x, y: 0, z, maxHealth: heavy ? 165 : 115, patrolType: 'ground' }, hpMult);
   }
   spawnDrones(lvl, floor);
-  setTimeout(prewarmShaders, 50);
+  if ((floor || 0) === 0) {
+    [[-18, 22], [16, 2], [6, -26]].forEach((p, i) => {
+      let x = p[0], z = p[1];
+      for (let t = 0; t < 12 && collidesAt(x, z, 1.3); t++) { x += 2; z -= 1.5; }
+      spawnBotFromArchetype({ id: `f${floor}-mech${i}`, name: `Triage Mech ${FLOOR_NAMES[floor]}-${i + 1}`, role: 'small_mech', aiRole: 'pusher', squad: 4, x, y: 0, z, maxHealth: 280, patrolType: 'ground' }, hpMult);
+    });
+  }
+  prewarmShaders();
   // snipers posted on towers / catwalks
   const perches = (FLOOR_INFO.perches || []).slice();
   const nSnipers = Math.min(perches.length, [1, 2, 2, 3][floor] + (lvl >= 5 ? 1 : 0));

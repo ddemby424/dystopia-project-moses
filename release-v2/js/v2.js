@@ -36,14 +36,51 @@
   }
 
   function stompClip() {
-    const times = [0, 0.45, 0.9];
-    return new THREE.AnimationClip('Stomp', 0.9, [
-      new THREE.NumberKeyframeTrack('LeftLeg.rotation[x]', times, [0.5, -0.45, 0.5]),
-      new THREE.NumberKeyframeTrack('RightLeg.rotation[x]', times, [-0.45, 0.5, -0.45]),
-      new THREE.NumberKeyframeTrack('Spine2.rotation[x]', times, [0.06, -0.04, 0.06]),
-      new THREE.NumberKeyframeTrack('RightForeArm.rotation[x]', times, [-0.2, 0.15, -0.2]),
-      new THREE.NumberKeyframeTrack('Hips.position[y]', times, [1.05, 0.92, 1.05])
+    const times = [0, 0.25, 0.5, 0.75, 1];
+    return new THREE.AnimationClip('Stomp', 1, [
+      new THREE.NumberKeyframeTrack('LeftLeg.rotation[x]', times, [0.85, -0.15, -0.85, -0.15, 0.85]),
+      new THREE.NumberKeyframeTrack('RightLeg.rotation[x]', times, [-0.85, -0.15, 0.85, -0.15, -0.85]),
+      new THREE.NumberKeyframeTrack('Spine2.rotation[z]', times, [0.26, 0, -0.26, 0, 0.26]),
+      new THREE.NumberKeyframeTrack('Spine2.rotation[x]', times, [0.14, -0.08, 0.14, -0.08, 0.14]),
+      new THREE.NumberKeyframeTrack('RightForeArm.rotation[x]', times, [-0.55, -0.2, -0.55, -0.2, -0.55]),
+      new THREE.NumberKeyframeTrack('Hips.position[y]', times, [1.55, 1.05, 1.55, 1.05, 1.55])
     ]);
+  }
+
+  /* The military mesh is one rigid piece on Spine2, so the stride is a weight
+     shift: the body rolls onto one side, dips, and rises as that foot lands. */
+  function stridePose(root, moving, dt, phase) {
+    if (!root) return phase || 0;
+    const rig = root.getObjectByName('v2-sentinel') || root;
+    const hips = rig.getObjectByName('Hips');
+    const spine = rig.getObjectByName('Spine2');
+    const ll = rig.getObjectByName('LeftLeg');
+    const rl = rig.getObjectByName('RightLeg');
+    const ra = rig.getObjectByName('RightForeArm');
+    phase = phase || 0;
+    if (!moving) {
+      if (hips) hips.position.y += (1.05 - hips.position.y) * Math.min(1, dt * 5);
+      if (spine) { spine.rotation.x *= 0.82; spine.rotation.z *= 0.82; spine.rotation.y *= 0.82; }
+      if (ll) ll.rotation.x *= 0.82;
+      if (rl) rl.rotation.x *= 0.82;
+      return phase;
+    }
+    const prev = phase;
+    phase += dt * 1.55;
+    const s = Math.sin(phase * Math.PI * 2);
+    const c = Math.cos(phase * Math.PI * 2);
+    if (hips) hips.position.y = 1.02 + Math.abs(s) * 0.58;
+    if (spine) {
+      spine.rotation.z = s * 0.32;
+      spine.rotation.x = c * 0.18;
+      spine.rotation.y = s * 0.06;
+    }
+    if (ll) ll.rotation.x = s * 1.05;
+    if (rl) rl.rotation.x = -s * 1.05;
+    if (ra) ra.rotation.x = -0.45 + s * 0.4;
+    const crossed = Math.floor(prev * 2) !== Math.floor(phase * 2);
+    if (crossed && root.userData) root.userData.v2Step = (root.userData.v2Step || 0) + 1;
+    return phase;
   }
 
   function boneRig() {
@@ -223,7 +260,7 @@
     const mats = RC.realism && RC.realism.mats;
     if (!mats) return;
     if (mats.floor) {
-      mats.floor.color.setRGB(0.92, 0.9, 0.86);
+      mats.floor.color.setRGB(0.58, 0.56, 0.52);
       mats.floor.roughness = 0.88;
       mats.floor.metalness = 0.05;
       mats.floor.envMapIntensity = 0.18;
@@ -233,7 +270,7 @@
       mats.floor.needsUpdate = true;
     }
     if (mats.wall && mats.wall.map) {
-      mats.wall.color.setRGB(0.78, 0.8, 0.82);
+      mats.wall.color.setRGB(0.46, 0.48, 0.5);
       mats.wall.roughness = 0.56;
       mats.wall.metalness = 0.46;
       mats.wall.envMapIntensity = 0.22;
@@ -242,14 +279,14 @@
       if (mats.wall.roughnessMap) mats.wall.roughnessMap.repeat.set(12, 8);
     }
     if (mats.ceiling) {
-      mats.ceiling.color.setRGB(0.42, 0.43, 0.44);
+      mats.ceiling.color.setRGB(0.22, 0.23, 0.24);
       mats.ceiling.roughness = 0.9;
       mats.ceiling.metalness = 0.2;
       mats.ceiling.emissiveMap = null;
       mats.ceiling.emissiveIntensity = 0;
     }
     if (mats.asphalt) {
-      mats.asphalt.color.setRGB(0.86, 0.85, 0.82);
+      mats.asphalt.color.setRGB(0.48, 0.47, 0.45);
       mats.asphalt.roughness = 0.94;
       mats.asphalt.metalness = 0.02;
       mats.asphalt.emissive = new THREE.Color(0x000000);
@@ -260,23 +297,26 @@
 
   function lighting() {
     if (typeof hemiLight !== 'undefined') {
-      hemiLight.color.setHex(0xc5d0dc);
-      hemiLight.groundColor.setHex(0x4a4034);
-      hemiLight.intensity = 0.55;
+      hemiLight.color.setHex(0x6a7380);
+      hemiLight.groundColor.setHex(0x1a1612);
+      hemiLight.intensity = 0.22;
     }
     if (typeof dirLight !== 'undefined') {
-      dirLight.color.setHex(0xffe6c4);
-      dirLight.intensity = 0.72;
+      dirLight.color.setHex(0xc4b39a);
+      dirLight.intensity = 0.28;
       dirLight.castShadow = false;
     }
     if (typeof renderer !== 'undefined') renderer.shadowMap.enabled = false;
     if (typeof scene !== 'undefined' && scene.fog) {
-      scene.fog.color.setHex(0x1a212b);
-      scene.fog.density = 0.0042;
-      scene.background.setHex(0x121820);
+      scene.fog.color.setHex(0x0a0e14);
+      scene.fog.density = 0.0072;
+      scene.background.setHex(0x07090d);
+    }
+    if (typeof ARENA_LIGHTS !== 'undefined') {
+      ARENA_LIGHTS.forEach((L) => { if (L && L.light) { L.base = Math.min(L.base || 1, 0.7); L.light.intensity = L.base; L.light.castShadow = false; } });
     }
     if (!fill && typeof scene !== 'undefined') {
-      fill = new THREE.DirectionalLight(0xfff3e4, 0.38);
+      fill = new THREE.DirectionalLight(0xffe6c8, 0.14);
       fill.position.set(-18, 28, 24);
       fill.castShadow = false;
       scene.add(fill);
@@ -698,13 +738,13 @@
     }
     if (typeof scene !== 'undefined' && scene.fog && scene.background) {
       if (outside) {
-        scene.fog.color.setHex(0x8b939e);
-        scene.fog.density = 0.009;
-        scene.background.setHex(0x9aa3ae);
+        scene.fog.color.setHex(0x4e565f);
+        scene.fog.density = 0.012;
+        scene.background.setHex(0x2a3038);
       } else {
-        scene.fog.color.setHex(0x1a212b);
-        scene.fog.density = 0.0042;
-        scene.background.setHex(0x121820);
+        scene.fog.color.setHex(0x0a0e14);
+        scene.fog.density = 0.0072;
+        scene.background.setHex(0x07090d);
       }
     }
     /* Keep the shell up from the yard so the factory reads. Hide the boss and the guards instead. */
@@ -862,6 +902,17 @@
       paint();
     };
     v2.debug('debug overlay on');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'rc-exit-debug';
+    btn.textContent = 'Exit debug';
+    btn.style.cssText = 'position:fixed;left:6px;bottom:calc(42vh + 14px);z-index:100001;padding:8px 12px;border:1px solid #6ee7b7;border-radius:8px;background:#052e24;color:#d1fae5;font:700 13px/1 ui-monospace,monospace;pointer-events:auto';
+    btn.addEventListener('click', () => {
+      const u = new URL(location.href);
+      u.searchParams.delete('debug');
+      location.assign(u.pathname + (u.search || '') + u.hash);
+    });
+    document.body.appendChild(btn);
   }
 
   function installBloom() {
@@ -903,7 +954,38 @@
     v2._bloom = true;
   }
 
+  function buildWalker(label, height) {
+    const tpl = sentinel || sentinelTemplate();
+    const clone = THREE.SkeletonUtils.clone(tpl.scene);
+    clone.traverse((o) => {
+      if (!o.isMesh) return;
+      o.frustumCulled = false;
+      o.castShadow = false;
+      o.userData.v2Boss = true;
+    });
+    const root = new THREE.Group();
+    root.name = 'v2-walker';
+    root.userData.v2Mech = true;
+    root.userData.v2Boss = true;
+    const holder = new THREE.Group();
+    const h = height || 3.5;
+    holder.scale.setScalar(h / (tpl.targetHeight || 2.7));
+    holder.add(clone);
+    root.add(holder);
+    const hb = createHealthBarSprite(label || 'Triage Mech', false);
+    hb.sprite.position.y = h + 0.5;
+    root.add(hb.sprite);
+    root.userData.hb = hb;
+    return {
+      root, hb, mixer: null, clips: null, smallMech: true,
+      leftLeg: null, rightLeg: null, leftArm: null, rightArm: null,
+      torso: root, scale: 1, hitRadius: 1.05, hitHeight: h
+    };
+  }
+
   v2.sentinelTemplate = sentinelTemplate;
+  v2.stridePose = stridePose;
+  v2.buildWalker = buildWalker;
   v2.dressArena = dressArena;
   v2.dressYard = dressYard;
   v2.zone = zone;

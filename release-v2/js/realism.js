@@ -110,7 +110,7 @@
   function dressArena() {
     if (!realism.ready || typeof arenaGroup === 'undefined') return;
     arenaGroup.traverse((o) => {
-      if (!o.isMesh || o.userData.secretDoor || o.userData.textPlane || o.userData.signTwin || o.name === 'rc-ceiling') return;
+      if (!o.isMesh || o.userData.secretDoor || o.userData.textPlane || o.userData.signTwin || o.name === 'rc-ceiling' || o.name === 'rc-center-floor' || (o.userData && o.userData.rcSurface === 'center')) return;
       const surf = o.userData.rcSurface;
       if (surf === 'floor' && mats.floor) paint(o, mats.floor);
       else if (surf === 'wall' && mats.wall) paint(o, mats.wall);
