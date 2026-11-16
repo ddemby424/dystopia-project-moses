@@ -5,9 +5,10 @@
 let lastTime = performance.now();
 function gameLoop(now) {
   requestAnimationFrame(gameLoop);
+  if (RC._pauseLoop) return;
   const dt = Math.min(0.05, (now - lastTime) / 1000); lastTime = now;
   const dbg = typeof location !== 'undefined' && /[?&]debug=1(?:&|$)/.test(location.search);
-  const t0 = dbg ? performance.now() : 0;
+  const t0 = performance.now();
   let cause = '';
   try {
   if (LORE_OPEN) { renderFrame(); return; }
@@ -47,10 +48,9 @@ function gameLoop(now) {
     try { console.warn('loop', err); } catch (e) {}
     try { renderFrame(); } catch (e2) {}
   } finally {
-    if (dbg) {
-      const ms = performance.now() - t0;
-      if (ms > 50 && window.RC && RC.v2 && RC.v2.debug) RC.v2.debug('frame ' + ms.toFixed(0) + 'ms' + (cause ? ' ' + cause : ''));
-    }
+    const ms = performance.now() - t0;
+    if (RC._frameProbe) RC._frameProbe.push(ms);
+    if (dbg && ms > 50 && window.RC && RC.v2 && RC.v2.debug) RC.v2.debug('frame ' + ms.toFixed(0) + 'ms' + (cause ? ' ' + cause : ''));
   }
 }
 window.RC = window.RC || {};
