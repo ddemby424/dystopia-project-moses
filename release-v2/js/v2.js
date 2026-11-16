@@ -1076,7 +1076,7 @@
   }
 
   function loadAll() {
-    return Promise.all([loadMech(), loadSentinel1()]);
+    return loadMech();
   }
 
   v2.sentinelTemplate = sentinelTemplate;

@@ -114,7 +114,7 @@ function aiShoot(b) {
 
 function throwEnemyGrenade(b, tx, tz) {
   guardShout(b, 'fragout', 'Frag out!'); aiTrace(b, `player camping → frag thrown at (${tx.toFixed(0)},${tz.toFixed(0)})`);
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), new THREE.MeshStandardMaterial({ color: 0x3f6212, emissive: 0xef4444, emissiveIntensity: 0.8 }));
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), ENEMY_NADE_MAT);
   mesh.position.set(b.x, b.y + 1.6, b.z); scene.add(mesh);
   const ring = new THREE.Mesh(new THREE.RingGeometry(5.2, 6, 32), new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2; ring.position.set(tx, 0.05, tz); scene.add(ring);
@@ -174,18 +174,30 @@ function updateBotAI(b, dt, now) {
   }
   // separation — don't clump. A wider bubble than the old 2.2 m pack.
   const threading = b.z > 64 && b.z < 108;
-  if (!threading && b.role !== 'sniper') BOTS.forEach(o => { if (o === b || o.dying) return; const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz); if (d < 3.1 && d > 0.01) { mvx += dx / d * (3.1 - d) * 4.2; mvz += dz / d * (3.1 - d) * 4.2; } });
-  /* Strafe while shooting in the open, so a pack does not stack on one line. */
-  if (!threading && b.aiState === 'combat' && b.los && !atCover && b.role !== 'sniper') {
+  if (!threading && !b.smallMech && b.role !== 'sniper') BOTS.forEach(o => { if (o === b || o.dying) return; const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz); if (d < 3.1 && d > 0.01) { mvx += dx / d * (3.1 - d) * 4.2; mvz += dz / d * (3.1 - d) * 4.2; } });
+  /* Strafe while shooting in the open, so a pack does not stack on one line.
+     Triage mechs skip it: the flip every second read as a side-to-side dance. */
+  if (!threading && !b.smallMech && b.aiState === 'combat' && b.los && !atCover && b.role !== 'sniper') {
     if ((b._strafeT = (b._strafeT || 1.6) - dt) <= 0) { b._strafe = -(b._strafe || 1); b._strafeT = 1.2 + Math.random() * 0.8; }
     const side = b._strafe || 1;
     mvx += Math.cos(b.yaw) * side * b.speed * 0.45;
     mvz += -Math.sin(b.yaw) * side * b.speed * 0.45;
   }
+  if (b.smallMech) {
+    BOTS.forEach(o => {
+      if (o === b || o.dying || !o.smallMech) return;
+      const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz);
+      if (d < 2.4 && d > 0.05) { mvx += dx / d * (2.4 - d) * 1.1; mvz += dz / d * (2.4 - d) * 1.1; }
+    });
+    const k = Math.min(1, dt * 4);
+    b._vx = (b._vx || 0) + (mvx - (b._vx || 0)) * k;
+    b._vz = (b._vz || 0) + (mvz - (b._vz || 0)) * k;
+    mvx = b._vx; mvz = b._vz;
+  }
   b._moved = 0;
   if (Math.abs(mvx) + Math.abs(mvz) > 0.05) {
     b.moving = true;
-    const faceP0 = b.aiState === 'combat' && (b.los || b.phase !== 'move');
+    const faceP0 = !b.smallMech && b.aiState === 'combat' && (b.los || b.phase !== 'move');
     const want0 = faceP0 ? Math.atan2(P.x - b.x, P.z - b.z) : Math.atan2(mvx, mvz);
     let err = want0 - b.yaw; err = Math.atan2(Math.sin(err), Math.cos(err));
     /* Turn before sliding. A large facing error cuts speed so the feet are not skating sideways. */
@@ -208,9 +220,9 @@ function updateBotAI(b, dt, now) {
     } else if (progressed > 0.02) b.stuck = 0;
   }
   // facing
-  const faceP = b.aiState === 'combat' && (b.los || b.phase !== 'move');
-  const wantYaw = faceP ? Math.atan2(P.x - b.x, P.z - b.z) : (b.moving && Math.hypot(mvx, mvz) > 0.6 ? Math.atan2(mvx, mvz) : (b.role === 'sniper' && b.scanYaw !== undefined ? b.yaw + Math.sin(now * 0.0006 + b.x) * 0.02 : b.yaw));
-  let dy = wantYaw - b.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); b.yaw += dy * Math.min(1, dt * (b.isHuman ? 9 : 5));
+  const faceP = !b.smallMech && b.aiState === 'combat' && (b.los || b.phase !== 'move');
+  const wantYaw = faceP ? Math.atan2(P.x - b.x, P.z - b.z) : (b.moving && Math.hypot(mvx, mvz) > 0.35 ? Math.atan2(mvx, mvz) : (b.role === 'sniper' && b.scanYaw !== undefined ? b.yaw + Math.sin(now * 0.0006 + b.x) * 0.02 : b.yaw));
+  let dy = wantYaw - b.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); b.yaw += dy * Math.min(1, dt * (b.smallMech ? 3.2 : (b.isHuman ? 9 : 5)));
   if (!b.clips) b.rig.root.rotation.y = b.yaw;
   // crouch (humans duck behind low cover)
   const wantCrouch = b.isHuman && atCover && b.phase === 'hide' ? 1 : 0; b.crouch += (wantCrouch - b.crouch) * Math.min(1, dt * 8);
@@ -230,8 +242,8 @@ function updateBotAI(b, dt, now) {
   const planar = Math.hypot(mvx, mvz);
   const aim = (b.aiState === 'combat' && b.los) ? 1 : 0;
   b._aim = (b._aim || 0) + (aim - (b._aim || 0)) * Math.min(1, dt * 6);
-  if (b.smallMech && window.RC && RC.v2 && RC.v2.stridePose) {
-    b.stepPhase = RC.v2.stridePose(b.rig.root, planar > 0.35, dt, b.stepPhase || 0);
+  if (b.smallMech) {
+    /* Rigid military mesh. A hip bob or spine roll reads as a side-to-side dance. */
   } else if (b.rig && b.rig.root && !b.rig.root.visible) {
     /* Off-screen guards keep their last pose. Skinning them is a phone hitch. */
   } else if (b.clips && window.RC && RC.rigs) {
