@@ -28,6 +28,11 @@
       "guardName": "Airlock Heavy"
     }
   ],
+  "openings": [
+    { "id": "east-bay", "lintel": 5.2, "mouth": { "x0": 28, "x1": 40, "z0": 78, "z1": 93 }, "inner": { "x0": 28, "x1": 40, "z0": 46.1, "z1": 48.1 } },
+    { "id": "west-breach", "lintel": 4.6, "mouth": { "x0": -42, "x1": -30, "z0": 78, "z1": 93 }, "inner": { "x0": -42, "x1": -30, "z0": 46.1, "z1": 48.1 } },
+    { "id": "east-vent", "lintel": 3.2, "mouth": { "x0": 43.2, "x1": 46.6, "z0": 78, "z1": 93 }, "inner": { "x0": 43.2, "x1": 46.6, "z0": 46.1, "z1": 48.1 } }
+  ],
   "fence": {
     "minX": -46, "maxX": 46, "minZ": 94, "maxZ": 150,
     "height": 3.15,

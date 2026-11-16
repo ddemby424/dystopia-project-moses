@@ -71,7 +71,7 @@
     const c = Math.cos(phase * Math.PI * 2);
     if (hips) hips.position.y = 1.02 + Math.abs(s) * 0.58;
     if (spine) {
-      spine.rotation.z = s * 0.32;
+      if (!(root.userData && root.userData.noRoll)) spine.rotation.z = s * 0.32;
       spine.rotation.x = c * 0.18;
       spine.rotation.y = s * 0.06;
     }
@@ -593,6 +593,9 @@
   function dressArena() {
     lighting();
     tuneMats();
+    /* Carve the south wall while it is still box meshes. mergeStatic runs
+       next and would otherwise bake a solid wall over the doorways. */
+    try { if (RC.yard && RC.yard.carve) RC.yard.carve(); } catch (e) { console.warn('carve', e); }
     addShell();
     mergeStatic();
     const ceil = arenaGroup && arenaGroup.getObjectByName('rc-ceiling');
@@ -759,8 +762,9 @@
     const px = STATE.player.x, pz = STATE.player.z;
     (typeof BOTS !== 'undefined' ? BOTS : []).forEach((b) => {
       if (!b.rig || !b.rig.root) return;
-      const far = (b.x - px) * (b.x - px) + (b.z - pz) * (b.z - pz) > 36 * 36;
-      const show = !outside && !far;
+      const far = (b.x - px) * (b.x - px) + (b.z - pz) * (b.z - pz) > 48 * 48;
+      const botOut = RC.world && RC.world.isExterior && RC.world.isExterior(b.x, b.z);
+      const show = !far && (!outside || botOut);
       showRig(b.rig.root, show);
       if (b.weapon) b.weapon.visible = show && !b.dying;
     });
@@ -983,13 +987,106 @@
     };
   }
 
+  let s1tpl = null;
+
+  /* Quaternius Leela, CC0. One albedo, no tangent or normal map. */
+  function hardenSentinelMesh(mesh) {
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.frustumCulled = false;
+    mesh.userData.v2Boss = true;
+    if (mesh.geometry && mesh.geometry.attributes && mesh.geometry.attributes.tangent) mesh.geometry.deleteAttribute('tangent');
+    if (mesh.userData.rcGlow) return;
+    const src = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+    mesh.material = plainMechMat(src);
+    if (mesh.material && mesh.material.color) mesh.material.color.setHex(0xffffff);
+  }
+
+  function loadSentinel1() {
+    if (v2._s1Promise) return v2._s1Promise;
+    v2._s1Promise = fetch('release-v2/assets/units/sentinel1.glb').then((r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.arrayBuffer();
+    }).then((buf) => new Promise((resolve, reject) => {
+      const loader = new THREE.GLTFLoader();
+      loader.parse(buf, '', (gltf) => {
+        const src = gltf.scene || gltf.scenes[0];
+        src.traverse((o) => { if (o.isMesh) hardenSentinelMesh(o); });
+        src.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(src);
+        const h = Math.max(0.2, box.max.y - box.min.y);
+        src.position.y -= box.min.y;
+        let head = null;
+        src.traverse((o) => { if (o.name === 'Head') head = o; });
+        if (head) {
+          const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2208 });
+          eyeMat.userData.v2Plain = true;
+          eyeMat.userData._bright = true;
+          eyeMat.userData._rim = true;
+          const eye = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.05), eyeMat);
+          eye.name = 'v2-eye';
+          eye.userData.rcGlow = true;
+          eye.userData.v2Boss = true;
+          eye.frustumCulled = false;
+          eye.position.set(0, 0.15, 0.28);
+          head.add(eye);
+        }
+        const clips = gltf.animations || [];
+        s1tpl = {
+          scene: src,
+          walk: clips.find((a) => a.name === 'Walk') || clips[0] || null,
+          idle: clips.find((a) => a.name === 'Idle') || null,
+          targetHeight: h
+        };
+        v2.sentinel1Ready = true;
+        v2.sentinel1Bytes = buf.byteLength;
+        resolve(s1tpl);
+      }, reject);
+    })).catch((e) => {
+      console.warn('sentinel1', e);
+      v2.sentinel1Failed = true;
+      return null;
+    });
+    return v2._s1Promise;
+  }
+
+  function buildSentinel1(height) {
+    if (!s1tpl || !THREE.SkeletonUtils) return null;
+    const clone = THREE.SkeletonUtils.clone(s1tpl.scene);
+    clone.traverse((o) => { if (o.isMesh) hardenSentinelMesh(o); });
+    const holder = new THREE.Group();
+    holder.scale.setScalar((height || 28) / s1tpl.targetHeight);
+    holder.add(clone);
+    const root = new THREE.Group();
+    root.name = 'v2-sentinel1';
+    root.userData.v2Boss = true;
+    root.userData.v2Mech = true;
+    root.userData.noRoll = true;
+    root.frustumCulled = false;
+    root.add(holder);
+    const mixer = new THREE.AnimationMixer(clone);
+    if (s1tpl.walk) {
+      const action = mixer.clipAction(s1tpl.walk);
+      action.play();
+      mixer.timeScale = 0;
+    }
+    let hand = null;
+    clone.traverse((o) => { if (!hand && o.isBone && o.name === 'LowerArmR') hand = o; });
+    return { root, mixer, hand };
+  }
+
+  function loadAll() {
+    return Promise.all([loadMech(), loadSentinel1()]);
+  }
+
   v2.sentinelTemplate = sentinelTemplate;
   v2.stridePose = stridePose;
   v2.buildWalker = buildWalker;
+  v2.buildSentinel1 = buildSentinel1;
   v2.dressArena = dressArena;
   v2.dressYard = dressYard;
   v2.zone = zone;
-  v2.load = loadMech;
+  v2.load = loadAll;
   v2.mechBytes = 0;
   RC.v2 = v2;
   installDebug();
@@ -997,6 +1094,6 @@
   if (mobileBudget() && typeof renderer !== 'undefined') {
     try { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25)); } catch (e) {}
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => loadMech());
-  else loadMech();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => loadAll());
+  else loadAll();
 })();

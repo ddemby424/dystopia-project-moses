@@ -65,7 +65,16 @@ function aiThink(b) {
     if (now - b.lastSeenT > 6500) { b.aiState = 'alert'; b.cover = null; aiTrace(b, 'lost visual → investigating last known'); guardShout(b, 'lost', 'Lost visual. Checking last known.'); return; }
     const flanked = b.cover && losGrid(b.cover.x, b.cover.z, P.x, P.z, b.cover.tall ? NAV.high : NAV.low);
     const pushNow = b.role === 'pusher' && (now - AI_G.lastReloadT < 3500 || P.health < 45);
-    if (!b.cover || flanked || b.coverHits >= 3 || (pushNow && !b.pushing) || (b.role === 'flanker' && now - (b.coverT || 0) > 9000)) {
+    const playerOut = window.RC && RC.world && RC.world.isExterior && RC.world.isExterior(P.x, P.z);
+    if (playerOut) {
+      b.cover = null; b.phase = 'move';
+      let open = Math.abs(b.x - P.x) < 3;
+      if (open) { for (let zz = b.z; zz < P.z && open; zz += 2) if (collidesAt(b.x, zz, 0.55)) open = false; }
+      const path = open ? null : aStar(b.x, b.z, P.x, P.z);
+      b.goal = { x: P.x, z: P.z };
+      b.path = (path && path.length) ? path : [{ x: P.x, z: P.z }];
+      b.pathI = 0;
+    } else if (!b.cover || flanked || b.coverHits >= 3 || (pushNow && !b.pushing) || (b.role === 'flanker' && now - (b.coverT || 0) > 9000)) {
       const why = !b.cover ? 'no cover' : flanked ? 'cover flanked' : b.coverHits >= 3 ? 'cover hit' : pushNow ? 'player reloading/low HP → PUSH' : 'flanker repositioning';
       b.pushing = pushNow; b.coverHits = 0; const c = pickCover(b);
       if (c) { b.cover = c; b.coverT = now; b.phase = 'move'; setGoal(b, c.x, c.z); aiTrace(b, `${why} → moving to ${c.tall ? 'tall' : 'low'} cover (${c.x.toFixed(0)},${c.z.toFixed(0)})`); if (b.role === 'flanker' && Math.random() < 0.6) guardShout(b, 'flanking', 'Flanking left, cover me!'); else if (Math.random() < 0.35) guardShout(b, 'moving', 'Moving to cover!'); }
@@ -164,9 +173,10 @@ function updateBotAI(b, dt, now) {
     if (d > 0.25) { const spd = (b.aiState === 'idle' ? 0.45 : 1) * b.speed * (STATE.botSkill || 1) * (b.phase === 'peek' ? 0.6 : 1); mvx = dx / d * spd; mvz = dz / d * spd; }
   }
   // separation — don't clump. A wider bubble than the old 2.2 m pack.
-  if (b.role !== 'sniper') BOTS.forEach(o => { if (o === b || o.dying) return; const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz); if (d < 3.1 && d > 0.01) { mvx += dx / d * (3.1 - d) * 4.2; mvz += dz / d * (3.1 - d) * 4.2; } });
+  const threading = b.z > 64 && b.z < 108;
+  if (!threading && b.role !== 'sniper') BOTS.forEach(o => { if (o === b || o.dying) return; const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz); if (d < 3.1 && d > 0.01) { mvx += dx / d * (3.1 - d) * 4.2; mvz += dz / d * (3.1 - d) * 4.2; } });
   /* Strafe while shooting in the open, so a pack does not stack on one line. */
-  if (b.aiState === 'combat' && b.los && !atCover && b.role !== 'sniper') {
+  if (!threading && b.aiState === 'combat' && b.los && !atCover && b.role !== 'sniper') {
     if ((b._strafeT = (b._strafeT || 1.6) - dt) <= 0) { b._strafe = -(b._strafe || 1); b._strafeT = 1.2 + Math.random() * 0.8; }
     const side = b._strafe || 1;
     mvx += Math.cos(b.yaw) * side * b.speed * 0.45;

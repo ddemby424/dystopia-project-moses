@@ -48,7 +48,7 @@ function genFloorLayout(level, floor) {
         const segB = 60 - segA - gap; if (segB > 6) add('rackrow', s * (24 + segA + gap + segB / 2), z, { w: segB, d: 1.2, h: 2.4, tray: true });
       });
     }
-    add('colossus', 0, -6, { h: 28 });
+    add('colossus', 0, 0, { h: 28 });
     add('sign', 0, -83.4, { y: 8, rot: 0, title: 'STAIRWELL ▼ B1', sub: 'CLEAR FLOOR TO UNLOCK', color: '#22c55e', w: 8 });
     add('ups', -10, -72); add('ups', -12, -72); add('ups', 10, -72); add('ups', 12, -72);
     add('crac', -87, 0, { rot: Math.PI / 2 }); add('crac', 87, 0, { rot: -Math.PI / 2 }); add('crac', -87, -30, { rot: Math.PI / 2 }); add('crac', 87, -30, { rot: -Math.PI / 2 });
