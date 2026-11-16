@@ -5,7 +5,7 @@ Honest snapshot of `/release-v2/`. This is the build friends and family can play
 ## Playable now
 
 - Single-player run from the yard into Server Hall G, through the fence, to the win and the epilogue.
-- Sentinel 1 stands in the center of the hall at 28 m. She is Leela from Quaternius’s CC0 Animated Mech Pack, darkened, with a red eye and the pack’s walk cycle. EMP still drops her shield. Weak points, footfalls, the shockwave, and the wreck are the existing colossus systems.
+- Sentinel 1 stands in the center of the hall at 28 m. It is the original dark-armor colossus (red eye, chest core), with a level leg step and no side sway. EMP still drops its shield. Weak points, footfalls, the shockwave, and the wreck are the existing colossus systems.
 - Three Triage Mechs on floor G. They use the military mech and can be broken with the cannon.
 - Extra ways out of the hall: east bay, west breach, and east service door, plus the old dock and airlock. An enemy who has the player outside paths through the opening.
 
@@ -20,7 +20,7 @@ Honest snapshot of `/release-v2/`. This is the build friends and family can play
 
 ## Missing from the earlier design
 
-- No custom sculpt of Sentinel 1. The concept stays for a later pass. This boss is the CC0 mech.
+- No custom sculpt of Sentinel 1. The hall boss is the original procedural colossus again. Darcy’s concept image is still not in the build.
 - The boss bar still says Moses Colossus.
 - Floors below G still use the smaller military-mech colossi, not unique machines.
 - The yard skyline is still instanced blocks, not a city mesh.

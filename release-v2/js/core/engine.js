@@ -1293,7 +1293,8 @@ function updateColossi(dt, now) {
     // Round 17: free-moving Sentinel — pursue the player, path around obstacles, booming footfalls
     let want = Math.atan2(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
     try { const mv = colossusLocomotion(C, dt, pd); if (mv != null) want = mv; } catch (e) {}
-    if (C.v2Sentinel && !C.riggedWalk && window.RC && RC.v2 && RC.v2.stridePose) C.stepPhase = RC.v2.stridePose(C.root, !!C.moving, dt, C.stepPhase || 0);
+    if (C.sentinel1) doomStep(C, dt);
+    else if (C.v2Sentinel && !C.riggedWalk && window.RC && RC.v2 && RC.v2.stridePose) C.stepPhase = RC.v2.stridePose(C.root, !!C.moving, dt, C.stepPhase || 0);
     let dy = want - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     const turn = (C.isMini ? 0.7 : 0.45) * (C.turnMult || 1) * dt; C.root.rotation.y += Math.max(-turn, Math.min(turn, dy)); C.facingErr = Math.abs(dy);
     const hp = colossusHandPos(new THREE.Vector3(), C);
@@ -1341,6 +1342,29 @@ function updateColossi(dt, now) {
 }
 function updateColossus(dt, now) { updateColossi(dt, now); }
 // ---- Round 17: Sentinel locomotion, footfalls, shockwave ----
+/* Original Sentinel: legs step, the torso stays level. No bob and no side roll. */
+function doomStep(C, dt) {
+  const d = C.root.userData && C.root.userData.doom;
+  if (!d) return;
+  d.torso.rotation.z = 0;
+  d.torso.rotation.y = 0;
+  if (d.pelvis.userData.baseY != null) d.pelvis.position.y = d.pelvis.userData.baseY;
+  if (!C.moving) {
+    d.leftLeg.rotation.x *= 0.86;
+    d.rightLeg.rotation.x *= 0.86;
+    d.leftArm.rotation.x *= 0.86;
+    d.rightArm.rotation.x *= 0.86;
+    d.torso.rotation.x *= 0.9;
+    return;
+  }
+  C.stepPhase = (C.stepPhase || 0) + dt * 0.75;
+  const s = Math.sin(C.stepPhase * Math.PI * 2);
+  d.leftLeg.rotation.x = s * 0.26;
+  d.rightLeg.rotation.x = -s * 0.26;
+  d.leftArm.rotation.x = -s * 0.08;
+  d.rightArm.rotation.x = s * 0.08;
+  d.torso.rotation.x = 0;
+}
 function colossusFree(C, x, z, r) {
   if (x < -86 || x > 86 || z < -81 || z > 81) return false;
   const P = C.root.position;
@@ -1438,16 +1462,34 @@ function updateShockwaves(dt) {
 function buildColossus(height, opts = {}) {
   const g = new THREE.Group();
   const isMini = !!opts.mini;
-  let builtS1 = null;
-  if (!isMini && window.RC && RC.v2 && typeof RC.v2.buildSentinel1 === 'function') {
-    try { builtS1 = RC.v2.buildSentinel1(height); } catch (e) { builtS1 = null; }
-  }
   const v2 = window.RC && RC.v2 && typeof RC.v2.sentinelTemplate === 'function' ? RC.v2.sentinelTemplate() : null;
-  const tpl = v2 || (isMini ? (MESHY_TEMPLATES.guard || MESHY_TEMPLATES.bot) : (MESHY_TEMPLATES.colossus || MESHY_TEMPLATES.bot || MESHY_TEMPLATES.guard));
-  const C = { ownCannon: !!(builtS1 || (v2 && tpl === v2) || (!isMini && tpl === MESHY_TEMPLATES.colossus && tpl)), v2Sentinel: !!(builtS1 || (v2 && tpl === v2)), sentinel1: !!builtS1, riggedWalk: !!(builtS1 && builtS1.mixer), turnMult: (builtS1 || (v2 && tpl === v2)) ? 2.6 : 1, root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: builtS1 ? builtS1.mixer : null, hand: builtS1 ? builtS1.hand : null };
-  if (!isMini) g.userData.noRoll = true;
-  if (builtS1) {
-    g.add(builtS1.root);
+  const tpl = isMini ? (v2 || MESHY_TEMPLATES.guard || MESHY_TEMPLATES.bot) : null;
+  const C = { ownCannon: !!(v2 && tpl === v2) || !isMini, v2Sentinel: !!(isMini ? (v2 && tpl === v2) : true), sentinel1: !isMini, riggedWalk: false, turnMult: 2.2, root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: null, hand: null };
+  if (!isMini) {
+    const r = createDoomSentinel(0x3f2a1a, 0xef4444, 'COLOSSUS', true);
+    if (r.hb && r.hb.sprite) r.hb.sprite.visible = false;
+    r.root.traverse((o) => {
+      o.frustumCulled = false;
+      o.castShadow = false;
+      if (o.material && o.material.userData) { o.material.userData.v2Plain = true; o.material.userData._rim = true; o.material.userData._bright = true; }
+    });
+    r.root.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    r.root.traverse((o) => { if (o.isMesh) box.expandByObject(o); });
+    const th = Math.max(0.8, box.max.y - box.min.y);
+    r.root.scale.multiplyScalar(height / th);
+    r.root.updateMatrixWorld(true);
+    const box2 = new THREE.Box3();
+    r.root.traverse((o) => { if (o.isMesh) box2.expandByObject(o); });
+    r.root.position.y -= box2.min.y;
+    function pin(parent, name) { const b = new THREE.Bone(); b.name = name; parent.add(b); return b; }
+    pin(r.torso, 'Spine2'); pin(r.headGroup, 'Head');
+    pin(r.leftLeg, 'LeftLeg'); pin(r.rightLeg, 'RightLeg');
+    pin(r.leftArm, 'LeftForeArm'); pin(r.rightArm, 'RightForeArm');
+    r.pelvis.userData.baseY = r.pelvis.position.y;
+    g.userData.doom = r;
+    g.add(r.root);
+    C.hand = r.rightArm;
   } else if (tpl && THREE.SkeletonUtils) {
     const c = THREE.SkeletonUtils.clone(tpl.scene);
     c.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; if (o.geometry && o.geometry.attributes && o.geometry.attributes.tangent) o.geometry.deleteAttribute('tangent'); if (o.userData.rcGlow) return; if (o.material) { o.material = o.material.clone(); if (!(o.material.userData && o.material.userData.v2Plain)) brightenMat(o.material); if (isMini && !v2 && o.material.color) o.material.color.multiplyScalar(0.85).lerp(new THREE.Color(0x60a5fa), 0.12); } } });
@@ -1461,7 +1503,7 @@ function buildColossus(height, opts = {}) {
     if (r.hb && r.hb.sprite) r.hb.sprite.visible = false; g.add(r.root);
   }
   C.handName = C.hand ? C.hand.name : null;
-  C.rad = builtS1 ? Math.max(4.2, height * 0.16) : Math.max(1.6, height * 0.12);
+  C.rad = C.sentinel1 ? Math.max(3.2, height * 0.13) : Math.max(1.6, height * 0.12);
   C.fallback = new THREE.Object3D(); C.fallback.position.set(-height * 0.2, height * 0.52, height * 0.12); g.add(C.fallback);
   C.glow = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
   C.glow.visible = false; arenaGroup.add(C.glow);
@@ -4525,15 +4567,35 @@ function applyGfx(level) {
   try { setShadows(level !== 'low'); } catch (e) {}
   document.querySelectorAll('[data-gfx]').forEach(b => b.classList.toggle('on', b.dataset.gfx === level));
 }
+const GRENADE_MAT = new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x059669, emissiveIntensity: 1.8 });
+const ENEMY_NADE_MAT = new THREE.MeshStandardMaterial({ color: 0x3f6212, emissive: 0xef4444, emissiveIntensity: 0.8 });
+GRENADE_MAT.userData.v2Plain = true;
+ENEMY_NADE_MAT.userData.v2Plain = true;
 function prewarmShaders() {
   try {
     fxInit();
+    const shown = [];
+    const touch = (root) => {
+      if (!root) return;
+      root.traverse((o) => {
+        if (!(o.isMesh || o.isSprite || o.isLine)) return;
+        if (!o.visible) { o.visible = true; shown.push(o); }
+      });
+    };
+    touch(scene);
+    if (typeof arenaGroup !== 'undefined') touch(arenaGroup);
+    const nade = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), GRENADE_MAT);
+    const nade2 = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), ENEMY_NADE_MAT);
+    nade.position.set(0, -30, 0); nade2.position.set(0.4, -30, 0);
+    scene.add(nade); scene.add(nade2);
     renderer.compile(scene, camera);
     if (typeof vmScene !== 'undefined') renderer.compile(vmScene, vmCam);
     const prev = renderer.autoClear;
     renderer.autoClear = true;
     renderer.render(scene, camera);
     renderer.autoClear = prev;
+    shown.forEach((o) => { o.visible = false; });
+    scene.remove(nade); scene.remove(nade2);
   } catch (e) {}
 }
 

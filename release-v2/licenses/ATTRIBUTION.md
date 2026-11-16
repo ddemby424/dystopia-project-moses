@@ -19,7 +19,8 @@ The two guards and the triage mech are CC BY 4.0. Textures are WebP at 1024. The
 | `robot.glb` | [Robot](https://sketchfab.com/3d-models/robot-93c9ff1cac014cc382e8666c873cdd70) | DJMaesen | about 9.3k | Common guards. The single `Anims` clip is sliced into idle, walk, run, punch, and death. |
 | `biped_robot.glb` | [Biped robot](https://sketchfab.com/3d-models/biped-robot-801d2a245e4a4405a0c2152b35b5e486) | Willy Decarpentrie | about 16.6k | Heavy guards. `Robot_Soldat` is one cycle, reused at different speeds. |
 | `military_mech.glb` | [military Mech](https://sketchfab.com/3d-models/military-mech-49c464a639d34c97b20032a5018c6a04) | Doaa Sheha | about 27.5k | Triage Mechs on floor G. Cannon-damageable. The mesh is not rigged. |
-| `sentinel1.glb` | [Leela, Animated Mech Pack](https://quaternius.com/packs/animatedmech.html) | Quaternius | about 6k | Sentinel 1, the 28 m hall boss. CC0. Rigged, with the pack's Walk clip. The albedo was resized to 512 and darkened. A red eye block is added in code. |
+
+Sentinel 1, the 28 m hall boss, is the original procedural colossus from the earlier releases: dark armor `0x3f2a1a`, red eye and chest core `0xef4444`. It is not a downloaded mesh. The Quaternius Leela file used for one test build has been removed.
 
 ## Yard
 

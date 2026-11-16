@@ -456,7 +456,6 @@ function startFloor(lvl, floor) {
       spawnBotFromArchetype({ id: `f${floor}-mech${i}`, name: `Triage Mech ${FLOOR_NAMES[floor]}-${i + 1}`, role: 'small_mech', aiRole: 'pusher', squad: 4, x, y: 0, z, maxHealth: 280, patrolType: 'ground' }, hpMult);
     });
   }
-  prewarmShaders();
   // snipers posted on towers / catwalks
   const perches = (FLOOR_INFO.perches || []).slice();
   const nSnipers = Math.min(perches.length, [1, 2, 2, 3][floor] + (lvl >= 5 ? 1 : 0));
@@ -477,6 +476,7 @@ function startFloor(lvl, floor) {
   if (floor === 0 && STATE.levelClearScore && STATE.levelClearScore.lvl === lvl - 1) { const lc = STATE.levelClearScore; STATE.levelClearScore = null; showBanner(`LEVEL ${lc.lvl} CLEARED`, `SCORE ${String(lc.score).padStart(6, '0')} · Next: Level ${lvl} — ${cfg.name}`, 4000); }
   else if (floor === 0) showBanner(`LEVEL ${lvl} · ${cfg.name}`, 'You are locked in a holding cell. Shoot the red lock, press E at the door, or stand at the cyan wall terminal to hack it.', 6500);
   else { showBanner(`LEVEL ${lvl} · FLOOR ${FLOOR_NAMES[floor]}`, theme.title + ' — MINI COLOSSUS DETECTED: only EMP [4] can breach its shielding.' + (floor === 3 ? ' Then kill the Minotaur for the exit keycard.' : ' Destroy it and all sentinels to unlock the stairwell.'), 6000); setTimeout(() => { if (STATE.floor === floor) STATE.combatActive = true; }, 1800); }
+  try { prewarmShaders(); } catch (e) {}
   updateHUD();
 }
 

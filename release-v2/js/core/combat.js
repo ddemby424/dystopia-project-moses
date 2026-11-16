@@ -69,7 +69,7 @@ function throwFragGrenade() {
   if (STATE.grenades <= 0 || !STATE.running || STATE.pausedForStudio) return;
   STATE.grenades--; SFX.playPew(420);
   const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(STATE.player.pitch, STATE.player.yaw, 0, 'YXZ'));
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x059669, emissiveIntensity: 1.8 }));
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), GRENADE_MAT);
   mesh.position.set(STATE.player.x, STATE.player.y + 1.5, STATE.player.z); scene.add(mesh);
   GRENADES.push({ mesh, x: mesh.position.x, y: mesh.position.y, z: mesh.position.z, vx: forward.x * 22, vy: forward.y * 22 + 6.5, vz: forward.z * 22, timer: 2.0 });
   updateHUD();

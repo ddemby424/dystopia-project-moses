@@ -140,8 +140,41 @@ function rcPlayerStep(dt, now) {
   const sin = Math.sin(STATE.player.yaw), cos = Math.cos(STATE.player.yaw);
   const dx = (-sin * fwd + cos * str) * spd * dt;
   const dz = (-cos * fwd - sin * str) * spd * dt;
-  if (!playerCollidesAt(STATE.player.x + dx, STATE.player.z, STATE.player.y) && !railBlocks(STATE.player.x + dx, STATE.player.z, STATE.player.y)) STATE.player.x += dx;
-  if (!playerCollidesAt(STATE.player.x, STATE.player.z + dz, STATE.player.y) && !railBlocks(STATE.player.x, STATE.player.z + dz, STATE.player.y)) STATE.player.z += dz;
+  const blocked = (x, z) => playerCollidesAt(x, z, STATE.player.y) || railBlocks(x, z, STATE.player.y);
+  const ox = STATE.player.x, oz = STATE.player.z;
+  let slid = false;
+  if (!blocked(ox + dx, oz)) { STATE.player.x += dx; slid = true; }
+  if (!blocked(STATE.player.x, oz + dz)) { STATE.player.z += dz; slid = true; }
+  if (!slid && (Math.abs(dx) + Math.abs(dz) > 0.001)) {
+    const ang = Math.atan2(dz, dx);
+    for (let i = 1; i <= 4 && !slid; i++) {
+      const a = ang + (i % 2 ? 1 : -1) * i * 0.35;
+      const sx = Math.cos(a) * Math.hypot(dx, dz);
+      const sz = Math.sin(a) * Math.hypot(dx, dz);
+      if (!blocked(ox + sx, oz)) { STATE.player.x = ox + sx; slid = true; }
+      else if (!blocked(ox, oz + sz)) { STATE.player.z = oz + sz; slid = true; }
+    }
+  }
+  const holding = Math.abs(fwd) + Math.abs(str) > 0.08;
+  const progressed = Math.hypot(STATE.player.x - ox, STATE.player.z - oz);
+  if (holding && progressed < 0.02) STATE.player._stuckT = (STATE.player._stuckT || 0) + dt;
+  else STATE.player._stuckT = 0;
+  if ((STATE.player._stuckT || 0) > 1) {
+    STATE.player._stuckT = 0;
+    const len = Math.hypot(dx, dz) || 1;
+    let freed = null;
+    for (let dist = 0.45; dist <= 2.6 && !freed; dist += 0.45) {
+      const nx = STATE.player.x + (dx / len) * dist, nz = STATE.player.z + (dz / len) * dist;
+      if (!blocked(nx, nz)) freed = [nx, nz];
+    }
+    if (!freed) {
+      for (let rad = 0.6; rad <= 3 && !freed; rad += 0.6) for (let a = 0; a < 6.2 && !freed; a += 0.7) {
+        const nx = STATE.player.x + Math.cos(a) * rad, nz = STATE.player.z + Math.sin(a) * rad;
+        if (!blocked(nx, nz)) freed = [nx, nz];
+      }
+    }
+    if (freed) { STATE.player.x = freed[0]; STATE.player.z = freed[1]; }
+  }
   const floorH = getGroundHeightAt(STATE.player.x, STATE.player.z, STATE.player.y);
   STATE.player.y += STATE.player.vy * dt;
   if (STATE.player.y > floorH) { STATE.player.vy -= STATE.gravity * dt; if (STATE.player.y < floorH) { STATE.player.y = floorH; STATE.player.vy = 0; } }

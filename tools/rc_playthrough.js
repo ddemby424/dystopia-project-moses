@@ -116,43 +116,61 @@ function serve() {
   const mechs = await page.evaluate(() => {
     const list = BOTS.filter((b) => b.smallMech && !b.dying);
     const C = COLOSSI.find((c) => !c.isMini && !c.dead);
-    let step = 0;
+    let leg = 0;
     let roll = 0;
+    let bob = 0;
     let tris = 0;
-    let normal = false;
-    if (C && C.riggedWalk && C.mixer) {
-      const leg = C.root.getObjectByName('UpperLegL') || C.root.getObjectByName('LowerLegL');
-      const q0 = leg ? leg.quaternion.clone() : null;
-      C.mixer.timeScale = 1;
-      C.mixer.update(0.35);
-      if (leg && q0) step = leg.quaternion.angleTo(q0);
-      roll = Math.abs(C.root.rotation.z);
+    const doom = C && C.root.userData.doom;
+    if (doom) {
+      const y0 = doom.pelvis.position.y;
+      C.moving = true;
+      for (let i = 0; i < 16; i++) {
+        doomStep(C, 0.1);
+        leg = Math.max(leg, Math.abs(doom.leftLeg.rotation.x), Math.abs(doom.rightLeg.rotation.x));
+        roll = Math.max(roll, Math.abs(doom.torso.rotation.z));
+      }
+      bob = Math.abs(doom.pelvis.position.y - y0);
     }
     if (C) C.root.traverse((o) => {
       if (!o.isMesh || !o.geometry) return;
       tris += o.geometry.index ? o.geometry.index.count / 3 : (o.geometry.attributes.position ? o.geometry.attributes.position.count / 3 : 0);
-      const m = o.material;
-      if (m && (m.normalMap || m.aoMap)) normal = true;
     });
-    const aisle = arenaGroup.getObjectByName('rc-center-floor');
+    let mechRoll = 0;
+    let mechBob = 0;
     const sample = list[0];
+    if (sample && sample.rig && sample.rig.root) {
+      const spine = sample.rig.root.getObjectByName('Spine2');
+      const hips = sample.rig.root.getObjectByName('Hips');
+      const z0 = spine ? spine.rotation.z : 0;
+      const y0 = hips ? hips.position.y : 0;
+      sample.aiState = 'combat'; sample.los = true; sample.goal = { x: sample.x + 8, z: sample.z }; sample.path = [{ x: sample.x + 8, z: sample.z }]; sample.pathI = 0; sample.thinkT = 2;
+      let now = performance.now();
+      for (let i = 0; i < 20; i++) { now += 50; RC.core.enemies.step(0.05, now); }
+      if (spine) mechRoll = Math.abs(spine.rotation.z - z0);
+      if (hips) mechBob = Math.abs(hips.position.y - y0);
+    }
+    const aisle = arenaGroup.getObjectByName('rc-center-floor');
     return {
       n: list.length,
       hp: list.map((b) => b.maxHealth),
       walker: !!(sample && sample.rig && sample.rig.root && sample.rig.root.getObjectByName('v2-sentinel')),
-      s1: !!(C && C.sentinel1 && C.riggedWalk),
+      s1: !!(C && C.sentinel1 && doom && !C.riggedWalk),
       h: C && C.height,
       z: C && +C.root.position.z.toFixed(1),
-      step: +step.toFixed(3),
+      leg: +leg.toFixed(3),
       roll: +roll.toFixed(4),
+      bob: +bob.toFixed(4),
+      mechRoll: +mechRoll.toFixed(4),
+      mechBob: +mechBob.toFixed(4),
       tris: Math.round(tris),
       cull: !!(C && C.root.frustumCulled),
-      normal,
+      eye: !!(C && C.root.getObjectByName('Head')),
       aisle: !!(aisle && aisle.userData.rcSurface === 'center')
     };
   });
   add('level 1 has cannon-damageable triage mechs', mechs.n >= 2 && mechs.hp.length >= 2 && mechs.hp.every((h) => h >= 250) && mechs.walker, mechs);
-  add('Sentinel 1 walks in the hall center without a side lurch', mechs.s1 && mechs.h === 28 && Math.abs(mechs.z) < 1 && mechs.step > 0.05 && mechs.roll < 0.02 && mechs.tris > 200 && mechs.tris < 25000 && !mechs.cull && !mechs.normal, mechs);
+  add('Sentinel 1 is the original colossus, centered, no side lurch', mechs.s1 && mechs.h === 28 && Math.abs(mechs.z) < 1 && mechs.leg > 0.15 && mechs.roll < 0.01 && mechs.bob < 0.02 && mechs.tris > 80 && mechs.tris < 8000 && !mechs.cull && mechs.eye, mechs);
+  add('triage mechs do not sway or bob', mechs.mechRoll < 0.02 && mechs.mechBob < 0.05, mechs);
   add('center aisle keeps the metal floor', mechs.aisle, mechs);
   const lure = await page.evaluate(() => {
     const openings = (RC.yard.layoutRef().openings || []);
@@ -174,6 +192,36 @@ function serve() {
     return out;
   });
   add('enemies follow the player out through each new opening', lure.length >= 3 && lure.every((r) => r.z1 > 96 && r.ext), lure);
+  const walk = await page.evaluate(() => {
+    const openings = (RC.yard.layoutRef().openings || []).concat([{ id: 'dock', mouth: { x0: -17, x1: -8 } }]);
+    const out = [];
+    openings.forEach((o) => {
+      const x = (o.mouth.x0 + o.mouth.x1) / 2;
+      STATE.player.x = x; STATE.player.z = 70; STATE.player.y = 0; STATE.player.yaw = Math.PI; STATE.player._stuckT = 0;
+      KEYS.KeyW = true; KEYS.KeyS = false; KEYS.KeyA = false; KEYS.KeyD = false;
+      let maxStuck = 0;
+      let now = performance.now();
+      for (let i = 0; i < 160; i++) {
+        now += 50;
+        RC.core.player.step(0.05, now);
+        maxStuck = Math.max(maxStuck, STATE.player._stuckT || 0);
+      }
+      KEYS.KeyW = false;
+      out.push({ id: o.id, z: +STATE.player.z.toFixed(1), maxStuck: +maxStuck.toFixed(2), ext: RC.world.isExterior(STATE.player.x, STATE.player.z) });
+    });
+    STATE.player.x = 0; STATE.player.z = 124;
+    const times = [];
+    for (let i = 0; i < 6; i++) renderFrame();
+    for (let i = 0; i < 30; i++) {
+      const t = performance.now();
+      renderFrame();
+      times.push(performance.now() - t);
+    }
+    times.sort((a, b) => a - b);
+    return { walks: out, frameMax: +times[times.length - 1].toFixed(1) };
+  });
+  add('player walks each opening without sticking for a second', walk.walks.length >= 4 && walk.walks.every((r) => r.z > 96 && r.ext && r.maxStuck < 1), walk.walks);
+  add('no frame over 100 ms after loading', walk.frameMax < 100, { frameMax: walk.frameMax });
   const presentation = await page.evaluate(() => {
     const show = (id) => {
       const el = document.getElementById(id);
