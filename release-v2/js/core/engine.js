@@ -1274,7 +1274,7 @@ function updateColossi(dt, now) {
     if (C.dead) {
       C.deathT += dt; if (C.cannon && C.cannon.visible) C.cannon.visible = false; if (C.glow && C.glow.visible) C.glow.visible = false; updateWreck(C, dt, now); return;
     }
-    if (!C.v2Sentinel && C.mixer && C.stun <= 0) C.mixer.update(dt);
+    if (C.mixer && C.stun <= 0 && (C.riggedWalk || !C.v2Sentinel)) C.mixer.update(dt);
     updateColossusCannon(C);
     const pd = Math.hypot(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
     const inFactory = (STATE.floor || 0) > 0 || STATE.player.z < 92;
@@ -1284,7 +1284,7 @@ function updateColossi(dt, now) {
     if (C.engaged > 0) C.engaged -= dt;
     if (alertOn && (pd < 90 || C.engaged > 0) && pd < hudD) { hudD = pd; hudC = C; }
     if (C.stun > 0) {
-      C.stun -= dt; if (Math.random() < dt * 25) spawnEmpArcs(C, 2);
+      C.stun -= dt; if (C.mixer) C.mixer.timeScale = 0; if (Math.random() < dt * 25) spawnEmpArcs(C, 2);
       if (C.eye) C.eye.intensity = Math.random() < 0.25 ? 1.5 : 0; return;
     }
     if (C.eye) C.eye.intensity = C.isMini ? 1.6 : 2.5;
@@ -1293,7 +1293,7 @@ function updateColossi(dt, now) {
     // Round 17: free-moving Sentinel — pursue the player, path around obstacles, booming footfalls
     let want = Math.atan2(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
     try { const mv = colossusLocomotion(C, dt, pd); if (mv != null) want = mv; } catch (e) {}
-    if (C.v2Sentinel && window.RC && RC.v2 && RC.v2.stridePose) C.stepPhase = RC.v2.stridePose(C.root, !!C.moving, dt, C.stepPhase || 0);
+    if (C.v2Sentinel && !C.riggedWalk && window.RC && RC.v2 && RC.v2.stridePose) C.stepPhase = RC.v2.stridePose(C.root, !!C.moving, dt, C.stepPhase || 0);
     let dy = want - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     const turn = (C.isMini ? 0.7 : 0.45) * (C.turnMult || 1) * dt; C.root.rotation.y += Math.max(-turn, Math.min(turn, dy)); C.facingErr = Math.abs(dy);
     const hp = colossusHandPos(new THREE.Vector3(), C);
@@ -1390,7 +1390,7 @@ function colossusLocomotion(C, dt, pd) {
     if (moved) { C.stuckT = 0; colossusSyncCol(C); C.stride = (C.stride || 0) + moved; const L = Math.max(1.6, C.height * 0.14); if (C.stride >= L) { C.stride -= L; colossusFootfall(C); } }
   }
   /* Freeze the walk clip when the body is still so the feet are not skating in place. */
-  if (C.mixer) C.mixer.timeScale = C.moving ? 1.6 : 0;
+  if (C.mixer) C.mixer.timeScale = C.moving ? (C.riggedWalk ? 1 : 1.6) : 0;
   return clear ? null : heading;
 }
 function colossusFootfall(C) {
@@ -1438,10 +1438,17 @@ function updateShockwaves(dt) {
 function buildColossus(height, opts = {}) {
   const g = new THREE.Group();
   const isMini = !!opts.mini;
+  let builtS1 = null;
+  if (!isMini && window.RC && RC.v2 && typeof RC.v2.buildSentinel1 === 'function') {
+    try { builtS1 = RC.v2.buildSentinel1(height); } catch (e) { builtS1 = null; }
+  }
   const v2 = window.RC && RC.v2 && typeof RC.v2.sentinelTemplate === 'function' ? RC.v2.sentinelTemplate() : null;
   const tpl = v2 || (isMini ? (MESHY_TEMPLATES.guard || MESHY_TEMPLATES.bot) : (MESHY_TEMPLATES.colossus || MESHY_TEMPLATES.bot || MESHY_TEMPLATES.guard));
-  const C = { ownCannon: !!((v2 && tpl === v2) || (!isMini && tpl === MESHY_TEMPLATES.colossus && tpl)), v2Sentinel: !!(v2 && tpl === v2), turnMult: (v2 && tpl === v2) ? 2.6 : 1, root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: null, hand: null };
-  if (tpl && THREE.SkeletonUtils) {
+  const C = { ownCannon: !!(builtS1 || (v2 && tpl === v2) || (!isMini && tpl === MESHY_TEMPLATES.colossus && tpl)), v2Sentinel: !!(builtS1 || (v2 && tpl === v2)), sentinel1: !!builtS1, riggedWalk: !!(builtS1 && builtS1.mixer), turnMult: (builtS1 || (v2 && tpl === v2)) ? 2.6 : 1, root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: builtS1 ? builtS1.mixer : null, hand: builtS1 ? builtS1.hand : null };
+  if (!isMini) g.userData.noRoll = true;
+  if (builtS1) {
+    g.add(builtS1.root);
+  } else if (tpl && THREE.SkeletonUtils) {
     const c = THREE.SkeletonUtils.clone(tpl.scene);
     c.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; if (o.geometry && o.geometry.attributes && o.geometry.attributes.tangent) o.geometry.deleteAttribute('tangent'); if (o.userData.rcGlow) return; if (o.material) { o.material = o.material.clone(); if (!(o.material.userData && o.material.userData.v2Plain)) brightenMat(o.material); if (isMini && !v2 && o.material.color) o.material.color.multiplyScalar(0.85).lerp(new THREE.Color(0x60a5fa), 0.12); } } });
     const holder = new THREE.Group(); holder.scale.setScalar(height / (tpl.targetHeight || 2.5)); holder.add(c); g.add(holder);
@@ -1454,7 +1461,7 @@ function buildColossus(height, opts = {}) {
     if (r.hb && r.hb.sprite) r.hb.sprite.visible = false; g.add(r.root);
   }
   C.handName = C.hand ? C.hand.name : null;
-  C.rad = Math.max(1.6, height * 0.12);
+  C.rad = builtS1 ? Math.max(4.2, height * 0.16) : Math.max(1.6, height * 0.12);
   C.fallback = new THREE.Object3D(); C.fallback.position.set(-height * 0.2, height * 0.52, height * 0.12); g.add(C.fallback);
   C.glow = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
   C.glow.visible = false; arenaGroup.add(C.glow);
@@ -1968,7 +1975,7 @@ function autoLoadMeshyAssets() {
 // ============================================================================
 // TACTICAL SQUAD AI — nav grid + A*, cover, roles, awareness, fair aim
 // ============================================================================
-const NAV = { cs: 2, ox: -88, oz: -84, w: 88, h: 84, move: null, lcs: 1, lw: 176, lh: 168, high: null, low: null };
+const NAV = { cs: 2, ox: -88, oz: -84, w: 88, h: 124, move: null, lcs: 1, lw: 176, lh: 248, high: null, low: null };
 let COVER_POINTS = [];
 let AI_TRACE = [];
 let ENEMY_GRENADES = [];
@@ -1988,6 +1995,13 @@ function buildNavGrid() {
     if (c.minY < 1.2 && c.maxY >= 1.7) mark(NAV.high, NAV.lw, NAV.lh, NAV.lcs, NAV.ox, NAV.oz, c.minX + 0.15, c.maxX - 0.15, c.minZ + 0.15, c.maxZ - 0.15);
     if (c.minY < 0.6 && c.maxY >= 0.95) mark(NAV.low, NAV.lw, NAV.lh, NAV.lcs, NAV.ox, NAV.oz, c.minX + 0.15, c.maxX - 0.15, c.minZ + 0.15, c.maxZ - 0.15);
   });
+  if (window.RC && RC.world && RC.world.isExterior && RC.world.exteriorBlocked) {
+    for (let j = 0; j < NAV.h; j++) for (let i = 0; i < NAV.w; i++) {
+      const x = NAV.ox + (i + 0.5) * NAV.cs, z = NAV.oz + (j + 0.5) * NAV.cs;
+      if (z <= 82) continue;
+      if (!RC.world.isExterior(x, z) || RC.world.exteriorBlocked(x, z, 0, 0.35)) NAV.move[j * NAV.w + i] = 1;
+    }
+  }
   buildCoverPoints();
 }
 const navIdx = (x, z) => { const i = Math.floor((x - NAV.ox) / NAV.cs), j = Math.floor((z - NAV.oz) / NAV.cs); return (i < 0 || j < 0 || i >= NAV.w || j >= NAV.h) ? -1 : j * NAV.w + i; };
@@ -3121,8 +3135,8 @@ function flashWeakPoint(text) {
 const SOFT_DEFS = [
   { key: 'core', label: 'POWER CORE', bone: /spine0?2|chest|upperchest|spine1/i, frac: [0, 0.66, 0.11], r: 0.07, mult: 4, hp: 0.22 },
   { key: 'eye', label: 'EYE SENSOR', bone: /^head$|head$/i, frac: [0, 0.9, 0.09], r: 0.045, mult: 3.5, hp: 0.1, off: [0, 0.02, 0.06] },
-  { key: 'kneeL', label: 'KNEE HYDRAULIC', bone: /left.?leg$|leftleg|l.?calf|shin.?l/i, frac: [-0.09, 0.28, 0.05], r: 0.045, mult: 3, hp: 0.12, off: [0, 0, 0.04] },
-  { key: 'kneeR', label: 'KNEE HYDRAULIC', bone: /right.?leg$|rightleg|r.?calf|shin.?r/i, frac: [0.09, 0.28, 0.05], r: 0.045, mult: 3, hp: 0.12, off: [0, 0, 0.04] },
+  { key: 'kneeL', label: 'KNEE HYDRAULIC', bone: /left.?leg$|leftleg|l.?calf|shin.?l|lowerleg\.l/i, frac: [-0.09, 0.28, 0.05], r: 0.045, mult: 3, hp: 0.12, off: [0, 0, 0.04] },
+  { key: 'kneeR', label: 'KNEE HYDRAULIC', bone: /right.?leg$|rightleg|r.?calf|shin.?r|lowerleg\.r/i, frac: [0.09, 0.28, 0.05], r: 0.045, mult: 3, hp: 0.12, off: [0, 0, 0.04] },
   { key: 'elbowL', label: 'ELBOW JOINT', bone: /left.?fore.?arm$|lowerarm.?l/i, frac: [-0.22, 0.6, 0], r: 0.04, mult: 3, hp: 0.1 },
   { key: 'elbowR', label: 'ELBOW JOINT', bone: /right.?fore.?arm$|lowerarm.?r/i, frac: [0.22, 0.6, 0], r: 0.04, mult: 3, hp: 0.1 },
   { key: 'cell', label: 'CANNON CELL', cannon: true, frac: [0.3, 0.55, 0.1], r: 0.045, mult: 3.5, hp: 0.12 }

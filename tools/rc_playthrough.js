@@ -115,28 +115,65 @@ function serve() {
   add('new campaign starts in the yard on floor G', spawned.floor === 0 && spawned.z > 110 && Math.abs(spawned.x) < 2, spawned);
   const mechs = await page.evaluate(() => {
     const list = BOTS.filter((b) => b.smallMech && !b.dying);
-    const C = COLOSSI.find((c) => c.v2Sentinel && !c.dead);
-    let swung = 0;
-    if (C && RC.v2 && RC.v2.stridePose) {
-      const hip = C.root.getObjectByName('Hips');
-      const y0 = hip ? hip.position.y : 0;
-      let phase = 0;
-      for (let i = 0; i < 12; i++) phase = RC.v2.stridePose(C.root, true, 0.1, phase);
-      swung = Math.abs((hip ? hip.position.y : 0) - y0);
+    const C = COLOSSI.find((c) => !c.isMini && !c.dead);
+    let step = 0;
+    let roll = 0;
+    let tris = 0;
+    let normal = false;
+    if (C && C.riggedWalk && C.mixer) {
+      const leg = C.root.getObjectByName('UpperLeg.L') || C.root.getObjectByName('LowerLeg.L');
+      const q0 = leg ? leg.quaternion.clone() : null;
+      C.mixer.timeScale = 1;
+      C.mixer.update(0.35);
+      if (leg && q0) step = leg.quaternion.angleTo(q0);
+      roll = Math.abs(C.root.rotation.z);
     }
+    if (C) C.root.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      tris += o.geometry.index ? o.geometry.index.count / 3 : (o.geometry.attributes.position ? o.geometry.attributes.position.count / 3 : 0);
+      const m = o.material;
+      if (m && (m.normalMap || m.aoMap)) normal = true;
+    });
     const aisle = arenaGroup.getObjectByName('rc-center-floor');
     const sample = list[0];
     return {
       n: list.length,
       hp: list.map((b) => b.maxHealth),
       walker: !!(sample && sample.rig && sample.rig.root && sample.rig.root.getObjectByName('v2-sentinel')),
-      swung: +swung.toFixed(2),
+      s1: !!(C && C.sentinel1 && C.riggedWalk),
+      h: C && C.height,
+      z: C && +C.root.position.z.toFixed(1),
+      step: +step.toFixed(3),
+      roll: +roll.toFixed(4),
+      tris: Math.round(tris),
+      cull: !!(C && C.root.frustumCulled),
+      normal,
       aisle: !!(aisle && aisle.userData.rcSurface === 'center')
     };
   });
   add('level 1 has cannon-damageable triage mechs', mechs.n >= 2 && mechs.hp.length >= 2 && mechs.hp.every((h) => h >= 250) && mechs.walker, mechs);
-  add('sentinel stride shifts its weight', mechs.swung > 0.25, mechs);
+  add('Sentinel 1 walks in the hall center without a side lurch', mechs.s1 && mechs.h === 28 && Math.abs(mechs.z) < 1 && mechs.step > 0.05 && mechs.roll < 0.02 && mechs.tris > 200 && mechs.tris < 25000 && !mechs.cull && !mechs.normal, mechs);
   add('center aisle keeps the metal floor', mechs.aisle, mechs);
+  const lure = await page.evaluate(() => {
+    const openings = (RC.yard.layoutRef().openings || []);
+    const out = [];
+    openings.forEach((o) => {
+      const x = (o.mouth.x0 + o.mouth.x1) / 2;
+      spawnBotFromArchetype({ id: 'rc-lure-' + o.id, name: 'Lure ' + o.id, role: 'human_guard', aiRole: 'pusher', squad: 1, x, y: 0, z: 72, maxHealth: 80, patrolType: 'ground' }, 1);
+      const b = BOTS[BOTS.length - 1];
+      b.x = x; b.z = 72; if (b.rig && b.rig.root) b.rig.root.position.set(x, 0, 72);
+      b.aiState = 'combat'; b.los = true; b.phase = 'move'; b.goal = null; b.path = null; b.thinkT = 0;
+      STATE.player.x = x; STATE.player.z = 100; STATE.combatActive = true;
+      let now = performance.now();
+      for (let i = 0; i < 240; i++) { now += 50; RC.core.enemies.step(0.05, now); }
+      out.push({ id: o.id, z1: +b.z.toFixed(1), x: +b.x.toFixed(1), ext: !!(RC.world && RC.world.isExterior(b.x, b.z)) });
+      if (b.rig && b.rig.root) scene.remove(b.rig.root);
+      BOTS.pop();
+    });
+    STATE.player.x = 0; STATE.player.z = 124;
+    return out;
+  });
+  add('enemies follow the player out through each new opening', lure.length >= 3 && lure.every((r) => r.z1 > 96 && r.ext), lure);
   const presentation = await page.evaluate(() => {
     const show = (id) => {
       const el = document.getElementById(id);

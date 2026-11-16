@@ -37,6 +37,7 @@
   function mouths() {
     const out = [];
     (layout().routes || []).forEach((route) => { out.push(route.mouth, route.inner); });
+    (layout().openings || []).forEach((o) => { if (o.mouth) out.push(o.mouth); if (o.inner) out.push(o.inner); });
     return out;
   }
 
@@ -284,7 +285,36 @@
       doomed.forEach((mesh) => { splitMeshX(mesh, vol); carved++; });
     });
     if (typeof buildNavGrid === 'function') try { buildNavGrid(); } catch (e) {}
+    try { dressOpenings(); } catch (e) { console.warn('openings', e); }
     return { carved };
+  }
+
+  function dressOpenings() {
+    if (typeof arenaGroup === 'undefined' || arenaGroup.getObjectByName('rc-openings')) return;
+    const list = layout().openings || [];
+    if (!list.length) return;
+    const g = new THREE.Group();
+    g.name = 'rc-openings';
+    g.userData.v2Keep = true;
+    const steel = new THREE.MeshStandardMaterial({ color: 0x4a4038, roughness: 0.6, metalness: 0.45 });
+    steel.userData.v2Plain = true;
+    list.forEach((o) => {
+      const m = o.mouth;
+      const x = (m.x0 + m.x1) / 2;
+      const w = m.x1 - m.x0;
+      const lintel = o.lintel || 4.4;
+      const header = new THREE.Mesh(new THREE.BoxGeometry(w + 1.2, 0.4, 0.7), steel);
+      header.position.set(x, lintel, 84.6);
+      header.userData.v2Keep = true;
+      g.add(header);
+      [-1, 1].forEach((s) => {
+        const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.32, lintel, 0.5), steel);
+        jamb.position.set(x + s * (w / 2 + 0.12), lintel / 2, 84.6);
+        jamb.userData.v2Keep = true;
+        g.add(jamb);
+      });
+    });
+    arenaGroup.add(g);
   }
 
   function splitMeshX(mesh, vol) {

@@ -27,7 +27,9 @@
 
   function buildSegments() {
     const f = spec();
-    const gaps = (RC.yard.layoutRef().routes || []).map((r) => ({ x0: r.mouth.x0 - 0.4, x1: r.mouth.x1 + 0.4 }));
+    const gaps = [];
+    (RC.yard.layoutRef().routes || []).forEach((r) => { if (r.mouth) gaps.push({ x0: r.mouth.x0 - 0.4, x1: r.mouth.x1 + 0.4 }); });
+    (RC.yard.layoutRef().openings || []).forEach((o) => { if (o.mouth) gaps.push({ x0: o.mouth.x0 - 0.4, x1: o.mouth.x1 + 0.4 }); });
     const gate = f.gate;
     const segs = [];
     const push = (x0, z0, x1, z1, kind) => {

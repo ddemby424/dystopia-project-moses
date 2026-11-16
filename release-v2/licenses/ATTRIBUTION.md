@@ -12,13 +12,14 @@ Poly Haven CC0 maps already shipped in `release-next/assets/real/` (concrete, as
 
 ## Guards and the Sentinel
 
-All three are CC BY 4.0. Textures are WebP at 1024. The two guards are unquantized so three.js r128 can skin them. The Sentinel file is the meshopt build.
+The two guards and the triage mech are CC BY 4.0. Textures are WebP at 1024. The guards are unquantized so three.js r128 can skin them. Sentinel 1 is a separate CC0 mesh.
 
 | File | Work | Author | Triangles | Use |
 | --- | --- | --- | --- | --- |
 | `robot.glb` | [Robot](https://sketchfab.com/3d-models/robot-93c9ff1cac014cc382e8666c873cdd70) | DJMaesen | about 9.3k | Common guards. The single `Anims` clip is sliced into idle, walk, run, punch, and death. |
 | `biped_robot.glb` | [Biped robot](https://sketchfab.com/3d-models/biped-robot-801d2a245e4a4405a0c2152b35b5e486) | Willy Decarpentrie | about 16.6k | Heavy guards. `Robot_Soldat` is one cycle, reused at different speeds. |
-| `military_mech.glb` | [military Mech](https://sketchfab.com/3d-models/military-mech-49c464a639d34c97b20032a5018c6a04) | Doaa Sheha | about 27.5k | The Sentinel, scaled to about 28 m. The mesh is not rigged. A bone rig stomps, aims the attachment, and flashes a red eye. It still speaks “YOU ARE SAFE. YOU ARE LOVED. RETURN TO YOUR POD.” |
+| `military_mech.glb` | [military Mech](https://sketchfab.com/3d-models/military-mech-49c464a639d34c97b20032a5018c6a04) | Doaa Sheha | about 27.5k | Triage Mechs on floor G. Cannon-damageable. The mesh is not rigged. |
+| `sentinel1.glb` | [Leela, Animated Mech Pack](https://quaternius.com/packs/animatedmech.html) | Quaternius | about 6k | Sentinel 1, the 28 m hall boss. CC0. Rigged, with the pack's Walk clip. The albedo was resized to 512 and darkened. A red eye block is added in code. |
 
 ## Yard
 
