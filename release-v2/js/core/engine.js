@@ -3135,10 +3135,10 @@ function flashWeakPoint(text) {
 const SOFT_DEFS = [
   { key: 'core', label: 'POWER CORE', bone: /spine0?2|chest|upperchest|spine1/i, frac: [0, 0.66, 0.11], r: 0.07, mult: 4, hp: 0.22 },
   { key: 'eye', label: 'EYE SENSOR', bone: /^head$|head$/i, frac: [0, 0.9, 0.09], r: 0.045, mult: 3.5, hp: 0.1, off: [0, 0.02, 0.06] },
-  { key: 'kneeL', label: 'KNEE HYDRAULIC', bone: /left.?leg$|leftleg|l.?calf|shin.?l|lowerleg\.l/i, frac: [-0.09, 0.28, 0.05], r: 0.045, mult: 3, hp: 0.12, off: [0, 0, 0.04] },
-  { key: 'kneeR', label: 'KNEE HYDRAULIC', bone: /right.?leg$|rightleg|r.?calf|shin.?r|lowerleg\.r/i, frac: [0.09, 0.28, 0.05], r: 0.045, mult: 3, hp: 0.12, off: [0, 0, 0.04] },
-  { key: 'elbowL', label: 'ELBOW JOINT', bone: /left.?fore.?arm$|lowerarm.?l/i, frac: [-0.22, 0.6, 0], r: 0.04, mult: 3, hp: 0.1 },
-  { key: 'elbowR', label: 'ELBOW JOINT', bone: /right.?fore.?arm$|lowerarm.?r/i, frac: [0.22, 0.6, 0], r: 0.04, mult: 3, hp: 0.1 },
+  { key: 'kneeL', label: 'KNEE HYDRAULIC', bone: /left.?leg$|leftleg|l.?calf|shin.?l|lowerlegl/i, frac: [-0.09, 0.28, 0.05], r: 0.045, mult: 3, hp: 0.12, off: [0, 0, 0.04] },
+  { key: 'kneeR', label: 'KNEE HYDRAULIC', bone: /right.?leg$|rightleg|r.?calf|shin.?r|lowerlegr/i, frac: [0.09, 0.28, 0.05], r: 0.045, mult: 3, hp: 0.12, off: [0, 0, 0.04] },
+  { key: 'elbowL', label: 'ELBOW JOINT', bone: /left.?fore.?arm$|lowerarml/i, frac: [-0.22, 0.6, 0], r: 0.04, mult: 3, hp: 0.1 },
+  { key: 'elbowR', label: 'ELBOW JOINT', bone: /right.?fore.?arm$|lowerarmr/i, frac: [0.22, 0.6, 0], r: 0.04, mult: 3, hp: 0.1 },
   { key: 'cell', label: 'CANNON CELL', cannon: true, frac: [0.3, 0.55, 0.1], r: 0.045, mult: 3.5, hp: 0.12 }
 ];
 // ---------- Round 10: Sentinel falls, wreck persists and burns, Menders try to reboot it ----------

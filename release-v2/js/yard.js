@@ -277,7 +277,7 @@
       const doomed = [];
       arenaGroup.updateMatrixWorld(true);
       arenaGroup.traverse((o) => {
-        if (!o.isMesh || o.userData.rcSplit || !o.geometry || o.geometry.type !== 'BoxGeometry') return;
+        if (!o.isMesh || !o.geometry || o.geometry.type !== 'BoxGeometry') return;
         const b = new THREE.Box3().setFromObject(o);
         if (b.max.y - b.min.y < 2) return;
         if (b.min.x < vol.x1 - 0.15 && b.max.x > vol.x0 + 0.15 && b.min.z < vol.z1 - 0.02 && b.max.z > vol.z0 + 0.02) doomed.push(o);

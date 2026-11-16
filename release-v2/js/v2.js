@@ -1071,7 +1071,7 @@
       mixer.timeScale = 0;
     }
     let hand = null;
-    clone.traverse((o) => { if (!hand && o.isBone && o.name === 'LowerArm.R') hand = o; });
+    clone.traverse((o) => { if (!hand && o.isBone && o.name === 'LowerArmR') hand = o; });
     return { root, mixer, hand };
   }
 

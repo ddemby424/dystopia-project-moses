@@ -121,7 +121,7 @@ function serve() {
     let tris = 0;
     let normal = false;
     if (C && C.riggedWalk && C.mixer) {
-      const leg = C.root.getObjectByName('UpperLeg.L') || C.root.getObjectByName('LowerLeg.L');
+      const leg = C.root.getObjectByName('UpperLegL') || C.root.getObjectByName('LowerLegL');
       const q0 = leg ? leg.quaternion.clone() : null;
       C.mixer.timeScale = 1;
       C.mixer.update(0.35);
