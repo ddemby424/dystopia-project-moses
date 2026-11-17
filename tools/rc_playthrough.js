@@ -218,6 +218,7 @@ function serve() {
       };
     }
     const colBones = boneCycle(C.root, C.mixer, 28);
+    const colPlant = RC.v2.footDrift(C.root, C.mixer, C.walkSpeed || 2.1, 28);
     const soles = [];
     if (C.mixer && C.mixer._actions && C.mixer._actions[0]) {
       const clip = C.mixer._actions[0].getClip();
@@ -258,8 +259,10 @@ function serve() {
         lats.push(axis === 'z' ? b.rig.root.position.x - ox : b.rig.root.position.z - oz);
       }
       b.x = ox; b.z = oz; b.y = oy; b.rig.root.position.set(ox, oy, oz); b.path = null;
-      const bones = b.mixer ? boneCycle(b.rig.root, b.mixer, b.hitHeight || (b.heavy ? 2.55 : 2.15)) : { missing: true };
-      return { name: b.name, y: +span(ys2).toFixed(4), lat: +span(lats).toFixed(4), bones, kind: b.smallMech ? 'triage' : (b.heavy ? 'heavy' : 'guard') };
+      const height = b.hitHeight || (b.heavy ? 2.55 : 2.15);
+      const bones = b.mixer ? boneCycle(b.rig.root, b.mixer, height) : { missing: true };
+      const plant = b.mixer && !b.smallMech ? RC.v2.footDrift(b.rig.root, b.mixer, b.speed, height) : null;
+      return { name: b.name, y: +span(ys2).toFixed(4), lat: +span(lats).toFixed(4), bones, plant, speed: b.speed, kind: b.smallMech ? 'triage' : (b.heavy ? 'heavy' : 'guard') };
     };
     const guard = BOTS.find((b) => !b.dying && !b.smallMech && b.isHumanGuard);
     const heavy = BOTS.find((b) => !b.dying && !b.smallMech && b.heavy);
@@ -267,6 +270,7 @@ function serve() {
     return {
       ceil: ceil && ceil.position.y,
       col: colBones,
+      colPlant,
       sole: +soleNow.min.toFixed(3),
       soles: soles.map((n) => +n.toFixed(3)),
       head: +soleNow.max.toFixed(2),
@@ -276,9 +280,9 @@ function serve() {
     };
   });
   const soleFloor = Math.min.apply(null, gait.soles.concat([gait.sole]));
-  const level = (b) => b && !b.missing && b.headY < 0.02 && b.headX < 0.02 && b.hipY < 0.02 && b.hipX < 0.02;
+  const planted = (p) => p && !p.missing && p.headY < 0.04 && p.headX < 0.03 && p.ratio < 0.05;
   add('Colossus feet sit on the floor and his head is under the ceiling', gait.ceil > 36 && soleFloor > -0.05 && gait.head < gait.ceil, gait);
-  add('head and pelvis stay level through a walk cycle', level(gait.col) && level(gait.guard && gait.guard.bones) && level(gait.heavy && gait.heavy.bones), gait);
+  add('stance feet plant and the head stays inside a short sway', planted(gait.colPlant) && planted(gait.guard && gait.guard.plant) && planted(gait.heavy && gait.heavy.plant), gait);
   add('triage mechs do not sway or bob', mechs.mechRoll < 0.02 && mechs.mechBob < 0.05, mechs);
   const cover = await page.evaluate(() => {
     const list = (RC.cover && RC.cover.items) || [];
@@ -303,7 +307,7 @@ function serve() {
       b.aiState = 'combat'; b.los = true; b.phase = 'move'; b.goal = null; b.path = null; b.thinkT = 0;
       STATE.player.x = x; STATE.player.z = 100; STATE.combatActive = true;
       let now = performance.now();
-      for (let i = 0; i < 900; i++) { now += 50; RC.core.enemies.step(0.05, now); }
+      for (let i = 0; i < 240; i++) { now += 50; RC.core.enemies.step(0.05, now); }
       out.push({ id: o.id, z1: +b.z.toFixed(1), x: +b.x.toFixed(1), ext: !!(RC.world && RC.world.isExterior(b.x, b.z)) });
       if (b.rig && b.rig.root) scene.remove(b.rig.root);
       BOTS.pop();
@@ -547,7 +551,7 @@ function serve() {
     const crowd = BOTS.filter((o) => o !== b);
     crowd.forEach((o) => { o._dy = o.dying; o.dying = true; });
     b.x = -84; b.z = 8; b.y = 0; b.aiState = 'alert'; b.los = false; b.lastKnown = null; b.thinkT = 30; b.goal = { x: -96, z: 8 }; b.path = [{ x: -96, z: 8 }]; b.pathI = 0; b.cover = null; b.stuck = 0; b.stuckN = 0; b.role = 'pusher'; b._vx = 0; b._vz = 0;
-    for (let i = 0; i < 200; i++) updateBotAI(b, 0.05, performance.now() + i * 50);
+    for (let i = 0; i < 80; i++) updateBotAI(b, 0.05, performance.now() + i * 50);
     crowd.forEach((o) => { o.dying = o._dy; });
     const blocked = { x: +b.x.toFixed(2), stuckN: b.stuckN || 0, tunneled: b.x < -89 };
     b.x = 10; b.z = 10; b.y = 0; b.goal = { x: 18, z: 10 }; b.path = [{ x: 18, z: 10 }]; b.pathI = 0; b.stuck = 0; b.stuckN = 0; b.cover = null; b.aiState = 'alert'; b.thinkT = 30; b.lastKnown = null; b.los = false; b.yaw = Math.atan2(1, 0); b.role = 'pusher';

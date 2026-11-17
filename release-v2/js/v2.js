@@ -1196,41 +1196,376 @@
 
   let coloTpl = null;
 
-  /* The Oct 29 walk clips are Mixamo "walking_man". Hips.position bounces
-     and slides, and the hip/spine quaternions roll the torso. Hold those
-     bones still so only the legs and arms swing. */
-  function holdTrack(tr) {
+  /* Oct 29 plays Mixamo "walking_man" raw. Hips bounce and the torso yaws.
+     Keep that motion, just smaller: hip slide at 30%, yaw and roll at 35%.
+     Pitch and the limbs stay so the body still breathes with the step. */
+  const HIP_SLIDE = 0.30;
+  const TORSO_LEAN = 0.35;
+  const TS_MAX = 1.65;
+  const FACTOR_CAP = 1.5;
+  const TS_MIN = 0.06;
+  const STANCE = 0.16;
+  const hipsName = /(?:^|\|)(Hips|Pelvis|Root)(?:\.|$)/;
+  const torsoName = /(?:^|\|)(Hips|Pelvis|Root|Spine\d*|Chest|chest|Neck|neck|Head)(?:\.|$)/;
+  const legName = /(?:^|\|)((?:Left|Right)?(?:UpLeg|Leg|Foot|ToeBase|Toe))(?:\.|$)/;
+
+  function dampPosition(tr) {
     const n = tr.times.length;
-    const size = tr.getValueSize();
     const src = tr.values;
-    const mean = new Array(size).fill(0);
-    for (let i = 0; i < n; i++) for (let k = 0; k < size; k++) mean[k] += src[i * size + k];
-    for (let k = 0; k < size; k++) mean[k] /= n;
-    if (size === 3) mean[0] = 0;
-    if (size === 4) {
-      const len = Math.hypot(mean[0], mean[1], mean[2], mean[3]) || 1;
-      for (let k = 0; k < 4; k++) mean[k] /= len;
+    let mx = 0, my = 0;
+    for (let i = 0; i < n; i++) { mx += src[i * 3]; my += src[i * 3 + 1]; }
+    mx /= n; my /= n;
+    const out = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      out[i * 3] = mx + (src[i * 3] - mx) * HIP_SLIDE;
+      out[i * 3 + 1] = my + (src[i * 3 + 1] - my) * HIP_SLIDE;
+      out[i * 3 + 2] = src[i * 3 + 2];
     }
-    const out = new Float32Array(n * size);
-    for (let i = 0; i < n; i++) for (let k = 0; k < size; k++) out[i * size + k] = mean[k];
-    const times = new Float32Array(tr.times);
-    return size === 4
-      ? new THREE.QuaternionKeyframeTrack(tr.name, times, out)
-      : new THREE.VectorKeyframeTrack(tr.name, times, out);
+    return new THREE.VectorKeyframeTrack(tr.name, new Float32Array(tr.times), out);
+  }
+
+  function dampQuaternion(tr, scaleY, scaleZ) {
+    const n = tr.times.length;
+    const src = tr.values;
+    const q = new THREE.Quaternion();
+    const mean = new THREE.Quaternion();
+    const ref = new THREE.Quaternion(src[0], src[1], src[2], src[3]);
+    let sx = 0, sy = 0, sz = 0, sw = 0;
+    for (let i = 0; i < n; i++) {
+      let x = src[i * 4], y = src[i * 4 + 1], z = src[i * 4 + 2], w = src[i * 4 + 3];
+      if (x * ref.x + y * ref.y + z * ref.z + w * ref.w < 0) { x = -x; y = -y; z = -z; w = -w; }
+      sx += x; sy += y; sz += z; sw += w;
+    }
+    mean.set(sx / n, sy / n, sz / n, sw / n).normalize();
+    const inv = mean.clone().conjugate();
+    const e = new THREE.Euler();
+    const delta = new THREE.Quaternion();
+    const outQ = new THREE.Quaternion();
+    const out = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) {
+      q.set(src[i * 4], src[i * 4 + 1], src[i * 4 + 2], src[i * 4 + 3]);
+      if (q.dot(mean) < 0) q.set(-q.x, -q.y, -q.z, -q.w);
+      delta.copy(inv).multiply(q);
+      e.setFromQuaternion(delta, 'XYZ');
+      e.y *= scaleY;
+      e.z *= scaleZ;
+      delta.setFromEuler(e);
+      outQ.copy(mean).multiply(delta);
+      out[i * 4] = outQ.x; out[i * 4 + 1] = outQ.y; out[i * 4 + 2] = outQ.z; out[i * 4 + 3] = outQ.w;
+    }
+    return new THREE.QuaternionKeyframeTrack(tr.name, new Float32Array(tr.times), out);
+  }
+
+  function swingQuaternion(tr, factor) {
+    const n = tr.times.length;
+    const src = tr.values;
+    const q = new THREE.Quaternion();
+    const mean = new THREE.Quaternion();
+    const ref = new THREE.Quaternion(src[0], src[1], src[2], src[3]);
+    let sx = 0, sy = 0, sz = 0, sw = 0;
+    for (let i = 0; i < n; i++) {
+      let x = src[i * 4], y = src[i * 4 + 1], z = src[i * 4 + 2], w = src[i * 4 + 3];
+      if (x * ref.x + y * ref.y + z * ref.z + w * ref.w < 0) { x = -x; y = -y; z = -z; w = -w; }
+      sx += x; sy += y; sz += z; sw += w;
+    }
+    mean.set(sx / n, sy / n, sz / n, sw / n).normalize();
+    const inv = mean.clone().conjugate();
+    const e = new THREE.Euler();
+    const delta = new THREE.Quaternion();
+    const outQ = new THREE.Quaternion();
+    const out = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) {
+      q.set(src[i * 4], src[i * 4 + 1], src[i * 4 + 2], src[i * 4 + 3]);
+      if (q.dot(mean) < 0) q.set(-q.x, -q.y, -q.z, -q.w);
+      delta.copy(inv).multiply(q);
+      e.setFromQuaternion(delta, 'XYZ');
+      e.x *= factor;
+      delta.setFromEuler(e);
+      outQ.copy(mean).multiply(delta);
+      out[i * 4] = outQ.x; out[i * 4 + 1] = outQ.y; out[i * 4 + 2] = outQ.z; out[i * 4 + 3] = outQ.w;
+    }
+    return new THREE.QuaternionKeyframeTrack(tr.name, new Float32Array(tr.times), out);
   }
 
   function calmClip(clip) {
-    if (!clip || clip.userData && clip.userData.calm) return clip;
-    const torso = /(?:^|\|)(Hips|Pelvis|Root|Spine\d*|Chest|chest|Neck|neck|Head)(?:\.|$)/;
+    if (!clip || clip.userData && clip.userData.damped) return clip;
     const tracks = clip.tracks.map((tr) => {
-      const torsoBone = torso.test(tr.name);
-      if (torsoBone && (/\.position$/.test(tr.name) || /\.rotation$/.test(tr.name) || /\.quaternion$/.test(tr.name))) return holdTrack(tr);
-      if (/\.position$/.test(tr.name) && /Hips|Pelvis|Root|Armature/.test(tr.name)) return holdTrack(tr);
+      if (hipsName.test(tr.name) && /\.position$/.test(tr.name) && tr.getValueSize() === 3) return dampPosition(tr);
+      if (torsoName.test(tr.name) && /\.quaternion$/.test(tr.name) && tr.getValueSize() === 4) return dampQuaternion(tr, TORSO_LEAN, TORSO_LEAN);
       return tr;
     });
     const next = new THREE.AnimationClip(clip.name, clip.duration, tracks);
-    next.userData = { calm: true };
+    next.userData = { damped: true, base: clip };
     return next;
+  }
+
+  function stretchLegs(clip, factor) {
+    if (!clip || factor === 1) return clip;
+    const tracks = clip.tracks.map((tr) => {
+      if (legName.test(tr.name) && /\.quaternion$/.test(tr.name) && tr.getValueSize() === 4) return swingQuaternion(tr, factor);
+      return tr;
+    });
+    const next = new THREE.AnimationClip(clip.name + '-stride', clip.duration, tracks);
+    next.userData = { damped: true, stretched: factor };
+    return next;
+  }
+
+  function activeAction(mixer) {
+    const list = (mixer && mixer._actions) || [];
+    for (let i = list.length - 1; i >= 0; i--) if (list[i].enabled && list[i].weight > 0) return list[i];
+    return list[list.length - 1] || null;
+  }
+
+  function useClip(mixer, clip) {
+    const prev = (mixer._actions || []).slice();
+    prev.forEach((a) => { a.stop(); a.enabled = false; a.weight = 0; if (a.setEffectiveWeight) a.setEffectiveWeight(0); });
+    const act = mixer.clipAction(clip);
+    act.enabled = true;
+    act.setEffectiveWeight(1);
+    act.play();
+    act.timeScale = 1;
+    mixer.timeScale = 1;
+    return act;
+  }
+
+  function footBones(root) {
+    let left = null, right = null, head = null;
+    root.traverse((o) => {
+      if (!o.isBone) return;
+      if (!left && /leftfoot$/i.test(o.name)) left = o;
+      if (!right && /rightfoot$/i.test(o.name)) right = o;
+      if (!head && /^head$/i.test(o.name)) head = o;
+    });
+    return { left, right, head };
+  }
+
+  /* Foot travel per clip-second while that foot is on the ground.
+     Stride is that speed times the clip duration: the distance the body
+     should cover in one cycle so the stance foot stays put. */
+  function measureStride(root, mixer) {
+    const act = activeAction(mixer);
+    const bones = footBones(root);
+    if (!act || (!bones.left && !bones.right)) return null;
+    const clip = act.getClip();
+    const dur = clip.duration || 1;
+    const savedT = act.time;
+    const savedS = mixer.timeScale;
+    const savedA = act.timeScale;
+    act.timeScale = 1;
+    mixer.timeScale = 1;
+    const n = 36;
+    const probe = new THREE.Vector3();
+    const saved = { x: root.position.x, y: root.position.y, z: root.position.z, ry: root.rotation.y };
+    root.rotation.y = 0;
+    function sample(bone) {
+      const out = [];
+      if (!bone) return out;
+      for (let i = 0; i < n; i++) {
+        mixer.setTime(dur * i / n);
+        root.updateMatrixWorld(true);
+        bone.getWorldPosition(probe);
+        out.push({ t: dur * i / n, x: probe.x - root.position.x, y: probe.y, z: probe.z - root.position.z });
+      }
+      return out;
+    }
+    function stance(samples) {
+      if (samples.length < 4) return [];
+      let min = Infinity, max = -Infinity;
+      samples.forEach((s) => { if (s.y < min) min = s.y; if (s.y > max) max = s.y; });
+      const cut = min + Math.max(0.012, (max - min) * STANCE);
+      const low = samples.map((s) => s.y <= cut);
+      const runs = [];
+      let cur = [];
+      for (let i = 0; i < low.length; i++) {
+        if (low[i]) cur.push(samples[i]);
+        else if (cur.length) { runs.push(cur); cur = []; }
+      }
+      if (cur.length) runs.push(cur);
+      if (runs.length > 1 && low[0] && low[low.length - 1]) {
+        const tail = runs.pop();
+        const head = runs[0].map((s) => ({ t: s.t + dur, x: s.x, y: s.y, z: s.z }));
+        runs[0] = tail.concat(head);
+      }
+      runs.sort((a, b) => b.length - a.length);
+      return runs[0] || [];
+    }
+    function slope(run) {
+      const m = run.length;
+      if (m < 3) return 0;
+      let st = 0, sz = 0, stt = 0, stz = 0;
+      run.forEach((s) => { st += s.t; sz += s.z; stt += s.t * s.t; stz += s.t * s.z; });
+      const den = m * stt - st * st;
+      if (Math.abs(den) < 1e-8) return 0;
+      return (m * stz - st * sz) / den;
+    }
+    const runs = [stance(sample(bones.left)), stance(sample(bones.right))];
+    let best = 0;
+    let sign = 1;
+    runs.forEach((run) => {
+      const s = slope(run);
+      if (Math.abs(s) > best) { best = Math.abs(s); sign = s < 0 ? 1 : -1; }
+    });
+    if (best < 0.02) {
+      [bones.left, bones.right].forEach((bone) => {
+        const pts = sample(bone);
+        if (!pts.length) return;
+        let z0 = Infinity, z1 = -Infinity;
+        pts.forEach((s) => { if (s.z < z0) z0 = s.z; if (s.z > z1) z1 = s.z; });
+        best = Math.max(best, (z1 - z0) / dur);
+      });
+    }
+    const hy = [], hx = [];
+    if (bones.head) {
+      for (let i = 0; i < n; i++) {
+        mixer.setTime(dur * i / n);
+        root.updateMatrixWorld(true);
+        bones.head.getWorldPosition(probe);
+        hy.push(probe.y);
+        hx.push(probe.x - root.position.x);
+      }
+    }
+    mixer.setTime(savedT || 0);
+    mixer.timeScale = savedS;
+    act.timeScale = savedA;
+    root.position.set(saved.x, saved.y, saved.z);
+    root.rotation.y = saved.ry;
+    const span = (a) => a.length ? Math.max.apply(null, a) - Math.min.apply(null, a) : 0;
+    return { stride: best * dur, dur, rate: best, sign, headY: span(hy), headX: span(hx) };
+  }
+
+  function plantCycle(root, mixer) {
+    const act = activeAction(mixer);
+    if (!act) return;
+    const dur = act.getClip().duration || 1;
+    let low = Infinity;
+    for (let i = 0; i < 10; i++) {
+      mixer.setTime(dur * i / 10);
+      root.updateMatrixWorld(true);
+      const box = skinnedBox(root);
+      if (box.min < low) low = box.min;
+    }
+    mixer.setTime(0);
+    if (!isFinite(low)) return;
+    const dy = root.position.y - low;
+    if (Math.abs(dy) < 1e-3) return;
+    root.children.forEach((ch) => {
+      if (ch.isSprite || ch.isLight) return;
+      ch.position.y += dy;
+    });
+    root.updateMatrixWorld(true);
+  }
+
+  function fitStride(root, mixer, chase) {
+    const act0 = activeAction(mixer);
+    if (!act0) return { speed: chase, stride: 1, dur: 1, timeScale: 1, factor: 1, action: null };
+    if (mixer._fit && mixer._fit.chase === chase) return mixer._fit;
+    const base = act0.getClip();
+    let factor = 1;
+    let action = act0;
+    let info = measureStride(root, mixer);
+    const dur = (info && info.dur) || base.duration || 1;
+    let stride = info && info.stride > 0.15 ? info.stride : 0;
+    let speed = chase;
+    if (stride > 0) {
+      let ts = chase * dur / stride;
+      let guard = 0;
+      while (ts > TS_MAX && factor < FACTOR_CAP && guard < 4) {
+        const need = chase * 0.8 * dur / TS_MAX;
+        const step = Math.min(FACTOR_CAP / factor, Math.max(1.05, need / stride));
+        factor *= step;
+        action = useClip(mixer, stretchLegs(base, factor));
+        info = measureStride(root, mixer);
+        stride = info && info.stride > 0.15 ? info.stride : stride;
+        ts = chase * dur / stride;
+        guard++;
+      }
+      if (ts > TS_MAX) speed = Math.max(chase * 0.75, Math.min(chase, TS_MAX * stride / dur));
+      ts = speed * dur / stride;
+      plantCycle(root, mixer);
+      const fit = { speed, stride, dur, timeScale: Math.max(TS_MIN, Math.min(TS_MAX, ts)), factor, action, chase, headY: info && info.headY, headX: info && info.headX };
+      mixer._fit = fit;
+      return fit;
+    }
+    plantCycle(root, mixer);
+    const fit = { speed: chase, stride: Math.max(0.8, dur * 1.2), dur, timeScale: 1, factor: 1, action, chase };
+    mixer._fit = fit;
+    return fit;
+  }
+
+  function syncScale(speed, stride, dur) {
+    if (!(stride > 0) || !(dur > 0)) return 1;
+    return Math.max(TS_MIN, Math.min(TS_MAX, speed * dur / stride));
+  }
+
+  /* World drift of a stance foot while the body walks one cycle at `speed`. */
+  function footDrift(root, mixer, speed, height) {
+    const info = measureStride(root, mixer);
+    const bones = footBones(root);
+    const act = activeAction(mixer);
+    if (!info || !act || !(info.stride > 0)) return { missing: true };
+    const dur = info.dur;
+    const ts = syncScale(speed, info.stride, dur);
+    const saved = { x: root.position.x, y: root.position.y, z: root.position.z, ry: root.rotation.y, t: act.time, ms: mixer.timeScale, as: act.timeScale };
+    root.rotation.y = 0;
+    act.timeScale = 1;
+    mixer.timeScale = 1;
+    const n = 40;
+    const probe = new THREE.Vector3();
+    function trace(bone) {
+      const pts = [];
+      if (!bone) return pts;
+      for (let i = 0; i < n; i++) {
+        mixer.setTime(dur * (i / n));
+        root.position.z = saved.z + (info.sign || 1) * info.stride * (i / n);
+        root.updateMatrixWorld(true);
+        bone.getWorldPosition(probe);
+        pts.push({ y: probe.y, x: probe.x, z: probe.z });
+      }
+      return pts;
+    }
+    function driftOf(pts) {
+      if (pts.length < 4) return Infinity;
+      let min = Infinity, max = -Infinity;
+      pts.forEach((p) => { if (p.y < min) min = p.y; if (p.y > max) max = p.y; });
+      const cut = min + Math.max(0.012, (max - min) * STANCE);
+      const low = pts.map((p) => p.y <= cut);
+      const runs = [];
+      let cur = [];
+      for (let i = 0; i < low.length; i++) {
+        if (low[i]) cur.push(pts[i]);
+        else if (cur.length) { runs.push(cur); cur = []; }
+      }
+      if (cur.length) runs.push(cur);
+      if (!runs.length) return Infinity;
+      runs.sort((a, b) => b.length - a.length);
+      const run = runs[0];
+      let ax = 0, az = 0;
+      run.forEach((p) => { ax += p.x; az += p.z; });
+      ax /= run.length; az /= run.length;
+      let rad = 0;
+      run.forEach((p) => { rad = Math.max(rad, Math.hypot(p.x - ax, p.z - az)); });
+      return rad * 2;
+    }
+    const drift = Math.min(driftOf(trace(bones.left)), driftOf(trace(bones.right)));
+    const h = height || Math.max(1, (info.headY || 0) + 1);
+    mixer.setTime(saved.t || 0);
+    mixer.timeScale = saved.ms;
+    act.timeScale = saved.as;
+    root.position.set(saved.x, saved.y, saved.z);
+    root.rotation.y = saved.ry;
+    root.updateMatrixWorld(true);
+    return {
+      stride: +info.stride.toFixed(3),
+      dur: +dur.toFixed(3),
+      timeScale: +ts.toFixed(3),
+      drift: +drift.toFixed(3),
+      ratio: info.stride > 0 ? +(drift / info.stride).toFixed(4) : 1,
+      headY: h > 0 ? +(info.headY / h).toFixed(4) : 1,
+      headX: h > 0 ? +(info.headX / h).toFixed(4) : 1,
+      headYm: +info.headY.toFixed(3),
+      headXm: +info.headX.toFixed(3),
+      sign: info.sign || 1
+    };
   }
 
   /* models/sentinel_colossus.glb — same albedo and emissive maps as 68a2482.
@@ -1362,29 +1697,13 @@
     root.userData.v2Boss = true;
     root.add(holder);
     const mixer = new THREE.AnimationMixer(clone);
+    let fit = null;
     if (coloTpl.clip) {
       const act = mixer.clipAction(coloTpl.clip);
       act.play();
-      act.timeScale = 0.08;
-      mixer.timeScale = 1;
-    }
-    if (coloTpl.clip && mixer._actions && mixer._actions[0]) {
-      const act = mixer._actions[0];
-      const saved = act.timeScale;
       act.timeScale = 1;
       mixer.timeScale = 1;
-      let low = Infinity;
-      const steps = 16;
-      for (let i = 0; i < steps; i++) {
-        mixer.setTime(coloTpl.clip.duration * i / steps);
-        root.updateMatrixWorld(true);
-        const box = skinnedBox(root);
-        if (box.min < low) low = box.min;
-      }
-      mixer.setTime(0);
-      if (isFinite(low)) holder.position.y -= low;
-      act.timeScale = saved;
-      root.updateMatrixWorld(true);
+      fit = fitStride(root, mixer, 2.1);
     }
     const lamp = new THREE.PointLight(0xffb060, 6, 55, 2);
     lamp.position.set(2, 14, 6);
@@ -1397,7 +1716,7 @@
     root.updateMatrixWorld(true);
     let hand = null;
     clone.traverse((o) => { if (!hand && o.isBone && o.name === 'RightHand') hand = o; });
-    return { root, mixer, hand };
+    return { root, mixer, hand, stride: fit && fit.stride, dur: fit && fit.dur, walkSpeed: fit && fit.speed, action: fit && fit.action };
   }
 
   function loadAll() {
@@ -1407,6 +1726,10 @@
   v2.sentinelTemplate = sentinelTemplate;
   v2.stridePose = stridePose;
   v2.calmClip = calmClip;
+  v2.fitStride = fitStride;
+  v2.syncScale = syncScale;
+  v2.footDrift = footDrift;
+  v2.measureStride = measureStride;
   v2.buildWalker = buildWalker;
   v2.buildSentinel1 = buildSentinel1;
   v2.takeColossus = takeColossus;
