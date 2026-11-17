@@ -1271,10 +1271,12 @@ function checkFloorClear() {
 function updateColossi(dt, now) {
   let hudC = null, hudD = 1e9;
   COLOSSI.forEach(C => {
+    const plant = () => { if (C.sentinel1 && C.meshy && RC.v2 && RC.v2.plantColossus) RC.v2.plantColossus(C.root, 0); };
     if (C.dead) {
-      C.deathT += dt; if (C.cannon && C.cannon.visible) C.cannon.visible = false; if (C.glow && C.glow.visible) C.glow.visible = false; updateWreck(C, dt, now); return;
+      C.deathT += dt; if (C.cannon && C.cannon.visible) C.cannon.visible = false; if (C.glow && C.glow.visible) C.glow.visible = false; updateWreck(C, dt, now); plant(); return;
     }
     if (C.mixer && C.stun <= 0 && (C.riggedWalk || !C.v2Sentinel)) C.mixer.update(dt);
+    plant();
     updateColossusCannon(C);
     const pd = Math.hypot(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
     const inFactory = (STATE.floor || 0) > 0 || STATE.player.z < 92;

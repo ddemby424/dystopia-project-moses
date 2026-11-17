@@ -360,13 +360,15 @@ function buildArenaMap() {
   arenaGroup.add(aisle);
   // raised-floor tile lines for server floors
   if (floor === 1) { const grid = new THREE.GridHelper(180, 90, 0x64748b, 0x475569); grid.position.y = 0.02; grid.material.opacity = 0.35; grid.material.transparent = true; arenaGroup.add(grid); }
-  createWall(0, -85, 180, 3, 36); createWall(0, 85, 180, 3, 36);
-  createWall(-90, 0, 3, 170, 36); createWall(90, 0, 3, 170, 36);
+  const wallH = floor === 0 ? 44 : 36;
+  createWall(0, -85, 180, 3, wallH); createWall(0, 85, 180, 3, wallH);
+  createWall(-90, 0, 3, 170, wallH); createWall(90, 0, 3, 170, wallH);
   // ceiling trusses sit above the Sentinel (centre of G stays open)
+  const trussY = floor === 0 ? 40.4 : 33.4;
   for (let tz = -72; tz <= 72; tz += 24) {
     const segs = floor === 0 ? [[-56, 64], [56, 64]] : [[0, 176]];
-    segs.forEach(([cx, len]) => { const t = new THREE.Mesh(new THREE.BoxGeometry(len, 0.8, 0.9), steelMat); t.userData.rcSurface = 'steel'; t.position.set(cx, 33.4, tz); arenaGroup.add(t); });
-    [-36, 36].forEach(bx => { const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.5, 10), new THREE.MeshBasicMaterial({ color: 0x330a0a })); beacon.position.set(bx, 32.6, tz); arenaGroup.add(beacon); sirenBeaconMeshes.push(beacon); });
+    segs.forEach(([cx, len]) => { const t = new THREE.Mesh(new THREE.BoxGeometry(len, 0.8, 0.9), steelMat); t.userData.rcSurface = 'steel'; t.position.set(cx, trussY, tz); arenaGroup.add(t); });
+    [-36, 36].forEach(bx => { const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.5, 10), new THREE.MeshBasicMaterial({ color: 0x330a0a })); beacon.position.set(bx, trussY - 0.8, tz); arenaGroup.add(beacon); sirenBeaconMeshes.push(beacon); });
   }
   createSecurityElevator(FLOOR_INFO.exit.x, FLOOR_INFO.exit.z - 1.2);
   // lighting per theme
