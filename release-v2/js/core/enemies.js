@@ -8,16 +8,14 @@ function initBotAI(b) {
   b.speed = b.isHuman ? 6.6 : (b.heavy ? 3.9 : 4.8); b.patrolT = 2 + Math.random() * 4;
   if (b.clips) b.action = null;
   else if (b.mixer && b.mixer._actions && b.mixer._actions[0]) b.action = b.mixer._actions[0];
-  /* One calm cycle should cover about one body-length. Faster than that
-     skates; the Mixamo clip played at full rate on top of a 4–6 m/s chase
-     is the skip. */
-  if (b.mixer && b.action && b.action.getClip) {
-    const dur = b.action.getClip().duration || 1.067;
-    const stride = Math.max(0.55, (b.hitHeight || 2) * 0.45);
-    const calm = b.isHuman ? 1 : 0.85;
-    b.speed = stride * calm / dur;
-    b._stride = stride;
-    b._calm = calm;
+  if (!b.smallMech && b.mixer && b.rig && b.rig.root && window.RC && RC.v2 && RC.v2.fitStride) {
+    const fit = RC.v2.fitStride(b.rig.root, b.mixer, b.speed);
+    if (fit) {
+      b.speed = fit.speed;
+      b._stride = fit.stride;
+      b._dur = fit.dur;
+      if (fit.action) b.action = fit.action;
+    }
   }
   b.callsign = b.isHuman ? ['Ruiz', 'Okafor', 'Brandt', 'Ivanova', 'Kade', 'Mercer', 'Holt', 'Sato', 'Varga', 'Pike', 'Reyes', 'Lund'][Math.floor(Math.random() * 12)] : b.name;
 }
@@ -235,12 +233,22 @@ function updateBotAI(b, dt, now) {
   // physics + anim
   const botFloor = getGroundHeightAt(b.x, b.z, b.y); b.y += b.vy * dt; b.vy -= STATE.gravity * dt; if (b.y <= botFloor) { b.y = botFloor; b.vy = 0; }
   b.rig.root.position.set(b.x, b.y, b.z);
-  if (b.mixer) {
-    const stride = b._stride || Math.max(0.55, (b.hitHeight || 2) * 0.45);
-    const dur = (b.action && b.action.getClip && b.action.getClip().duration) || 1;
-    const calm = b._calm || (b.isHuman ? 1 : 0.85);
-    const spd = Math.hypot(mvx, mvz);
-    if (b.action) b.action.timeScale = b.moving ? Math.min(calm, (spd * dur) / stride) : 0;
+  if (b.smallMech) {
+    /* Hull only. A swinging leg on a sliding mech is the failure the review called out. */
+  } else if (b.mixer) {
+    const stride = b._stride || Math.max(0.8, (b.hitHeight || 2) * 0.7);
+    const dur = b._dur || (b.action && b.action.getClip && b.action.getClip().duration) || 1;
+    const spd = b._moved || 0;
+    if (b.action) {
+      if (b.moving && spd > 0.12 && window.RC && RC.v2 && RC.v2.syncScale) {
+        b.mixer.timeScale = 1;
+        b.action.timeScale = RC.v2.syncScale(spd, stride, dur);
+      } else {
+        b.mixer.timeScale = 0;
+        b.action.timeScale = 0;
+        if (b.action.time > 0) b.action.time = Math.max(0, b.action.time - dt * 1.5);
+      }
+    }
     b.mixer.update(dt);
   }
   else if (b.clips && window.RC && RC.rigs && b.rig.root.visible) {

@@ -1393,18 +1393,28 @@ function colossusLocomotion(C, dt, pd) {
     }
   } else C.path = null;
   const charging = C.charge >= 0;
-  if (pd <= keep || charging) { C.moving = false; if (C.mixer) C.mixer.timeScale = 0; return clear ? null : heading; }
+  if (pd <= keep || charging) {
+    C.moving = false;
+    if (C.mixer) {
+      C.mixer.timeScale = 0;
+      const act = C.action || (C.mixer._actions && C.mixer._actions[C.mixer._actions.length - 1]);
+      if (act) {
+        act.timeScale = 0;
+        if (act.time > 0) act.time = Math.max(0, act.time - dt * 1.5);
+        C.mixer.update(0);
+      }
+    }
+    return clear ? null : heading;
+  }
   // walk forward along the current facing once roughly lined up (no strafing / orbiting)
   let dy = heading - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   if (!clear) { const t = (C.isMini ? 1.1 : 0.8) * dt; C.root.rotation.y += Math.max(-t, Math.min(t, dy)); }
   const face = C.root.rotation.y; const err = Math.abs(Math.atan2(Math.sin(heading - face), Math.cos(heading - face)));
-  /* 1.64 m/s matches the calmed clip: the left foot covers 13.7 m per cycle
-     and the clip plays at 0.08 * 1.6 = 0.128 cycles/s. 2.1 m/s skated. */
-  const speed = (C.isMini ? 2.8 : 1.64) * (1 - Math.min(0.6, C.limp || 0)) * Math.max(0, 1 - err / 1.1);
+  const speed = (C.isMini ? 2.8 : (C.walkSpeed || 2.1)) * (1 - Math.min(0.6, C.limp || 0)) * Math.max(0, 1 - err / 1.1);
   C.moving = speed > 0.05;
+  let moved = 0;
   if (C.moving) {
     const r = C.rad * 0.75, sx = Math.sin(face) * speed * dt, sz = Math.cos(face) * speed * dt;
-    let moved = 0;
     if (colossusFree(C, P.x + sx, P.z + sz, r)) { P.x += sx; P.z += sz; moved = Math.hypot(sx, sz); }
     else if (colossusFree(C, P.x + sx, P.z, r)) { P.x += sx; moved = Math.abs(sx); }
     else if (colossusFree(C, P.x, P.z + sz, r)) { P.z += sz; moved = Math.abs(sz); }
@@ -1416,7 +1426,22 @@ function colossusLocomotion(C, dt, pd) {
     }
     if (moved) { C.stuckT = 0; colossusSyncCol(C); C.stride = (C.stride || 0) + moved; const L = Math.max(1.6, C.height * 0.14); if (C.stride >= L) { C.stride -= L; colossusFootfall(C); } }
   }
-  if (C.mixer) C.mixer.timeScale = C.moving ? 1.6 : 0;
+  if (C.mixer) {
+    const act = C.action || (C.mixer._actions && C.mixer._actions[C.mixer._actions.length - 1]);
+    const stride = C.strideLen || Math.max(1, (C.height || 28) * 0.5);
+    const dur = C.clipDur || 1.067;
+    const gspd = dt > 0 ? moved / dt : 0;
+    if (act && C.moving && gspd > 0.05 && window.RC && RC.v2 && RC.v2.syncScale) {
+      C.mixer.timeScale = 1;
+      act.timeScale = RC.v2.syncScale(gspd, stride, dur);
+    } else {
+      C.mixer.timeScale = 0;
+      if (act) {
+        act.timeScale = 0;
+        if (act.time > 0) act.time = Math.max(0, act.time - dt * 1.5);
+      }
+    }
+  }
   return clear ? null : heading;
 }
 function colossusFootfall(C) {
@@ -1475,6 +1500,10 @@ function buildColossus(height, opts = {}) {
     C.mixer = meshy.mixer;
     C.meshy = true;
     C.riggedWalk = true;
+    C.strideLen = meshy.stride;
+    C.clipDur = meshy.dur;
+    C.walkSpeed = meshy.walkSpeed;
+    C.action = meshy.action;
   } else if (!isMini) {
     const r = createDoomSentinel(0x3f2a1a, 0xef4444, 'COLOSSUS', true);
     if (r.hb && r.hb.sprite) r.hb.sprite.visible = false;
