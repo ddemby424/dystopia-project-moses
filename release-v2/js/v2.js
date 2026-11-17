@@ -1196,26 +1196,41 @@
 
   let coloTpl = null;
 
-  /* Hold Hips.position at its lowest key so the Oct 29 walk clip
-     keeps its leg rotations without bouncing or sliding the body. */
+  /* The Oct 29 walk clips are Mixamo "walking_man". Hips.position bounces
+     and slides, and the hip/spine quaternions roll the torso. Hold those
+     bones still so only the legs and arms swing. */
+  function holdTrack(tr) {
+    const n = tr.times.length;
+    const size = tr.getValueSize();
+    const src = tr.values;
+    const mean = new Array(size).fill(0);
+    for (let i = 0; i < n; i++) for (let k = 0; k < size; k++) mean[k] += src[i * size + k];
+    for (let k = 0; k < size; k++) mean[k] /= n;
+    if (size === 3) mean[0] = 0;
+    if (size === 4) {
+      const len = Math.hypot(mean[0], mean[1], mean[2], mean[3]) || 1;
+      for (let k = 0; k < 4; k++) mean[k] /= len;
+    }
+    const out = new Float32Array(n * size);
+    for (let i = 0; i < n; i++) for (let k = 0; k < size; k++) out[i * size + k] = mean[k];
+    const times = new Float32Array(tr.times);
+    return size === 4
+      ? new THREE.QuaternionKeyframeTrack(tr.name, times, out)
+      : new THREE.VectorKeyframeTrack(tr.name, times, out);
+  }
+
   function calmClip(clip) {
-    if (!clip) return clip;
+    if (!clip || clip.userData && clip.userData.calm) return clip;
+    const torso = /(?:^|\|)(Hips|Pelvis|Root|Spine\d*|Chest|chest|Neck|neck|Head)(?:\.|$)/;
     const tracks = clip.tracks.map((tr) => {
-      if (!/Hips\.position/.test(tr.name)) return tr;
-      const size = tr.getValueSize();
-      const values = tr.values.slice();
-      let minY = Infinity;
-      for (let i = 0; i < tr.times.length; i++) minY = Math.min(minY, values[i * size + 1]);
-      const x0 = values[0];
-      const z0 = values[2];
-      for (let i = 0; i < tr.times.length; i++) {
-        values[i * size] = x0;
-        values[i * size + 1] = minY;
-        values[i * size + 2] = z0;
-      }
-      return new THREE.VectorKeyframeTrack(tr.name, tr.times.slice(), values);
+      const torsoBone = torso.test(tr.name);
+      if (torsoBone && (/\.position$/.test(tr.name) || /\.rotation$/.test(tr.name) || /\.quaternion$/.test(tr.name))) return holdTrack(tr);
+      if (/\.position$/.test(tr.name) && /Hips|Pelvis|Root|Armature/.test(tr.name)) return holdTrack(tr);
+      return tr;
     });
-    return new THREE.AnimationClip(clip.name + '-ground', clip.duration, tracks);
+    const next = new THREE.AnimationClip(clip.name, clip.duration, tracks);
+    next.userData = { calm: true };
+    return next;
   }
 
   /* models/sentinel_colossus.glb — same albedo and emissive maps as 68a2482.
