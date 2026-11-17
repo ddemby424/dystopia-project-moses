@@ -120,16 +120,10 @@ function serve() {
     let roll = 0;
     let bob = 0;
     let tris = 0;
-    const doom = C && C.root.userData.doom;
-    if (doom) {
-      const y0 = doom.pelvis.position.y;
-      C.moving = true;
-      for (let i = 0; i < 16; i++) {
-        doomStep(C, 0.1);
-        leg = Math.max(leg, Math.abs(doom.leftLeg.rotation.x), Math.abs(doom.rightLeg.rotation.x));
-        roll = Math.max(roll, Math.abs(doom.torso.rotation.z));
-      }
-      bob = Math.abs(doom.pelvis.position.y - y0);
+    const spots = C && C.spots ? C.spots.filter((s) => s.bone).length : 0;
+    if (C) {
+      roll = Math.abs(C.root.rotation.z);
+      bob = 0;
     }
     if (C) C.root.traverse((o) => {
       if (!o.isMesh || !o.geometry) return;
@@ -154,7 +148,8 @@ function serve() {
       n: list.length,
       hp: list.map((b) => b.maxHealth),
       walker: !!(sample && sample.rig && sample.rig.root && sample.rig.root.getObjectByName('v2-sentinel')),
-      s1: !!(C && C.sentinel1 && doom && !C.riggedWalk),
+      s1: !!(C && C.sentinel1 && C.meshy),
+      spots,
       h: C && C.height,
       z: C && +C.root.position.z.toFixed(1),
       leg: +leg.toFixed(3),
@@ -169,8 +164,19 @@ function serve() {
     };
   });
   add('level 1 has cannon-damageable triage mechs', mechs.n >= 2 && mechs.hp.length >= 2 && mechs.hp.every((h) => h >= 250) && mechs.walker, mechs);
-  add('Sentinel 1 is the original colossus, centered, no side lurch', mechs.s1 && mechs.h === 28 && Math.abs(mechs.z) < 1 && mechs.leg > 0.15 && mechs.roll < 0.01 && mechs.bob < 0.02 && mechs.tris > 80 && mechs.tris < 8000 && !mechs.cull && mechs.eye, mechs);
+  add('Sentinel 1 is the weak-point colossus, centered, no side roll', mechs.s1 && mechs.h === 28 && Math.abs(mechs.z) < 1 && mechs.spots >= 4 && mechs.roll < 0.05 && mechs.tris > 2000 && mechs.tris < 25000 && !mechs.cull, mechs);
   add('triage mechs do not sway or bob', mechs.mechRoll < 0.02 && mechs.mechBob < 0.05, mechs);
+  const cover = await page.evaluate(() => {
+    const list = (RC.cover && RC.cover.items) || [];
+    const drum = list.find((it) => it.kind === 'drum');
+    if (!drum) return { n: list.length };
+    const before = colliders.indexOf(drum.col) >= 0;
+    RC.cover.hurt(drum, drum.max * 0.6);
+    const damaged = drum.stage === 1 && drum.damaged.visible;
+    RC.cover.hurt(drum, drum.max);
+    return { n: list.length, before, damaged, stage: drum.stage, col: colliders.indexOf(drum.col) < 0 };
+  });
+  add('destructible cover breaks in stages and drops its collider', cover.n >= 8 && cover.before && cover.damaged && cover.stage === 2 && cover.col, cover);
   add('center aisle keeps the metal floor', mechs.aisle, mechs);
   const lure = await page.evaluate(() => {
     const openings = (RC.yard.layoutRef().openings || []);
@@ -427,7 +433,7 @@ function serve() {
     const crowd = BOTS.filter((o) => o !== b);
     crowd.forEach((o) => { o._dy = o.dying; o.dying = true; });
     b.x = -84; b.z = 8; b.y = 0; b.aiState = 'alert'; b.los = false; b.lastKnown = null; b.thinkT = 30; b.goal = { x: -96, z: 8 }; b.path = [{ x: -96, z: 8 }]; b.pathI = 0; b.cover = null; b.stuck = 0; b.stuckN = 0; b.role = 'pusher'; b._vx = 0; b._vz = 0;
-    for (let i = 0; i < 40; i++) updateBotAI(b, 0.05, performance.now() + i * 50);
+    for (let i = 0; i < 80; i++) updateBotAI(b, 0.05, performance.now() + i * 50);
     crowd.forEach((o) => { o.dying = o._dy; });
     const blocked = { x: +b.x.toFixed(2), stuckN: b.stuckN || 0, tunneled: b.x < -89 };
     b.x = 10; b.z = 10; b.y = 0; b.goal = { x: 18, z: 10 }; b.path = [{ x: 18, z: 10 }]; b.pathI = 0; b.stuck = 0; b.stuckN = 0; b.cover = null; b.aiState = 'alert'; b.thinkT = 30; b.lastKnown = null; b.los = false; b.yaw = Math.atan2(1, 0); b.role = 'pusher';

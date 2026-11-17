@@ -1293,7 +1293,7 @@ function updateColossi(dt, now) {
     // Round 17: free-moving Sentinel — pursue the player, path around obstacles, booming footfalls
     let want = Math.atan2(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
     try { const mv = colossusLocomotion(C, dt, pd); if (mv != null) want = mv; } catch (e) {}
-    if (C.sentinel1) doomStep(C, dt);
+    if (C.sentinel1 && !C.meshy) doomStep(C, dt);
     else if (C.v2Sentinel && !C.riggedWalk && window.RC && RC.v2 && RC.v2.stridePose) C.stepPhase = RC.v2.stridePose(C.root, !!C.moving, dt, C.stepPhase || 0);
     let dy = want - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     const turn = (C.isMini ? 0.7 : 0.45) * (C.turnMult || 1) * dt; C.root.rotation.y += Math.max(-turn, Math.min(turn, dy)); C.facingErr = Math.abs(dy);
@@ -1465,7 +1465,14 @@ function buildColossus(height, opts = {}) {
   const v2 = window.RC && RC.v2 && typeof RC.v2.sentinelTemplate === 'function' ? RC.v2.sentinelTemplate() : null;
   const tpl = isMini ? (v2 || MESHY_TEMPLATES.guard || MESHY_TEMPLATES.bot) : null;
   const C = { ownCannon: !!(v2 && tpl === v2) || !isMini, v2Sentinel: !!(isMini ? (v2 && tpl === v2) : true), sentinel1: !isMini, riggedWalk: false, turnMult: 2.2, root: g, isMini, height, cool: 3.5, charge: -1, stun: 0, dead: false, alerted: false, firedOnce: false, voiceT: 25, engaged: 0, mixer: null, hand: null };
-  if (!isMini) {
+  const meshy = !isMini && window.RC && RC.v2 && typeof RC.v2.takeColossus === 'function' ? RC.v2.takeColossus(height) : null;
+  if (meshy) {
+    g.add(meshy.root);
+    g.userData.meshy = true;
+    C.hand = meshy.hand;
+    C.mixer = meshy.mixer;
+    C.meshy = true;
+  } else if (!isMini) {
     const r = createDoomSentinel(0x3f2a1a, 0xef4444, 'COLOSSUS', true);
     if (r.hb && r.hb.sprite) r.hb.sprite.visible = false;
     r.root.traverse((o) => {
@@ -3742,6 +3749,7 @@ function triggerExplosion(x, y, z, radius, baseDamage) {
   NAPALM_POOLS.push({ mesh: poolGroup, tongues, fireLight, x, y, z, radius: groundHit ? 2.6 : 1.3, timer: groundHit ? 5.5 : 2.5, tick: 0, emitTick: 0 });
   DRONES.forEach(dr => { if (dr.state !== 'falling' && Math.hypot(dr.x - x, dr.y - y, dr.z - z) < radius * 0.7) damageDrone(dr, baseDamage); });
   EX_BARRELS.forEach(b => { if (!b.dead && Math.hypot(b.x - x, b.z - z) < radius * 0.55) explodeBarrel(b); });
+  if (window.RC && RC.cover && RC.cover.blast) RC.cover.blast(x, z, radius, baseDamage);
   for (let i = BOTS.length - 1; i >= 0; i--) {
     const b = BOTS[i]; if (b.dying) continue;
     const d = Math.hypot(b.x - x, b.z - z);
