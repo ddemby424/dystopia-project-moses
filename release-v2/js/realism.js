@@ -11,9 +11,9 @@
     asphalt: { map: SURF + 'yard_asphalt.webp', normal: null, rough: null, rx: 12, ry: 10, roughness: 0.94, metalness: 0.02, color: 0xffffff, normalScale: 0 },
     wall: { map: SURF + 'hall_wall.webp', normal: touch ? null : REAL + 'corrugated_iron_nor.webp', rough: null, rx: 12, ry: 8, roughness: 0.56, metalness: 0.48, color: 0xffffff, normalScale: 0.35 },
     ceiling: { map: SURF + 'hall_wall.webp', normal: null, rough: null, rx: 8, ry: 5, roughness: 0.9, metalness: 0.22, color: 0x5c5954, normalScale: 0 },
-    siding: { map: REAL + 'siding.webp', normal: touch ? null : REAL + 'corrugated_iron_nor.webp', rough: null, rx: 2, ry: 1.5, roughness: 0.5, metalness: 0.55, color: 0xc5c2ba, normalScale: 0.45 },
-    rust: { map: REAL + 'rust.webp', normal: null, rough: null, rx: 1, ry: 1, roughness: 0.64, metalness: 0.48, color: 0xffffff, normalScale: 0 },
-    plate: { map: REAL + 'plate.webp', normal: touch ? null : REAL + 'metal_plate_02_nor.webp', rough: null, rx: 1, ry: 1, roughness: 0.46, metalness: 0.62, color: 0xd0ccc4, normalScale: 0.3 }
+    siding: { map: REAL + 'siding.webp', normal: touch ? null : REAL + 'corrugated_iron_nor.webp', rough: null, rx: 2, ry: 1.5, roughness: 0.62, metalness: 0.4, color: 0x3a3c40, normalScale: 0.45 },
+    rust: { map: REAL + 'rust.webp', normal: null, rough: null, rx: 1, ry: 1, roughness: 0.72, metalness: 0.35, color: 0x8a5a40, normalScale: 0 },
+    plate: { map: REAL + 'plate.webp', normal: touch ? null : REAL + 'metal_plate_02_nor.webp', rough: null, rx: 1, ry: 1, roughness: 0.62, metalness: 0.45, color: 0x3a3834, normalScale: 0.3 }
   };
   const tex = {};
   const mats = {};

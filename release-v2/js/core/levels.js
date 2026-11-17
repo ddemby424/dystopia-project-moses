@@ -349,7 +349,7 @@ function buildArenaMap() {
   /* Center aisle: the original server-hall metal floor (FLOOR_PBR / metal_floor_1k.jpg),
      the slab the campaign used before the worn-concrete pass covered the whole hall. */
   const aisle = new THREE.Mesh(new THREE.PlaneGeometry(22, 148), new THREE.MeshStandardMaterial({
-    map: FLOOR_PBR.map, color: 0x6e7680, roughness: 0.58, metalness: 0.48, envMapIntensity: 0.16
+    map: FLOOR_PBR.map, color: 0x2a3036, roughness: 0.72, metalness: 0.35, envMapIntensity: 0.08
   }));
   aisle.name = 'rc-center-floor';
   aisle.userData.v2Keep = true;
@@ -371,16 +371,16 @@ function buildArenaMap() {
   createSecurityElevator(FLOOR_INFO.exit.x, FLOOR_INFO.exit.z - 1.2);
   // lighting per theme
   const lh = floor === 0 ? 11 : 11.5;
-  const spots = [[-50, 50], [0, 60], [50, 50], [-50, 10], [0, 20], [50, 10], [-50, -30], [0, -40], [50, -30], [0, -70]];
+  const spots = [[-24, 18], [22, -14], [0, 46], [-16, -42]];
   RAILS = []; SOLIDS = [];
-  LIGHT_COUNT = 0; const PAL = [0xffa24a, 0x4aa8ff, theme.light, 0xff5a3a];
-  spots.forEach(([x, z], i) => addHangingLight(x, lh, z, i % 3 === 0 ? theme.light : PAL[(i + floor) % PAL.length], 2.2, 22));
+  LIGHT_COUNT = 0; const PAL = [0xff9a3a, 0x8eb4c8, 0xffb060, 0xff3a2a];
+  spots.forEach(([x, z], i) => addHangingLight(x, lh, z, PAL[i % PAL.length], 0.42, 14));
   addLightStrips(floor);
   // key shadow-casting spotlights (security desk on G, entry zone below ground)
   const keySpots = floor === 0 ? [[0, 40, 0, 34], [0, 14, 0, -6]] : [[0, 60, 0, 50]];
   keySpots.slice(0, IS_COARSE ? 1 : 2).forEach(([x, z, tx, tz]) => {
-    const sp = new THREE.SpotLight(0xfff1dd, 1.4, 60, 0.75, 0.5, 1.5); sp.position.set(x, floor === 0 ? 13 : 12.5, z);
-    sp.target.position.set(tx, 0, tz); sp.castShadow = true; sp.shadow.mapSize.set(IS_COARSE ? 512 : 1024, IS_COARSE ? 512 : 1024);
+    const sp = new THREE.SpotLight(0xffc48a, 0.22, 28, 0.7, 0.55, 2); sp.position.set(x, floor === 0 ? 13 : 12.5, z);
+    sp.target.position.set(tx, 0, tz); sp.castShadow = false; sp.shadow.mapSize.set(IS_COARSE ? 512 : 1024, IS_COARSE ? 512 : 1024);
     sp.shadow.bias = -0.0006; sp.shadow.normalBias = 0.05; sp.shadow.camera.near = 1; sp.shadow.camera.far = 60;
     arenaGroup.add(sp, sp.target);
   });
@@ -389,7 +389,7 @@ function buildArenaMap() {
     if (OFF_PLAN.length && officeSkip(obj, OFF_PLAN)) return;
     if (obj.type === 'celldoor') { buildCellDoor(obj); return; }
     if (obj.type === 'catwalk2' || obj.type === 'tower2') { buildElevated(obj); return; }
-    if (obj.type === 'lamp') { addHangingLight(obj.x, 4.8, obj.z, obj.color || 0xffaa66, 1.2, 12); return; }
+    if (obj.type === 'lamp') { addHangingLight(obj.x, 4.8, obj.z, obj.color || 0xff9a3a, 0.35, 9); return; }
     if (obj.type === 'sign') { addSign(obj.x, obj.y || 5.2, obj.z, obj.rot || 0, obj.title || 'SECTOR', obj.sub || '', obj.color || '#f59e0b', obj.w || 7); return; }
     if (obj.type === 'secretwall') { buildSecretWall(obj); return; }
     if (renderMapObject(obj)) return;
