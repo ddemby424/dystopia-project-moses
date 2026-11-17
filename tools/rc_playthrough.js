@@ -165,6 +165,41 @@ function serve() {
   });
   add('level 1 has cannon-damageable triage mechs', mechs.n >= 2 && mechs.hp.length >= 2 && mechs.hp.every((h) => h >= 250) && mechs.walker, mechs);
   add('Sentinel 1 is the weak-point colossus, centered, no side roll', mechs.s1 && mechs.h === 28 && Math.abs(mechs.z) < 1 && mechs.spots >= 4 && mechs.roll < 0.05 && mechs.tris > 2000 && mechs.tris < 25000 && !mechs.cull, mechs);
+  const feet = await page.evaluate(() => {
+    const C = COLOSSI.find((c) => c.sentinel1 && c.meshy);
+    const ceil = arenaGroup.getObjectByName('rc-ceiling');
+    const ceilY = ceil ? ceil.position.y : 0;
+    const samples = [];
+    const rest = [];
+    C.root.traverse((o) => { if (o.isBone) rest.push({ o, q: o.quaternion.clone(), p: o.position.clone() }); });
+    const act = C.mixer && C.mixer._actions && C.mixer._actions[0];
+    if (act) { act.enabled = true; act.setEffectiveTimeScale(1); act.play(); }
+    if (C.mixer) C.mixer.timeScale = 1;
+    [0, 0.2, 0.5, 0.8, 1].forEach((t) => {
+      if (C.mixer) C.mixer.setTime(t);
+      C.root.updateMatrixWorld(true);
+      const box = RC.v2.plantColossus(C.root, 0);
+      samples.push({ t, min: +box.min.toFixed(3), max: +box.max.toFixed(3) });
+    });
+    const sy = C.root.scale.y;
+    C.root.scale.y = 0.86;
+    C.root.updateMatrixWorld(true);
+    const crushed = RC.v2.plantColossus(C.root, 0);
+    C.root.scale.y = sy;
+    if (act) { act.stop(); act.enabled = false; }
+    rest.forEach((r) => { r.o.quaternion.copy(r.q); r.o.position.copy(r.p); });
+    if (C.mixer) C.mixer.timeScale = 0;
+    C.root.position.y = 0;
+    C.root.updateMatrixWorld(true);
+    RC.v2.plantColossus(C.root, 0);
+    return {
+      ceilY,
+      samples,
+      crushed: { min: +crushed.min.toFixed(3), max: +crushed.max.toFixed(3) }
+    };
+  });
+  const feetOk = feet.ceilY > 36 && feet.samples.every((s) => Math.abs(s.min) <= 0.05 && s.max < feet.ceilY) && Math.abs(feet.crushed.min) <= 0.05 && feet.crushed.max < feet.ceilY;
+  add('Colossus feet sit on the floor and his head is under the ceiling', feetOk, feet);
   add('triage mechs do not sway or bob', mechs.mechRoll < 0.02 && mechs.mechBob < 0.05, mechs);
   const cover = await page.evaluate(() => {
     const list = (RC.cover && RC.cover.items) || [];
