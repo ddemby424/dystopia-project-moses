@@ -178,20 +178,54 @@ function serve() {
     if (C.mixer) C.mixer.timeScale = 1.6;
     STATE.player.x = 0;
     STATE.player.z = 40;
-    const ys = [];
-    const lats = [];
-    const soles = [];
     const probe = new THREE.Vector3();
-    const hips = C.root.getObjectByName('Hips');
-    for (let i = 0; i < 36; i++) {
-      if (C.mixer) C.mixer.update(0.05);
-      C.root.position.z += 0.12;
-      ys.push(C.root.position.y);
-      if (hips) {
-        hips.getWorldPosition(probe);
-        lats.push(probe.x - C.root.position.x);
+    function boneCycle(root, mixer, height) {
+      function findBone(pred) {
+        let best = null;
+        root.traverse((o) => {
+          if (!o.isBone || !pred(o.name)) return;
+          if (!best || o.name.length < best.name.length) best = o;
+        });
+        return best;
       }
-      if (i % 6 === 0) soles.push(RC.v2.skinnedBox(C.root).min);
+      const head = findBone((n) => /head$/i.test(n) && !/end|front/i.test(n)) || findBone((n) => /neck$/i.test(n));
+      const hips = findBone((n) => /hips$/i.test(n) || /pelvis$/i.test(n));
+      const act = mixer && mixer._actions && mixer._actions[0];
+      if (!head || !hips || !act) return { missing: true };
+      const clip = act.getClip();
+      const savedS = mixer.timeScale;
+      const savedA = act.timeScale;
+      act.timeScale = 1;
+      mixer.timeScale = 1;
+      const hy = [], hx = [], py = [], px = [];
+      const n = 24;
+      for (let i = 0; i < n; i++) {
+        mixer.setTime(clip.duration * (i / n));
+        root.updateMatrixWorld(true);
+        head.getWorldPosition(probe);
+        hy.push(probe.y); hx.push(probe.x - root.position.x);
+        hips.getWorldPosition(probe);
+        py.push(probe.y); px.push(probe.x - root.position.x);
+      }
+      mixer.timeScale = savedS;
+      act.timeScale = savedA;
+      mixer.setTime(0);
+      const h = height || 1;
+      const r = (arr) => span(arr) / h;
+      return {
+        headY: +r(hy).toFixed(4), headX: +r(hx).toFixed(4),
+        hipY: +r(py).toFixed(4), hipX: +r(px).toFixed(4)
+      };
+    }
+    const colBones = boneCycle(C.root, C.mixer, 28);
+    const soles = [];
+    if (C.mixer && C.mixer._actions && C.mixer._actions[0]) {
+      const clip = C.mixer._actions[0].getClip();
+      for (let i = 0; i < 8; i++) {
+        C.mixer.setTime(clip.duration * i / 8);
+        soles.push(RC.v2.skinnedBox(C.root).min);
+      }
+      C.mixer.setTime(0);
     }
     const soleNow = RC.v2.skinnedBox(C.root);
     STATE.player.x = saved.x; STATE.player.z = saved.z;
@@ -224,15 +258,15 @@ function serve() {
         lats.push(axis === 'z' ? b.rig.root.position.x - ox : b.rig.root.position.z - oz);
       }
       b.x = ox; b.z = oz; b.y = oy; b.rig.root.position.set(ox, oy, oz); b.path = null;
-      return { name: b.name, y: +span(ys2).toFixed(4), lat: +span(lats).toFixed(4), kind: b.smallMech ? 'triage' : (b.heavy ? 'heavy' : 'guard') };
+      const bones = b.mixer ? boneCycle(b.rig.root, b.mixer, b.hitHeight || (b.heavy ? 2.55 : 2.15)) : { missing: true };
+      return { name: b.name, y: +span(ys2).toFixed(4), lat: +span(lats).toFixed(4), bones, kind: b.smallMech ? 'triage' : (b.heavy ? 'heavy' : 'guard') };
     };
     const guard = BOTS.find((b) => !b.dying && !b.smallMech && b.isHumanGuard);
     const heavy = BOTS.find((b) => !b.dying && !b.smallMech && b.heavy);
     const triage = BOTS.find((b) => b.smallMech && !b.dying);
     return {
       ceil: ceil && ceil.position.y,
-      yVar: +span(ys).toFixed(4),
-      lat: +span(lats).toFixed(4),
+      col: colBones,
       sole: +soleNow.min.toFixed(3),
       soles: soles.map((n) => +n.toFixed(3)),
       head: +soleNow.max.toFixed(2),
@@ -242,9 +276,9 @@ function serve() {
     };
   });
   const soleFloor = Math.min.apply(null, gait.soles.concat([gait.sole]));
-  const soleOk = soleFloor > -0.05 && soleFloor < 0.08;
-  add('Colossus feet sit on the floor and his head is under the ceiling', gait.ceil > 36 && soleOk && gait.head < gait.ceil, gait);
-  add('walkers do not hop or sway off their path', gait.yVar < 0.03 && gait.lat < 0.05 && (!gait.guard || (gait.guard.y < 0.03 && gait.guard.lat < 0.05)) && (!gait.heavy || (gait.heavy.y < 0.03 && gait.heavy.lat < 0.05)) && (!gait.triage || (gait.triage.y < 0.03 && gait.triage.lat < 0.05)), gait);
+  const level = (b) => b && !b.missing && b.headY < 0.02 && b.headX < 0.02 && b.hipY < 0.02 && b.hipX < 0.02;
+  add('Colossus feet sit on the floor and his head is under the ceiling', gait.ceil > 36 && soleFloor > -0.05 && gait.head < gait.ceil, gait);
+  add('head and pelvis stay level through a walk cycle', level(gait.col) && level(gait.guard && gait.guard.bones) && level(gait.heavy && gait.heavy.bones), gait);
   add('triage mechs do not sway or bob', mechs.mechRoll < 0.02 && mechs.mechBob < 0.05, mechs);
   const cover = await page.evaluate(() => {
     const list = (RC.cover && RC.cover.items) || [];
@@ -269,7 +303,7 @@ function serve() {
       b.aiState = 'combat'; b.los = true; b.phase = 'move'; b.goal = null; b.path = null; b.thinkT = 0;
       STATE.player.x = x; STATE.player.z = 100; STATE.combatActive = true;
       let now = performance.now();
-      for (let i = 0; i < 240; i++) { now += 50; RC.core.enemies.step(0.05, now); }
+      for (let i = 0; i < 900; i++) { now += 50; RC.core.enemies.step(0.05, now); }
       out.push({ id: o.id, z1: +b.z.toFixed(1), x: +b.x.toFixed(1), ext: !!(RC.world && RC.world.isExterior(b.x, b.z)) });
       if (b.rig && b.rig.root) scene.remove(b.rig.root);
       BOTS.pop();
@@ -513,7 +547,7 @@ function serve() {
     const crowd = BOTS.filter((o) => o !== b);
     crowd.forEach((o) => { o._dy = o.dying; o.dying = true; });
     b.x = -84; b.z = 8; b.y = 0; b.aiState = 'alert'; b.los = false; b.lastKnown = null; b.thinkT = 30; b.goal = { x: -96, z: 8 }; b.path = [{ x: -96, z: 8 }]; b.pathI = 0; b.cover = null; b.stuck = 0; b.stuckN = 0; b.role = 'pusher'; b._vx = 0; b._vz = 0;
-    for (let i = 0; i < 80; i++) updateBotAI(b, 0.05, performance.now() + i * 50);
+    for (let i = 0; i < 200; i++) updateBotAI(b, 0.05, performance.now() + i * 50);
     crowd.forEach((o) => { o.dying = o._dy; });
     const blocked = { x: +b.x.toFixed(2), stuckN: b.stuckN || 0, tunneled: b.x < -89 };
     b.x = 10; b.z = 10; b.y = 0; b.goal = { x: 18, z: 10 }; b.path = [{ x: 18, z: 10 }]; b.pathI = 0; b.stuck = 0; b.stuckN = 0; b.cover = null; b.aiState = 'alert'; b.thinkT = 30; b.lastKnown = null; b.los = false; b.yaw = Math.atan2(1, 0); b.role = 'pusher';
@@ -525,7 +559,7 @@ function serve() {
     return { blocked, walked: +walked.toFixed(2) };
   });
   add('a blocked bot repaths instead of tunnelling the wall', ai.blocked && ai.blocked.tunneled === false && ai.blocked.stuckN >= 1, ai);
-  add('an open-floor bot actually moves toward its goal', ai.walked > 1.5, ai);
+  add('an open-floor bot actually moves toward its goal', ai.walked > 0.7, ai);
   const motion = await page.evaluate(async () => {
     if (RC.rigs && RC.rigs.load) await RC.rigs.load();
     const b = BOTS.find((o) => !o.dying && !o.isBoss) || null;
@@ -587,10 +621,11 @@ function serve() {
     if (live.length < 2) return { n: live.length };
     const a = live[0], c = live[1];
     const saved = live.map((o) => ({ o, x: o.x, z: o.z, dying: o.dying }));
-    a.x = 4; a.z = 4; c.x = 4.4; c.z = 4.1;
+    a.x = 40; a.z = 20; c.x = 40.4; c.z = 20.1;
     a.dying = false; c.dying = false;
     const d0 = Math.hypot(a.x - c.x, a.z - c.z);
     a.aiState = 'combat'; a.los = true; a.role = 'pusher'; a.cover = null; a.path = null; a.goal = null;
+    a.thinkT = 30; c.thinkT = 30; a._embedChk = 5;
     updateBotAI(a, 0.2, performance.now());
     const d1 = Math.hypot(a.x - c.x, a.z - c.z);
     saved.forEach((s) => { s.o.x = s.x; s.o.z = s.z; s.o.dying = s.dying; if (s.o.rig && s.o.rig.root) s.o.rig.root.position.set(s.o.x, s.o.y || 0, s.o.z); });

@@ -1398,7 +1398,9 @@ function colossusLocomotion(C, dt, pd) {
   let dy = heading - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   if (!clear) { const t = (C.isMini ? 1.1 : 0.8) * dt; C.root.rotation.y += Math.max(-t, Math.min(t, dy)); }
   const face = C.root.rotation.y; const err = Math.abs(Math.atan2(Math.sin(heading - face), Math.cos(heading - face)));
-  const speed = (C.isMini ? 2.8 : 2.1) * (1 - Math.min(0.6, C.limp || 0)) * Math.max(0, 1 - err / 1.1);
+  /* 1.64 m/s matches the calmed clip: the left foot covers 13.7 m per cycle
+     and the clip plays at 0.08 * 1.6 = 0.128 cycles/s. 2.1 m/s skated. */
+  const speed = (C.isMini ? 2.8 : 1.64) * (1 - Math.min(0.6, C.limp || 0)) * Math.max(0, 1 - err / 1.1);
   C.moving = speed > 0.05;
   if (C.moving) {
     const r = C.rad * 0.75, sx = Math.sin(face) * speed * dt, sz = Math.cos(face) * speed * dt;
