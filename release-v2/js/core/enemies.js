@@ -8,15 +8,6 @@ function initBotAI(b) {
   b.speed = b.isHuman ? 6.6 : (b.heavy ? 3.9 : 4.8); b.patrolT = 2 + Math.random() * 4;
   if (b.clips) b.action = null;
   else if (b.mixer && b.mixer._actions && b.mixer._actions[0]) b.action = b.mixer._actions[0];
-  if (!b.smallMech && b.mixer && b.rig && b.rig.root && window.RC && RC.v2 && RC.v2.fitStride) {
-    const fit = RC.v2.fitStride(b.rig.root, b.mixer, b.speed);
-    if (fit) {
-      b.speed = fit.speed;
-      b._stride = fit.stride;
-      b._dur = fit.dur;
-      if (fit.action) b.action = fit.action;
-    }
-  }
   b.callsign = b.isHuman ? ['Ruiz', 'Okafor', 'Brandt', 'Ivanova', 'Kade', 'Mercer', 'Holt', 'Sato', 'Varga', 'Pike', 'Reyes', 'Lund'][Math.floor(Math.random() * 12)] : b.name;
 }
 
@@ -233,32 +224,12 @@ function updateBotAI(b, dt, now) {
   // physics + anim
   const botFloor = getGroundHeightAt(b.x, b.z, b.y); b.y += b.vy * dt; b.vy -= STATE.gravity * dt; if (b.y <= botFloor) { b.y = botFloor; b.vy = 0; }
   b.rig.root.position.set(b.x, b.y, b.z);
-  if (b.smallMech) {
-    /* Hull only. A swinging leg on a sliding mech is the failure the review called out. */
-  } else if (b.mixer) {
-    const stride = b._stride || Math.max(0.8, (b.hitHeight || 2) * 0.7);
-    const dur = b._dur || (b.action && b.action.getClip && b.action.getClip().duration) || 1;
-    const spd = b._moved || 0;
-    if (b.action) {
-      if (b.moving && spd > 0.12 && window.RC && RC.v2 && RC.v2.syncScale) {
-        b.mixer.timeScale = 1;
-        b.action.timeScale = RC.v2.syncScale(spd, stride, dur);
-      } else {
-        b.mixer.timeScale = 0;
-        b.action.timeScale = 0;
-        if (b.action.time > 0) b.action.time = Math.max(0, b.action.time - dt * 1.5);
-      }
-    }
-    b.mixer.update(dt);
-  }
+  if (b.mixer) { if (b.action) b.action.timeScale = b.moving ? (b.isHuman ? 1.25 : 0.9) : 0.05; b.mixer.update(dt); }
   else if (b.clips && window.RC && RC.rigs && b.rig.root.visible) {
     RC.rigs.tick(b, dt, { moved: b._moved || 0, attack: b._attackT > 0, twist: 0, faceYaw: b.yaw });
   } else if (b.rig.leftLeg && b.rig.leftLeg !== b.rig.root) {
-    b.walkPhase += dt * (b.moving ? 8 : 1.5); const swing = Math.sin(b.walkPhase) * (b.moving ? 0.45 : 0.05);
-    b.rig.leftLeg.rotation.x = swing; b.rig.rightLeg.rotation.x = -swing;
-    if (b.rig.leftArm && b.rig.leftArm !== b.rig.root) b.rig.leftArm.rotation.x = -swing * 0.45;
-    if (b.rig.rightArm && b.rig.rightArm !== b.rig.root) b.rig.rightArm.rotation.x = -0.3;
-    if (b.rig.torso && b.rig.torso !== b.rig.root) { b.rig.torso.rotation.z = 0; b.rig.torso.rotation.y = 0; }
+    b.walkPhase += dt * (b.moving ? 8 : 1.5); const swing = Math.sin(b.walkPhase) * (b.moving ? 0.6 : 0.05);
+    b.rig.leftLeg.rotation.x = swing; b.rig.rightLeg.rotation.x = -swing; b.rig.leftArm.rotation.x = -swing * 0.45; b.rig.rightArm.rotation.x = -0.3;
   }
   updateEnemyWeapon(b);
   if (b.flinchTimer > 0) { b.flinchTimer -= dt; if (b.rig.armorMat && b.rig.armorMat.emissive) { b.rig.armorMat.emissive.setHex(0xffffff); b.rig.armorMat.emissiveIntensity = 0.85; } }
@@ -399,7 +370,10 @@ function rcEnemyStep(dt, now) {
       b.rig.leftLeg.rotation.x = swing; b.rig.rightLeg.rotation.x = -swing;
       b.rig.leftArm.rotation.x = -swing * 0.45;
       b.rig.rightArm.rotation.x = b.isBoss ? (-0.4 + Math.sin(b.walkPhase) * 0.45) : (-0.25 + swing * 0.2);
-      if (b.rig.torso && b.rig.torso !== b.rig.root) { b.rig.torso.rotation.y = 0; b.rig.torso.rotation.z = 0; }
+      const basePelvisY = (b.isBoss ? 1.15 : (b.rig.scale ? 1.12 * b.rig.scale : 1.12));
+      b.rig.pelvis.position.y = basePelvisY + Math.abs(Math.cos(b.walkPhase)) * (b.heavy ? 0.1 : 0.07);
+      b.rig.torso.rotation.y = Math.sin(b.walkPhase) * 0.12;
+      b.rig.torso.rotation.x *= 0.9;
     }
     if (b.flinchTimer > 0) {
       b.flinchTimer -= dt;
