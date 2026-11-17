@@ -20,7 +20,7 @@ The two guards and the triage mech are CC BY 4.0. Textures are WebP at 1024. The
 | `biped_robot.glb` | [Biped robot](https://sketchfab.com/3d-models/biped-robot-801d2a245e4a4405a0c2152b35b5e486) | Willy Decarpentrie | about 16.6k | Heavy guards. `Robot_Soldat` is one cycle, reused at different speeds. |
 | `military_mech.glb` | [military Mech](https://sketchfab.com/3d-models/military-mech-49c464a639d34c97b20032a5018c6a04) | Doaa Sheha | about 27.5k | Triage Mechs on floor G. Cannon-damageable. The mesh is not rigged. |
 
-Sentinel 1, the 28 m hall boss, is the original procedural colossus from the earlier releases: dark armor `0x3f2a1a`, red eye and chest core `0xef4444`. It is not a downloaded mesh. The Quaternius Leela file used for one test build has been removed.
+Sentinel 1, the 28 m hall boss, is `models/sentinel_colossus.glb`, the Meshy colossus shipped in commit `902485e` (Round 19). The weak-point spots from Round 9 (`ea1f7e4`) track its Head, Spine02, knees, elbows, and forearms. On phones the material is albedo plus the emissive map only. The procedural block colossus and the Quaternius Leela file are not the hall boss.
 
 ## Yard
 

@@ -551,13 +551,12 @@
     if (col) shell.add(col);
     const girt = instanced(new THREE.BoxGeometry(1, 1, 1), plate, girts);
     if (girt) shell.add(girt);
-    const pipes = [];
-    for (let z = -60; z <= 60; z += 8) {
-      pipes.push({ x: -16, y: 31.6, z, sx: 0.32, sy: 0.32, sz: 6 });
-      pipes.push({ x: 16, y: 31.6, z, sx: 0.32, sy: 0.32, sz: 6 });
-      pipes.push({ x: -40, y: 29.4, z, sx: 0.22, sy: 0.22, sz: 6 });
-      pipes.push({ x: 40, y: 29.4, z, sx: 0.22, sy: 0.22, sz: 6 });
-    }
+    const pipes = [
+      { x: -16, y: 31.6, z: 0, sx: 0.28, sy: 0.28, sz: 132 },
+      { x: 16, y: 31.6, z: 0, sx: 0.28, sy: 0.28, sz: 132 },
+      { x: -40, y: 29.4, z: 0, sx: 0.2, sy: 0.2, sz: 132 },
+      { x: 40, y: 29.4, z: 0, sx: 0.2, sy: 0.2, sz: 132 }
+    ];
     risers.forEach((p) => pipes.push(p));
     const pipe = instanced(new THREE.BoxGeometry(1, 1, 1), rust, pipes);
     if (pipe) shell.add(pipe);
@@ -1075,14 +1074,114 @@
     return { root, mixer, hand };
   }
 
+  let coloTpl = null;
+
+  /* models/sentinel_colossus.glb — Meshy colossus from 902485e, the boss the weak points were pinned to.
+     Albedo plus the emissive map (eyes and panels). No normal, metal, or tangent: those dropped the mesh on phones. */
+  function hardenColossus(mesh) {
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.frustumCulled = false;
+    mesh.userData.v2Boss = true;
+    if (mesh.geometry && mesh.geometry.attributes && mesh.geometry.attributes.tangent) mesh.geometry.deleteAttribute('tangent');
+    const src = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+    const map = src && src.map ? src.map : null;
+    const em = src && src.emissiveMap ? src.emissiveMap : null;
+    const m = new THREE.MeshStandardMaterial({
+      name: 'sentinel-colossus',
+      color: 0xffffff,
+      map: map,
+      roughness: 0.78,
+      metalness: 0.18,
+      emissive: new THREE.Color(0xffffff),
+      emissiveMap: em,
+      emissiveIntensity: em ? 0.42 : 0
+    });
+    m.skinning = true;
+    m.userData.v2Plain = true;
+    m.userData._rim = true;
+    m.userData._bright = true;
+    mesh.material = m;
+  }
+
+  function loadColossus() {
+    if (v2._coloPromise) return v2._coloPromise;
+    v2._coloPromise = fetch('models/sentinel_colossus.glb').then((r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.arrayBuffer();
+    }).then((buf) => new Promise((resolve, reject) => {
+      const loader = new THREE.GLTFLoader();
+      loader.parse(buf, '', (gltf) => {
+        const src = gltf.scene || gltf.scenes[0];
+        src.traverse((o) => { if (o.isMesh) hardenColossus(o); });
+        coloTpl = { scene: src, clip: (gltf.animations && gltf.animations[0]) || null };
+        v2.colossusReady = true;
+        resolve(coloTpl);
+      }, reject);
+    })).catch((e) => { console.warn('colossus', e); v2.colossusFailed = true; return null; });
+    return v2._coloPromise;
+  }
+
+  function takeColossus(height) {
+    if (!coloTpl || !THREE.SkeletonUtils) return null;
+    const clone = THREE.SkeletonUtils.clone(coloTpl.scene);
+    clone.traverse((o) => { if (o.isMesh) hardenColossus(o); });
+    clone.updateMatrixWorld(true);
+    let minY = Infinity;
+    let maxY = -Infinity;
+    const probe = new THREE.Vector3();
+    clone.traverse((o) => {
+      if (!o.isBone) return;
+      o.getWorldPosition(probe);
+      if (probe.y < minY) minY = probe.y;
+      if (probe.y > maxY) maxY = probe.y;
+    });
+    const th = Math.max(0.5, maxY - minY);
+    const holder = new THREE.Group();
+    holder.scale.setScalar((height || 28) / th);
+    holder.add(clone);
+    holder.updateMatrixWorld(true);
+    let foot = Infinity;
+    holder.traverse((o) => {
+      if (!o.isBone) return;
+      o.getWorldPosition(probe);
+      if (probe.y < foot) foot = probe.y;
+    });
+    holder.position.y -= foot;
+    const root = new THREE.Group();
+    root.name = 'sentinel-colossus';
+    root.frustumCulled = false;
+    root.userData.v2Boss = true;
+    root.add(holder);
+    const mixer = new THREE.AnimationMixer(clone);
+    if (coloTpl.clip) {
+      const act = mixer.clipAction(coloTpl.clip);
+      act.play();
+      act.time = 0;
+      mixer.timeScale = 0;
+    }
+    root.updateMatrixWorld(true);
+    let planted = Infinity;
+    root.traverse((o) => {
+      if (!o.isBone) return;
+      o.getWorldPosition(probe);
+      if (probe.y < planted) planted = probe.y;
+    });
+    root.position.y -= planted;
+    let hand = null;
+    clone.traverse((o) => { if (!hand && o.isBone && o.name === 'RightHand') hand = o; });
+    return { root, mixer, hand };
+  }
+
   function loadAll() {
-    return loadMech();
+    return Promise.all([loadMech(), loadColossus()]);
   }
 
   v2.sentinelTemplate = sentinelTemplate;
   v2.stridePose = stridePose;
   v2.buildWalker = buildWalker;
   v2.buildSentinel1 = buildSentinel1;
+  v2.takeColossus = takeColossus;
   v2.dressArena = dressArena;
   v2.dressYard = dressYard;
   v2.zone = zone;

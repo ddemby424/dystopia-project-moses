@@ -126,6 +126,7 @@ function rcCombatStep(dt, now) {
     if (p.fromPlayer && !p.emp && weakPointHit(p, px0, py0, pz0)) { scene.remove(p.mesh); PROJECTILES.splice(i, 1); continue; }
     if (p.fromPlayer && droneHit(p, px0, py0, pz0)) { scene.remove(p.mesh); PROJECTILES.splice(i, 1); continue; }
     if (p.fromPlayer && barrelHit(p)) { scene.remove(p.mesh); PROJECTILES.splice(i, 1); continue; }
+    if (p.fromPlayer && window.RC && RC.cover && RC.cover.hit(p.x, p.y, p.z, p.damage || 12)) { spawnImpact(p.x, p.y, p.z, 0xd6d3d1); scene.remove(p.mesh); PROJECTILES.splice(i, 1); continue; }
     if (p.fromPlayer) {
       const CH = colossusAt(p.x, p.z, 0.4);
       if (CH && p.y < CH.height + 1) {
