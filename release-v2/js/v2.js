@@ -260,7 +260,7 @@
     const mats = RC.realism && RC.realism.mats;
     if (!mats) return;
     if (mats.floor) {
-      mats.floor.color.setRGB(0.58, 0.56, 0.52);
+      mats.floor.color.setRGB(0.28, 0.26, 0.24);
       mats.floor.roughness = 0.88;
       mats.floor.metalness = 0.05;
       mats.floor.envMapIntensity = 0.18;
@@ -270,7 +270,7 @@
       mats.floor.needsUpdate = true;
     }
     if (mats.wall && mats.wall.map) {
-      mats.wall.color.setRGB(0.46, 0.48, 0.5);
+      mats.wall.color.setRGB(0.22, 0.21, 0.2);
       mats.wall.roughness = 0.56;
       mats.wall.metalness = 0.46;
       mats.wall.envMapIntensity = 0.22;
@@ -279,44 +279,55 @@
       if (mats.wall.roughnessMap) mats.wall.roughnessMap.repeat.set(12, 8);
     }
     if (mats.ceiling) {
-      mats.ceiling.color.setRGB(0.22, 0.23, 0.24);
+      mats.ceiling.color.setRGB(0.1, 0.1, 0.11);
       mats.ceiling.roughness = 0.9;
       mats.ceiling.metalness = 0.2;
       mats.ceiling.emissiveMap = null;
       mats.ceiling.emissiveIntensity = 0;
     }
     if (mats.asphalt) {
-      mats.asphalt.color.setRGB(0.48, 0.47, 0.45);
+      mats.asphalt.color.setRGB(0.16, 0.16, 0.15);
       mats.asphalt.roughness = 0.94;
       mats.asphalt.metalness = 0.02;
       mats.asphalt.emissive = new THREE.Color(0x000000);
       mats.asphalt.emissiveIntensity = 0;
       mats.asphalt.emissiveMap = null;
     }
+    if (mats.plate && mats.plate.color) mats.plate.color.setRGB(0.22, 0.21, 0.2);
+    if (mats.siding && mats.siding.color) mats.siding.color.setRGB(0.1, 0.11, 0.12);
+    if (mats.rust && mats.rust.color) mats.rust.color.setRGB(0.45, 0.32, 0.24);
   }
 
   function lighting() {
     if (typeof hemiLight !== 'undefined') {
-      hemiLight.color.setHex(0x6a7380);
-      hemiLight.groundColor.setHex(0x1a1612);
-      hemiLight.intensity = 0.22;
+      hemiLight.color.setHex(0x3a4048);
+      hemiLight.groundColor.setHex(0x0c0a08);
+      hemiLight.intensity = 0.06;
     }
+    if (typeof ambientLight !== 'undefined') ambientLight.intensity = 0.012;
     if (typeof dirLight !== 'undefined') {
-      dirLight.color.setHex(0xc4b39a);
-      dirLight.intensity = 0.28;
+      dirLight.color.setHex(0xc48a4a);
+      dirLight.intensity = 0.12;
       dirLight.castShadow = false;
     }
-    if (typeof renderer !== 'undefined') renderer.shadowMap.enabled = false;
+    if (typeof renderer !== 'undefined') {
+      renderer.shadowMap.enabled = false;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      if (!v2._gritExp) {
+        v2._gritExp = true;
+        renderer.toneMappingExposure = Math.min(renderer.toneMappingExposure || 1, 1) * 0.78;
+      }
+    }
     if (typeof scene !== 'undefined' && scene.fog) {
-      scene.fog.color.setHex(0x0a0e14);
-      scene.fog.density = 0.0072;
-      scene.background.setHex(0x07090d);
+      scene.fog.color.setHex(0x07080c);
+      scene.fog.density = 0.011;
+      scene.background.setHex(0x05060a);
     }
     if (typeof ARENA_LIGHTS !== 'undefined') {
       ARENA_LIGHTS.forEach((L) => { if (L && L.light) { L.base = Math.min(L.base || 1, 0.7); L.light.intensity = L.base; L.light.castShadow = false; } });
     }
     if (!fill && typeof scene !== 'undefined') {
-      fill = new THREE.DirectionalLight(0xffe6c8, 0.14);
+      fill = new THREE.DirectionalLight(0x8eb4c8, 0.045);
       fill.position.set(-18, 28, 24);
       fill.castShadow = false;
       scene.add(fill);
@@ -339,8 +350,8 @@
       tex.repeat.set(4, 0.5);
     }
     rackMat = new THREE.MeshStandardMaterial({
-      map: tex, emissiveMap: tex, color: 0xc5ccd4, emissive: 0xfff0e0, emissiveIntensity: 0.4,
-      roughness: 0.5, metalness: 0.35
+      map: tex, emissiveMap: tex, color: 0x24282e, emissive: 0x3a2818, emissiveIntensity: 0.16,
+      roughness: 0.62, metalness: 0.28
     });
     if (tex && typeof BLINK_MATS !== 'undefined') BLINK_MATS.push({ tex, phase: 0, rate: 1.1 });
     return rackMat;
@@ -348,7 +359,9 @@
 
   function sharedGlow() {
     if (!glowMat) {
-      glowMat = new THREE.MeshStandardMaterial({ color: 0x221408, emissive: 0xffb060, emissiveIntensity: 0.9, roughness: 0.4, metalness: 0.2 });
+      glowMat = new THREE.MeshStandardMaterial({ color: 0x1a120c, emissive: 0x6a3818, emissiveIntensity: 0.22, roughness: 0.45, metalness: 0.2 });
+      glowMat.userData._bright = true;
+      glowMat.userData.v2Plain = true;
     }
     return glowMat;
   }
@@ -390,6 +403,8 @@
     const meshes = [];
     arenaGroup.traverse((o) => { if (o.isMesh) meshes.push(o); });
     meshes.forEach((mesh) => {
+      if (mesh.userData && mesh.userData.v2Keep) return;
+      if (mesh.parent && mesh.parent.userData && mesh.parent.userData.noMerge) return;
       if (!mesh.geometry || !mesh.geometry.attributes || !mesh.geometry.attributes.position) return;
       const srcCount = mesh.geometry.index ? mesh.geometry.index.count : mesh.geometry.attributes.position.count;
       if (srcCount / 3 > 280) return;
@@ -433,7 +448,12 @@
       let merged = null;
       try { merged = THREE.BufferGeometryUtils.mergeBufferGeometries(b.geos, false); } catch (e) { merged = null; }
       if (!merged) return;
-      const mesh = new THREE.Mesh(merged, b.mat);
+      let mat = b.mat;
+      if (mat && !mat.map && (mat.emissiveIntensity || 0) > 0.15) {
+        if (!v2._flatGlow) v2._flatGlow = new THREE.MeshBasicMaterial({ color: 0x2a241c });
+        mat = v2._flatGlow;
+      }
+      const mesh = new THREE.Mesh(merged, mat);
       mesh.name = 'rc-v2-merged';
       mesh.userData.noMerge = true;
       mesh.castShadow = false;
@@ -488,7 +508,7 @@
     tex.encoding = THREE.sRGBEncoding;
     windowGridMat._m = new THREE.MeshStandardMaterial({
       color: 0x1a1e24, map: tex, emissive: 0xffe0c0, emissiveMap: tex,
-      emissiveIntensity: 0.85, roughness: 0.45, metalness: 0.2
+      emissiveIntensity: 0.28, roughness: 0.55, metalness: 0.15
     });
     return windowGridMat._m;
   }
@@ -563,14 +583,40 @@
     const ventMat = new THREE.MeshStandardMaterial({ color: 0x1a1c20, emissive: 0x2a2418, emissiveIntensity: 0.25, roughness: 0.7, metalness: 0.4 });
     const vent = instanced(new THREE.BoxGeometry(1, 1, 1), ventMat, vents);
     if (vent) shell.add(vent);
-    const lamps = [];
-    for (let x = -48; x <= 48; x += 24) {
-      for (let z = -48; z <= 60; z += 24) lamps.push({ x, y: 33.2, z, sx: 3.2, sy: 0.12, sz: 1.1 });
+    const sodium = [];
+    const fluor = [];
+    const alarm = [];
+    for (let x = -36; x <= 36; x += 36) {
+      for (let z = -36; z <= 48; z += 36) {
+        const bucket = ((x + z) / 36) % 2 === 0 ? sodium : fluor;
+        bucket.push({ x, y: 32.6, z, sx: 2.4, sy: 0.08, sz: 0.7 });
+      }
     }
-    const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff1dd, emissive: 0xffd7a0, emissiveIntensity: 0.85, roughness: 0.4, metalness: 0.05 });
-    const lamp = instanced(new THREE.BoxGeometry(1, 1, 1), lampMat, lamps);
-    if (lamp) shell.add(lamp);
-    const signMat = new THREE.MeshStandardMaterial({ color: 0xfff4e4, emissive: 0xffe2b0, emissiveIntensity: 0.7, roughness: 0.45, metalness: 0.1 });
+    alarm.push({ x: -40, y: 8.2, z: 70, sx: 0.35, sy: 0.18, sz: 0.35 });
+    alarm.push({ x: 40, y: 8.2, z: 70, sx: 0.35, sy: 0.18, sz: 0.35 });
+    alarm.push({ x: 0, y: 6.4, z: -70, sx: 0.4, sy: 0.16, sz: 0.4 });
+    const sodMat = new THREE.MeshStandardMaterial({ color: 0x3a2414, emissive: 0xff9a3a, emissiveIntensity: 0.35, roughness: 0.6, metalness: 0.1 });
+    const fluMat = new THREE.MeshStandardMaterial({ color: 0x1a2428, emissive: 0x8ec8d8, emissiveIntensity: 0.22, roughness: 0.55, metalness: 0.15 });
+    const almMat = new THREE.MeshStandardMaterial({ color: 0x2a1010, emissive: 0xff2a2a, emissiveIntensity: 0.55, roughness: 0.5, metalness: 0.1 });
+    const sod = instanced(new THREE.BoxGeometry(1, 1, 1), sodMat, sodium);
+    const flu = instanced(new THREE.BoxGeometry(1, 1, 1), fluMat, fluor);
+    const alm = instanced(new THREE.BoxGeometry(1, 1, 1), almMat, alarm);
+    if (sod) shell.add(sod);
+    if (flu) shell.add(flu);
+    if (alm) shell.add(alm);
+    if (!v2._pools && typeof scene !== 'undefined') {
+      v2._pools = true;
+      const pools = (typeof IS_COARSE !== 'undefined' && IS_COARSE)
+        ? [[-24, 8, 20, 0xff9a3a], [0, 7, 72, 0xff3a2a], [18, 6, 112, 0xff9a3a]]
+        : [[-24, 8, 20, 0xff9a3a], [24, 8, -16, 0x9ec8d4], [0, 7, 72, 0xff3a2a], [18, 6, 112, 0xff9a3a], [-16, 6, 108, 0xffb060]];
+      pools.forEach((p) => {
+        const L = new THREE.PointLight(p[3], 0.55, 16, 2);
+        L.position.set(p[0], p[1], p[2]);
+        L.castShadow = false;
+        scene.add(L);
+      });
+    }
+    const signMat = new THREE.MeshStandardMaterial({ color: 0x2a241c, emissive: 0x6a5030, emissiveIntensity: 0.22, roughness: 0.6, metalness: 0.2 });
     const signs = [
       { x: -86.1, y: 8.4, z: 20, sx: 0.08, sy: 0.7, sz: 6.5 },
       { x: 86.1, y: 8.4, z: -24, sx: 0.08, sy: 0.7, sz: 6.5 },
@@ -589,6 +635,111 @@
     arenaGroup.add(shell);
   }
 
+  function decalTex(kind) {
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 128;
+    const g = c.getContext('2d');
+    g.clearRect(0, 0, 128, 128);
+    if (kind === 'oil') {
+      g.fillStyle = 'rgba(12,10,8,0.85)';
+      g.beginPath(); g.ellipse(64, 70, 48, 28, 0.4, 0, 6.3); g.fill();
+      g.fillStyle = 'rgba(40,32,18,0.45)';
+      g.beginPath(); g.ellipse(50, 60, 18, 10, -0.3, 0, 6.3); g.fill();
+    } else if (kind === 'scorch') {
+      g.fillStyle = 'rgba(8,6,5,0.8)';
+      g.beginPath(); g.arc(64, 64, 40, 0, 6.3); g.fill();
+      g.strokeStyle = 'rgba(20,12,8,0.7)';
+      for (let i = 0; i < 8; i++) { g.beginPath(); g.moveTo(64, 64); g.lineTo(64 + Math.cos(i) * 50, 64 + Math.sin(i * 1.7) * 46); g.stroke(); }
+    } else {
+      g.strokeStyle = 'rgba(160,48,32,0.8)'; g.lineWidth = 6;
+      g.strokeRect(18, 36, 92, 52);
+      g.fillStyle = 'rgba(180,60,40,0.75)'; g.font = '700 16px sans-serif';
+      g.fillText('KEEP CLEAR', 24, 68);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.encoding = THREE.sRGBEncoding;
+    return t;
+  }
+
+  function addDecals() {
+    if (!arenaGroup || arenaGroup.getObjectByName('rc-decals')) return;
+    const g = new THREE.Group();
+    g.name = 'rc-decals';
+    g.userData.noMerge = true;
+    g.userData.v2Keep = true;
+    const shared = {};
+    function matFor(kind) {
+      if (!shared[kind]) {
+        shared[kind] = new THREE.MeshBasicMaterial({
+          map: decalTex(kind), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2
+        });
+        shared[kind].userData.v2Plain = true;
+      }
+      return shared[kind];
+    }
+    function quad(kind, x, z, sx, sz, rot) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), matFor(kind));
+      m.rotation.x = -Math.PI / 2;
+      m.rotation.z = rot || 0;
+      m.position.set(x, 0.06, z);
+      m.userData.v2Keep = true;
+      g.add(m);
+    }
+    [[4, 12, 6, 3.2], [-18, 40, 4.5, 2.4], [22, -8, 5, 2.8], [8, 55, 3.6, 2.2], [-30, 62, 4, 2.6]].forEach((p) => quad('oil', p[0], p[1], p[2], p[3], 0.3));
+    [[-6, -20, 3.2], [16, 28, 2.6], [34, 60, 2.2]].forEach((p) => quad('scorch', p[0], p[1], p[2], p[2], 0.2));
+    quad('mark', 0, 48, 3.4, 1.1, 0);
+    quad('mark', -12.5, 70, 2.8, 0.9, 0);
+    function wall(kind, x, y, z, sx, sy, yaw) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(sx, sy), matFor(kind));
+      m.position.set(x, y, z);
+      m.rotation.y = yaw || 0;
+      m.userData.v2Keep = true;
+      g.add(m);
+    }
+    wall('scorch', -84.6, 1.6, 12, 2.4, 1.8, Math.PI / 2);
+    wall('oil', 84.6, 1.1, -20, 3.2, 1.4, -Math.PI / 2);
+    wall('scorch', 6, 2.2, -82.6, 2.8, 1.6, 0);
+    arenaGroup.add(g);
+  }
+
+  function gritPale(root) {
+    const group = root || arenaGroup;
+    if (!group) return;
+    const skip = (o) => {
+      let p = o;
+      while (p) {
+        if (p.userData && (p.userData.v2Keep || p.userData.v2Boss || p.userData.textPlane || p.userData.signTwin)) return true;
+        p = p.parent;
+      }
+      return false;
+    };
+    group.traverse((o) => {
+      if (!o.isMesh || !o.material || skip(o)) return;
+      const list = Array.isArray(o.material) ? o.material : [o.material];
+      list.forEach((m) => {
+        if (!m || !m.color || m.userData.gritPale) return;
+        if (m.isMeshBasicMaterial) {
+          if (!m.transparent && m.color.r > 0.72 && m.color.g > 0.72 && m.color.b > 0.65) {
+            m.userData.gritPale = true;
+            m.color.setRGB(0.18, 0.17, 0.15);
+          }
+          return;
+        }
+        const hot = m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) / 3 > 0.55 && (m.emissiveIntensity || 0) > 0.22;
+        const flatPale = !m.map && m.color.r > 0.32 && m.color.g > 0.3 && m.color.b > 0.26;
+        const whiteTint = m.map && m.color.r > 0.7 && m.color.g > 0.7 && m.color.b > 0.65 && (m.emissiveIntensity || 0) < 1.4;
+        if (!hot && !flatPale && !whiteTint) return;
+        m.userData.gritPale = true;
+        m.color.setRGB(0.15, 0.14, 0.13);
+        if (m.emissive && (hot || (m.emissiveIntensity || 0) > 0.3)) {
+          m.emissive.setRGB(0.16, 0.08, 0.04);
+          m.emissiveIntensity = Math.min(m.emissiveIntensity || 0, 0.1);
+        }
+        m.roughness = Math.max(m.roughness || 0, 0.62);
+      });
+    });
+  }
+
   function dressArena() {
     lighting();
     tuneMats();
@@ -597,6 +748,8 @@
     try { if (RC.yard && RC.yard.carve) RC.yard.carve(); } catch (e) { console.warn('carve', e); }
     addShell();
     mergeStatic();
+    try { addDecals(); } catch (e) { console.warn('decals', e); }
+    try { gritPale(); } catch (e) { console.warn('grit', e); }
     const ceil = arenaGroup && arenaGroup.getObjectByName('rc-ceiling');
     if (ceil) ceil.position.y = 34.2;
   }
@@ -722,6 +875,7 @@
     }
     const stainMesh = instanced(new THREE.BoxGeometry(1, 0.02, 1), stainMat, spots);
     if (stainMesh) root.add(stainMesh);
+    try { gritPale(g); } catch (e) { console.warn('yard grit', e); }
   }
 
   function showRig(obj, on) {
@@ -740,13 +894,13 @@
     }
     if (typeof scene !== 'undefined' && scene.fog && scene.background) {
       if (outside) {
-        scene.fog.color.setHex(0x4e565f);
-        scene.fog.density = 0.012;
-        scene.background.setHex(0x2a3038);
+        scene.fog.color.setHex(0x12161c);
+        scene.fog.density = 0.02;
+        scene.background.setHex(0x0c1016);
       } else {
-        scene.fog.color.setHex(0x0a0e14);
-        scene.fog.density = 0.0072;
-        scene.background.setHex(0x07090d);
+        scene.fog.color.setHex(0x07080c);
+        scene.fog.density = 0.011;
+        scene.background.setHex(0x05060a);
       }
     }
     /* Keep the shell up from the yard so the factory reads. Hide the boss and the guards instead. */

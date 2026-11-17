@@ -26,32 +26,46 @@
   function maps() {
     if (MAPS.ready) return MAPS;
     MAPS.concrete = tex((g, w, h) => {
-      g.fillStyle = '#5c5954'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#3e3c38'; g.fillRect(0, 0, w, h);
       for (let i = 0; i < 80; i++) {
         g.fillStyle = i % 3 ? 'rgba(30,28,26,0.35)' : 'rgba(120,116,108,0.25)';
         g.fillRect(Math.random() * w, Math.random() * h, 8 + Math.random() * 30, 2);
       }
     }, 128, 128);
     MAPS.crate = tex((g, w, h) => {
-      g.fillStyle = '#3a342c'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#241e18'; g.fillRect(0, 0, w, h);
       g.strokeStyle = '#1c1916'; g.lineWidth = 6;
       g.strokeRect(8, 8, w - 16, h - 16);
       g.fillStyle = '#6a5a40'; g.fillRect(18, h * 0.42, w - 36, 10);
     }, 128, 128);
     MAPS.drum = tex((g, w, h) => {
-      g.fillStyle = '#4a1c16'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#3a1612'; g.fillRect(0, 0, w, h);
       g.fillStyle = '#1a1a1a'; g.fillRect(0, h * 0.38, w, h * 0.18);
       g.fillStyle = '#c4a15a';
       for (let x = -20; x < w; x += 18) g.fillRect(x, h * 0.4, 8, h * 0.14);
       g.fillStyle = '#d6d0c4'; g.font = '700 18px sans-serif'; g.fillText('FLAMMABLE', 16, h * 0.72);
     }, 128, 128);
     MAPS.sand = tex((g, w, h) => {
-      g.fillStyle = '#6a6048'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#4a4634'; g.fillRect(0, 0, w, h);
       g.strokeStyle = '#3a3428'; g.lineWidth = 3;
       for (let y = 8; y < h; y += 14) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y + 4); g.stroke(); }
     }, 128, 64);
+    MAPS.hazard = tex((g, w, h) => {
+      g.fillStyle = '#1a1610'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#b8862a';
+      for (let x = -16; x < w + 16; x += 16) g.fillRect(x, 0, 8, h);
+    }, 64, 16);
     MAPS.ready = true;
     return MAPS;
+  }
+
+  function sharedLip() {
+    if (!sharedLip.m) sharedLip.m = mat(null, 0x1a1816, 0.55, 0.62);
+    return sharedLip.m;
+  }
+  function sharedStripe(M) {
+    if (!sharedStripe.m) sharedStripe.m = mat(M.hazard, 0xffffff, 0.7, 0.12);
+    return sharedStripe.m;
   }
 
   function mat(map, color, rough, metal) {
@@ -74,10 +88,18 @@
     const intact = new THREE.Group();
     const damaged = new THREE.Group();
     const rubble = new THREE.Group();
+    const lip = sharedLip();
+    const stripe = sharedStripe(M);
     if (kind === 'drum') {
       const body = new THREE.Mesh(new THREE.CylinderGeometry(s.w / 2, s.w / 2, s.h, 12), mat(M.drum, 0xffffff, 0.62, 0.35));
       body.position.y = s.h / 2;
       intact.add(body);
+      [0.08, s.h - 0.08].forEach((y) => {
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(s.w / 2, 0.035, 6, 12), lip);
+        rim.rotation.x = Math.PI / 2;
+        rim.position.y = y;
+        intact.add(rim);
+      });
       const dent = body.clone();
       dent.scale.set(1, 0.82, 0.9);
       dent.position.y = s.h * 0.4;
@@ -120,6 +142,12 @@
       const body = box(s.w, s.h, s.d, mat(map, 0xffffff, kind === 'crate' ? 0.8 : 0.92, 0.08));
       body.position.y = s.h / 2;
       intact.add(body);
+      const cap = box(s.w + 0.04, 0.05, s.d + 0.04, lip);
+      cap.position.y = s.h;
+      intact.add(cap);
+      const band = box(s.w + 0.02, 0.07, 0.04, stripe);
+      band.position.set(0, s.h * 0.72, s.d / 2 + 0.01);
+      intact.add(band);
       const chip = box(s.w * 0.72, s.h * 0.62, s.d * 0.9, mat(map, 0xcccccc, 0.9, 0.08));
       chip.position.set(s.w * 0.08, s.h * 0.32, 0);
       damaged.add(chip);

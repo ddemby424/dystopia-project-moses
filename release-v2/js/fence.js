@@ -59,7 +59,7 @@
   function mats() {
     if (postMat) return;
     postMat = new THREE.MeshStandardMaterial({ color: 0x1c1916, metalness: 0.7, roughness: 0.4 });
-    railMat = new THREE.MeshBasicMaterial({ color: 0x9ff6ff, transparent: true, opacity: 0.9 });
+    railMat = new THREE.MeshBasicMaterial({ color: 0x3a6870, transparent: true, opacity: 0.55 });
     deadMat = new THREE.MeshBasicMaterial({ color: 0x3d4a48, transparent: true, opacity: 0.45 });
   }
 
@@ -122,7 +122,7 @@
     const gate = new THREE.Group();
     fence.liveTex = gateTexture('LIVE', true);
     fence.deadTex = gateTexture('', false);
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(gateSeg.len, f.height * 0.92, 0.12), new THREE.MeshStandardMaterial({ color: 0xd7fbff, map: fence.liveTex, emissive: 0x22d3ee, emissiveMap: fence.liveTex, emissiveIntensity: 1.1, metalness: 0.35, roughness: 0.45 }));
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(gateSeg.len, f.height * 0.92, 0.12), new THREE.MeshStandardMaterial({ color: 0x1c3036, map: fence.liveTex, emissive: 0x1a4a52, emissiveMap: fence.liveTex, emissiveIntensity: 0.35, metalness: 0.4, roughness: 0.55 }));
     bar.position.y = f.height * 0.46;
     gate.add(bar);
     gate.position.set((gateSeg.x0 + gateSeg.x1) / 2, 0, gateSeg.z0);

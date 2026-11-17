@@ -736,9 +736,9 @@ function addHangingLight(x, y, z, color = 0xffaa66, intensity = 1.2, distance = 
     pl.position.set(x, y - 0.6, z); arenaGroup.add(pl);
     ARENA_LIGHTS.push({ light: pl, base: intensity, phase: Math.random() * Math.PI * 2, flicker: Math.random() < 0.3 });
   }
-  const pool = new THREE.Mesh(new THREE.PlaneGeometry(distance * 0.95, distance * 0.95), new THREE.MeshBasicMaterial({ color, map: poolTexture(), transparent: true, opacity: realOK ? 0.22 : 0.42, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(distance * 0.7, distance * 0.7), new THREE.MeshBasicMaterial({ color, map: poolTexture(), transparent: true, opacity: realOK ? 0.07 : 0.11, blending: THREE.AdditiveBlending, depthWrite: false }));
   pool.rotation.x = -Math.PI / 2; pool.position.set(x, 0.04, z); arenaGroup.add(pool);
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(distance * 0.28, y - 0.4, 18, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.045, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(distance * 0.22, y - 0.4, 18, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.018, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
   cone.position.set(x, (y - 0.4) / 2, z); arenaGroup.add(cone);
 }
 // emissive light strips along the outer walls + lit exit doorway
@@ -758,15 +758,15 @@ function applyRim(root, color = 0xffb070, strength = 0.75) {
   });
 }
 function addLightStrips(floor) {
-  const cols = [0xff8a2a, 0x2aa8ff, 0xff8a2a, 0xff3030];
+  const cols = [0x6a3a18, 0x243038, 0x6a3a18, 0x4a1818];
   const c = cols[floor] || 0xff8a2a;
   const mat = new THREE.MeshBasicMaterial({ color: c });
-  const matHi = new THREE.MeshBasicMaterial({ color: 0x9ad8ff });
+  const matHi = new THREE.MeshBasicMaterial({ color: 0x3a2e24 });
   [[0, -83.4, 176, 0.2], [0, 83.4, 176, 0.2]].forEach(([x, z, w, d]) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.14, d), mat); m.position.set(x, 0.35, z); arenaGroup.add(m); const m2 = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, d), matHi); m2.position.set(x, 9.2, z); arenaGroup.add(m2); });
   [[-88.4, 0], [88.4, 0]].forEach(([x, z]) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 166), mat); m.position.set(x, 0.35, z); arenaGroup.add(m); const m2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 166), matHi); m2.position.set(x, 9.2, z); arenaGroup.add(m2); });
   // exit doorway glow
-  const ex = FLOOR_INFO.exit; const dl = new THREE.PointLight(0x3dff9a, 2.2, 22, 1.6); dl.position.set(ex.x, 4, ex.z + 4); arenaGroup.add(dl);
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(8, 0.25, 0.25), new THREE.MeshBasicMaterial({ color: 0x3dff9a })); frame.position.set(ex.x, 6.2, ex.z + 1.2); arenaGroup.add(frame);
+  const ex = FLOOR_INFO.exit; const dl = new THREE.PointLight(0xff3a2a, 0.55, 14, 2); dl.position.set(ex.x, 4, ex.z + 4); arenaGroup.add(dl);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(8, 0.25, 0.25), new THREE.MeshBasicMaterial({ color: 0x6a2020 })); frame.position.set(ex.x, 6.2, ex.z + 1.2); arenaGroup.add(frame);
 }
 
 function addBarrel(x, z) {
@@ -935,8 +935,8 @@ const RACK_TEX = (() => {
 })();
 const CABINET_TEX = (() => {
   const c = document.createElement('canvas'); c.width = 128; c.height = 128; const x = c.getContext('2d');
-  x.fillStyle = '#8b8f86'; x.fillRect(0, 0, 128, 128);
-  for (let i = 0; i < 4; i++) { x.fillStyle = '#767a72'; x.fillRect(6, 6 + i * 30, 116, 26); x.fillStyle = '#e5e7eb'; x.fillRect(52, 14 + i * 30, 24, 8); x.fillStyle = '#3f3f46'; x.fillRect(56, 24 + i * 30, 16, 3); }
+  x.fillStyle = '#3a3834'; x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 4; i++) { x.fillStyle = '#2a2824'; x.fillRect(6, 6 + i * 30, 116, 26); x.fillStyle = '#6a6248'; x.fillRect(52, 14 + i * 30, 24, 8); x.fillStyle = '#1c1a16'; x.fillRect(56, 24 + i * 30, 16, 3); }
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 })();
 
@@ -976,7 +976,7 @@ const PROP_BUILDERS = {
     const len = o.w, dep = o.d || 1.2, h = o.h || 2.4;
     const g = new THREE.Group();
     const tex = RACK_TEX.clone(); tex.needsUpdate = true; tex.repeat.set(Math.max(1, Math.round(len / 0.75)), 0.5);
-    const mat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.5, metalness: 0.5 });
+    const mat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0x3a2818, emissiveIntensity: 0.12, roughness: 0.62, metalness: 0.35, color: 0x3a4048 });
     const side = new THREE.MeshStandardMaterial({ color: 0x1b2028, roughness: 0.5, metalness: 0.6 });
     const m = new THREE.Mesh(new THREE.BoxGeometry(len, h, dep), [side, side, side, side, mat, mat]);
     m.position.y = h / 2; m.castShadow = true; m.receiveShadow = true; g.add(m);
@@ -4409,12 +4409,12 @@ const OFFICE_MEMOS = [
 function officeMats() {
   if (officeMats.m) return officeMats.m;
   officeMats.m = {
-    wall: new THREE.MeshStandardMaterial({ color: 0x8c8a82, roughness: 0.8, metalness: 0.1 }),
+    wall: new THREE.MeshStandardMaterial({ color: 0x3a3834, roughness: 0.86, metalness: 0.08 }),
     trim: new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.5, metalness: 0.6 }),
     glass: new THREE.MeshStandardMaterial({ color: 0x9fc4d8, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.22, depthWrite: false }),
     door: new THREE.MeshStandardMaterial({ color: 0x4a5058, roughness: 0.5, metalness: 0.5 }),
     roof: new THREE.MeshStandardMaterial({ color: 0x5a5d62, roughness: 0.7, metalness: 0.4 }),
-    panel: new THREE.MeshStandardMaterial({ color: 0xf2efe6, emissive: 0xfff3dc, emissiveIntensity: 0.9 }),
+    panel: new THREE.MeshStandardMaterial({ color: 0x2a2824, emissive: 0x4a3a28, emissiveIntensity: 0.12 }),
     wood: new THREE.MeshStandardMaterial({ color: 0x6a4a30, roughness: 0.7 }),
     vend: new THREE.MeshStandardMaterial({ color: 0x1a1a1e, emissive: 0x3aa0ff, emissiveIntensity: 0.6 }),
     red: new THREE.MeshStandardMaterial({ color: 0x8a1a12, roughness: 0.6 })
