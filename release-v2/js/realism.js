@@ -101,7 +101,7 @@
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(176, 164), mats.ceiling);
     ceil.name = 'rc-ceiling';
     ceil.rotation.x = Math.PI / 2;
-    ceil.position.y = 34.2;
+    ceil.position.y = high ? 42 : 34.2;
     ceil.receiveShadow = true;
     ceil.userData.rcSurface = 'ceiling';
     arenaGroup.add(ceil);
