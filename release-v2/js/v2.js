@@ -550,11 +550,11 @@
     const risers = [];
     const vents = [];
     for (let z = -72; z <= 72; z += 12) {
-      cols.push({ x: -86.6, y: 17, z, sy: 34, sx: 0.55, sz: 0.42 });
-      cols.push({ x: 86.6, y: 17, z, sy: 34, sx: 0.55, sz: 0.42 });
+      cols.push({ x: -86.6, y: 22, z, sy: 44, sx: 0.55, sz: 0.42 });
+      cols.push({ x: 86.6, y: 22, z, sy: 44, sx: 0.55, sz: 0.42 });
       if (z % 24 === 0) {
-        risers.push({ x: -86.2, y: 16, z: z + 1.2, sx: 0.28, sy: 32, sz: 0.28 });
-        risers.push({ x: 86.2, y: 16, z: z + 1.2, sx: 0.28, sy: 32, sz: 0.28 });
+        risers.push({ x: -86.2, y: 21, z: z + 1.2, sx: 0.28, sy: 42, sz: 0.28 });
+        risers.push({ x: 86.2, y: 21, z: z + 1.2, sx: 0.28, sy: 42, sz: 0.28 });
       }
     }
     [-86.35, 86.35].forEach((x) => {
@@ -572,10 +572,10 @@
     const girt = instanced(new THREE.BoxGeometry(1, 1, 1), plate, girts);
     if (girt) shell.add(girt);
     const pipes = [
-      { x: -16, y: 31.6, z: 0, sx: 0.28, sy: 0.28, sz: 132 },
-      { x: 16, y: 31.6, z: 0, sx: 0.28, sy: 0.28, sz: 132 },
-      { x: -40, y: 29.4, z: 0, sx: 0.2, sy: 0.2, sz: 132 },
-      { x: 40, y: 29.4, z: 0, sx: 0.2, sy: 0.2, sz: 132 }
+      { x: -16, y: 38.6, z: 0, sx: 0.28, sy: 0.28, sz: 132 },
+      { x: 16, y: 38.6, z: 0, sx: 0.28, sy: 0.28, sz: 132 },
+      { x: -40, y: 36.4, z: 0, sx: 0.2, sy: 0.2, sz: 132 },
+      { x: 40, y: 36.4, z: 0, sx: 0.2, sy: 0.2, sz: 132 }
     ];
     risers.forEach((p) => pipes.push(p));
     const pipe = instanced(new THREE.BoxGeometry(1, 1, 1), rust, pipes);
@@ -589,7 +589,7 @@
     for (let x = -36; x <= 36; x += 36) {
       for (let z = -36; z <= 48; z += 36) {
         const bucket = ((x + z) / 36) % 2 === 0 ? sodium : fluor;
-        bucket.push({ x, y: 32.6, z, sx: 2.4, sy: 0.08, sz: 0.7 });
+        bucket.push({ x, y: 40.2, z, sx: 2.4, sy: 0.08, sz: 0.7 });
       }
     }
     alarm.push({ x: -40, y: 8.2, z: 70, sx: 0.35, sy: 0.18, sz: 0.35 });
@@ -751,7 +751,7 @@
     try { addDecals(); } catch (e) { console.warn('decals', e); }
     try { gritPale(); } catch (e) { console.warn('grit', e); }
     const ceil = arenaGroup && arenaGroup.getObjectByName('rc-ceiling');
-    if (ceil) ceil.position.y = 34.2;
+    if (ceil) ceil.position.y = (typeof STATE !== 'undefined' && (STATE.floor || 0) === 0) ? 42 : 34.2;
   }
 
   function hideKit() {
@@ -1276,32 +1276,80 @@
     return v2._coloPromise;
   }
 
+  /* World box of the skinned mesh, matching the r128 skinning vertex path. */
+  function skinnedBox(root) {
+    const box = { min: Infinity, max: -Infinity };
+    if (!root) return box;
+    root.updateMatrixWorld(true);
+    const v = new THREE.Vector4();
+    const tmp = new THREE.Vector4();
+    const acc = new THREE.Vector4();
+    const m = new THREE.Matrix4();
+    const world = new THREE.Vector3();
+    root.traverse((o) => {
+      if (!o.isSkinnedMesh || !o.skeleton || !o.geometry || !o.geometry.attributes.position) return;
+      const pos = o.geometry.attributes.position;
+      const idx = o.geometry.attributes.skinIndex;
+      const w = o.geometry.attributes.skinWeight;
+      if (!idx || !w) return;
+      o.skeleton.update();
+      const bonesM = o.skeleton.boneMatrices;
+      const bind = o.bindMatrix;
+      const bindInv = o.bindMatrixInverse;
+      for (let i = 0; i < pos.count; i++) {
+        v.set(pos.getX(i), pos.getY(i), pos.getZ(i), 1).applyMatrix4(bind);
+        acc.set(0, 0, 0, 0);
+        for (let k = 0; k < 4; k++) {
+          const bi = k === 0 ? idx.getX(i) : k === 1 ? idx.getY(i) : k === 2 ? idx.getZ(i) : idx.getW(i);
+          const wt = k === 0 ? w.getX(i) : k === 1 ? w.getY(i) : k === 2 ? w.getZ(i) : w.getW(i);
+          if (!wt) continue;
+          m.fromArray(bonesM, bi * 16);
+          tmp.copy(v).applyMatrix4(m).multiplyScalar(wt);
+          acc.add(tmp);
+        }
+        acc.applyMatrix4(bindInv);
+        world.set(acc.x, acc.y, acc.z).applyMatrix4(o.matrixWorld);
+        if (world.y < box.min) box.min = world.y;
+        if (world.y > box.max) box.max = world.y;
+      }
+    });
+    return box;
+  }
+
+  function plantColossus(root, floorY) {
+    const y = floorY || 0;
+    const box = skinnedBox(root);
+    if (!isFinite(box.min)) return box;
+    const dy = y - box.min;
+    if (Math.abs(dy) > 1e-4) {
+      root.position.y += dy;
+      root.updateMatrixWorld(true);
+      box.min += dy;
+      box.max += dy;
+    }
+    return box;
+  }
+
   function takeColossus(height) {
     if (!coloTpl || !THREE.SkeletonUtils) return null;
     const clone = THREE.SkeletonUtils.clone(coloTpl.scene);
     clone.traverse((o) => { if (o.isMesh) hardenColossus(o); });
-    clone.updateMatrixWorld(true);
-    let minY = Infinity;
-    let maxY = -Infinity;
-    const probe = new THREE.Vector3();
+    /* Same grounding as the original game at 68a2482 (normalizeMeshyScene):
+       skinned size comes from the bind-pose geometry box, not the bone pivots.
+       Bone pivots sit above the soles, so planting those left the mesh in the floor. */
+    let geo = null;
     clone.traverse((o) => {
-      if (!o.isBone) return;
-      o.getWorldPosition(probe);
-      if (probe.y < minY) minY = probe.y;
-      if (probe.y > maxY) maxY = probe.y;
+      if (!o.isSkinnedMesh || !o.geometry) return;
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      if (!geo) geo = o.geometry.boundingBox.clone();
+      else geo.union(o.geometry.boundingBox);
     });
-    const th = Math.max(0.5, maxY - minY);
+    const gh = Math.max(0.5, geo ? geo.max.y - geo.min.y : 8);
+    const sc = (height || 28) / gh;
     const holder = new THREE.Group();
-    holder.scale.setScalar((height || 28) / th);
+    holder.scale.setScalar(sc);
+    holder.position.y = geo ? -geo.min.y * sc : 0;
     holder.add(clone);
-    holder.updateMatrixWorld(true);
-    let foot = Infinity;
-    holder.traverse((o) => {
-      if (!o.isBone) return;
-      o.getWorldPosition(probe);
-      if (probe.y < foot) foot = probe.y;
-    });
-    holder.position.y -= foot;
     const root = new THREE.Group();
     root.name = 'sentinel-colossus';
     root.frustumCulled = false;
@@ -1310,18 +1358,11 @@
     const mixer = new THREE.AnimationMixer(clone);
     if (coloTpl.clip) {
       const act = mixer.clipAction(coloTpl.clip);
-      act.play();
+      act.enabled = false;
       act.time = 0;
       mixer.timeScale = 0;
     }
     root.updateMatrixWorld(true);
-    let planted = Infinity;
-    root.traverse((o) => {
-      if (!o.isBone) return;
-      o.getWorldPosition(probe);
-      if (probe.y < planted) planted = probe.y;
-    });
-    root.position.y -= planted;
     let hand = null;
     clone.traverse((o) => { if (!hand && o.isBone && o.name === 'RightHand') hand = o; });
     return { root, mixer, hand };
@@ -1336,6 +1377,8 @@
   v2.buildWalker = buildWalker;
   v2.buildSentinel1 = buildSentinel1;
   v2.takeColossus = takeColossus;
+  v2.plantColossus = plantColossus;
+  v2.skinnedBox = skinnedBox;
   v2.dressArena = dressArena;
   v2.dressYard = dressYard;
   v2.zone = zone;
