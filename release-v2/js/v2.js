@@ -1288,7 +1288,7 @@
   }
 
   function calmClip(clip) {
-    if (!clip || clip.userData && clip.userData.damped) return clip;
+    return clip;
     const tracks = clip.tracks.map((tr) => {
       if (hipsName.test(tr.name) && /\.position$/.test(tr.name) && tr.getValueSize() === 3) return dampPosition(tr);
       if (torsoName.test(tr.name) && /\.quaternion$/.test(tr.name) && tr.getValueSize() === 4) return dampQuaternion(tr, TORSO_LEAN, TORSO_LEAN);
@@ -1609,7 +1609,7 @@
         const src = gltf.scene || gltf.scenes[0];
         src.traverse((o) => { if (o.isMesh) hardenColossus(o); });
         const raw = (gltf.animations && gltf.animations[0]) || null;
-        coloTpl = { scene: src, clip: calmClip(raw) };
+        coloTpl = { scene: src, clip: raw };
         v2.colossusReady = true;
         resolve(coloTpl);
       }, reject);
@@ -1697,13 +1697,11 @@
     root.userData.v2Boss = true;
     root.add(holder);
     const mixer = new THREE.AnimationMixer(clone);
-    let fit = null;
     if (coloTpl.clip) {
       const act = mixer.clipAction(coloTpl.clip);
       act.play();
-      act.timeScale = 1;
+      act.timeScale = 0.08;
       mixer.timeScale = 1;
-      fit = fitStride(root, mixer, 2.1);
     }
     const lamp = new THREE.PointLight(0xffb060, 6, 55, 2);
     lamp.position.set(2, 14, 6);
@@ -1716,7 +1714,7 @@
     root.updateMatrixWorld(true);
     let hand = null;
     clone.traverse((o) => { if (!hand && o.isBone && o.name === 'RightHand') hand = o; });
-    return { root, mixer, hand, stride: fit && fit.stride, dur: fit && fit.dur, walkSpeed: fit && fit.speed, action: fit && fit.action };
+    return { root, mixer, hand };
   }
 
   function loadAll() {

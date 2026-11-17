@@ -41,12 +41,10 @@
   function sliceClip(src, name, t0, t1) {
     const tracks = [];
     (src.tracks || []).forEach((tr) => {
-      if (/\.position$/.test(tr.name)) return;
       const next = sliceTrack(tr, t0, t1);
       if (next) tracks.push(next);
     });
-    const clip = new THREE.AnimationClip(name, Math.max(0.25, t1 - t0), tracks);
-    return (RC.v2 && RC.v2.calmClip) ? RC.v2.calmClip(clip) : clip;
+    return new THREE.AnimationClip(name, Math.max(0.25, t1 - t0), tracks);
   }
 
   function hideHelpers(root) {
@@ -404,13 +402,14 @@
       A.current = name;
     }
     const act = A.actions[A.current];
-    const moving = moved > 0.3;
-    const stride = Math.max(0.8, (b.hitHeight || 2) * 0.7);
-    const dur = (act && act.getClip && act.getClip().duration) || 1;
-    if (act && (A.current === 'Walking' || A.current === 'Running')) act.timeScale = moving ? Math.min(A.current === 'Running' ? 1 : 0.85, (moved * dur) / stride) : 0;
+    if (act && A.current === 'Walking') act.timeScale = Math.max(0.7, Math.min(1.35, moved / 1.55));
+    if (act && A.current === 'Running') act.timeScale = Math.max(0.85, Math.min(1.45, moved / 3.4));
     if (act && A.current === 'Idle') act.timeScale = 1;
     b.mixer.update(dt);
-    if (A.spine) A.spine.rotation.z = 0;
+    if (A.spine) {
+      const twist = o.twist || 0;
+      A.spine.rotation.y += twist * 0.15;
+    }
     if (o.faceYaw != null && !b.dying && b.rig && b.rig.root) {
       let dy = o.faceYaw - b.rig.root.rotation.y;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));

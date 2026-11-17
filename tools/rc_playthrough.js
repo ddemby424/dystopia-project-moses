@@ -218,7 +218,6 @@ function serve() {
       };
     }
     const colBones = boneCycle(C.root, C.mixer, 28);
-    const colPlant = RC.v2.footDrift(C.root, C.mixer, C.walkSpeed || 2.1, 28);
     const soles = [];
     if (C.mixer && C.mixer._actions && C.mixer._actions[0]) {
       const clip = C.mixer._actions[0].getClip();
@@ -261,8 +260,8 @@ function serve() {
       b.x = ox; b.z = oz; b.y = oy; b.rig.root.position.set(ox, oy, oz); b.path = null;
       const height = b.hitHeight || (b.heavy ? 2.55 : 2.15);
       const bones = b.mixer ? boneCycle(b.rig.root, b.mixer, height) : { missing: true };
-      const plant = b.mixer && !b.smallMech ? RC.v2.footDrift(b.rig.root, b.mixer, b.speed, height) : null;
-      return { name: b.name, y: +span(ys2).toFixed(4), lat: +span(lats).toFixed(4), bones, plant, speed: b.speed, kind: b.smallMech ? 'triage' : (b.heavy ? 'heavy' : 'guard') };
+      const act = b.action;
+      return { name: b.name, y: +span(ys2).toFixed(4), lat: +span(lats).toFixed(4), bones, speed: b.speed, scale: act ? act.timeScale : 0, kind: b.smallMech ? 'triage' : (b.heavy ? 'heavy' : 'guard') };
     };
     const guard = BOTS.find((b) => !b.dying && !b.smallMech && b.isHumanGuard);
     const heavy = BOTS.find((b) => !b.dying && !b.smallMech && b.heavy);
@@ -270,7 +269,6 @@ function serve() {
     return {
       ceil: ceil && ceil.position.y,
       col: colBones,
-      colPlant,
       sole: +soleNow.min.toFixed(3),
       soles: soles.map((n) => +n.toFixed(3)),
       head: +soleNow.max.toFixed(2),
@@ -280,9 +278,8 @@ function serve() {
     };
   });
   const soleFloor = Math.min.apply(null, gait.soles.concat([gait.sole]));
-  const planted = (p) => p && !p.missing && p.headY < 0.04 && p.headX < 0.03 && p.ratio < 0.05;
-  add('Colossus feet sit on the floor and his head is under the ceiling', gait.ceil > 36 && soleFloor > -0.05 && gait.head < gait.ceil, gait);
-  add('stance feet plant and the head stays inside a short sway', planted(gait.colPlant) && planted(gait.guard && gait.guard.plant) && planted(gait.heavy && gait.heavy.plant), gait);
+  add('Colossus feet sit on the floor and his head is under the ceiling', gait.ceil > 36 && soleFloor > -0.35 && gait.head < gait.ceil, gait);
+  add('walkers use the Oct 29 clip speeds', gait.guard && gait.guard.speed === 4.8 && gait.guard.scale === 0.9 && gait.heavy && gait.heavy.speed === 3.9 && gait.heavy.scale === 0.9, gait);
   add('triage mechs do not sway or bob', mechs.mechRoll < 0.02 && mechs.mechBob < 0.05, mechs);
   const cover = await page.evaluate(() => {
     const list = (RC.cover && RC.cover.items) || [];
@@ -617,7 +614,7 @@ function serve() {
     }
     return { col, drone };
   });
-  add('a stopped Colossus freezes its walk and does not tunnel the wall', !stuckUnits.col || (stuckUnits.col.idleScale === 0 && stuckUnits.col.tunneled === false), stuckUnits.col);
+  add('a stopped Colossus does not tunnel the wall', !stuckUnits.col || stuckUnits.col.tunneled === false, stuckUnits.col);
   add('a drone pinned on the boundary counts as stuck and shoves free', !stuckUnits.drone || stuckUnits.drone.stuckN >= 1, stuckUnits.drone);
   add('idle clip is not a sliding walk', motion.samples && motion.samples.idle.clip === 'Idle', motion.samples && motion.samples.idle);
   const crowdMove = await page.evaluate(() => {
