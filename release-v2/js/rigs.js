@@ -41,6 +41,7 @@
   function sliceClip(src, name, t0, t1) {
     const tracks = [];
     (src.tracks || []).forEach((tr) => {
+      if (/\.position$/.test(tr.name)) return;
       const next = sliceTrack(tr, t0, t1);
       if (next) tracks.push(next);
     });
@@ -402,14 +403,11 @@
       A.current = name;
     }
     const act = A.actions[A.current];
-    if (act && A.current === 'Walking') act.timeScale = Math.max(0.7, Math.min(1.35, moved / 1.55));
-    if (act && A.current === 'Running') act.timeScale = Math.max(0.85, Math.min(1.45, moved / 3.4));
+    const moving = moved > 0.3;
+    if (act && (A.current === 'Walking' || A.current === 'Running')) act.timeScale = moving ? (b.isHuman ? 1.25 : 0.9) : 0.05;
     if (act && A.current === 'Idle') act.timeScale = 1;
     b.mixer.update(dt);
-    if (A.spine) {
-      const twist = o.twist || 0;
-      A.spine.rotation.y += twist * 0.15;
-    }
+    if (A.spine) A.spine.rotation.z = 0;
     if (o.faceYaw != null && !b.dying && b.rig && b.rig.root) {
       let dy = o.faceYaw - b.rig.root.rotation.y;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));

@@ -589,15 +589,17 @@ function buildRigFromMeshyTemplate(tpl, labelName, isBoss = false) {
   const hb = createHealthBarSprite(labelName, isBoss);
   hb.sprite.position.set(0, h + 0.55, 0); root.add(hb.sprite);
   let mixer = null;
+  let action = null;
   if (tpl.animations && tpl.animations.length > 0) {
     mixer = new THREE.AnimationMixer(clone);
     const clip = tpl.animations.find(a => /walk|run|move|Armature/i.test(a.name)) || tpl.animations[0];
-    const action = mixer.clipAction(clip);
+    action = mixer.clipAction(window.RC && RC.v2 && RC.v2.calmClip ? RC.v2.calmClip(clip) : clip);
     action.play();
+    action.timeScale = 1;
   }
   return {
     root, pelvis: root, torso: root, leftArm: root, rightArm: root, leftLeg: root, rightLeg: root,
-    armorMat: primaryMat, hb, mixer,
+    armorMat: primaryMat, hb, mixer, action,
     hitRadius: tpl.hitRadius || Math.max(0.7, h * 0.32),
     hitHeight: tpl.hitHeight || h * 1.05
   };
@@ -1271,12 +1273,10 @@ function checkFloorClear() {
 function updateColossi(dt, now) {
   let hudC = null, hudD = 1e9;
   COLOSSI.forEach(C => {
-    const plant = () => { if (C.sentinel1 && C.meshy && RC.v2 && RC.v2.plantColossus) RC.v2.plantColossus(C.root, 0); };
     if (C.dead) {
-      C.deathT += dt; if (C.cannon && C.cannon.visible) C.cannon.visible = false; if (C.glow && C.glow.visible) C.glow.visible = false; updateWreck(C, dt, now); plant(); return;
+      C.deathT += dt; if (C.cannon && C.cannon.visible) C.cannon.visible = false; if (C.glow && C.glow.visible) C.glow.visible = false; updateWreck(C, dt, now); return;
     }
-    if (C.mixer && C.stun <= 0 && (C.riggedWalk || !C.v2Sentinel)) C.mixer.update(dt);
-    plant();
+    if (C.mixer && C.stun <= 0) C.mixer.update(dt);
     updateColossusCannon(C);
     const pd = Math.hypot(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
     const inFactory = (STATE.floor || 0) > 0 || STATE.player.z < 92;
@@ -1286,7 +1286,7 @@ function updateColossi(dt, now) {
     if (C.engaged > 0) C.engaged -= dt;
     if (alertOn && (pd < 90 || C.engaged > 0) && pd < hudD) { hudD = pd; hudC = C; }
     if (C.stun > 0) {
-      C.stun -= dt; if (C.mixer) C.mixer.timeScale = 0; if (Math.random() < dt * 25) spawnEmpArcs(C, 2);
+      C.stun -= dt; if (Math.random() < dt * 25) spawnEmpArcs(C, 2);
       if (C.eye) C.eye.intensity = Math.random() < 0.25 ? 1.5 : 0; return;
     }
     if (C.eye) C.eye.intensity = C.isMini ? 1.6 : 2.5;
@@ -1296,7 +1296,6 @@ function updateColossi(dt, now) {
     let want = Math.atan2(STATE.player.x - C.root.position.x, STATE.player.z - C.root.position.z);
     try { const mv = colossusLocomotion(C, dt, pd); if (mv != null) want = mv; } catch (e) {}
     if (C.sentinel1 && !C.meshy) doomStep(C, dt);
-    else if (C.v2Sentinel && !C.riggedWalk && window.RC && RC.v2 && RC.v2.stridePose) C.stepPhase = RC.v2.stridePose(C.root, !!C.moving, dt, C.stepPhase || 0);
     let dy = want - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     const turn = (C.isMini ? 0.7 : 0.45) * (C.turnMult || 1) * dt; C.root.rotation.y += Math.max(-turn, Math.min(turn, dy)); C.facingErr = Math.abs(dy);
     const hp = colossusHandPos(new THREE.Vector3(), C);
@@ -1399,7 +1398,7 @@ function colossusLocomotion(C, dt, pd) {
   let dy = heading - C.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   if (!clear) { const t = (C.isMini ? 1.1 : 0.8) * dt; C.root.rotation.y += Math.max(-t, Math.min(t, dy)); }
   const face = C.root.rotation.y; const err = Math.abs(Math.atan2(Math.sin(heading - face), Math.cos(heading - face)));
-  const speed = (C.v2Sentinel ? 4.6 : (C.isMini ? 2.8 : 2.1)) * (1 - Math.min(0.6, C.limp || 0)) * Math.max(0, 1 - err / 1.4);
+  const speed = (C.isMini ? 2.8 : 2.1) * (1 - Math.min(0.6, C.limp || 0)) * Math.max(0, 1 - err / 1.1);
   C.moving = speed > 0.05;
   if (C.moving) {
     const r = C.rad * 0.75, sx = Math.sin(face) * speed * dt, sz = Math.cos(face) * speed * dt;
@@ -1415,8 +1414,7 @@ function colossusLocomotion(C, dt, pd) {
     }
     if (moved) { C.stuckT = 0; colossusSyncCol(C); C.stride = (C.stride || 0) + moved; const L = Math.max(1.6, C.height * 0.14); if (C.stride >= L) { C.stride -= L; colossusFootfall(C); } }
   }
-  /* Freeze the walk clip when the body is still so the feet are not skating in place. */
-  if (C.mixer) C.mixer.timeScale = C.moving ? (C.riggedWalk ? 1 : 1.6) : 0;
+  if (C.mixer) C.mixer.timeScale = C.moving ? 1.6 : 0;
   return clear ? null : heading;
 }
 function colossusFootfall(C) {
@@ -1474,6 +1472,7 @@ function buildColossus(height, opts = {}) {
     C.hand = meshy.hand;
     C.mixer = meshy.mixer;
     C.meshy = true;
+    C.riggedWalk = true;
   } else if (!isMini) {
     const r = createDoomSentinel(0x3f2a1a, 0xef4444, 'COLOSSUS', true);
     if (r.hb && r.hb.sprite) r.hb.sprite.visible = false;
@@ -1503,7 +1502,7 @@ function buildColossus(height, opts = {}) {
     const c = THREE.SkeletonUtils.clone(tpl.scene);
     c.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; if (o.geometry && o.geometry.attributes && o.geometry.attributes.tangent) o.geometry.deleteAttribute('tangent'); if (o.userData.rcGlow) return; if (o.material) { o.material = o.material.clone(); if (!(o.material.userData && o.material.userData.v2Plain)) brightenMat(o.material); if (isMini && !v2 && o.material.color) o.material.color.multiplyScalar(0.85).lerp(new THREE.Color(0x60a5fa), 0.12); } } });
     const holder = new THREE.Group(); holder.scale.setScalar(height / (tpl.targetHeight || 2.5)); holder.add(c); g.add(holder);
-    if (tpl.animations && tpl.animations.length) { C.mixer = new THREE.AnimationMixer(c); const a = C.mixer.clipAction(tpl.animations[0]); a.play(); a.timeScale = v2 ? 1 : (isMini ? 0.14 : 0.08); }
+    if (tpl.animations && tpl.animations.length) { C.mixer = new THREE.AnimationMixer(c); const a = C.mixer.clipAction(tpl.animations[0]); a.play(); a.timeScale = isMini ? 0.14 : 0.08; }
     const bones = []; c.traverse(o => { if (o.isBone) bones.push(o); });
     const pick = re => bones.find(b => re.test(b.name) && /right|_r\b|\.r\b|^r_/i.test(b.name)) || bones.find(b => re.test(b.name));
     C.hand = pick(/hand/i) || pick(/wrist/i) || pick(/fore ?arm|lowerarm/i) || null;
@@ -2972,7 +2971,7 @@ function updateMender(b, dt, now) {
   R.claws.forEach((c, i) => { c.rotation.x = (i ? 1 : -1) * (0.25 + (b.atkKind && b.atkAnim > 0 ? swing * 0.4 : 0)); });
   // gentle chassis bob
   b.y = getGroundHeightAt(b.x, b.z, b.y);
-  R.root.position.set(b.x, b.y + (moving ? Math.sin(now * 0.02) * 0.02 : 0), b.z);
+  R.root.position.set(b.x, b.y, b.z);
 }
 function spawnMinotaurBossForLevel() {
   if (STATE.bossSpawned) return;
