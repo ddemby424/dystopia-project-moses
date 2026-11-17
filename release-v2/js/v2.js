@@ -35,52 +35,18 @@
     return b;
   }
 
+  /* In-place gait. No hip hop and no side roll. */
   function stompClip() {
     const times = [0, 0.25, 0.5, 0.75, 1];
     return new THREE.AnimationClip('Stomp', 1, [
-      new THREE.NumberKeyframeTrack('LeftLeg.rotation[x]', times, [0.85, -0.15, -0.85, -0.15, 0.85]),
-      new THREE.NumberKeyframeTrack('RightLeg.rotation[x]', times, [-0.85, -0.15, 0.85, -0.15, -0.85]),
-      new THREE.NumberKeyframeTrack('Spine2.rotation[z]', times, [0.26, 0, -0.26, 0, 0.26]),
-      new THREE.NumberKeyframeTrack('Spine2.rotation[x]', times, [0.14, -0.08, 0.14, -0.08, 0.14]),
-      new THREE.NumberKeyframeTrack('RightForeArm.rotation[x]', times, [-0.55, -0.2, -0.55, -0.2, -0.55]),
-      new THREE.NumberKeyframeTrack('Hips.position[y]', times, [1.55, 1.05, 1.55, 1.05, 1.55])
+      new THREE.NumberKeyframeTrack('LeftLeg.rotation[x]', times, [0.45, 0, -0.45, 0, 0.45]),
+      new THREE.NumberKeyframeTrack('RightLeg.rotation[x]', times, [-0.45, 0, 0.45, 0, -0.45]),
+      new THREE.NumberKeyframeTrack('RightForeArm.rotation[x]', times, [-0.3, -0.15, -0.3, -0.15, -0.3])
     ]);
   }
 
-  /* The military mesh is one rigid piece on Spine2, so the stride is a weight
-     shift: the body rolls onto one side, dips, and rises as that foot lands. */
   function stridePose(root, moving, dt, phase) {
-    if (!root) return phase || 0;
-    const rig = root.getObjectByName('v2-sentinel') || root;
-    const hips = rig.getObjectByName('Hips');
-    const spine = rig.getObjectByName('Spine2');
-    const ll = rig.getObjectByName('LeftLeg');
-    const rl = rig.getObjectByName('RightLeg');
-    const ra = rig.getObjectByName('RightForeArm');
-    phase = phase || 0;
-    if (!moving) {
-      if (hips) hips.position.y += (1.05 - hips.position.y) * Math.min(1, dt * 5);
-      if (spine) { spine.rotation.x *= 0.82; spine.rotation.z *= 0.82; spine.rotation.y *= 0.82; }
-      if (ll) ll.rotation.x *= 0.82;
-      if (rl) rl.rotation.x *= 0.82;
-      return phase;
-    }
-    const prev = phase;
-    phase += dt * 1.55;
-    const s = Math.sin(phase * Math.PI * 2);
-    const c = Math.cos(phase * Math.PI * 2);
-    if (hips) hips.position.y = 1.02 + Math.abs(s) * 0.58;
-    if (spine) {
-      if (!(root.userData && root.userData.noRoll)) spine.rotation.z = s * 0.32;
-      spine.rotation.x = c * 0.18;
-      spine.rotation.y = s * 0.06;
-    }
-    if (ll) ll.rotation.x = s * 1.05;
-    if (rl) rl.rotation.x = -s * 1.05;
-    if (ra) ra.rotation.x = -0.45 + s * 0.4;
-    const crossed = Math.floor(prev * 2) !== Math.floor(phase * 2);
-    if (crossed && root.userData) root.userData.v2Step = (root.userData.v2Step || 0) + 1;
-    return phase;
+    return phase || 0;
   }
 
   function boneRig() {
@@ -1230,8 +1196,30 @@
 
   let coloTpl = null;
 
-  /* models/sentinel_colossus.glb — Meshy colossus from 902485e, the boss the weak points were pinned to.
-     Albedo plus the emissive map (eyes and panels). No normal, metal, or tangent: those dropped the mesh on phones. */
+  /* Hold Hips.position at its lowest key so the Oct 29 walk clip
+     keeps its leg rotations without bouncing or sliding the body. */
+  function calmClip(clip) {
+    if (!clip) return clip;
+    const tracks = clip.tracks.map((tr) => {
+      if (!/Hips\.position/.test(tr.name)) return tr;
+      const size = tr.getValueSize();
+      const values = tr.values.slice();
+      let minY = Infinity;
+      for (let i = 0; i < tr.times.length; i++) minY = Math.min(minY, values[i * size + 1]);
+      const x0 = values[0];
+      const z0 = values[2];
+      for (let i = 0; i < tr.times.length; i++) {
+        values[i * size] = x0;
+        values[i * size + 1] = minY;
+        values[i * size + 2] = z0;
+      }
+      return new THREE.VectorKeyframeTrack(tr.name, tr.times.slice(), values);
+    });
+    return new THREE.AnimationClip(clip.name + '-ground', clip.duration, tracks);
+  }
+
+  /* models/sentinel_colossus.glb — same albedo and emissive maps as 68a2482.
+     Normal and metal maps stay off so the mesh still draws on phones. */
   function hardenColossus(mesh) {
     mesh.castShadow = false;
     mesh.receiveShadow = false;
@@ -1239,19 +1227,21 @@
     mesh.userData.v2Boss = true;
     if (mesh.geometry && mesh.geometry.attributes && mesh.geometry.attributes.tangent) mesh.geometry.deleteAttribute('tangent');
     const src = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-    const map = src && src.map ? src.map : null;
-    const em = src && src.emissiveMap ? src.emissiveMap : null;
-    const m = new THREE.MeshStandardMaterial({
-      name: 'sentinel-colossus',
-      color: 0xffffff,
-      map: map,
-      roughness: 0.78,
-      metalness: 0.18,
-      emissive: new THREE.Color(0xffffff),
-      emissiveMap: em,
-      emissiveIntensity: em ? 0.42 : 0
-    });
+    if (!src) return;
+    const m = src.clone();
     m.skinning = true;
+    m.normalMap = null;
+    m.roughnessMap = null;
+    m.metalnessMap = null;
+    m.aoMap = null;
+    m.metalness = Math.max(m.metalness || 0, 0.55);
+    m.roughness = Math.min(m.roughness == null ? 0.42 : m.roughness, 0.42);
+    if (m.color) m.color.multiply(new THREE.Color(1.2, 0.72, 0.42));
+    if (m.emissive) {
+      m.emissive.setHex(0xffffff);
+      m.emissiveIntensity = Math.max(m.emissiveIntensity || 0, m.emissiveMap ? 1.15 : 0);
+    }
+    if (typeof brightenMat === 'function') brightenMat(m);
     m.userData.v2Plain = true;
     m.userData._rim = true;
     m.userData._bright = true;
@@ -1268,7 +1258,8 @@
       loader.parse(buf, '', (gltf) => {
         const src = gltf.scene || gltf.scenes[0];
         src.traverse((o) => { if (o.isMesh) hardenColossus(o); });
-        coloTpl = { scene: src, clip: (gltf.animations && gltf.animations[0]) || null };
+        const raw = (gltf.animations && gltf.animations[0]) || null;
+        coloTpl = { scene: src, clip: calmClip(raw) };
         v2.colossusReady = true;
         resolve(coloTpl);
       }, reject);
@@ -1358,10 +1349,36 @@
     const mixer = new THREE.AnimationMixer(clone);
     if (coloTpl.clip) {
       const act = mixer.clipAction(coloTpl.clip);
-      act.enabled = false;
-      act.time = 0;
-      mixer.timeScale = 0;
+      act.play();
+      act.timeScale = 0.08;
+      mixer.timeScale = 1;
     }
+    if (coloTpl.clip && mixer._actions && mixer._actions[0]) {
+      const act = mixer._actions[0];
+      const saved = act.timeScale;
+      act.timeScale = 1;
+      mixer.timeScale = 1;
+      let low = Infinity;
+      const steps = 16;
+      for (let i = 0; i < steps; i++) {
+        mixer.setTime(coloTpl.clip.duration * i / steps);
+        root.updateMatrixWorld(true);
+        const box = skinnedBox(root);
+        if (box.min < low) low = box.min;
+      }
+      mixer.setTime(0);
+      if (isFinite(low)) holder.position.y -= low;
+      act.timeScale = saved;
+      root.updateMatrixWorld(true);
+    }
+    const lamp = new THREE.PointLight(0xffb060, 6, 55, 2);
+    lamp.position.set(2, 14, 6);
+    lamp.castShadow = false;
+    root.add(lamp);
+    const cyan = new THREE.PointLight(0x67e8f9, 0.7, 22, 2);
+    cyan.position.set(0, 18, 3);
+    cyan.castShadow = false;
+    root.add(cyan);
     root.updateMatrixWorld(true);
     let hand = null;
     clone.traverse((o) => { if (!hand && o.isBone && o.name === 'RightHand') hand = o; });
@@ -1374,6 +1391,7 @@
 
   v2.sentinelTemplate = sentinelTemplate;
   v2.stridePose = stridePose;
+  v2.calmClip = calmClip;
   v2.buildWalker = buildWalker;
   v2.buildSentinel1 = buildSentinel1;
   v2.takeColossus = takeColossus;

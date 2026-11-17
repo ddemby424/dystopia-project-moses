@@ -165,41 +165,86 @@ function serve() {
   });
   add('level 1 has cannon-damageable triage mechs', mechs.n >= 2 && mechs.hp.length >= 2 && mechs.hp.every((h) => h >= 250) && mechs.walker, mechs);
   add('Sentinel 1 is the weak-point colossus, centered, no side roll', mechs.s1 && mechs.h === 28 && Math.abs(mechs.z) < 1 && mechs.spots >= 4 && mechs.roll < 0.05 && mechs.tris > 2000 && mechs.tris < 25000 && !mechs.cull, mechs);
-  const feet = await page.evaluate(() => {
+  const gait = await page.evaluate(() => {
+    function span(arr) { return arr.length ? Math.max.apply(null, arr) - Math.min.apply(null, arr) : 0; }
     const C = COLOSSI.find((c) => c.sentinel1 && c.meshy);
     const ceil = arenaGroup.getObjectByName('rc-ceiling');
-    const ceilY = ceil ? ceil.position.y : 0;
-    const samples = [];
-    const rest = [];
-    C.root.traverse((o) => { if (o.isBone) rest.push({ o, q: o.quaternion.clone(), p: o.position.clone() }); });
-    const act = C.mixer && C.mixer._actions && C.mixer._actions[0];
-    if (act) { act.enabled = true; act.setEffectiveTimeScale(1); act.play(); }
-    if (C.mixer) C.mixer.timeScale = 1;
-    [0, 0.2, 0.5, 0.8, 1].forEach((t) => {
-      if (C.mixer) C.mixer.setTime(t);
-      C.root.updateMatrixWorld(true);
-      const box = RC.v2.plantColossus(C.root, 0);
-      samples.push({ t, min: +box.min.toFixed(3), max: +box.max.toFixed(3) });
-    });
-    const sy = C.root.scale.y;
-    C.root.scale.y = 0.86;
-    C.root.updateMatrixWorld(true);
-    const crushed = RC.v2.plantColossus(C.root, 0);
-    C.root.scale.y = sy;
-    if (act) { act.stop(); act.enabled = false; }
-    rest.forEach((r) => { r.o.quaternion.copy(r.q); r.o.position.copy(r.p); });
-    if (C.mixer) C.mixer.timeScale = 0;
-    C.root.position.y = 0;
-    C.root.updateMatrixWorld(true);
-    RC.v2.plantColossus(C.root, 0);
+    const saved = { x: STATE.player.x, z: STATE.player.z, y: C.root.position.y, ry: C.root.rotation.y, cx: C.root.position.x, cz: C.root.position.z };
+    C.root.position.x = 0;
+    C.root.position.z = -40;
+    C.root.rotation.y = 0;
+    C.moving = true;
+    C.path = null;
+    if (C.mixer) C.mixer.timeScale = 1.6;
+    STATE.player.x = 0;
+    STATE.player.z = 40;
+    const ys = [];
+    const lats = [];
+    const soles = [];
+    const probe = new THREE.Vector3();
+    const hips = C.root.getObjectByName('Hips');
+    for (let i = 0; i < 36; i++) {
+      if (C.mixer) C.mixer.update(0.05);
+      C.root.position.z += 0.12;
+      ys.push(C.root.position.y);
+      if (hips) {
+        hips.getWorldPosition(probe);
+        lats.push(probe.x - C.root.position.x);
+      }
+      if (i % 6 === 0) soles.push(RC.v2.skinnedBox(C.root).min);
+    }
+    const soleNow = RC.v2.skinnedBox(C.root);
+    STATE.player.x = saved.x; STATE.player.z = saved.z;
+    C.root.position.set(saved.cx, saved.y, saved.cz);
+    C.root.rotation.y = saved.ry;
+    const walkOne = (b, axis, lane) => {
+      if (!b) return null;
+      const py = [];
+      const lat = [];
+      const ox = -50 + (lane || 0) * 25, oz = -30, oy = 0;
+      b.x = ox; b.z = oz; b.y = oy;
+      b.rig.root.position.set(ox, oy, oz);
+      b.aiState = 'idle';
+      b.yaw = 0;
+      b.vy = 0;
+      b.path = [{ x: ox + (axis === 'x' ? 12 : 0), z: oz + (axis === 'z' ? 12 : 0) }];
+      b.pathI = 0;
+      b.vy = 0;
+      for (let i = 0; i < 24; i++) updateBotAI(b, 0.05, 1000 + i * 50);
+      py.push(b.rig.root.position.y);
+      lat.push(axis === 'z' ? b.x : b.z);
+      const ys2 = [];
+      const lats = [];
+      b.x = ox; b.z = oz; b.y = oy; b.rig.root.position.set(ox, oy, oz);
+      b.path = [{ x: ox + (axis === 'x' ? 16 : 0), z: oz + (axis === 'z' ? 16 : 0) }];
+      b.pathI = 0;
+      for (let i = 0; i < 28; i++) {
+        updateBotAI(b, 0.05, 2000 + i * 50);
+        ys2.push(b.rig.root.position.y);
+        lats.push(axis === 'z' ? b.rig.root.position.x - ox : b.rig.root.position.z - oz);
+      }
+      b.x = ox; b.z = oz; b.y = oy; b.rig.root.position.set(ox, oy, oz); b.path = null;
+      return { name: b.name, y: +span(ys2).toFixed(4), lat: +span(lats).toFixed(4), kind: b.smallMech ? 'triage' : (b.heavy ? 'heavy' : 'guard') };
+    };
+    const guard = BOTS.find((b) => !b.dying && !b.smallMech && b.isHumanGuard);
+    const heavy = BOTS.find((b) => !b.dying && !b.smallMech && b.heavy);
+    const triage = BOTS.find((b) => b.smallMech && !b.dying);
     return {
-      ceilY,
-      samples,
-      crushed: { min: +crushed.min.toFixed(3), max: +crushed.max.toFixed(3) }
+      ceil: ceil && ceil.position.y,
+      yVar: +span(ys).toFixed(4),
+      lat: +span(lats).toFixed(4),
+      sole: +soleNow.min.toFixed(3),
+      soles: soles.map((n) => +n.toFixed(3)),
+      head: +soleNow.max.toFixed(2),
+      guard: walkOne(guard, 'z', 0),
+      heavy: walkOne(heavy, 'z', 1),
+      triage: walkOne(triage, 'z', 2)
     };
   });
-  const feetOk = feet.ceilY > 36 && feet.samples.every((s) => Math.abs(s.min) <= 0.05 && s.max < feet.ceilY) && Math.abs(feet.crushed.min) <= 0.05 && feet.crushed.max < feet.ceilY;
-  add('Colossus feet sit on the floor and his head is under the ceiling', feetOk, feet);
+  const soleFloor = Math.min.apply(null, gait.soles.concat([gait.sole]));
+  const soleOk = soleFloor > -0.05 && soleFloor < 0.08;
+  add('Colossus feet sit on the floor and his head is under the ceiling', gait.ceil > 36 && soleOk && gait.head < gait.ceil, gait);
+  add('walkers do not hop or sway off their path', gait.yVar < 0.03 && gait.lat < 0.05 && (!gait.guard || (gait.guard.y < 0.03 && gait.guard.lat < 0.05)) && (!gait.heavy || (gait.heavy.y < 0.03 && gait.heavy.lat < 0.05)) && (!gait.triage || (gait.triage.y < 0.03 && gait.triage.lat < 0.05)), gait);
   add('triage mechs do not sway or bob', mechs.mechRoll < 0.02 && mechs.mechBob < 0.05, mechs);
   const cover = await page.evaluate(() => {
     const list = (RC.cover && RC.cover.items) || [];

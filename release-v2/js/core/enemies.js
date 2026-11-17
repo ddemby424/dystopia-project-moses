@@ -173,27 +173,7 @@ function updateBotAI(b, dt, now) {
     if (d > 0.25) { const spd = (b.aiState === 'idle' ? 0.45 : 1) * b.speed * (STATE.botSkill || 1) * (b.phase === 'peek' ? 0.6 : 1); mvx = dx / d * spd; mvz = dz / d * spd; }
   }
   // separation — don't clump. A wider bubble than the old 2.2 m pack.
-  const threading = b.z > 64 && b.z < 108;
-  if (!threading && !b.smallMech && b.role !== 'sniper') BOTS.forEach(o => { if (o === b || o.dying) return; const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz); if (d < 3.1 && d > 0.01) { mvx += dx / d * (3.1 - d) * 4.2; mvz += dz / d * (3.1 - d) * 4.2; } });
-  /* Strafe while shooting in the open, so a pack does not stack on one line.
-     Triage mechs skip it: the flip every second read as a side-to-side dance. */
-  if (!threading && !b.smallMech && b.aiState === 'combat' && b.los && !atCover && b.role !== 'sniper') {
-    if ((b._strafeT = (b._strafeT || 1.6) - dt) <= 0) { b._strafe = -(b._strafe || 1); b._strafeT = 1.2 + Math.random() * 0.8; }
-    const side = b._strafe || 1;
-    mvx += Math.cos(b.yaw) * side * b.speed * 0.45;
-    mvz += -Math.sin(b.yaw) * side * b.speed * 0.45;
-  }
-  if (b.smallMech) {
-    BOTS.forEach(o => {
-      if (o === b || o.dying || !o.smallMech) return;
-      const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz);
-      if (d < 2.4 && d > 0.05) { mvx += dx / d * (2.4 - d) * 1.1; mvz += dz / d * (2.4 - d) * 1.1; }
-    });
-    const k = Math.min(1, dt * 4);
-    b._vx = (b._vx || 0) + (mvx - (b._vx || 0)) * k;
-    b._vz = (b._vz || 0) + (mvz - (b._vz || 0)) * k;
-    mvx = b._vx; mvz = b._vz;
-  }
+  if (b.role !== 'sniper') BOTS.forEach(o => { if (o === b || o.dying) return; const dx = b.x - o.x, dz = b.z - o.z, d = Math.hypot(dx, dz); if (d < 2.2 && d > 0.01) { mvx += dx / d * (2.2 - d) * 6; mvz += dz / d * (2.2 - d) * 6; } });
   b._moved = 0;
   if (Math.abs(mvx) + Math.abs(mvz) > 0.05) {
     b.moving = true;
@@ -201,11 +181,16 @@ function updateBotAI(b, dt, now) {
     const want0 = faceP0 ? Math.atan2(P.x - b.x, P.z - b.z) : Math.atan2(mvx, mvz);
     let err = want0 - b.yaw; err = Math.atan2(Math.sin(err), Math.cos(err));
     /* Turn before sliding. A large facing error cuts speed so the feet are not skating sideways. */
-    const turnCut = Math.abs(err) > 0.9 ? 0.22 : (Math.abs(err) > 0.45 ? 0.55 : 1);
+    const turnCut = target ? (Math.abs(err) > 0.9 ? 0.22 : (Math.abs(err) > 0.45 ? 0.55 : 1)) : 1;
     const ox = b.x, oz = b.z;
     const nx = b.x + mvx * turnCut * dt, nz = b.z + mvz * turnCut * dt;
     if (!collidesAt(nx, b.z, 0.55)) b.x = nx;
     if (!collidesAt(b.x, nz, 0.55)) b.z = nz;
+    if (Math.hypot(b.x - ox, b.z - oz) < 0.02 && !target) {
+      const sx = -mvz * dt, sz = mvx * dt;
+      if (!collidesAt(b.x + sx, b.z, 0.55)) b.x += sx;
+      if (!collidesAt(b.x, b.z + sz, 0.55)) b.z += sz;
+    }
     const progressed = Math.hypot(b.x - ox, b.z - oz);
     b._moved = dt > 0 ? progressed / dt : 0;
     const wanted = Math.hypot(mvx, mvz) * turnCut * dt;
@@ -239,37 +224,15 @@ function updateBotAI(b, dt, now) {
   // physics + anim
   const botFloor = getGroundHeightAt(b.x, b.z, b.y); b.y += b.vy * dt; b.vy -= STATE.gravity * dt; if (b.y <= botFloor) { b.y = botFloor; b.vy = 0; }
   b.rig.root.position.set(b.x, b.y, b.z);
-  const planar = Math.hypot(mvx, mvz);
-  const aim = (b.aiState === 'combat' && b.los) ? 1 : 0;
-  b._aim = (b._aim || 0) + (aim - (b._aim || 0)) * Math.min(1, dt * 6);
-  if (b.smallMech) {
-    /* Rigid military mesh. A hip bob or spine roll reads as a side-to-side dance. */
-  } else if (b.rig && b.rig.root && !b.rig.root.visible) {
-    /* Off-screen guards keep their last pose. Skinning them is a phone hitch. */
-  } else if (b.clips && window.RC && RC.rigs) {
-    const travel = Math.atan2(mvx, mvz);
-    const fwd = mvx * Math.sin(b.yaw) + mvz * Math.cos(b.yaw);
-    const lat = mvx * Math.cos(b.yaw) - mvz * Math.sin(b.yaw);
-    const strafing = b.moving && Math.abs(lat) > 0.45 && Math.abs(lat) > Math.abs(fwd) * 0.75;
-    let twist = 0;
-    if (strafing) {
-      twist = Math.atan2(Math.sin(b.yaw - travel), Math.cos(b.yaw - travel));
-      twist = Math.max(-1.05, Math.min(1.05, twist));
-    }
-    RC.rigs.tick(b, dt, { moved: b._moved || 0, attack: b._attackT > 0, twist, faceYaw: strafing ? travel : b.yaw });
-  } else if (b.mixer) {
-    if (b.action) b.action.timeScale = planar > 0.4 ? Math.min(1.5, planar / 3.2) : 0;
-    b.mixer.update(planar > 0.25 ? dt : 0);
+  if (b.mixer) { if (b.action) b.action.timeScale = b.moving ? (b.isHuman ? 1.25 : 0.9) : 0.05; b.mixer.update(dt); }
+  else if (b.clips && window.RC && RC.rigs && b.rig.root.visible) {
+    RC.rigs.tick(b, dt, { moved: b._moved || 0, attack: b._attackT > 0, twist: 0, faceYaw: b.yaw });
   } else if (b.rig.leftLeg && b.rig.leftLeg !== b.rig.root) {
-    /* Pose blend: idle, walk scaled to speed, and an aim pose. Legs stop when the body stops. */
-    const swingAmp = Math.min(0.65, planar * 0.14);
-    b.walkPhase += dt * (3.2 + planar * 1.15);
-    const swing = Math.sin(b.walkPhase) * swingAmp;
-    b.rig.leftLeg.rotation.x = swing;
-    b.rig.rightLeg.rotation.x = -swing;
-    if (b.rig.leftArm && b.rig.leftArm !== b.rig.root) b.rig.leftArm.rotation.x = -swing * 0.4 * (1 - b._aim);
-    if (b.rig.rightArm && b.rig.rightArm !== b.rig.root) b.rig.rightArm.rotation.x = -0.25 * (1 - b._aim) + (-1.05) * b._aim;
-    if (b.rig.torso && b.rig.torso !== b.rig.root) b.rig.torso.rotation.x = -0.12 * b._aim + (b.flinchTimer > 0 ? -0.2 : 0);
+    b.walkPhase += dt * (b.moving ? 8 : 1.5); const swing = Math.sin(b.walkPhase) * (b.moving ? 0.45 : 0.05);
+    b.rig.leftLeg.rotation.x = swing; b.rig.rightLeg.rotation.x = -swing;
+    if (b.rig.leftArm && b.rig.leftArm !== b.rig.root) b.rig.leftArm.rotation.x = -swing * 0.45;
+    if (b.rig.rightArm && b.rig.rightArm !== b.rig.root) b.rig.rightArm.rotation.x = -0.3;
+    if (b.rig.torso && b.rig.torso !== b.rig.root) { b.rig.torso.rotation.z = 0; b.rig.torso.rotation.y = 0; }
   }
   updateEnemyWeapon(b);
   if (b.flinchTimer > 0) { b.flinchTimer -= dt; if (b.rig.armorMat && b.rig.armorMat.emissive) { b.rig.armorMat.emissive.setHex(0xffffff); b.rig.armorMat.emissiveIntensity = 0.85; } }
@@ -290,8 +253,6 @@ function spawnBotFromArchetype(spec, levelMult = 1.0) {
   let rig, procHuman = false;
   if (smallMech && window.RC && RC.v2 && RC.v2.buildWalker) {
     rig = RC.v2.buildWalker(spec.name, 3.5);
-  } else if (window.RC && RC.rigs && RC.rigs.ready()) {
-    rig = RC.rigs.build(heavy ? 'heavy' : 'guard', spec.name);
   } else if (isHuman) {
     if (MESHY_TEMPLATES.human) rig = buildRigFromMeshyTemplate(MESHY_TEMPLATES.human, spec.name, false);
     else { rig = createDoomSentinel(0x1f2937, 0x38bdf8, spec.name, false); rig.root.scale.multiplyScalar(0.8); procHuman = true; }
@@ -299,6 +260,8 @@ function spawnBotFromArchetype(spec, levelMult = 1.0) {
     rig = buildRigFromMeshyTemplate(MESHY_TEMPLATES.guard, spec.name, false);
   } else if (!isHumanGuard && MESHY_TEMPLATES.bot) {
     rig = buildRigFromMeshyTemplate(MESHY_TEMPLATES.bot, spec.name, false);
+  } else if (window.RC && RC.rigs && RC.rigs.ready()) {
+    rig = RC.rigs.build(heavy ? 'heavy' : 'guard', spec.name);
   } else {
     // Strogg palette defaults: rust/brown-green armor, amber/red eyes
     const armor = spec.armorColor || (heavy ? 0x3f2a1a : 0x4a3b28);
@@ -316,7 +279,7 @@ function spawnBotFromArchetype(spec, levelMult = 1.0) {
   BOTS.push({
     id: spec.id, name: spec.name, isBoss: false, isHumanGuard, isHuman, procHuman, heavy, smallMech, role: spec.aiRole || 'pusher', squad: spec.squad || 0,
     patrolType: spec.patrolType || 'ground', homeX: spec.x, homeZ: spec.z,
-    rig, mixer: rig.mixer || null, clips: rig.clips || null,
+    rig, mixer: rig.mixer || null, action: rig.action || (rig.mixer && rig.mixer._actions && rig.mixer._actions[0]) || null, clips: rig.clips || null,
     x: spec.x, y: spawnY, z: spec.z, vy: 0, yaw: 0,
     health: maxHp, maxHealth: maxHp, weaponIdx: spec.weapon || 0,
     fireCooldown: 1.0 + Math.random(), walkPhase: Math.random() * Math.PI * 2,
@@ -380,7 +343,7 @@ function rcEnemyStep(dt, now) {
     b.strafeSwitchTimer -= dt;
     if (b.strafeSwitchTimer <= 0) {
       b.strafeDir = -b.strafeDir; b.strafeSwitchTimer = 0.85 + Math.random() * 1.3;
-      if (!b.isBoss && (b.patrolType || 'ground') === 'ground' && b.y <= 0.05 && Math.random() < 0.38) b.vy = 6.8;
+      /* No hop. The old 6.8 m/s pop launched every ground unit. */
     }
     const baseSpd = b.isBoss ? (7.8 * STATE.bossSpeedMult) : (6.8 * STATE.botSkill);
     if (b.patrolType === 'tower') {
@@ -410,10 +373,7 @@ function rcEnemyStep(dt, now) {
       b.rig.leftLeg.rotation.x = swing; b.rig.rightLeg.rotation.x = -swing;
       b.rig.leftArm.rotation.x = -swing * 0.45;
       b.rig.rightArm.rotation.x = b.isBoss ? (-0.4 + Math.sin(b.walkPhase) * 0.45) : (-0.25 + swing * 0.2);
-      const basePelvisY = (b.isBoss ? 1.15 : (b.rig.scale ? 1.12 * b.rig.scale : 1.12));
-      b.rig.pelvis.position.y = basePelvisY + Math.abs(Math.cos(b.walkPhase)) * (b.heavy ? 0.1 : 0.07);
-      b.rig.torso.rotation.y = Math.sin(b.walkPhase) * 0.12;
-      b.rig.torso.rotation.x *= 0.9;
+      if (b.rig.torso && b.rig.torso !== b.rig.root) { b.rig.torso.rotation.y = 0; b.rig.torso.rotation.z = 0; }
     }
     if (b.flinchTimer > 0) {
       b.flinchTimer -= dt;
