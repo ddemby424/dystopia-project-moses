@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#07090e">
+  <title>DOOMFORGE IDE — 3D FPS Game Maker</title>
+  <!-- Font (optional: falls back to system fonts offline) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap">
+  <!-- Three.js r128 (3D engine) + GLTFLoader (for optional .glb models) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Top bar: project, level picker, undo/redo, play & export -->
+  <header id="topbar">
+    <div class="brand"><span class="logo">&#9670;</span><span class="txt">DOOMFORGE <b>IDE</b></span></div>
+    <button class="tb chip" id="btn-project" title="Projects: save / open"></button>
+    <select id="level-select" title="Current level"></select>
+    <div class="spacer"></div>
+    <button class="tb" data-cmd="undo" title="Undo (Ctrl+Z)"><svg class="i"><use href="#i-undo"/></svg></button>
+    <button class="tb" data-cmd="redo" title="Redo (Ctrl+Y)"><svg class="i"><use href="#i-redo"/></svg></button>
+    <button class="tb sheet-only" data-cmd="sheet" title="Show panel"><svg class="i"><use href="#i-panel"/></svg></button>
+    <button class="tb primary" data-cmd="play" title="Playtest (P)"><svg class="i"><use href="#i-play"/></svg><span class="lbl">Play</span></button>
+    <button class="tb accent" data-cmd="export" title="Export standalone game"><svg class="i"><use href="#i-export"/></svg><span class="lbl lbl-md">Export</span></button>
+    <button class="tb" data-cmd="menu" title="Menu"><svg class="i"><use href="#i-menu"/></svg></button>
+  </header>
+
+  <div id="main">
+    <!-- Tool rail (filled by app.js) -->
+    <nav id="toolbar"></nav>
+    <!-- The 2D map -->
+    <section id="stage">
+      <canvas id="grid"></canvas>
+      <div id="sel-bar" class="float hidden"></div>
+      <div id="stamp-bar" class="float hidden"></div>
+      <div id="hint" class="float"></div>
+      <div id="zoom-dock" class="float">
+        <button class="tb sm" data-cmd="zoomOut" title="Zoom out (-)"><svg class="i"><use href="#i-minus"/></svg></button>
+        <span id="zoom-lbl">100%</span>
+        <button class="tb sm" data-cmd="zoomIn" title="Zoom in (+)"><svg class="i"><use href="#i-plus"/></svg></button>
+        <button class="tb sm" data-cmd="fit" title="Fit map (0)"><svg class="i"><use href="#i-fit"/></svg></button>
+      </div>
+    </section>
+    <!-- Side panel / bottom sheet (filled by app.js) -->
+    <aside id="panel">
+      <div id="tabs">
+        <button class="tab on" data-tab="build">Build</button>
+        <button class="tab" data-tab="things">Things</button>
+        <button class="tab" data-tab="templates">Rooms</button>
+        <button class="tab" data-tab="level">Level</button>
+        <button class="tab" data-tab="project">Project</button>
+      </div>
+      <div id="panel-body"></div>
+    </aside>
+  </div>
+  <footer id="status"><span id="st-cell">Cell -</span><span id="st-tool"></span><span id="st-count"></span><span class="spacer"></span><span id="st-save"></span></footer>
+
+  <div id="play-host"></div>
+  <div id="toast-root"></div>
+  <input type="file" id="file-json" accept=".json,application/json" hidden>
+  <input type="file" id="file-glb" accept=".glb,.gltf,model/gltf-binary" hidden>
+
+  <!-- Icon set (SVG symbols, used with <use href="#i-name">) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-undo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+      <symbol id="i-redo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></symbol>
+      <symbol id="i-export" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></symbol>
+      <symbol id="i-panel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 14h18"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></symbol>
+      <symbol id="i-fit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+      <symbol id="i-select" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m5 3 14 8-6 1.5L10 19z"/></symbol>
+      <symbol id="i-pan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></symbol>
+      <symbol id="i-wall" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9.3h18M3 14.6h18M9 4v5.3M15 9.3v5.3M9 14.6V20"/></symbol>
+      <symbol id="i-floor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 17 8 7h8l6 10z"/><path d="M12 7v10M5 12h14"/></symbol>
+      <symbol id="i-ceil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 7l6 10h8l6-10z"/><path d="M12 17v4M9 21h6"/></symbol>
+      <symbol id="i-height" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 20h5v-5h5v-5h5V5h3"/></symbol>
+      <symbol id="i-erase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m7 21-4-4L14 6l6 6-9 9zM21 21H7M10 10l6 6"/></symbol>
+      <symbol id="i-rect" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1"/><rect x="8" y="8" width="8" height="8" stroke-dasharray="2 2"/></symbol>
+      <symbol id="i-fill" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m19 11-8-8-8.5 8.5a2 2 0 0 0 0 2.8L7.7 19.5a2 2 0 0 0 2.8 0z"/><path d="M5 2l5 5M2 13h15M22 17c0 1.7-1.3 3-3 3s-3-1.3-3-3c0-2 3-5 3-5s3 3 3 5z"/></symbol>
+      <symbol id="i-door" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17M3 21h18"/><circle cx="15" cy="12" r="1.2" fill="currentColor"/></symbol>
+      <symbol id="i-thing" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M5 21c0-4 3-7 7-7s7 3 7 7"/></symbol>
+      <symbol id="i-spawn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2 4 21l8-4 8 4z"/></symbol>
+      <symbol id="i-pick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m2 22 2-1 9-9M15 5l4 4M14 6l-1.5-1.5a2.1 2.1 0 0 1 3-3L17 3l1-1a2.1 2.1 0 0 1 3 3l-1 1 1.5 1.5a2.1 2.1 0 0 1-3 3L17 9"/></symbol>
+      <symbol id="i-stamp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><path d="M17 14v6M14 17h6"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- All editor + game code -->
+  <script src="app.js"></script>
+</body>
+</html>
