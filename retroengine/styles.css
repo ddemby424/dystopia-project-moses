@@ -221,3 +221,26 @@ html, body { height: 100%; height: 100dvh; overscroll-behavior: none; }
 /* landscape phones: give the map more room */
 @media (max-height: 500px) and (min-width: 721px) { :root { --top: 46px; --status: 0px; } #status { display: none; } }
 @media (max-height: 500px) and (max-width: 720px) { #panel { height: 70dvh; } }
+
+/* ---- tutorial: plain arrow pointer that bobs next to the exact thing to touch (never blocks taps) ---- */
+#tut-hand { position: fixed; z-index: 72; left: 0; top: 0; width: 0; height: 0; pointer-events: none; transition: left .3s ease, top .3s ease, opacity .2s; }
+#tut-hand * { pointer-events: none; }
+#tut-hand .fl { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#tut-hand.fx .fl { transform: scaleX(-1); } #tut-hand.fy .fl { transform: scaleY(-1); } #tut-hand.fx.fy .fl { transform: scale(-1, -1); }
+#tut-hand .bob { transform-origin: 2px 2px; animation: tutBob 1s ease-in-out infinite; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .55)); }
+#tut-hand .bob svg { display: block; margin: -2px 0 0 -2px; }
+#tut-hand.idle .bob { animation: tutBobBig 1s ease-in-out infinite; }
+#tut-hand.drag .mv { animation: tutDrag 2.2s ease-in-out infinite; }
+@keyframes tutBob { 0%, 100% { transform: translate(9px, 11px); } 50% { transform: translate(2px, 3px); } }
+@keyframes tutBobBig { 0%, 100% { transform: translate(9px, 11px) scale(1.15); } 50% { transform: translate(2px, 3px) scale(1.65); } }
+@keyframes tutDrag { 0%, 15% { transform: translate(0, 0); } 70%, 85% { transform: translate(var(--dx, 0), var(--dy, 0)); } 100% { transform: translate(0, 0); } }
+@media (prefers-reduced-motion: reduce) { #tut-hand .bob, #tut-hand.drag .mv { animation-duration: 2.5s; } }
+/* wide layout (unfolded Fold, tablets, desktop): keep the card off the side-panel tabs */
+@media (min-width: 721px) { #tut { right: auto; left: calc(var(--rail) + 12px + var(--sal, 0px)); } }
+/* short landscape phones: card goes to the right side so the map stays visible and tappable */
+@media (max-height: 500px) and (orientation: landscape) {
+  #tut { left: auto; right: calc(8px + var(--sar, 0px)); width: min(300px, 42vw); top: calc(var(--top) + var(--sat, 0px) + 6px); max-height: calc(100vh - var(--top) - 80px); max-height: calc(100dvh - var(--top) - 80px); overflow-y: auto; padding: 10px 12px 8px; }
+  #tut p { font-size: 12px; margin-bottom: 6px; } #tut h3 { font-size: 14px; margin: 2px 0 4px; } .tut-dots { margin-bottom: 6px; }
+}
+
+#tut [hidden] { display: none !important; }

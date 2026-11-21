@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 (2026-11-21): tutorial fix
+- Fixed the tutorial seeming to freeze on phones. After you picked the right tool, nothing showed the next action (drag on the map, pick a room, tap a wall), and "Next" stayed greyed out with no way forward.
+- New pointer: a white arrow cursor bobs next to the exact button or map spot to touch at every step, including the drag for drawing a room. It follows the screen when you rotate, never blocks taps, and pulses bigger if you sit idle for about 6 seconds.
+- A "Skip step" button appears if you are stuck on a step for a while.
+- On wide screens (unfolded Fold, tablets) the tutorial card no longer covers the side-panel tabs. In landscape on phones it moves to the side so the map stays visible.
+- Added the DMB TECH splash screen to the source build.
+
 ## 1.0.0 (2026-11-20): first RetroEngine release
 RetroEngine is the release-ready successor of DOOMFORGE IDE 2.0.
 

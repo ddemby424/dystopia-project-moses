@@ -3575,48 +3575,114 @@ ED.stats = { stamps: 0 };
 const TUT = { i: -1, el: null, ring: null, timer: 0, base: null };
 function tutCount(pred) { return L().ents.filter(pred).length; }
 const TUT_STEPS = [
-  { t: 'Your first level', d: 'We made you a fresh, empty level called <b>My First Level</b>. In the next few minutes you will build rooms, add enemies and play it. Tap <b>Next</b>.' },
-  { t: 'Draw a room', d: 'Pick the <b>Rect</b> tool, then drag a rectangle on the map. That builds a room with walls around it.', sel: '[data-tool="rect"]', enter: () => {}, check: () => L().wall.filter(Boolean).length > TUT.base.walls + 6 },
-  { t: 'Stamp a building', d: 'Open the <b>Rooms</b> library, tap any room (try <b>Bunker</b> or <b>Server Room</b>), then tap an empty part of the map to stamp it.', sel: '[data-tool="rooms"]', check: () => ED.stats.stamps > TUT.base.stamps },
-  { t: 'Add a door', d: 'Pick the <b>Door</b> tool and tap a gap in a wall between two rooms.', sel: '[data-tool="door"]', check: () => L().kind.filter(Boolean).length > TUT.base.doors },
-  { t: 'Place the player', d: 'Pick the <b>Start</b> tool and tap where the player should begin. Tap again to turn them.', sel: '[data-tool="spawn"]', check: () => L().spawn.x !== TUT.base.sx || L().spawn.y !== TUT.base.sy },
-  { t: 'Add enemies', d: 'Pick the <b>Thing</b> tool. We selected the <b>Soldier</b>. Tap the map 2–3 times to place enemies (not too close to the start).', sel: '[data-tool="thing"]', enter: () => { ED.brush.thing = { t: 'enemy', s: 'grunt' }; }, check: () => tutCount(e => e.t === 'enemy') >= TUT.base.enemies + 2 },
-  { t: 'Give the player supplies', d: 'Now we selected <b>Ammo</b>. Tap to drop a box or two near the start. You can pick health, armor and weapons in the <b>Things</b> tab.', sel: '[data-tool="thing"]', enter: () => { ED.brush.thing = { t: 'pickup', s: 'ammo_bullets' }; if (ED.tool !== 'thing') setTool('thing'); }, check: () => tutCount(e => e.t === 'pickup') > TUT.base.pickups },
-  { t: 'Add the exit', d: 'Every level needs a way out. We selected the <b>Exit pad</b>. Tap the far end of your level.', sel: '[data-tool="thing"]', enter: () => { ED.brush.thing = { t: 'exit', s: '' }; if (ED.tool !== 'thing') setTool('thing'); }, check: () => tutCount(e => e.t === 'exit') > 0 },
-  { t: 'Play it!', d: 'Press <b>Play</b>. Fight to the exit pad. Use WASD + mouse, or the touch sticks. Come back with Pause → Back to editor.', sel: '[data-cmd="play"]', check: () => TUT.played },
-  { t: 'You made a game', d: 'Nice work! Next steps: add lights and props, try keycard doors, set the sky and music in the <b>Level</b> tab, then share it: the <b>Level</b> tab → <b>Share link</b> sends the level in a link that opens straight into the game, and <b>Export</b> makes a playable .html. Help (Menu → Help) has the full manual.', sel: '[data-cmd="export"]' }
+  { t: 'Your first level', d: 'We made you a fresh, empty level called <b>My First Level</b>. In the next few minutes you will build rooms, add enemies and play it. Tap <b>Next</b>.', aim: () => ({ el: $('[data-ta="next"]', TUT.el) }) },
+  { t: 'Draw a room', d: 'Pick the <b>Rect</b> tool, then drag a rectangle on the map (follow the arrow). That builds a room with walls around it.', check: () => L().wall.filter(Boolean).length > TUT.base.walls + 6,
+    aim: () => ED.tool !== 'rect' ? { el: '[data-tool="rect"]' } : tutDrag() },
+  { t: 'Stamp a building', d: 'Open the <b>Rooms</b> library, tap any room (try <b>Bunker</b> or <b>Server Room</b>), then tap an empty part of the map to stamp it.', check: () => ED.stats.stamps > TUT.base.stamps,
+    aim: () => ED.stamp ? tutCell((x, y, lv) => tutFree(lv, x, y, 3) ? 10 - Math.abs(x - lv.w * 0.65) - Math.abs(y - lv.h * 0.5) : null)
+      : tutShown($('[data-tpl]')) ? { el: '[data-tpl]' } : { el: '[data-tool="rooms"]' } },
+  { t: 'Add a door', d: 'Pick the <b>Door</b> tool and tap a wall between two rooms (the arrow shows a good spot).', check: () => L().kind.filter(Boolean).length > TUT.base.doors,
+    aim: () => ED.tool !== 'door' ? { el: '[data-tool="door"]' } : tutCell((x, y, lv) => {
+      const w = (a, b) => a < 0 || b < 0 || a >= lv.w || b >= lv.h || !!lv.wall[b * lv.w + a];
+      if (!w(x, y) || lv.kind[y * lv.w + x] || isSpawnCell(x, y)) return null;
+      if (x === 0 || y === 0 || x === lv.w - 1 || y === lv.h - 1) return (x === 0 || x === lv.w - 1) && (y === 0 || y === lv.h - 1) ? null : 0.5 - Math.abs(x - lv.w / 2) / 1000;
+      return (!w(x - 1, y) && !w(x + 1, y)) || (!w(x, y - 1) && !w(x, y + 1)) ? 10 : 1; }) },
+  { t: 'Place the player', d: 'Pick the <b>Start</b> tool and tap where the player should begin. Tap again to turn them.', check: () => L().spawn.x !== TUT.base.sx || L().spawn.y !== TUT.base.sy,
+    aim: () => ED.tool !== 'spawn' ? { el: '[data-tool="spawn"]' } : tutFloor(d => d > 2.5 && d < 9 ? 10 - d : null) },
+  { t: 'Add enemies', d: 'Pick the <b>Thing</b> tool. We selected the <b>Soldier</b>. Tap the map 2–3 times to place enemies (not too close to the start).', enter: () => { ED.brush.thing = { t: 'enemy', s: 'grunt' }; }, check: () => tutCount(e => e.t === 'enemy') >= TUT.base.enemies + 2,
+    aim: () => ED.tool !== 'thing' ? { el: '[data-tool="thing"]' } : tutFloor((d, x, y) => d > 6 && !tutThingAt(x, y) ? 20 - Math.abs(d - 10) : null) },
+  { t: 'Give the player supplies', d: 'Now we selected <b>Ammo</b>. Tap to drop a box or two near the start. You can pick health, armor and weapons in the <b>Things</b> tab.', enter: () => { ED.brush.thing = { t: 'pickup', s: 'ammo_bullets' }; if (ED.tool !== 'thing') setTool('thing'); }, check: () => tutCount(e => e.t === 'pickup') > TUT.base.pickups,
+    aim: () => ED.tool !== 'thing' ? { el: '[data-tool="thing"]' } : tutFloor((d, x, y) => d > 1.2 && d < 4 && !tutThingAt(x, y) ? 10 - d : null) },
+  { t: 'Add the exit', d: 'Every level needs a way out. We selected the <b>Exit pad</b>. Tap the far end of your level.', enter: () => { ED.brush.thing = { t: 'exit', s: '' }; if (ED.tool !== 'thing') setTool('thing'); }, check: () => tutCount(e => e.t === 'exit') > 0,
+    aim: () => ED.tool !== 'thing' ? { el: '[data-tool="thing"]' } : tutFloor((d, x, y) => !tutThingAt(x, y) ? d : null) },
+  { t: 'Play it!', d: 'Press <b>Play</b>. Fight to the exit pad. Use WASD + mouse, or the touch sticks. Come back with Pause → Back to editor.', check: () => TUT.played, aim: () => ({ el: '[data-cmd="play"]' }) },
+  { t: 'You made a game', d: 'Nice work! Next steps: add lights and props, try keycard doors, set the sky and music in the <b>Level</b> tab, then share it: the <b>Level</b> tab → <b>Share link</b> sends the level in a link that opens straight into the game, and <b>Export</b> makes a playable .html. Help (Menu → Help) has the full manual.', aim: () => ({ el: '[data-cmd="export"]' }) }
 ];
+/* --- tutorial pointer helpers: aim at the exact element or map cell the player must touch next --- */
+function tutShown(el) { // visible on screen and not covered by something else
+  if (!el) return false; const r = el.getBoundingClientRect(); if (!r.width || !r.height) return false;
+  const x = r.left + r.width / 2, y = r.top + r.height / 2; if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) return false;
+  const t = document.elementFromPoint(x, y); return !!t && (t === el || el.contains(t));
+}
+function tutCellXY(x, y) { const D = ED.view, r = $('#grid').getBoundingClientRect(); return [r.left + D.ox + (x + 0.5) * D.cs, r.top + D.oy + (y + 0.5) * D.cs]; }
+function tutOnMap(x, y) { const p = tutCellXY(x, y); if (p[0] < 0 || p[1] < 0 || p[0] > innerWidth || p[1] > innerHeight) return false; const t = document.elementFromPoint(p[0], p[1]); return !!t && t.id === 'grid'; }
+function tutFree(lv, x, y, r) { for (let j = y - r; j <= y + r; j++) for (let i = x - r; i <= x + r; i++) { if (i < 1 || j < 1 || i >= lv.w - 1 || j >= lv.h - 1 || lv.wall[j * lv.w + i]) return false; } return true; }
+function tutThingAt(x, y) { return (L().ents || []).some(e => Math.floor(e.x) === x && Math.floor(e.y) === y); }
+function tutCell(score) { // best visible map cell by score(x, y, lv); null score = not allowed
+  const lv = L(); let best = null, bs = -1e9;
+  for (let y = 0; y < lv.h; y++) for (let x = 0; x < lv.w; x++) { const s = score(x, y, lv); if (s == null || s <= bs || !tutOnMap(x, y)) continue; bs = s; best = [x, y]; }
+  return best ? { cell: best } : (document.body.classList.contains('sheet') ? { el: '[data-cmd="sheet"]' } : null);
+}
+function tutFloor(f) { const lv = L(), sp = lv.spawn; return tutCell((x, y) => lv.wall[y * lv.w + x] ? null : f(Math.hypot(x + 0.5 - sp.x, y + 0.5 - sp.y), x, y)); }
+function tutDrag() { // an empty patch to drag a rectangle across
+  const lv = L(); let a = null;
+  for (const sz of [6, 5, 4, 3]) { const c = tutCell((x, y) => x + sz < lv.w - 1 && y + sz < lv.h - 1 && tutFree(lv, x + (sz >> 1), y + (sz >> 1), sz >> 1) && tutOnMap(x + sz, y + sz) ? -Math.abs(x - 3) - Math.abs(y - 4) : null); if (c && c.cell) { a = c.cell; a.push(sz); break; } }
+  return a ? { cell: [a[0], a[1]], to: [a[0] + a[2], a[1] + a[2]] } : tutCell((x, y) => lv.wall[y * lv.w + x] ? null : 0);
+}
+const TUT_ARROW = '<svg viewBox="0 0 24 32" width="30" height="40" aria-hidden="true"><path d="M2 2 L2 25 L8 19.5 L12 29 L16.5 27 L12.5 18 L20.5 18 Z" fill="#fff" stroke="#000" stroke-width="2" stroke-linejoin="round"/></svg>';
 function startTutorial() {
   stopTutorial();
   ED.project.levels.push(blankLevel('My First Level', 28, 20)); switchLevel(ED.project.levels.length - 1); fitView();
   TUT.played = false; TUT.el = document.createElement('div'); TUT.el.id = 'tut'; TUT.ring = document.createElement('div'); TUT.ring.id = 'tut-ring';
-  document.body.appendChild(TUT.ring); document.body.appendChild(TUT.el);
-  TUT.el.addEventListener('click', e => { const a = e.target.closest('[data-ta]'); if (!a) return; const v = a.dataset.ta; if (v === 'next') tutGo(TUT.i + 1); else if (v === 'back') tutGo(TUT.i - 1); else stopTutorial(); });
-  tutGo(0); TUT.timer = setInterval(tutTick, 300);
+  TUT.hand = document.createElement('div'); TUT.hand.id = 'tut-hand'; TUT.hand.innerHTML = `<div class="mv"><div class="fl"><div class="bob">${TUT_ARROW}</div></div></div>`;
+  document.body.appendChild(TUT.ring); document.body.appendChild(TUT.el); document.body.appendChild(TUT.hand);
+  TUT.el.addEventListener('click', e => { const a = e.target.closest('[data-ta]'); if (!a) return; const v = a.dataset.ta; if (v === 'next' || v === 'skip') tutGo(TUT.i + 1); else if (v === 'back') tutGo(TUT.i - 1); else stopTutorial(); });
+  TUT.onAct = () => { TUT.act = Date.now(); }; TUT.onResize = () => setTimeout(tutTick, 60);
+  document.addEventListener('pointerdown', TUT.onAct, true); document.addEventListener('keydown', TUT.onAct, true);
+  window.addEventListener('resize', TUT.onResize); window.addEventListener('orientationchange', TUT.onResize);
+  tutGo(0); TUT.timer = setInterval(tutTick, 250);
 }
 function tutGo(i) {
   if (i >= TUT_STEPS.length) { stopTutorial(); toast('Tutorial complete — have fun building!', 'ok'); return; }
   TUT.i = Math.max(0, i); const st = TUT_STEPS[TUT.i], lv = L();
   TUT.base = { walls: lv.wall.filter(Boolean).length, doors: lv.kind.filter(Boolean).length, stamps: ED.stats.stamps, sx: lv.spawn.x, sy: lv.spawn.y, enemies: tutCount(e => e.t === 'enemy'), pickups: tutCount(e => e.t === 'pickup') };
   if (st.enter) st.enter();
-  const tg0 = st.sel && $(st.sel); if (tg0 && tg0.scrollIntoView) tg0.scrollIntoView({ block: 'nearest', inline: 'center' });
+  TUT.act = TUT.t0 = Date.now(); TUT.lastEl = null;
   TUT.el.innerHTML = `<div class="tut-top"><span class="tut-n">Step ${TUT.i + 1} of ${TUT_STEPS.length}</span><button class="tut-x" data-ta="close" title="Close tutorial">✕</button></div><h3>${st.t}</h3><p>${st.d}</p>
     <div class="tut-dots">${TUT_STEPS.map((_, k) => `<i class="${k < TUT.i ? 'done' : k === TUT.i ? 'on' : ''}"></i>`).join('')}</div>
-    <div class="tut-btns">${TUT.i ? '<button class="tb sm" data-ta="back">Back</button>' : ''}<span class="tut-wait">${st.check ? 'Waiting for you…' : ''}</span><button class="tb sm primary" data-ta="next" ${st.check ? 'disabled' : ''}>${TUT.i === TUT_STEPS.length - 1 ? 'Finish' : st.check ? 'Next' : 'Next'}</button></div>`;
+    <div class="tut-btns">${TUT.i ? '<button class="tb sm" data-ta="back">Back</button>' : ''}<span class="tut-wait">${st.check ? 'Waiting for you…' : ''}</span><button class="tb sm" data-ta="skip" hidden>Skip step</button><button class="tb sm primary" data-ta="next" ${st.check ? 'disabled' : ''}>${TUT.i === TUT_STEPS.length - 1 ? 'Finish' : 'Next'}</button></div>`;
   tutTick();
 }
 function tutTick() {
   if (!TUT.el) return; const st = TUT_STEPS[TUT.i];
   const playing = $('#play-host').classList.contains('on'); if (playing) TUT.played = true;
-  TUT.el.style.display = TUT.ring.style.display = playing || $('.modal-back') ? 'none' : '';
-  const nb = $('[data-ta="next"]', TUT.el);
-  if (st.check && nb && nb.disabled && st.check()) { nb.disabled = false; const w = $('.tut-wait', TUT.el); w.textContent = '✓ Done!'; w.classList.add('ok'); Sound_ok(); setTimeout(() => { if (TUT_STEPS[TUT.i] === st) tutGo(TUT.i + 1); }, 900); }
-  const tg = st.sel && $(st.sel);
-  if (tg && tg.getBoundingClientRect().width) { const r = tg.getBoundingClientRect(); Object.assign(TUT.ring.style, { left: r.left - 4 + 'px', top: r.top - 4 + 'px', width: r.width + 8 + 'px', height: r.height + 8 + 'px', opacity: 1 }); }
+  const hide = playing || !!$('.modal-back');
+  TUT.el.style.display = TUT.ring.style.display = TUT.hand.style.display = hide ? 'none' : '';
+  const nb = $('[data-ta="next"]', TUT.el), sk = $('[data-ta="skip"]', TUT.el);
+  if (st.check && nb && nb.disabled && st.check()) { nb.disabled = false; if (sk) sk.hidden = true; const w = $('.tut-wait', TUT.el); w.textContent = '✓ Done!'; w.classList.add('ok'); Sound_ok(); setTimeout(() => { if (TUT_STEPS[TUT.i] === st) tutGo(TUT.i + 1); }, 900); }
+  const now = Date.now(), idle = now - (TUT.act || now) > 6000;
+  if (sk && nb && nb.disabled && now - TUT.t0 > 25000 && idle) sk.hidden = false; // never trap the player on a step
+  if (hide) return;
+  // where should the player touch next?
+  let a = null; try { a = st.aim && st.aim(); } catch (e) { a = null; }
+  let rect = null, tip = null, to = null;
+  if (a && a.el) {
+    let el = typeof a.el === 'string' ? $(a.el) : a.el;
+    if (el && !tutShown(el) && el !== TUT.lastEl && el.scrollIntoView) { el.scrollIntoView({ block: 'nearest', inline: 'center' }); }
+    if (el) TUT.lastEl = el;
+    if (el && !el.getBoundingClientRect().width) el = $('[data-cmd="menu"]'); // hidden inside a collapsed menu: point at its opener
+    if (el) { const r = el.getBoundingClientRect(); rect = { l: r.left, t: r.top, w: r.width, h: r.height }; tip = [r.left + r.width * 0.62, r.top + r.height * 0.62]; }
+  } else if (a && a.cell) {
+    const cs = ED.view.cs, p = tutCellXY(a.cell[0], a.cell[1]); rect = { l: p[0] - cs / 2, t: p[1] - cs / 2, w: cs, h: cs }; tip = p;
+    if (a.to) to = tutCellXY(a.to[0], a.to[1]);
+  }
+  if (rect) Object.assign(TUT.ring.style, { left: rect.l - 4 + 'px', top: rect.t - 4 + 'px', width: rect.w + 8 + 'px', height: rect.h + 8 + 'px', opacity: 1 });
   else TUT.ring.style.opacity = 0;
+  const H = TUT.hand;
+  if (!tip) { H.style.opacity = 0; return; }
+  H.style.opacity = 1; H.style.left = tip[0] + 'px'; H.style.top = tip[1] + 'px';
+  // flip the arrow so it stays on screen (it points up-left by default, body below-right of the tip)
+  H.classList.toggle('fx', tip[0] > innerWidth - 44); H.classList.toggle('fy', tip[1] > innerHeight - 56);
+  H.classList.toggle('idle', idle); H.classList.toggle('drag', !!to);
+  if (to) { H.style.setProperty('--dx', to[0] - tip[0] + 'px'); H.style.setProperty('--dy', to[1] - tip[1] + 'px'); }
+  H.dataset.x = Math.round(tip[0]); H.dataset.y = Math.round(tip[1]); if (to) { H.dataset.tx = Math.round(to[0]); H.dataset.ty = Math.round(to[1]); } else { delete H.dataset.tx; delete H.dataset.ty; }
 }
 function Sound_ok() { try { RT.Sound.init(); RT.Sound.play('pickup'); } catch (e) {} }
-function stopTutorial() { clearInterval(TUT.timer); if (TUT.el) TUT.el.remove(); if (TUT.ring) TUT.ring.remove(); TUT.el = TUT.ring = null; TUT.i = -1; }
+function stopTutorial() {
+  clearInterval(TUT.timer); if (TUT.el) TUT.el.remove(); if (TUT.ring) TUT.ring.remove(); if (TUT.hand) TUT.hand.remove();
+  if (TUT.onAct) { document.removeEventListener('pointerdown', TUT.onAct, true); document.removeEventListener('keydown', TUT.onAct, true); window.removeEventListener('resize', TUT.onResize); window.removeEventListener('orientationchange', TUT.onResize); }
+  TUT.el = TUT.ring = TUT.hand = TUT.onAct = null; TUT.i = -1;
+}
 
 /* ---------- top bar commands ---------- */
 $('#topbar').addEventListener('click', e => {
