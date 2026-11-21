@@ -15,6 +15,101 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<!-- SPLASH SCREEN v2 (fixed, id "boot" so it does not clash with the loading screen): stamped "DMB TECH 1" + credits + synthesized hammer sound -->
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap" rel="stylesheet"> <!-- free military stencil font (SIL Open Font License) -->
+<div id="boot">
+  <h1>RETRO<span>ENGINE</span></h1>              <!-- main title, stays the biggest thing -->
+  <div id="stamp"></div>                         <!-- empty box; the script stamps letters into it -->
+  <div id="credits">                             <!-- hidden until the stamping finishes -->
+    <p class="role">Darcy D. Demby</p>
+    <p class="title">Chief Software Architect</p>
+    <p class="co">DembySoftwareSystems</p>
+    <p class="motto">Making cool tools with AI...</p>
+  </div>
+  <small id="prompt">TAP TO BOOT</small>         <!-- first tap = permission to play sound -->
+</div>
+<style>
+  #boot { position: fixed; inset: 0; z-index: 99999; background: #000; /* full black cover above everything */
+    display: flex; flex-direction: column; align-items: center; justify-content: center; /* center the stack */
+    color: #ccc; font-family: monospace; text-align: center; transition: opacity .6s; }   /* fade-out speed */
+  #boot h1 { font-size: 10.5vw; margin: 0; letter-spacing: 4px; }   /* title scales with screen width */
+  #boot h1 span { color: #e33; }
+  #stamp { font-family: 'Black Ops One', monospace;  /* stencil "TOP SECRET" letters */
+    font-size: 7vw; color: #c22;                     /* smaller than the title but loud red */
+    letter-spacing: 6px; min-height: 9vw;            /* reserve space so nothing jumps around */
+    border: 3px solid transparent; padding: 0 12px; margin: 10px 0; }
+  #stamp.done { border-color: #c22; transform: rotate(-3deg); } /* finished = boxed and tilted like an ink stamp */
+  #stamp b { display: inline-block; animation: slam .18s ease-out; } /* each letter gets its own slam */
+  @keyframes slam {                                  /* letter drops from huge and slams down to normal size */
+    0%   { transform: scale(3); opacity: 0; }
+    80%  { transform: scale(.9); opacity: 1; }      /* tiny squash on impact */
+    100% { transform: scale(1); } }
+  #credits { opacity: 0; transition: opacity .8s; }  /* invisible until shown */
+  #credits.show { opacity: 1; }
+  #credits p { margin: 4px; }
+  .role { font-size: 5vw; color: #eee; }
+  .title { font-size: 3.5vw; color: #999; letter-spacing: 2px; }
+  .co { font-size: 4vw; color: #e33; margin-top: 14px !important; }
+  .motto { font-size: 3vw; color: #777; font-style: italic; } /* smaller print */
+  #prompt { margin-top: 30px; animation: blink 1.2s infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  #boot.hide { opacity: 0; pointer-events: none; }
+</style>
+<script>
+(function () {
+  var s = document.getElementById('boot'), stamp = document.getElementById('stamp');
+  var credits = document.getElementById('credits'), prompt = document.getElementById('prompt');
+  var TEXT = 'DMB TECH 1';                 // homage to id Tech 1
+  var stage = 0, ac;                       // stage 0 = waiting, 1 = stamping, 2 = ready to close
+
+  function hammer() {                      // builds a "THUD-clank" from scratch, like a TI-89 beep but fancier
+    var t = ac.currentTime;                // the audio clock's "now"
+    var o = ac.createOscillator(), g = ac.createGain(); // oscillator = tone maker, gain = volume knob
+    o.frequency.setValueAtTime(150, t);    // start as a low boom...
+    o.frequency.exponentialRampToValueAtTime(40, t + .15); // ...and drop in pitch = heavy impact
+    g.gain.setValueAtTime(1, t);
+    g.gain.exponentialRampToValueAtTime(.001, t + .2); // fast fade = short punchy hit
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + .2); // wire to speakers, play 0.2 s
+    var buf = ac.createBuffer(1, ac.sampleRate * .05, ac.sampleRate); // 0.05 s of blank audio
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length); // fill with fading static = metal "clank"
+    var n = ac.createBufferSource(), ng = ac.createGain(); ng.gain.value = .5;
+    n.buffer = buf; n.connect(ng).connect(ac.destination); n.start(t);
+  }
+
+  function stampLetters(i) {               // stamps one letter, then calls itself for the next (a loop with pauses)
+    if (i >= TEXT.length) {                // all letters done
+      stamp.classList.add('done');         // box + tilt it like an ink stamp
+      setTimeout(function () { credits.classList.add('show'); }, 300); // fade credits in
+      prompt.textContent = 'TAP TO CONTINUE';
+      stage = 2;
+      setTimeout(close, 5000);             // auto-close 5 s later if nobody taps
+      return;
+    }
+    var b = document.createElement('b');   // new element for this letter
+    b.textContent = TEXT[i] === ' ' ? '\u00A0' : TEXT[i]; // a space would collapse, so use a non-breaking space
+    stamp.appendChild(b);                  // adding it triggers the slam animation
+    if (TEXT[i] !== ' ') hammer();         // no hammer on spaces
+    setTimeout(function () { stampLetters(i + 1); }, TEXT[i] === ' ' ? 250 : 220); // wait, then next letter
+  }
+
+  function close() {
+    if (s.classList.contains('hide')) return;
+    s.classList.add('hide');
+    setTimeout(function () { s.remove(); }, 700);
+  }
+
+  s.addEventListener('pointerdown', function () {
+    if (stage === 0) {                     // first tap: start sound + stamping
+      stage = 1; prompt.textContent = '';
+      ac = new (window.AudioContext || window.webkitAudioContext)(); // webkit name = older iPhones
+      stampLetters(0);
+    } else if (stage === 2) close();       // tap after stamping = skip to the editor
+  });
+})();
+</script>
+
+
   <div id="splash" style="position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#07090d;color:#e8edf5;font:600 15px 'Chakra Petch',system-ui,sans-serif;transition:opacity .4s"><div style="font-size:34px;letter-spacing:3px"><span style="color:#ff8a3d">&#9670;</span> Retro<b style="color:#ff8a3d">Engine</b></div><div style="opacity:.6;font-size:12px;letter-spacing:2px">FPS GAME MAKER · LOADING…</div></div>
   <!-- Top bar: project, level picker, undo/redo, play & export -->
   <header id="topbar">
