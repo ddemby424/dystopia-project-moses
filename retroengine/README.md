@@ -1,0 +1,97 @@
+# RetroEngine 1.0: make your own retro 3D shooter in the browser
+
+RetroEngine is a free game maker for old-school first-person shooters in the style of Doom, Duke Nukem 3D and Quake. You draw a level on a grid, drop in enemies, weapons and doors, and press **Play** to run around in it straight away. It works on phones (including foldables), tablets and computers. No install and no account are needed.
+
+## What's in this folder
+
+| File | What it is |
+|---|---|
+| `index.html` | Open this to start RetroEngine (uses `styles.css` and `app.js`) |
+| `retroengine.html` | The same app as one single file, handy for sending or opening offline |
+| `help.html` | The full manual as a web page (it is also built into the app: Menu → Help) |
+| `assets/models/` | The 3D enemies and guns (`.glb`, CC0) |
+| `assets/music/` | Five music tracks (`.mp3`, CC BY 4.0) |
+| `README.md`, `CHANGELOG.md`, `CREDITS.md` | This file, the version history, and who made what |
+
+## Features
+- **Level editor:** walls, floors, ceilings, raised floors and stairs, doors and keycard doors. Includes rectangle and fill tools, select/move, copy/paste, undo/redo, and pinch-zoom on phones.
+- **Rooms library:** 22 ready-made rooms and buildings you can stamp in and rotate. You can save your own.
+- **3 polished starter levels:** *Outpost Breach*, *Server Hall G* and *Foundry Core*.
+- **Enemies:** soldiers, gun drones, heavy walkers, sentry turrets and a Titan boss. They are animated, rigged 3D models with smooth blending between idle, run, shoot, hit and death.
+- **Smart bots:**
+  - They warn their squadmates when they spot you.
+  - They side-step while reloading, and some flank you.
+  - They duck behind cover when hurt, then pop back out.
+- **Difficulty:** *Easy*, *Normal* and *Hard* change enemy health, speed, damage, reaction time, fire rate and how many flank.
+- **Six weapons:** wrench, pistol, shotgun, assault rifle, plasma caster and rocket launcher, each with its own magazine. Guns have reload animations, recoil, sway, bob and shell casings.
+- **Pickups and props:** health, armour, ammo, keycards, secrets, explosive barrels and 14 kinds of props.
+- **Look:** 20 gritty textures with lighting, shadowed corners, fog, sky scenes, coloured lights and a flashlight.
+- **Music player:** 5 rap/trap and metal tracks. You can pick one per level or skip tracks in the pause menu.
+- **Level scripts (optional):** short scripts for messages, triggers and rewards, for example "open this door when all enemies are dead".
+- **Sharing:**
+  - Send a level as a **link** or as a **.retro file** (see below).
+  - Export your whole game as a **single playable .html file**.
+- **Built-in help:** a quick start, an interactive tutorial ("build your first level") and a full manual.
+
+## Controls
+
+| | Keyboard and mouse | Touch |
+|---|---|---|
+| Move | WASD (Shift = run) | Drag on the left half of the screen |
+| Look | Mouse (click to lock the pointer; drag if your browser blocks that) | Drag on the right half |
+| Shoot | Left click | FIRE (hold it and drag to aim) |
+| Reload | R (also automatic when empty) | RLD |
+| Use / open doors | E | USE |
+| Jump | Space | JUMP |
+| Change weapon | 1–6, Q or mouse wheel | SWAP |
+| Map, flashlight, pause | M, F, Esc | Buttons at the top |
+
+**Editor:** with one finger (or the mouse) you use the selected tool. Two fingers (or the middle mouse button / Space+drag) pan and zoom. Most tools have a keyboard shortcut, such as B for wall, R for rectangle and T for things.
+
+## How to open it in Spck Editor (Android)
+1. Copy `retroengine-release.zip` to your phone.
+2. In **Spck Editor**, create a new project, then choose **Import → from ZIP** and pick the zip. Alternatively, unzip it with the Files app and open the folder as a project.
+3. Open `index.html` and tap the **▶ Run / Preview** button. Spck serves the files through its own preview server, so the 3D models and music load properly.
+4. For the full-screen experience, tap Spck's "open in browser" option, or put the folder online (see "Publishing").
+
+Without Spck you can also simply open `retroengine.html` in Chrome, Samsung Internet, Firefox or Safari. When a file is opened straight from storage (`file://`), the browser blocks loading the models and music from the `assets` folder. RetroEngine then fetches them from the hosted copy, or falls back to built-in robots and synth music, so it always works.
+
+Your work **autosaves** in the browser. Use **Menu → Projects** for named save slots and **Menu → Export project file (.json)** for real backups.
+
+## Sharing your levels
+- **Share link:** open the **Level** tab → *Share this level* → **Share link**.
+  - The whole level is packed into the link itself, so no server or account is needed.
+  - On phones the share sheet opens (WhatsApp, Messages, Discord…). On computers the link is copied.
+  - Whoever opens the link lands straight in the game with your level. *Back to editor* shows how it was built.
+- **.retro file:** **Export .retro** saves a small file with the level and any custom models. Use it when a level is too big for a link (over about 7 KB; RetroEngine tells you).
+  - Friends open it with **Menu → Import level (.retro)** or by dragging it onto the editor.
+- **Whole game:** **Export** makes one `.html` file containing all your levels that anyone can play.
+- **Safety:** level scripts from other people are switched **off** when you import them. You can read the script in the Level tab and turn it on only if you trust it.
+- Links only work for other people when RetroEngine is hosted online. A copy opened from your own device makes links that only open on that device.
+
+## Publishing
+Upload the contents of this folder (keep `assets/` next to `index.html`) to any static web host, for example GitHub Pages, Netlify or itch.io (HTML5 game). Then share the address.
+
+## Phones and browsers
+Tested in Chromium (Chrome, Samsung Internet and Android webview engine), WebKit (Safari on iPhone/iPad) and Gecko (Firefox), on phone, foldable (folded and unfolded), tablet and desktop screen sizes:
+- **Controls:** touch-first, with no need for a mouse, keyboard or pointer lock.
+- **Screen fit:** respects notches and home bars, and adapts when you rotate the phone or the address bar shows or hides.
+- **Graphics quality "Auto"** (the default) picks settings for your device and lowers the resolution on the fly to stay smooth. *Low/Medium/High* are in Settings.
+- **Optional features:** fullscreen, vibration and the share sheet are used only where the browser supports them.
+- **Sound** starts on your first tap (a phone rule).
+- **Without WebGL:** if a browser can't run 3D, Playtest explains what to do and the editor keeps working.
+
+## Known limits
+- **Internet on first launch:** the 3D engine (Three.js) and the font load from the internet, so the very first launch needs a connection.
+- **One floor per spot:** you can have stairs, catwalks and raised platforms, but no room directly above another room.
+- **No multiplayer, no real-time shadows** (corners are darkened instead), and enemies don't open keycard doors.
+- **Browser storage** is about 5–10 MB per site. Uploaded models fill it quickly, so export backups.
+- **Share links** are limited to about 7 KB (larger levels use .retro files). Links made from a copy on your own device only open there.
+- **iPhone fullscreen:** iPhones don't allow web pages to go full screen, so use landscape for more room. Some in-app browsers (Instagram, Facebook…) block the share sheet and downloads. RetroEngine then shows the link to copy by hand.
+- **Phone speed:** on very old or low-end phones the game may run below 60 fps even on Low.
+- **Exported .html games** load the 3D models and music from the hosted RetroEngine copy, with built-in fallbacks when offline.
+
+## Credits
+3D enemies and guns are by **Quaternius** (CC0). Music is by **Kevin MacLeod** and **Shane Ivers** (CC BY 4.0). Textures, props, sound effects and the synth music are generated by RetroEngine's own code. Full list with licenses and links: [CREDITS.md](CREDITS.md). In the app: Menu → About & credits.
+
+RetroEngine was formerly called DOOMFORGE IDE. Old projects and saves are imported automatically.
