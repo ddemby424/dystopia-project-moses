@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.3 (2026-11-23): Pulse Cannon projectile spawn
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+- Fix: Pulse Cannon (and other projectile) shots no longer spawn a large white box over the first-person gun. Projectiles start 0.85 units ahead of the camera, and projectile meshes (player pulses and incoming enemy bolts) stay small or hidden until they leave the near field. The world muzzle light sits further down the barrel so it does not bleach the near floor into a white card. DMB Tech 1 **1.0.2**.
+
+
+
 ## 1.1.2 (2026-11-23): stairs lesson, Cellblock Yard, outdoor assets
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

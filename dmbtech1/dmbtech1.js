@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.0.1 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.0.2 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.0.1';
+export const VERSION = '1.0.2';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.0.1';
+const VERSION = '1.0.2';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 const STEP_H = 0.36;         // max height you can walk up without jumping
@@ -1250,7 +1250,7 @@ function play(container, project, opts) {
     const moon = new THREE.DirectionalLight(new THREE.Color(SKIES[P.sky] ? SKIES[P.sky].glow : '#ffffff'), 0.25); moon.position.set(-0.4, 1, 0.3); scene.add(moon);
     const pool = []; for (let i = 0; i < Q().lights; i++) { const pl = new THREE.PointLight(0xffffff, 0, 6, 2); scene.add(pl); pool.push(pl); }
     const bodyLight = new THREE.PointLight(0xc8d4ff, 0.22, 3, 2); scene.add(bodyLight);     // keeps your surroundings readable
-    const muzzle = new THREE.PointLight(0xffb060, 0, 5, 2); scene.add(muzzle);
+    const muzzle = new THREE.PointLight(0xffb060, 0, 2.4, 2); scene.add(muzzle);
     const fxLight = new THREE.PointLight(0xff8a30, 0, 7, 2); scene.add(fxLight);
     const flash = new THREE.SpotLight(0xfff1d6, 0, 14, 0.42, 0.45, 1.4); scene.add(flash); scene.add(flash.target);
     const g = {
@@ -1548,7 +1548,7 @@ function play(container, project, opts) {
     if (w.ammo === 'bullets' || w.ammo === 'shells') ejectShell(w.ammo === 'shells');
     { const fl = weaponMeshes[G.cur].userData.flash, r = rand(0.8, 1.35); fl.rotation.z = rand(0, Math.PI); fl.scale.set(r * 1.3, r * 1.3, 2.4 * r); }
     const eyeZ = G.pz + EYE;
-    if (!w.melee) { G.muzzle.intensity = 2.2; wMuzzle.intensity = 2; weaponMeshes[G.cur].userData.flash.visible = true; makeNoise(10); }
+    if (!w.melee) { wMuzzle.intensity = 0.45; weaponMeshes[G.cur].userData.flash.visible = true; makeNoise(10); }
     const cyaw = Math.cos(G.yaw), syaw = Math.sin(G.yaw);
     if (w.melee) {
       let best = null, bd = w.range;
@@ -1569,7 +1569,8 @@ function play(container, project, opts) {
         const cp2 = Math.cos(Math.asin(Math.max(-1, Math.min(1, pdz))) + sp), sp2 = Math.sin(Math.asin(Math.max(-1, Math.min(1, pdz))) + sp);
         pdx = cy2 * cp2; pdy = sy2 * cp2; pdz = sp2;
       }
-      spawnProj('player', w.proj, G.px + cyaw * 0.3, G.py + syaw * 0.3, eyeZ - 0.08, pdx, pdy, pdz, w.speed, w.dmg, w.splash || 0);
+      // Start ahead of the viewmodel / near plane so the pulse halo isn't a screen-filling box on the gun.
+      spawnProj('player', w.proj, G.px + cyaw * 0.85, G.py + syaw * 0.85, eyeZ - 0.05, pdx, pdy, pdz, w.speed, w.dmg, w.splash || 0);
       return;
     }
     let anyHit = false;
@@ -1646,14 +1647,26 @@ function play(container, project, opts) {
   }
 
   /* ---------- projectiles ---------- */
-  const projGeo = new THREE.SphereGeometry(0.05, 8, 6);
+  const projGeo = new THREE.SphereGeometry(0.05, 12, 10);
+  function scaleProjMesh(mesh, baseScale, x, y, z) {
+    const dist = Math.hypot(x - G.px, y - G.py, z - (G.pz + EYE));
+    const vis = Math.min(1, Math.max(0, (dist - 0.85) / 1.35));
+    mesh.visible = vis > 0.02;
+    mesh.scale.setScalar((baseScale || 1) * (vis > 0.02 ? Math.max(vis, 0.15) : 0.15));
+  }
   function spawnProj(owner, kind, x, y, z, dx, dy, dz, speed, dmg, splash) {
     const color = kind === 'plasma' ? 0x7cff4f : kind === 'pulse' ? 0x38bdf8 : kind === 'rocket' ? 0xffa040 : 0xff3b1f;
     const mesh = new THREE.Mesh(projGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
-    mesh.scale.setScalar(kind === 'rocket' ? 1.6 : kind === 'plasma' ? 1.3 : kind === 'pulse' ? 1.15 : 1.1);
-    const halo = new THREE.Mesh(projGeo, mesh.material.clone()); halo.material.opacity = 0.25; halo.scale.setScalar(2.6); mesh.add(halo);
+    const baseScale = kind === 'rocket' ? 1.6 : kind === 'plasma' ? 1.3 : kind === 'pulse' ? 1.15 : 1.1;
+    mesh.userData.baseScale = baseScale;
+    mesh.scale.setScalar(baseScale);
+    const halo = new THREE.Mesh(projGeo, mesh.material.clone()); halo.material.opacity = 0.28; halo.scale.setScalar(kind === 'pulse' ? 1.7 : 2.6); mesh.add(halo);
+    mesh.position.set(x, z, y);
+    // Keep the mesh small near the camera so an additive halo (player pulse or incoming bolt)
+    // doesn't read as a white cube on the first-person gun.
+    scaleProjMesh(mesh, baseScale, x, y, z);
     G.scene.add(mesh);
-    G.projectiles.push({ owner, kind, x, y, z, vx: dx * speed, vy: dy * speed, vz: dz * speed, dmg, splash, mesh, life: 5 });
+    G.projectiles.push({ owner, kind, x, y, z, vx: dx * speed, vy: dy * speed, vz: dz * speed, dmg, splash, mesh, life: 5, baseScale });
   }
   function updateProjectiles(dt) {
     for (let i = G.projectiles.length - 1; i >= 0; i--) {
@@ -1675,6 +1688,7 @@ function play(container, project, opts) {
         G.scene.remove(p.mesh); p.mesh.material.dispose(); G.projectiles.splice(i, 1); continue;
       }
       p.mesh.position.set(p.x, p.z, p.y);
+      scaleProjMesh(p.mesh, p.baseScale || p.mesh.userData.baseScale || 1, p.x, p.y, p.z);
     }
   }
   /* ---------- particles ---------- */
@@ -1839,7 +1853,7 @@ function play(container, project, opts) {
       pl.intensity = k;
     });
     G.bodyLight.position.set(G.px, G.pz + 0.9, G.py);
-    G.muzzle.position.set(G.px + Math.cos(G.yaw) * 0.4, G.pz + EYE, G.py + Math.sin(G.yaw) * 0.4);
+    { const md = 1.8, cp = Math.cos(G.pitch); G.muzzle.position.set(G.px + Math.cos(G.yaw) * cp * md, G.pz + EYE + Math.sin(G.pitch) * md, G.py + Math.sin(G.yaw) * cp * md); }
     G.muzzle.intensity = Math.max(0, G.muzzle.intensity - dt * 30); wMuzzle.intensity = Math.max(0, wMuzzle.intensity - dt * 30);
     G.flash.intensity = G.flashOn ? 2.2 : 0;
   }

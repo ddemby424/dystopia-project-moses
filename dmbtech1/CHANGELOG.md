@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2 (2026-11-23)
+
+- Pulse (and other player) projectiles now spawn 0.85 units ahead of the camera instead of 0.3, the Pulse Cannon halo is a bit tighter, and projectile meshes (player pulses and incoming enemy bolts) stay small or hidden until they leave the near field. The old spawn sat on the near plane, so auto-fire drew a large white box over the first-person gun. The world muzzle light was also moved ahead of the gun so it no longer bleaches the floor into a white card in portrait.
+
+
 ## 1.0.1 (2026-11-23)
 
 Outdoor textures for yards, aprons, and secured compounds (procedural, so they ship with the engine):

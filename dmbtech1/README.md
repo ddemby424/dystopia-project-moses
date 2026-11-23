@@ -2,7 +2,7 @@
 
 **DMB Tech 1** is a standalone 3D first-person engine that runs in the browser. Other developers can load a `.retro` map, move, shoot, and hook events without using the RetroEngine editor.
 
-Version **1.0.1**. Plain browser, no build step — works in Spck, Acode, and a local static server.
+Version **1.0.2**. Plain browser, no build step — works in Spck, Acode, and a local static server.
 
 DMB Tech 1 — Darcy D. Demby, Chief Software Architect, DembySoftwareSystems. Making cool tools with AI...
 
