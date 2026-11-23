@@ -1,12 +1,13 @@
 # RetroEngine Trial Map Pack 1
 
-Three full-size escape-pad maps for early trial users of RetroEngine.
+Four full-size escape-pad maps for early trial users of RetroEngine.
 
 | Map | File | Theme |
 | --- | --- | --- |
 | Plant 4: Lockdown | `plant4-lockdown.retro` | Factory at dusk. Keycards through yard, warehouse and assembly, Titan on the loading-dock pad. |
 | Drainworks: Overflow | `drainworks-overflow.retro` | Sewer tunnels and a toxic cistern. Three gate keys, Titan in the settling tank. |
 | Nightwatch: Helipad | `nightwatch-helipad.retro` | Night city roofs and a skybridge. Climb the block, take the helipad from the Titan. |
+| Cellblock Yard | `cellblock-yard.retro` | Outdoor prison yard / secured compound. Sidewalks, curbs, chain-link and brick, towers and a sniper catwalk, Titan in the sally port. |
 
 Each map is beatable: the exit pad is reachable from the start once you have the keys, stairs are stepable, and ammo, health and a rocket launcher sit in front of the boss.
 

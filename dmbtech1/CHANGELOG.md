@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.1 (2026-11-23)
+
+Outdoor textures for yards, aprons, and secured compounds (procedural, so they ship with the engine):
+
+- `sidewalk` — worn concrete slabs with seams, cracks, and oil stains
+- `curb` — a concrete lip with a faded painted edge (raise the cell to `0.15`)
+- `fence` — chain-link with razor wire, see-through via an alpha-tested material
+- `brick_weathered` — outdoor red brick, chipped mortar, dirt streaks
+- `asphalt_lines` — asphalt with worn white and yellow painted lines
+
+These ids are available as wall and/or floor textures in the editor palette and in the `.retro` format. The older `brick` and `asphalt` textures are unchanged.
+
+
 ## 1.0.0 (2026-11-23)
 
 First standalone release of **DMB Tech 1**.

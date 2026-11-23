@@ -36,7 +36,7 @@ The tool bar is on the left (or the bottom on phones). These are the real tool i
 
 On a phone: one finger uses the tool, two fingers pan and pinch-zoom. **Fit** frames the whole map. Undo is the top-bar button, or Ctrl/Cmd+Z.
 
-**Floor height** (Build tab): steps of `0.15` make stairs you can climb (`STEP_H` is `0.36`, so two steps of 0.15 are fine; a jump of more than 0.36 is a ledge). `0.60` is a catwalk. `0.75` is a cover block the player cannot climb.
+**Floor height** (Build tab): steps of `0.15` make stairs you can climb (`STEP_H` is `0.36`, so two steps of 0.15 are fine; a jump of more than 0.36 is a ledge). `0.60` is a catwalk. `0.75` is a cover block the player cannot climb. Lesson 15 is the hands-on walkthrough (templates, jumping, and the outdoor sidewalk / curb / fence textures).
 
 ## Place the start and the exit
 

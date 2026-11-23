@@ -26,6 +26,7 @@ A bite-size guide for early trial users and for Darcy. Each lesson takes about 5
 12. [Troubleshooting](12-troubleshooting.md) — 5 min
 13. [ADVANCED: Level scripts](13-advanced-scripts.md) — 10 min
 14. [ADVANCED: Calling APIs from a script](14-advanced-apis.md) — 10 min
+15. [Stairs, catwalks and jumping](15-stairs-catwalks.md) — 10 min
 
 Paths, function names, and file formats in these lessons were read from the real RetroEngine source. Nothing here is an invented API.
 

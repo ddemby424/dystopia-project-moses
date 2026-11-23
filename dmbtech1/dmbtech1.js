@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.0.0 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.0.1 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.0.0';
+export const VERSION = '1.0.1';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 const STEP_H = 0.36;         // max height you can walk up without jumping
@@ -248,10 +248,15 @@ const TEX_DEFS = {
   door:         { name: 'Blast Door',      rough: 0.64, metal: 0.55, bump: 2.2, glow: true, door: true },
   door_red:     { name: 'Red Key Door',    rough: 0.64, metal: 0.55, bump: 2.2, glow: true, door: true },
   door_blue:    { name: 'Blue Key Door',   rough: 0.64, metal: 0.55, bump: 2.2, glow: true, door: true },
-  door_yellow:  { name: 'Yellow Key Door', rough: 0.64, metal: 0.55, bump: 2.2, glow: true, door: true }
+  door_yellow:  { name: 'Yellow Key Door', rough: 0.64, metal: 0.55, bump: 2.2, glow: true, door: true },
+  sidewalk:        { name: 'Sidewalk',          rough: 0.93, metal: 0.0,  bump: 2.4 },
+  curb:            { name: 'Curb',              rough: 0.9,  metal: 0.0,  bump: 2.8 },
+  fence:           { name: 'Chain-Link Fence',  rough: 0.55, metal: 0.7,  bump: 1.6, alpha: true },
+  brick_weathered: { name: 'Weathered Brick',   rough: 0.92, metal: 0.0,  bump: 3.4 },
+  asphalt_lines:   { name: 'Asphalt (Lines)',   rough: 0.95, metal: 0.0,  bump: 2.4 }
 };
-const WALL_TEXTURES = ['concrete', 'concrete_dark', 'brick', 'metal_panel', 'tech', 'rust', 'hazard', 'tile', 'tile_dark', 'wood', 'server', 'grate', 'plate'];
-const FLOOR_TEXTURES = ['concrete', 'tile', 'tile_dark', 'plate', 'grate', 'asphalt', 'wood', 'rust', 'metal_panel', 'hazard', 'concrete_dark', 'brick'];
+const WALL_TEXTURES = ['concrete', 'concrete_dark', 'brick', 'brick_weathered', 'metal_panel', 'tech', 'rust', 'hazard', 'tile', 'tile_dark', 'wood', 'server', 'grate', 'plate', 'fence', 'sidewalk', 'curb'];
+const FLOOR_TEXTURES = ['concrete', 'tile', 'tile_dark', 'plate', 'grate', 'asphalt', 'asphalt_lines', 'sidewalk', 'curb', 'wood', 'rust', 'metal_panel', 'hazard', 'concrete_dark', 'brick', 'brick_weathered'];
 const CEIL_TEXTURES = ['ceiling', 'light_panel', 'concrete', 'metal_panel', 'grate', 'rust', 'concrete_dark', 'sky'];
 
 // Paints one texture. Returns { color: canvas, glow: canvas|null }.
@@ -268,14 +273,15 @@ function paintTexture(id, S) {
   const base = {
     concrete: [118, 116, 110], concrete_dark: [78, 80, 80], brick: [110, 56, 42], metal_panel: [92, 100, 110], tech: [44, 50, 60],
     rust: [112, 62, 34], grate: [52, 55, 58], hazard: [70, 70, 70], tile: [150, 152, 146], tile_dark: [70, 84, 80], plate: [112, 116, 122],
-    asphalt: [46, 46, 48], wood: [112, 78, 46], ceiling: [128, 128, 122], light_panel: [100, 102, 104], server: [26, 28, 32],
+    asphalt: [46, 46, 48], asphalt_lines: [46, 46, 48], sidewalk: [126, 124, 116], curb: [132, 128, 118],
+    fence: [70, 74, 76], brick_weathered: [118, 48, 36], wood: [112, 78, 46], ceiling: [128, 128, 122], light_panel: [100, 102, 104], server: [26, 28, 32],
     door: [84, 88, 92], door_red: [84, 80, 80], door_blue: [78, 84, 92], door_yellow: [88, 86, 76]
   }[id] || [100, 100, 100];
   for (let i = 0; i < S * S; i++) {
     let k = 0.75 + (n1[i] - 0.5) * 0.7 + (n2[i] - 0.5) * 0.35;
     if (id === 'rust') { const r2 = n2[i] > 0.62 ? 0.55 : 1; k *= r2; }
-    if (id === 'asphalt' || id === 'concrete' || id === 'concrete_dark') { if (Math.random() < 0.06) k *= 0.75 + Math.random() * 0.5; }
-    d[i * 4] = clamp(base[0] * k, 0, 255); d[i * 4 + 1] = clamp(base[1] * k, 0, 255); d[i * 4 + 2] = clamp(base[2] * k, 0, 255); d[i * 4 + 3] = 255;
+    if (id === 'asphalt' || id === 'asphalt_lines' || id === 'concrete' || id === 'concrete_dark' || id === 'sidewalk' || id === 'curb') { if (Math.random() < 0.06) k *= 0.75 + Math.random() * 0.5; }
+    d[i * 4] = clamp(base[0] * k, 0, 255); d[i * 4 + 1] = clamp(base[1] * k, 0, 255); d[i * 4 + 2] = clamp(base[2] * k, 0, 255); d[i * 4 + 3] = (id === 'fence') ? 0 : 255;
     if (id === 'rust' && n1[i] < 0.38) { d[i * 4] = 70 * k; d[i * 4 + 1] = 74 * k; d[i * 4 + 2] = 80 * k; } // bare steel showing through
   }
   c.putImageData(img, 0, 0);
@@ -366,10 +372,88 @@ function paintTexture(id, S) {
       if (id !== 'door') { glowRect(2, 2, 3, 52, kc); glowRect(59, 2, 3, 52, kc); }
       break;
     }
+    case 'sidewalk':
+      // Large worn concrete slabs with dark seams, cracks, and oil stains.
+      line(0, 0, 64, 0, 'rgba(30,28,24,.8)', 2.2); line(0, 32, 64, 32, 'rgba(30,28,24,.75)', 2.0);
+      line(0, 0, 0, 64, 'rgba(30,28,24,.8)', 2.2); line(32, 0, 32, 64, 'rgba(30,28,24,.7)', 1.8);
+      line(1, 1, 63, 1, 'rgba(255,255,255,.08)', 0.7); line(1, 33, 63, 33, 'rgba(255,255,255,.06)', 0.6);
+      for (let i = 0; i < 5; i++) { let x = 4 + R() * 56, y = 4 + R() * 56; c.strokeStyle = 'rgba(25,22,18,.45)'; c.lineWidth = u * 0.7; c.beginPath(); c.moveTo(x * u, y * u); for (let j = 0; j < 7; j++) { x += rand(-6, 6); y += rand(1, 6); c.lineTo(x * u, y * u); } c.stroke(); }
+      for (let i = 0; i < 4; i++) rect(R() * 64, R() * 64, 6 + R() * 10, 3 + R() * 5, 'rgba(20,18,12,.18)');
+      for (let i = 0; i < 8; i++) rect(R() * 64, 0, 1 + R(), 64, 'rgba(30,25,20,.07)');
+      break;
+    case 'curb':
+      // Concrete lip: darker gutter at the bottom, worn painted edge, chips.
+      rect(0, 40, 64, 24, 'rgba(20,20,18,.35)');
+      rect(0, 28, 64, 8, 'rgba(200, 190, 60, .28)');
+      line(0, 28, 64, 28, 'rgba(40,36,20,.7)', 1.2);
+      line(0, 36, 64, 36, 'rgba(255,255,255,.1)', 0.7);
+      line(0, 18, 64, 18, 'rgba(0,0,0,.25)', 1.0);
+      for (let i = 0; i < 10; i++) rect(R() * 64, 26 + R() * 10, 2 + R() * 4, 1 + R() * 2, 'rgba(40,40,30,.45)');
+      for (let i = 0; i < 6; i++) { let x = R() * 64, y = R() * 28; c.strokeStyle = 'rgba(20,20,18,.4)'; c.lineWidth = u * .5; c.beginPath(); c.moveTo(x * u, y * u); c.lineTo((x + rand(-8, 8)) * u, (y + rand(2, 8)) * u); c.stroke(); }
+      break;
+    case 'fence': {
+      // See-through chain-link with rusted posts and razor wire along the top (alpha-tested).
+      c.clearRect(0, 0, S, S);
+      const steel = 'rgba(150, 156, 152, 0.95)', rust = 'rgba(120, 70, 36, 0.9)', dark = 'rgba(40, 42, 44, 0.95)';
+      // posts
+      rect(0, 0, 5, 64, dark); rect(59, 0, 5, 64, dark);
+      rect(1, 0, 3, 64, steel); rect(60, 0, 3, 64, steel);
+      for (let y = 8; y < 64; y += 16) { rivet(2, y); rivet(61, y); }
+      // mid and top rails
+      rect(0, 20, 64, 2.2, dark); rect(0, 20.4, 64, 1.2, steel);
+      rect(0, 10, 64, 2.4, dark); rect(0, 10.4, 64, 1.2, rust);
+      // diamond mesh
+      c.strokeStyle = 'rgba(170, 176, 172, 0.92)'; c.lineWidth = Math.max(1, 0.9 * u);
+      c.beginPath();
+      for (let y = -8; y < 72; y += 8) {
+        for (let x = -8; x < 72; x += 8) {
+          const odd = ((x + y) / 8) & 1;
+          if (odd) continue;
+          c.moveTo((x + 4) * u, y * u); c.lineTo((x + 8) * u, (y + 4) * u);
+          c.lineTo((x + 4) * u, (y + 8) * u); c.lineTo(x * u, (y + 4) * u); c.closePath();
+        }
+      }
+      c.stroke();
+      // razor-wire coils along the top
+      c.strokeStyle = 'rgba(190, 196, 188, 0.95)'; c.lineWidth = Math.max(1, 1.1 * u);
+      for (let x = 6; x < 58; x += 6) {
+        c.beginPath(); c.arc((x + 3) * u, 6 * u, 3.2 * u, 0, 7); c.stroke();
+        c.beginPath(); c.moveTo((x + 1) * u, 3 * u); c.lineTo((x + 5) * u, 9 * u); c.stroke();
+        c.beginPath(); c.moveTo((x + 5) * u, 3 * u); c.lineTo((x + 1) * u, 9 * u); c.stroke();
+      }
+      break;
+    }
+    case 'brick_weathered':
+      // Outdoor red brick: irregular mortar, spalled corners, dirt streaks.
+      for (let row = 0; row < 8; row++) {
+        const off = (row % 2) * 8;
+        line(0, row * 8, 64, row * 8, 'rgba(70, 62, 52, .95)', 1.6);
+        for (let b = 0; b < 5; b++) {
+          const x = (b * 16 + off) % 64;
+          line(x, row * 8, x, row * 8 + 8, 'rgba(70, 62, 52, .95)', 1.6);
+          const rr = 90 + R() * 70 | 0, gg = 28 + R() * 28 | 0, bb = 22 + R() * 16 | 0;
+          rect(x + 1, row * 8 + 1, 14, 6, `rgba(${rr},${gg},${bb},${0.18 + R() * 0.22})`);
+          if (R() < 0.2) rect(x + 1, row * 8 + 1, 3 + R() * 5, 2 + R() * 3, 'rgba(90,80,70,.35)'); // spall
+        }
+      }
+      for (let i = 0; i < 7; i++) rect(R() * 64, 0, 1 + R() * 2, 64, 'rgba(20, 24, 16, .14)');
+      rect(0, 48, 64, 16, 'rgba(10, 12, 8, .22)');
+      break;
+    case 'asphalt_lines':
+      for (let i = 0; i < 120; i++) rect(R() * 64, R() * 64, 0.8, 0.8, `rgba(${150 + R() * 60 | 0},${150 + R() * 60 | 0},${150 + R() * 60 | 0},.35)`);
+      // Worn painted lane / stall lines (faded white and yellow).
+      rect(4, 2, 56, 3.2, 'rgba(230, 225, 200, .42)');
+      rect(4, 30, 56, 2.4, 'rgba(210, 190, 50, .32)');
+      rect(4, 58, 56, 3.2, 'rgba(230, 225, 200, .38)');
+      for (let i = 0; i < 8; i++) rect(6 + i * 7, 12, 3, 14, 'rgba(230, 225, 200, .28)'); // stall ticks
+      for (let i = 0; i < 18; i++) rect(R() * 64, R() * 64, 2 + R() * 6, 1 + R(), 'rgba(20,20,18,.35)'); // chips in the paint
+      for (let i = 0; i < 4; i++) { let x = R() * 64, y = R() * 64; c.strokeStyle = 'rgba(15,15,15,.5)'; c.lineWidth = u * .6; c.beginPath(); c.moveTo(x * u, y * u); for (let j = 0; j < 6; j++) { x += rand(-8, 8); y += rand(2, 8); c.lineTo(x * u, y * u); } c.stroke(); }
+      break;
   }
   // 3) final grime pass: darken with large-scale noise so nothing looks clean & plastic
   const im2 = c.getImageData(0, 0, S, S), e = im2.data;
   for (let i = 0; i < S * S; i++) {
+    if (e[i * 4 + 3] < 8) continue;
     const y = (i / S) | 0, k = 0.82 + n1[(i + S * 7) % (S * S)] * 0.28 - (y / S) * 0.06;
     e[i * 4] *= k; e[i * 4 + 1] *= k; e[i * 4 + 2] *= k;
   }
@@ -457,7 +541,8 @@ function getMaterial(id) {
     normalMap: canvasTex(normalFromCanvas(cv.color, def.bump), false),
     roughness: def.rough, metalness: def.metal
   });
-  m.normalScale.set(0.9, 0.9); m.onBeforeCompile = aoShader; m.customProgramCacheKey = () => 'ao';
+  m.normalScale.set(0.9, 0.9); m.onBeforeCompile = aoShader; m.customProgramCacheKey = () => 'ao' + (def.alpha ? 'A' : '');
+  if (def.alpha) { m.alphaTest = 0.5; m.transparent = false; m.side = THREE.DoubleSide; m.depthWrite = true; }
   if (cv.glow) { m.emissiveMap = canvasTex(cv.glow, true); m.emissive = new THREE.Color(0xffffff); m.emissiveIntensity = id === 'light_panel' ? 0.42 : 0.95; }
   return (matCache[key] = m);
 }

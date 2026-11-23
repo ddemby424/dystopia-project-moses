@@ -2,7 +2,7 @@
 
 **DMB Tech 1** is a standalone 3D first-person engine that runs in the browser. Other developers can load a `.retro` map, move, shoot, and hook events without using the RetroEngine editor.
 
-Version **1.0.0**. Plain browser, no build step — works in Spck, Acode, and a local static server.
+Version **1.0.1**. Plain browser, no build step — works in Spck, Acode, and a local static server.
 
 DMB Tech 1 — Darcy D. Demby, Chief Software Architect, DembySoftwareSystems. Making cool tools with AI...
 
@@ -190,6 +190,21 @@ Settings (`setOption` or `options.settings`):
 - [examples/minimal/](examples/minimal/) — smallest playable game
 - [examples/custom-weapon/](examples/custom-weapon/) — `registerWeapon`
 - [examples/level-script/](examples/level-script/) — map script + `engine.on`
+
+
+## Outdoor textures (1.0.1)
+
+Procedural, included in the engine (no extra files). Gritty yard / apron / compound surfaces:
+
+| Id | Use as | Notes |
+|---|---|---|
+| `sidewalk` | Floor or wall | Concrete slabs, seams, cracks, oil stains |
+| `curb` | Floor or wall | Concrete lip. Raise the cell (`fh = 0.15`) so it reads as a curb |
+| `asphalt_lines` | Floor | Asphalt with worn painted lines |
+| `fence` | Wall | Chain-link and razor wire. See-through (alpha-tested, double-sided) |
+| `brick_weathered` | Wall or floor | Outdoor red brick, distinct from the older `brick` ("Grimy Brick") |
+
+The older `brick` and `asphalt` ids are unchanged. Listings live in `WALL_TEXTURES` and `FLOOR_TEXTURES` inside `dmbtech1.js`.
 
 ## License and credits
 

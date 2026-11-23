@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.2 (2026-11-23): stairs lesson, Cellblock Yard, outdoor assets
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+- New tutorial **Lesson 15 — Stairs, catwalks and jumping**: floor heights (`fh`, `STEP_H` 0.36), the Height tool (U), Floor height buttons, Stairs Up / Guard Tower templates, `HEIGHT_CHARS`, jumping, and a two-minute watchtower build. Also covers the new outdoor textures.
+- New trial map **Cellblock Yard** (`maps/cellblock-yard.retro`): a 52×40 outdoor prison-yard / secured compound with sidewalks, curbs, chain-link and weathered brick, guard towers, a sniper catwalk, keys, about twenty enemies, and a Titan on the sally-port exit pad. Music: "Aggressor" by Kevin MacLeod (CC BY 4.0).
+- DMB Tech 1 **1.0.1** adds procedural outdoor textures: `sidewalk`, `curb`, `fence` (see-through chain-link with razor wire), `brick_weathered`, and `asphalt_lines`.
+
+
 ## 1.1.1 (2026-11-23): powered by standalone DMB Tech 1
 
 RetroEngine play mode now imports the standalone **DMB Tech 1** library (`dmbtech1.js`) instead of keeping a private copy of the runtime. The editor, trial maps, and tutorial are unchanged in gameplay.
