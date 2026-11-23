@@ -67,6 +67,10 @@ Your work **autosaves** in the browser. Use **Menu → Projects** for named save
   - Friends open it with **Menu → Import level (.retro)** or by dragging it onto the editor.
 - **Whole game:** **Export** makes one `.html` file containing all your levels that anyone can play.
 - **Safety:** level scripts from other people are switched **off** when you import them. You can read the script in the Level tab and turn it on only if you trust it.
+
+## Trial map pack
+Three full-size escape-pad maps are in the `maps/` folder, with a phone-friendly list at `maps/index.html`. Tap **Play** to load a map in RetroEngine, or download the `.retro` file and import it. These are meant for early trial users. Each map has guards, a Titan boss, and an exit pad.
+
 - Links only work for other people when RetroEngine is hosted online. A copy opened from your own device makes links that only open on that device.
 
 ## Publishing

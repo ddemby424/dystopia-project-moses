@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07090e">
+  <link rel="icon" href="data:,">
+  <title>Trial Map Pack — RetroEngine</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap">
+  <style>
+    :root {
+      --bg: #07090e; --card: #10151e; --line: rgba(255,255,255,.1);
+      --text: #e6ebf3; --dim: #8b95a8; --acc: #ff7a1a; --acc2: #2de2ff;
+      --font: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+    body {
+      min-height: 100%;
+      background:
+        radial-gradient(900px 420px at 80% -10%, #1a1f2e 0%, transparent 60%),
+        radial-gradient(700px 400px at 0% 100%, #1a0e08 0%, transparent 50%),
+        var(--bg);
+      padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom));
+    }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    header { margin-bottom: 22px; }
+    .kicker {
+      display: inline-block; letter-spacing: 2.4px; font-size: 11px; font-weight: 700;
+      color: var(--acc); border: 1px solid rgba(255,122,26,.45);
+      padding: 4px 8px; margin-bottom: 10px;
+    }
+    h1 { font-size: clamp(28px, 7vw, 44px); letter-spacing: 1px; margin: 0 0 6px; }
+    h1 span { color: var(--acc); }
+    .sub { color: var(--dim); font-size: 16px; line-height: 1.45; max-width: 38em; margin: 0 0 14px; }
+    .back { color: var(--acc2); text-decoration: none; font-weight: 600; }
+    .back:hover { text-decoration: underline; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 760px) { .grid { grid-template-columns: 1fr 1fr 1fr; } }
+    article {
+      background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+      overflow: hidden; display: flex; flex-direction: column;
+      box-shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+    .shot {
+      display: block; width: 100%; aspect-ratio: 16/10; object-fit: cover;
+      background: #0a0d14; border-bottom: 1px solid var(--line);
+    }
+    .body { padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+    h2 { margin: 0; font-size: 20px; letter-spacing: .4px; }
+    p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.45; flex: 1; }
+    .meta { display: flex; flex-wrap: wrap; gap: 6px; }
+    .meta span {
+      font-size: 11px; letter-spacing: .6px; font-weight: 700; color: #c9d0dc;
+      border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px;
+    }
+    .acts { display: flex; gap: 8px; margin-top: 6px; }
+    a.btn {
+      flex: 1; text-align: center; text-decoration: none; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase; font-size: 14px;
+      padding: 14px 10px; border-radius: 10px; min-height: 48px;
+    }
+    a.play { background: linear-gradient(180deg, #ff8a3d, #e0561a); color: #1a0800; border: 1px solid #ff9d5c; }
+    a.dl { background: rgba(45,226,255,.1); color: #bff6ff; border: 1px solid rgba(45,226,255,.35); }
+    footer { margin-top: 26px; color: var(--dim); font-size: 13px; line-height: 1.5; }
+    footer b { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="kicker">EARLY TRIAL · MAP PACK 1</div>
+      <h1>RETRO<span>ENGINE</span> MAPS</h1>
+      <p class="sub">Three full-size escape-pad levels. Fight the guards, drop the Titan, and reach the pad. Tap Play to load a map in RetroEngine — works on a phone.</p>
+      <a class="back" href="../index.html">← Back to the editor</a>
+    </header>
+    <main class="grid">
+      <article>
+        <img class="shot" src="shots/plant4-lockdown.png" alt="Plant 4: Lockdown — the loading dock and escape pad">
+        <div class="body">
+          <h2>Plant 4: Lockdown</h2>
+          <div class="meta"><span>52×40 factory</span><span>22 enemies</span><span>Metalmania</span></div>
+          <p>A dusk shift at the plant goes bad. Fight through the yard, warehouse and assembly line, grab the keycards, and make the loading-dock escape pad before the Titan seals the bay.</p>
+          <div class="acts">
+            <a class="btn play" href="../index.html#pack=maps/plant4-lockdown.retro">Play</a>
+            <a class="btn dl" href="plant4-lockdown.retro" download>Download</a>
+          </div>
+        </div>
+      </article>
+      <article>
+        <img class="shot" src="shots/drainworks-overflow.png" alt="Drainworks: Overflow — the settling tank">
+        <div class="body">
+          <h2>Drainworks: Overflow</h2>
+          <div class="meta"><span>52×40 sewers</span><span>25 enemies</span><span>Seismic</span></div>
+          <p>The drains are running high and something is hunting in the dark. Push through the pump station and the open cistern, pull the gate keys, and fight the Titan in the settling tank for the outflow hatch.</p>
+          <div class="acts">
+            <a class="btn play" href="../index.html#pack=maps/drainworks-overflow.retro">Play</a>
+            <a class="btn dl" href="drainworks-overflow.retro" download>Download</a>
+          </div>
+        </div>
+      </article>
+      <article>
+        <img class="shot" src="shots/nightwatch-helipad.png" alt="Nightwatch: Helipad — the city roofs">
+        <div class="body">
+          <h2>Nightwatch: Helipad</h2>
+          <div class="meta"><span>52×40 rooftops</span><span>21 enemies</span><span>Lewis and Dekalb</span></div>
+          <p>A city-block night run. Start in the alley, climb the stairwell to the roofs, cross the skybridge, clear the penthouse, and take the helipad from the Titan that is parked on the escape pad.</p>
+          <div class="acts">
+            <a class="btn play" href="../index.html#pack=maps/nightwatch-helipad.retro">Play</a>
+            <a class="btn dl" href="nightwatch-helipad.retro" download>Download</a>
+          </div>
+        </div>
+      </article>
+    </main>
+    <footer>
+      <p><b>Darcy D. Demby</b> · Chief Software Architect · DembySoftwareSystems<br>
+      Making cool tools with AI... · Created November 23, 2026</p>
+      <p>Maps use only RetroEngine’s built-in CC0 models and CC BY music. After Play, tap the splash screen, then tap to start. On a Fold, landscape gives you more room.</p>
+    </footer>
+  </div>
+</body>
+</html>

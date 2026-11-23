@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.2 (2026-11-23): trial map pack
+- Added three full-size escape-pad trial maps (Plant 4: Lockdown, Drainworks: Overflow, Nightwatch: Helipad). Each has multiple rooms, guards along the route, a Titan boss, pickups, and an exit pad.
+- New Map Pack page (`maps/`) so a visitor can tap a map and play it in RetroEngine. Maps also download as `.retro` files.
+- Official pack links use `#pack=maps/name.retro` (same-origin files only). Their level scripts stay on. Share links and dropped files are unchanged: scripts stay off until you review them.
+- Menu → Trial map pack opens the pack page.
+
+
 ## 1.0.1 (2026-11-21): tutorial fix
 - Fixed the tutorial seeming to freeze on phones. After you picked the right tool, nothing showed the next action (drag on the map, pick a room, tap a wall), and "Next" stayed greyed out with no way forward.
 - New pointer: a white arrow cursor bobs next to the exact button or map spot to touch at every step, including the drag for drawing a room. It follows the screen when you rotate, never blocks taps, and pulses bigger if you sit idle for about 6 seconds.

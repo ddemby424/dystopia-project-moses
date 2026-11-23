@@ -24,7 +24,7 @@
 function DFRuntime() {
 'use strict';
 const THREE = window.THREE;
-const VERSION = '1.0.0';
+const VERSION = '1.0.2';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 const STEP_H = 0.36;         // max height you can walk up without jumping
@@ -3431,12 +3431,13 @@ async function importMapObject(o, how) {
   const r = unpackLevel(o);
   if (r.project) { if (await confirmBox('Open project', `This file is a whole project: "${esc(r.project.name)}" (${r.project.levels.length} levels). Open it? Save your current one in Projects first if you want to keep it.`, 'Open')) loadProject(r.project); return null; }
   const lv = r.level; let scriptOff = false;
-  if (lv.props.script && lv.props.script.trim()) { lv.props.scriptPending = lv.props.script; lv.props.script = ''; scriptOff = true; }
+  // Official same-origin pack maps keep their script. Imported files and share links stay off until reviewed.
+  if (how !== 'pack' && lv.props.script && lv.props.script.trim()) { lv.props.scriptPending = lv.props.script; lv.props.script = ''; scriptOff = true; }
   let addedModels = 0; Object.keys(r.models).forEach(k => { if (!ED.project.models[k]) { ED.project.models[k] = r.models[k]; addedModels++; } });
   pushUndo(); ED.project.levels.push(lv); switchLevel(ED.project.levels.length - 1); markDirty();
   const errs = RT.validateLevel(lv).issues.filter(i => i.level === 'error');
   const note = scriptOff ? 'Its level script is <b>switched off</b> for safety. Review it in Level → Logic before turning it on.' : '';
-  if (how === 'link') { toast(`Opened shared level "${lv.name}"${scriptOff ? ' (script off)' : ''}`, 'ok'); if (!errs.length) playtest(); return lv; }
+  if (how === 'link' || how === 'pack') { toast(`${how === 'pack' ? 'Loaded trial map' : 'Opened shared level'} "${lv.name}"${scriptOff ? ' (script off)' : ''}`, 'ok'); if (!errs.length) playtest(); return lv; }
   const v = await modal({ title: 'Level imported', body: `<p class="note" style="font-size:13px"><b>${esc(lv.name)}</b> (${lv.w}×${lv.h}) was added as level ${ED.project.levels.length}.${addedModels ? ` ${addedModels} custom model(s) added.` : ''}</p>${errs.length ? `<div class="issue error">${errs.map(e => esc(e.msg)).join('<br>')}</div>` : '<div class="issue ok">Level checks passed.</div>'}${note ? `<p class="note">${note}</p>` : ''}`,
     buttons: [{ label: 'Edit it', value: 'edit' }, { label: 'Play now', cls: 'primary', value: 'play' }] });
   if (v === 'play') playtest();
@@ -3454,6 +3455,25 @@ async function openFromHash() {
   try { const o = await decodeMap(m[1]); await importMapObject(o, 'link'); return true; }
   catch (e) { toast('That share link is broken or incomplete: ' + e.message, 'bad'); return false; }
 }
+// Official trial maps hosted next to this app: #pack=maps/name.retro (same origin only).
+const PACK_PATH = /^(?:maps|packs)\/[A-Za-z0-9][A-Za-z0-9._-]*\.retro$/;
+async function openFromPack() {
+  const raw = /^#pack=([^#]+)/.exec(location.hash); if (!raw) return false;
+  const path = decodeURIComponent(raw[1]);
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
+  if (!PACK_PATH.test(path)) { toast('That map pack link is not valid', 'bad'); return false; }
+  try {
+    const url = new URL(path, location.href);
+    if (url.origin !== location.origin) throw new Error('pack must be on this site');
+    const res = await fetch(url.href);
+    if (!res.ok) throw new Error('could not load ' + path + ' (' + res.status + ')');
+    const text = await res.text();
+    if (text.length > 30e6) throw new Error('file too large');
+    const o = JSON.parse(text);
+    await importMapObject(o, 'pack');
+    return true;
+  } catch (e) { toast('Could not load that trial map: ' + e.message, 'bad'); return false; }
+}
 $('#file-retro').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) readFileThen(f, t => importLevelText(t, f.name)); });
 // drag & drop a .retro / .json file anywhere on the editor
 let dragDepth = 0;
@@ -3466,14 +3486,14 @@ window.addEventListener('drop', e => {
   if (!/\.(retro|json)$/i.test(f.name)) { toast('Drop a .retro level or .json project file', 'bad'); return; }
   readFileThen(f, t => importLevelText(t, f.name));
 });
-window.addEventListener('hashchange', () => { if (/^#map=/.test(location.hash) && !playHandle) openFromHash(); });
+window.addEventListener('hashchange', () => { if (playHandle) return; if (/^#map=/.test(location.hash)) openFromHash(); else if (/^#pack=/.test(location.hash)) openFromPack(); });
 
 /* ---------- main menu ---------- */
 async function openMenu() {
-  const items = [['projects', 'Projects (save / open)'], ['import', 'Import project file (.json)'], ['exportJson', 'Export project file (.json)'], ['export', 'Export playable game (.html)'], ['exportLevel', 'Export this level (.retro)'], ['importLevel', 'Import level (.retro)'], ['shareLink', 'Share level link'], ['code', 'Code editor (level.json / script)'], ['validate', 'Check level for problems'], ['playFirst', 'Play campaign from level 1'], ['tutorial', 'Tutorial: build your first level'], ['help', 'Help & manual'], ['settings', 'Game settings'], ['about', 'About & credits']];
+  const items = [['projects', 'Projects (save / open)'], ['import', 'Import project file (.json)'], ['exportJson', 'Export project file (.json)'], ['export', 'Export playable game (.html)'], ['exportLevel', 'Export this level (.retro)'], ['importLevel', 'Import level (.retro)'], ['shareLink', 'Share level link'], ['code', 'Code editor (level.json / script)'], ['validate', 'Check level for problems'], ['playFirst', 'Play campaign from level 1'], ['tutorial', 'Tutorial: build your first level'], ['mapPack', 'Trial map pack'], ['help', 'Help & manual'], ['settings', 'Game settings'], ['about', 'About & credits']];
   const v = await modal({ title: 'Menu', body: `<div class="menu-list">${items.map(i => `<button class="tb" data-m="${i[0]}">${esc(i[1])}</button>`).join('')}</div>`, onOpen: (bk, close) => bk.addEventListener('click', e => { const t = e.target.closest('[data-m]'); if (t) close(t.dataset.m); }) });
   if (v === 'projects') openProjects(); else if (v === 'import') $('#file-json').click(); else if (v === 'exportJson') exportJson(); else if (v === 'export') openExport(); else if (v === 'exportLevel') exportLevelFile(); else if (v === 'importLevel') $('#file-retro').click(); else if (v === 'shareLink') shareLink();
-  else if (v === 'code') openCode('level'); else if (v === 'validate') openValidate(); else if (v === 'playFirst') playtest(0); else if (v === 'help') openHelp(); else if (v === 'tutorial') startTutorial(); else if (v === 'about') openAbout(); else if (v === 'settings') openGameSettings();
+  else if (v === 'code') openCode('level'); else if (v === 'validate') openValidate(); else if (v === 'playFirst') playtest(0); else if (v === 'help') openHelp(); else if (v === 'tutorial') startTutorial(); else if (v === 'mapPack') { location.href = new URL('maps/', location.href).href; } else if (v === 'about') openAbout(); else if (v === 'settings') openGameSettings();
 }
 function openGameSettings() {
   const S = RT.S, r = (k, lab, a, b, st) => `<div class="row"><label>${lab}</label><input type="range" min="${a}" max="${b}" step="${st}" data-gs="${k}" value="${S[k]}"><output>${S[k]}</output></div>`;
@@ -3710,9 +3730,9 @@ function boot() {
   window.addEventListener('orientationchange', later); if (window.visualViewport) window.visualViewport.addEventListener('resize', later);
   ['gesturestart', 'gesturechange'].forEach(e => document.addEventListener(e, ev => ev.preventDefault(), { passive: false }));
   let seen = false; try { seen = !!localStorage.getItem(SEEN_KEY); } catch (e) {}
-  if (/^#map=/.test(location.hash)) openFromHash(); else if (!seen) openHelp(true);
+  if (/^#map=/.test(location.hash)) openFromHash(); else if (/^#pack=/.test(location.hash)) openFromPack(); else if (!seen) openHelp(true);
   // Debug / test hook (used by the automated tests)
-  window.RETROENGINE = window.DOOMFORGE_IDE = { packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave };
+  window.RETROENGINE = window.DOOMFORGE_IDE = { packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave };
 }
 if (!window.THREE) { document.body.innerHTML = '<p style="padding:20px;color:#fff;font:15px sans-serif">RetroEngine needs Three.js from the internet (cdnjs). Connect to the internet and reload.</p>'; }
 else boot();
