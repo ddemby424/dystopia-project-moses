@@ -10,7 +10,7 @@ You do not have to touch `app.js` to try a custom model. The editor has slots fo
 1. In the editor, open the **Project** tab (the right-hand panel, or the Panel button on a phone).
 2. Find **Custom 3D models (.glb)**.
 
-These are the real slot names in `MODEL_SLOTS` inside `app.js`:
+These are the real slot names in `MODEL_SLOTS` inside `app.js` (the editor UI):
 
 | Slot key | What you see in the UI |
 |---|---|
@@ -35,7 +35,7 @@ Each row has **File**, **URL**, and a clear button if a custom model is already 
 - The UI note says keep files small, **under about 2 MB**.
 - The file picker **rejects files over 6 MB** (`if (f.size > 6e6)`).
 - A URL must start with `http://` or `https://`.
-- When the game loads the slot, DMB Tech 1 auto-sizes the model and stands it on the floor. Animated enemies look for clips named roughly Idle, Walk/Run, Shoot/Attack, HitReact, and Death (`ENEMY_CLIPS` in `app.js`).
+- When the game loads the slot, DMB Tech 1 auto-sizes the model and stands it on the floor. Animated enemies look for clips named roughly Idle, Walk/Run, Shoot/Attack, HitReact, and Death (`ENEMY_CLIPS` in `dmbtech1.js`).
 - Use only models whose license allows it (CC0 or CC BY are the usual safe choices), and credit the author in `CREDITS.md` (Lesson 5).
 
 > **Do this now.** Pick **Soldier** → **File**, choose a small `.glb` (or tap **Use Dystopia pack (online)** if you just want to see a swap). Press **Play**. Find a Soldier in the level, or drop one with the Things tab first.

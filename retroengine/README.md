@@ -2,12 +2,15 @@
 
 RetroEngine is a free game maker for old-school first-person shooters in the style of Doom, Duke Nukem 3D and Quake. You draw a level on a grid, drop in enemies, weapons and doors, and press **Play** to run around in it straight away. It works on phones (including foldables), tablets and computers. No install and no account are needed.
 
+Version **1.1.1** is powered by the standalone [DMB Tech 1](../dmbtech1/) library. Other developers can use that engine without this editor.
+
 ## What's in this folder
 
 | File | What it is |
 |---|---|
-| `index.html` | Open this to start RetroEngine (uses `styles.css` and `app.js`) |
-| `retroengine.html` | The same app as one single file, handy for sending or opening offline |
+| `index.html` | Open this to start RetroEngine (uses `styles.css`, `app.js`, and `dmbtech1.js`) |
+| `dmbtech1.js` | The standalone **DMB Tech 1** engine that powers play mode |
+| `retroengine.html` | A module launcher (same as `index.html`); keep `dmbtech1.js` next to it |
 | `help.html` | The full manual as a web page (it is also built into the app: Menu → Help) |
 | `tutorial/` | Tinkerer tutorial: adding maps, assets, and code (Menu → Tutorial) |
 | `maps/` | Trial map pack page and three official `.retro` maps |
@@ -32,7 +35,7 @@ RetroEngine is a free game maker for old-school first-person shooters in the sty
 - **Level scripts (optional):** short scripts for messages, triggers and rewards, for example "open this door when all enemies are dead".
 - **Sharing:**
   - Send a level as a **link** or as a **.retro file** (see below).
-  - Export your whole game as a **single playable .html file**.
+  - Export your whole game as a **playable .html file** (it loads the DMB Tech 1 library).
 - **Built-in help:** a quick start, an interactive first-level tutorial, a full manual, and the Tinkerer **Tutorial** (Menu → Tutorial) that teaches maps, assets, saving files, and changing code, including scripts and APIs.
 
 ## Controls

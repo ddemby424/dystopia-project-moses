@@ -1,0 +1,244 @@
+{
+ "format": "retroengine-level",
+ "version": 1,
+ "app": "DMB Tech 1 1.0.0",
+ "level": {
+  "name": "Tiny Arena",
+  "w": 16,
+  "h": 16,
+  "ents": [
+   {
+    "t": "enemy",
+    "s": "grunt",
+    "x": 10.5,
+    "y": 8.5,
+    "r": 0
+   },
+   {
+    "t": "enemy",
+    "s": "drone",
+    "x": 12.5,
+    "y": 5.5,
+    "r": 0
+   },
+   {
+    "t": "pickup",
+    "s": "medkit",
+    "x": 5.5,
+    "y": 5.5
+   },
+   {
+    "t": "pickup",
+    "s": "w_shotgun",
+    "x": 5.5,
+    "y": 10.5
+   },
+   {
+    "t": "light",
+    "x": 8.0,
+    "y": 4.5,
+    "color": "#ffd9a0",
+    "radius": 7,
+    "intensity": 1.3,
+    "flicker": false
+   },
+   {
+    "t": "light",
+    "x": 8.0,
+    "y": 11.5,
+    "color": "#4ad8ff",
+    "radius": 6,
+    "intensity": 1.2,
+    "flicker": false
+   },
+   {
+    "t": "exit",
+    "x": 13.5,
+    "y": 13.5,
+    "r": 0
+   },
+   {
+    "t": "prop",
+    "s": "crate",
+    "x": 3.5,
+    "y": 8.5
+   }
+  ],
+  "spawn": {
+   "x": 3.5,
+   "y": 3.5,
+   "r": 0
+  },
+  "props": {
+   "ambient": "#8a93a8",
+   "ambientI": 0.55,
+   "sky": "night",
+   "fogColor": "#0a0d14",
+   "fog": 0.045,
+   "wallH": 1.5,
+   "floorTex": "concrete",
+   "ceilTex": "ceiling",
+   "music": false,
+   "script": "",
+   "par": 120
+  }
+ },
+ "grid": {
+  "wall": [
+   [
+    "concrete",
+    17
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    6
+   ],
+   [
+    "metal_panel"
+   ],
+   [
+    "",
+    7
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    7
+   ],
+   [
+    "metal_panel"
+   ],
+   [
+    "",
+    6
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    2
+   ],
+   [
+    "",
+    14
+   ],
+   [
+    "concrete",
+    17
+   ]
+  ],
+  "kind": [
+   [
+    "",
+    256
+   ]
+  ],
+  "floor": [
+   [
+    "",
+    256
+   ]
+  ],
+  "ceil": [
+   [
+    "",
+    256
+   ]
+  ],
+  "fh": [
+   [
+    0,
+    256
+   ]
+  ]
+ }
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>DMB Tech 1 — standalone engine</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap">
+  <style>
+    :root { --bg:#07090e; --text:#e6ebf3; --dim:#8b95a8; --acc:#ff7a1a; --acc2:#2de2ff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background:
+      radial-gradient(900px 420px at 80% -10%, #1a1f2e 0%, transparent 60%),
+      radial-gradient(700px 400px at 0% 100%, #1a0e08 0%, transparent 50%), var(--bg);
+      color: var(--text); font-family: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+      min-height: 100%; padding: max(24px, env(safe-area-inset-top)) 18px 48px; }
+    .wrap { max-width: 820px; margin: 0 auto; }
+    .kicker { display: inline-block; letter-spacing: 2.4px; font-size: 11px; font-weight: 700;
+      color: var(--acc); border: 1px solid rgba(255,122,26,.45); padding: 4px 8px; margin-bottom: 12px; }
+    h1 { font-size: clamp(32px, 8vw, 52px); letter-spacing: 1px; margin: 0 0 8px; }
+    h1 span { color: var(--acc); }
+    .sub { color: var(--dim); font-size: 17px; line-height: 1.5; max-width: 40em; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 28px; }
+    a.btn { text-decoration: none; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      font-size: 14px; padding: 14px 16px; border-radius: 10px; min-height: 48px; display: inline-flex; align-items: center; }
+    a.pri { background: linear-gradient(180deg, #ff8a3d, #e0561a); color: #1a0800; border: 1px solid #ff9d5c; }
+    a.sec { background: rgba(45,226,255,.1); color: #bff6ff; border: 1px solid rgba(45,226,255,.35); }
+    h2 { margin: 28px 0 10px; font-size: 20px; }
+    ul { padding-left: 1.2em; color: var(--dim); line-height: 1.6; }
+    ul a { color: var(--acc2); }
+    footer { margin-top: 36px; color: var(--dim); font-size: 13px; line-height: 1.55; }
+    footer b { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="kicker">ENGINE · V1.0.0</div>
+    <h1>DMB <span>TECH 1</span></h1>
+    <p class="sub">A standalone 3D first-person engine for the browser. Load a .retro map, walk, shoot, and hook events — no editor required, and no build step.</p>
+    <div class="row">
+      <a class="btn pri" href="examples/minimal/">Play the minimal example</a>
+      <a class="btn sec" href="dmbtech1-v1.0.0.zip">Download v1.0.0 zip</a>
+      <a class="btn sec" href="README.md">README</a>
+    </div>
+    <h2>Examples</h2>
+    <ul>
+      <li><a href="examples/minimal/">Minimal</a> — smallest playable game, loads a bundled map.</li>
+      <li><a href="examples/custom-weapon/">Custom weapon</a> — <code>registerWeapon</code> and put it in your hands.</li>
+      <li><a href="examples/level-script/">Level script</a> — map script plus <code>engine.on</code> events.</li>
+    </ul>
+    <h2>For developers</h2>
+    <ul>
+      <li>ES module: <code>import { createEngine, VERSION } from './dmbtech1.js'</code></li>
+      <li>Peer dependency: Three.js r128, via a pinned import map (see the README).</li>
+      <li>Works in Spck, Acode, and any static host. Serve over HTTP, not <code>file://</code>.</li>
+      <li>MIT license. <a href="LICENSE">LICENSE</a> · <a href="CHANGELOG.md">CHANGELOG</a></li>
+    </ul>
+    <footer>
+      <p><b>DMB Tech 1</b> — Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.<br>
+      Making cool tools with AI...</p>
+    </footer>
+  </div>
+</body>
+</html>

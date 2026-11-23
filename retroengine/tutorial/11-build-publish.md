@@ -17,20 +17,20 @@ The script (this is the real behavior, not a guess):
 
 1. Reads `app.js`, `styles.css`, `index.html`, and `help_content.html`.
 2. Inlines the help HTML into `app.js` where the marker `/*@@HELP@@*/''` sits, then writes `../retroengine/app.js`.
-3. Copies `styles.css`, `index.html`, `README.md`, `CHANGELOG.md`, `CREDITS.md`.
-4. Replaces `../retroengine/assets/` with a fresh copy of `assets/`.
-5. Copies `maps/`, skipping `.py` files and `__pycache__`.
-6. Builds `../retroengine/retroengine.html` (CSS and JS inlined into `index.html`) and copies it to `retroengine.txt`.
-7. Builds `../retroengine/help.html` from `help_template.html`.
-8. Prints the JS line count and the single-file size.
-
-It does **not** currently copy `docs/tutorial/`. Copy this tutorial folder into the published tree if you want it on the live site, or add that step to `build.py` later.
+3. Copies `dmbtech1.js` (from `../dmbtech1/dmbtech1.js` or a copy next to the sources) into `../retroengine/dmbtech1.js`.
+4. Copies `styles.css`, `index.html`, `README.md`, `CHANGELOG.md`, `CREDITS.md`.
+5. Replaces `../retroengine/assets/` with a fresh copy of `assets/`.
+6. Copies `maps/`, skipping `.py` files and `__pycache__`.
+7. Copies `docs/tutorial/` into `../retroengine/tutorial/` (skipping the builder `.py`), and writes `tutorial/index.html`.
+8. Writes `../retroengine/retroengine.html` as a copy of `index.html` (a module launcher; it is not a fully inlined single file) and copies it to `retroengine.txt`.
+9. Builds `../retroengine/help.html` from `help_template.html`.
+10. Prints the JS line count and the `dmbtech1.js` size.
 
 ## Version bumps
 
 When the release is real, update every place the version is stated:
 
-1. `const VERSION = '1.1.0';` inside `DFRuntime` in `app.js` (this is what About and exports show).
+1. `const VERSION = '1.1.1';` at the top of `app.js` (this is what About and exports show). The engine library has its own `VERSION = '1.0.0'` in `dmbtech1.js`.
 2. A new `## 1.1.x (date):` section at the **top** of `CHANGELOG.md`.
 3. `README.md` if the title still says an old major version.
 4. `maps/manifest.json` `"version"` if the pack changed.
@@ -49,14 +49,14 @@ After `build.py`, the contents of `../retroengine/` are what should be committed
 
 1. Commit the built files plus the source changes and the changelog.
 2. Push to GitHub.
-3. Create an annotated tag, for example `retroengine-v1.1.0`, and a GitHub Release with notes (see `CHANGELOG.md`).
+3. Create an annotated tag, for example `retroengine-v1.1.1` (and `dmbtech1-v1.0.0` when the engine library ships on its own), and a GitHub Release with notes (see `CHANGELOG.md`).
 4. Open the live URLs in a phone browser (not only the preview) and tap a `#pack=` link.
 
 GitHub Pages can take a short time to update. Hard-refresh if you still see the old version in Menu → About & credits.
 
 ## Exporting a whole game without Pages
 
-Menu → **Export playable game (.html)** builds one file with all of the current project's levels and a copy of the runtime. Models and music still load from wherever the editor is hosted (`assetBase`), with procedural / synth fallbacks offline. That file is a great way to send a campaign to a tester. The official site still wants the full `retroengine/` folder so the map pack and assets stay together.
+Menu → **Export playable game (.html)** builds an HTML file with all of the current project's levels. The page imports the standalone DMB Tech 1 library (`dmbtech1.js`) and Three.js r128. Models and music still load from wherever the editor is hosted (`assetBase`), with procedural / synth fallbacks offline. Keep `dmbtech1.js` reachable at the baked-in URL, or place a copy next to the HTML. The official site still wants the full `retroengine/` folder so the map pack and assets stay together.
 
 > **Do this now.** Run `python3 build.py` (when you can) and confirm `../retroengine/app.js`, `maps/`, and `retroengine.html` have fresh timestamps. Open the built `index.html` in a preview and check the version on the About screen.
 

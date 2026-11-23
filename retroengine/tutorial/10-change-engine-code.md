@@ -3,17 +3,17 @@
 **Time:** about 10 minutes
 **Payoff:** one small, visible change (Titan health or walk speed) that you can feel in Playtest, then undo if you want.
 
-`app.js` is large, but you rarely need to wander. The **DMB Tech 1** tunables live near the top of `DFRuntime` and in a few tables. Change one number, save, refresh the preview, and Play. Keep a copy of the original line (or export a project first) so you can go back.
+`dmbtech1.js` is the **DMB Tech 1** engine (the editor in `app.js` only imports it). The tunables live near the top of `createRuntime()` and in a few tables. Change one number, save, refresh the preview, and Play. Keep a copy of the original line (or export a project first) so you can go back.
 
-Do not edit `app.js` in two tools at once. Change a line you can clearly see, and re-read that line before you ship.
+Do not edit `dmbtech1.js` in two tools at once. Change a line you can clearly see, and re-read that line before you ship.
 
 ## Where the knobs are
 
-All of these are real names in `app.js`.
+All of these are real names in `dmbtech1.js` (the editor version string lives in `app.js`).
 
 | What | Where | Current value in source |
 |---|---|---|
-| Version string | `const VERSION` | `'1.1.0'` (bump this when you ship). |
+| Engine version | `const VERSION` in `dmbtech1.js` | `'1.0.0'`. The editor version is `const VERSION = '1.1.1'` in `app.js` (About and exports). |
 | Eye height | `EYE` | `0.62` |
 | Player radius | `PLAYER_R` | `0.22` cells |
 | Max walk-up height | `STEP_H` | `0.36` |
@@ -75,12 +75,12 @@ Change **one** of those, not both, so you can tell what you felt.
 
 ## How to test it
 
-1. Save `app.js` in Spck or Acode.
+1. Save `dmbtech1.js` in Spck or Acode.
 2. Refresh the preview (a hard refresh if the old script is cached).
 3. Play a map with a Titan, or your Lesson 7 map. Use Normal difficulty first.
 4. Confirm the change (the Titan takes more rockets, or you cross the room faster).
 5. If something feels wrong, put the old number back and refresh again.
-6. If you opened the single-file `retroengine.html`, it will **not** see `app.js` edits until you run `build.py`.
+6. After you edit source, run `python3 build.py` if you are testing the built `../retroengine/` copy (that folder gets its own `dmbtech1.js`).
 
 Avoid drive-by edits in the middle of `updatePlayer` or `shoot` unless you are chasing a specific bug. Tables at the top are the safe knobs.
 

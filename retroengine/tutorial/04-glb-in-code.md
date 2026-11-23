@@ -19,7 +19,7 @@ Keep the name simple: letters, numbers, underscores. After you run `build.py`, t
 
 ## 2. How DMB Tech 1 actually loads a GLB
 
-These are the real functions from `app.js`. Comments were added for this tutorial. Do not paste this block back into `app.js` as a second copy — it is already there.
+These are the real functions from `dmbtech1.js`. Comments were added for this tutorial. Do not paste this block back into `dmbtech1.js` as a second copy — it is already there.
 
 ```javascript
 // Cache: if two soldiers share one file, download it only once.
@@ -89,7 +89,7 @@ Skinned (rigged) models must be cloned with `THREE.SkeletonUtils.clone`. A plain
 
 ## 4. Point a built-in slot at your file
 
-The built-in pack is the `ASSET_PACK` table, still in `app.js`. Each key is a slot. `h` is the target height. `tint` darkens the colors. Guns use `len` (barrel length in world units), and sometimes `flip` or `off`.
+The built-in pack is the `ASSET_PACK` table in `dmbtech1.js`. Each key is a slot. `h` is the target height. `tint` darkens the colors. Guns use `len` (barrel length in world units), and sometimes `flip` or `off`.
 
 ```javascript
 const ASSET_PACK = {
@@ -136,10 +136,10 @@ There is no `registerEnemy()` API. The editor Things tab is built from the real 
 
 - **Enemies:** add a key to `ENEMY_DEFS`. The Things tab lists `Object.keys(RT.ENEMY_DEFS)`. `buildEnemyMesh` already has shapes for `drone`, `titan`, `turret`; anything else uses the soldier / heavy body. Add `ASSET_PACK.enemy_yourkey` if you have a GLB. You may also add a row to `MODEL_SLOTS` if you want it in the Custom 3D models UI.
 - **Props:** add a key to `PROP_DEFS`. `buildPropMesh` has a `switch` of named cases and a default crate-like box. Optional: `ASSET_PACK` is not used for every prop; custom props use the `prop_<key>` slot on the project (`attachModel(mesh, 'prop_' + e.s, ...)`).
-- **Weapons:** `WEAPON_DEFS` is an array of six entries, and the HUD / number keys are built around those six. `MAG_SIZE` and `RELOAD_TIME` are parallel arrays. Pickup items such as `w_shotgun` give a weapon *index* (`give: { weapon: 2, shells: 8 }`). Adding a seventh gun means updating those tables and the HUD. The safe first step is to retune an existing slot, not invent a seventh one.
+- **Weapons:** `WEAPON_DEFS` ships with six entries, and the default HUD / number keys are built around those six. `MAG_SIZE` and `RELOAD_TIME` are parallel arrays. Pickup items such as `w_shotgun` give a weapon *index* (`give: { weapon: 2, shells: 8 }`). A third-party page can call `registerWeapon(def)` on the DMB Tech 1 engine (before `loadMap`) to append a slot. The safe first step inside the editor is still to retune an existing slot.
 
 Unknown enemy types in a map file fall back to `grunt` (`e.s in ENEMY_DEFS ? e.s : 'grunt'`).
 
-> **Do this now.** Add a dummy change you can see: set `enemy_titan` `tint` from `0.55` to `0.2` (much darker), save `app.js`, refresh the preview, and Play a map that has a Titan (Nightwatch or Plant 4). Then change it back, or keep it if you like the look.
+> **Do this now.** Add a dummy change you can see: set `enemy_titan` `tint` from `0.55` to `0.2` (much darker), save `dmbtech1.js`, refresh the preview, and Play a map that has a Titan (Nightwatch or Plant 4). Then change it back, or keep it if you like the look.
 
 > **Payoff:** you have walked the real load path: file on disk → `ASSET_PACK` → `loadGlb` → `normalizeModel` → the 3D scene. That is how DMB Tech 1 brings a model into the world.

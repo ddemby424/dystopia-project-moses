@@ -17,7 +17,7 @@ The asset pack did not load. That is normal when the page is opened as `file://`
 
 ## A new GLB never appears
 
-- Path typo in `ASSET_PACK` (it is relative, like `assets/models/name.glb`).
+- Path typo in `ASSET_PACK` (in `dmbtech1.js`) (it is relative, like `assets/models/name.glb`).
 - You edited `app.js` but are playing `retroengine.html` without running `build.py`.
 - The hosted `assetBase` does not have the new file yet (you changed source but did not publish `assets/`).
 - The file is huge or not a real `.glb`. Lights in the file are stripped; they will not "light up" the level.

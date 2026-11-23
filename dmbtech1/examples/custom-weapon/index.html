@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="data:,">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>DMB Tech 1 — custom weapon example</title>
+  <!-- Peer dependency: Three.js r128, loaded as ES modules. Pin this version.
+       "three/addons/" must have the trailing slash so loaders resolve correctly. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/"
+    }
+  }
+  </script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #07090e; color: #e6ebf3;
+      font-family: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif; overflow: hidden; }
+    #game { position: fixed; inset: 0; }
+    .hud-note { position: fixed; left: 12px; bottom: 12px; z-index: 5;
+      font-size: 13px; color: #8b95a8; background: rgba(0,0,0,.55);
+      padding: 8px 10px; border-radius: 8px; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <div class="hud-note">This example registers a Spark Rifle, then puts it in your hands.</div>
+  <script type="module">
+    // Import the public factory. Nothing else from the file is required for this demo.
+    import { createEngine } from '../../dmbtech1.js';
+
+    // Create the engine first so we can register a weapon before the map starts.
+    const engine = createEngine('#game', { assets: false });
+
+    // registerWeapon adds a new slot (or updates one if the id already exists).
+    // id: a short key you choose. name: the HUD label.
+    // ammo: null means infinite ammo (the HUD shows ∞).
+    // cd: seconds between shots. dmg: damage per hit. spread: aim wobble in radians.
+    // auto: true = holds fire. proj + speed: a visible projectile instead of hitscan.
+    const slot = engine.registerWeapon({
+      id: 'spark',            // unique id for this gun
+      name: 'Spark Rifle',    // what the player reads on the HUD
+      ammo: null,             // infinite ammo
+      cd: 0.11,               // fire rate (seconds per shot)
+      dmg: 16,                // damage per bolt
+      pellets: 1,             // one bolt per click
+      spread: 0.01,           // tight spread
+      auto: true,             // hold to fire
+      proj: 'pulse',          // reuse the cyan pulse projectile
+      speed: 24,              // cells per second
+      recoil: 0.1,
+      snd: 'pulse'            // existing synthesized sound name
+    });
+
+    // Listen BEFORE loadMap. The engine fires 'start' while the map is loading,
+    // so a listener registered afterwards would miss it.
+    engine.on('start', () => {
+      const g = engine.game;          // live player/world state
+      if (!g) return;
+      g.owned[slot] = true;           // you now carry the Spark Rifle
+      g.cur = slot;                   // switch to it (same as pressing its number key)
+    });
+
+    // Load the same tiny arena used by the minimal example.
+    await engine.loadMap('./tiny-arena.retro');
+
+    engine.start();
+  </script>
+</body>
+</html>

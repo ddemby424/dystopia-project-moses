@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.1 (2026-11-23): powered by standalone DMB Tech 1
+
+RetroEngine play mode now imports the standalone **DMB Tech 1** library (`dmbtech1.js`) instead of keeping a private copy of the runtime. The editor, trial maps, and tutorial are unchanged in gameplay.
+
+- One engine: map loading, renderer, movement, weapons, enemies, pickups, keys/doors, exit pads, level scripts, audio, touch, and aim assist live in DMB Tech 1 1.0.0.
+- `index.html` loads Three.js r128 through a pinned import map and runs `app.js` as an ES module.
+- `build.py` copies `dmbtech1.js` into the published `retroengine/` folder. `retroengine.html` is a module launcher (no longer a fully inlined single file).
+- Tutorial lessons that pointed at engine tables in `app.js` now point at `dmbtech1.js`.
+- Standalone HTML export imports `dmbtech1.js` rather than inlining `DFRuntime.toString()`.
+
+
 ## 1.1.0 (2026-11-23): Tutorial & Tinkerer release
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

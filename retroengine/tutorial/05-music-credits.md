@@ -11,7 +11,7 @@ Put the audio file here:
 assets/music/my_track.mp3
 ```
 
-Then add one object to the real `MUSIC_TRACKS` list in `app.js`. This list is also what the Level tab and the in-game music player use.
+Then add one object to the real `MUSIC_TRACKS` list in `dmbtech1.js`. This list is also what the Level tab and the in-game music player use.
 
 ```javascript
 const MUSIC_TRACKS = [
@@ -38,7 +38,7 @@ Only add music you have the rights to. CC BY 4.0 requires a credit. CC0 does not
 
 ## Sound effects are not files
 
-Gunshots, doors, pickups, and so on are synthesized with the Web Audio API inside the `Sound` object in `app.js`. There is no `assets/sfx/` folder. `api.sound(name)` in a level script (Lesson 13) can play those named effects: `pistol`, `pulse`, `rifle`, `shotgun`, `rocket`, `plasma`, `wrench`, `hit`, `explode`, `bolt`, `alert`, `pain`, `edie`, `hurt`, `pickup`, `weapon`, `key`, `door`, `locked`, `empty`, `step`, `reload`, `reload2`, `jump`, `win`, `ui`.
+Gunshots, doors, pickups, and so on are synthesized with the Web Audio API inside the `Sound` object in `dmbtech1.js`. There is no `assets/sfx/` folder. `api.sound(name)` in a level script (Lesson 13) can play those named effects: `pistol`, `pulse`, `rifle`, `shotgun`, `rocket`, `plasma`, `wrench`, `hit`, `explode`, `bolt`, `alert`, `pain`, `edie`, `hurt`, `pickup`, `weapon`, `key`, `door`, `locked`, `empty`, `step`, `reload`, `reload2`, `jump`, `win`, `ui`.
 
 ## Textures are not image files either
 

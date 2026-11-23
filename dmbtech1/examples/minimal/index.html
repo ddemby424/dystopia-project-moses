@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="data:,">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>DMB Tech 1 — minimal example</title>
+  <!-- Peer dependency: Three.js r128, loaded as ES modules. Pin this version.
+       "three/addons/" must have the trailing slash so loaders resolve correctly. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/"
+    }
+  }
+  </script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #07090e; color: #e6ebf3;
+      font-family: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif; overflow: hidden; }
+    #game { position: fixed; inset: 0; }
+    .hud-note { position: fixed; left: 12px; bottom: 12px; z-index: 5;
+      font-size: 13px; color: #8b95a8; background: rgba(0,0,0,.55);
+      padding: 8px 10px; border-radius: 8px; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <!-- The engine draws into this box. A <canvas> also works; the engine will wrap it. -->
+  <div id="game"></div>
+  <div class="hud-note">WASD / drag to move · click to look · click or FIRE to shoot</div>
+  <script type="module">
+    // 1. Import the engine. The path is relative to this HTML file.
+    import { createEngine } from '../../dmbtech1.js';
+
+    // 2. Create an engine bound to the #game box.
+    //    assets: false means "use the built-in procedural meshes, do not fetch .glb files."
+    const engine = createEngine('#game', { assets: false });
+
+    // Optional: listen for engine events BEFORE loadMap so you do not miss 'start'.
+    engine.on('start', () => console.log('DMB Tech 1: map running'));
+
+    // 3. Load a .retro map (JSON). A path, a URL, or a parsed object all work.
+    await engine.loadMap('./tiny-arena.retro');
+
+    // 4. Start the simulation (skips the title/start menu).
+    engine.start();
+  </script>
+</body>
+</html>

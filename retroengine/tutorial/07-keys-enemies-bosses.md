@@ -31,7 +31,7 @@ Things → **Enemies**. The `s` value stored on the entity is the key in `ENEMY_
 | Sentry Turret | `turret` | HP 70, `speed: 0`, long range, rapid fire. Does not move. |
 | Titan (Boss) | `titan` | HP 650, fires rockets, big radius, score 2000. Does not flank. |
 
-Difficulty (Easy / Normal / Hard in Game settings) multiplies health, damage, speed, fire cooldown, reaction time, and the chance an enemy is a flanker (`DIFF` in `app.js`).
+Difficulty (Easy / Normal / Hard in Game settings) multiplies health, damage, speed, fire cooldown, reaction time, and the chance an enemy is a flanker (`DIFF` in `dmbtech1.js`).
 
 Place 2–3 Soldiers in the first room, not on top of the start. Face them by selecting the enemy and rotating it in the inspector (or place, then nudge). Leave cover: crates and sandbags (`PROP_DEFS`) block movement; barrels explode.
 
