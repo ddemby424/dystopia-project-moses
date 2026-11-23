@@ -12,6 +12,9 @@ All by **Quaternius** (https://quaternius.com), downloaded from Poly Pizza. CC0 
 | Heavy Walker | Robot Enemy Legs Gun | `assets/models/robot_legs_gun.glb` | https://poly.pizza/m/lFZfDh2hzP (CC0 1.0) |
 | Titan (boss) | Robot Enemy Large Gun | `assets/models/robot_large_gun.glb` | https://poly.pizza/m/mWojM4i2IH (CC0 1.0) |
 
+## Original procedural weapons
+The default starting firearm is a **Pulse Cannon** built in-engine (no third-party model). It is a compact port of the early DYSTOPIA Version 2 default gun (first shipped in that project on 2026-11-10, git commit `16322b7`). The mesh, the cyan pulse projectile, and the synthesized pulse sound are original work and may be used freely (CC0 / public domain). The Quaternius pistol GLB below remains in the repo but is no longer loaded as the default starting weapon.
+
 ## 3D models: guns (CC0 1.0, public domain)
 All by **Quaternius**, from Poly Pizza.
 

@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07090e">
+  <meta name="color-scheme" content="dark">
+  <title>RetroEngine tutorial — DMB Tech 1</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap">
+  <style>
+
+:root {
+  --bg: #07090e;
+  --bg2: #0c1018;
+  --card: #10151e;
+  --line: rgba(255,255,255,.10);
+  --text: #e6ebf3;
+  --dim: #8b95a8;
+  --acc: #ff7a1a;
+  --acc2: #2de2ff;
+  --ok: #2dffb0;
+  --warn: #ffd21f;
+  --font: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: auto; }
+html, body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--font); line-height: 1.55; font-size: 17px;
+}
+body {
+  min-height: 100%;
+  background:
+    radial-gradient(900px 420px at 80% -10%, #1a1f2e 0%, transparent 60%),
+    radial-gradient(700px 400px at 0% 100%, #1a0e08 0%, transparent 50%),
+    var(--bg);
+}
+a { color: var(--acc2); }
+a:hover { text-decoration: underline; }
+.skip {
+  position: absolute; left: -999px; top: 0; background: var(--acc); color: #1a0800;
+  padding: 8px 12px; z-index: 20; font-weight: 700;
+}
+.skip:focus { left: 8px; top: 8px; }
+header.top {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(7,9,14,.92); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
+}
+.top-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+.brand { font-weight: 700; letter-spacing: .6px; font-size: 15px; text-decoration: none; color: var(--text); }
+.brand span { color: var(--acc); }
+.top-meta { margin-left: auto; color: var(--dim); font-size: 12px; letter-spacing: .8px; font-weight: 700; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px calc(48px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 22px; }
+@media (min-width: 900px) {
+  .wrap { grid-template-columns: 250px 1fr; grid-template-areas: "hero hero" "toc main"; align-items: start; }
+  .hero { grid-area: hero; }
+  nav.toc { grid-area: toc; position: sticky; top: 70px; max-height: calc(100vh - 90px); overflow: auto; }
+  main { grid-area: main; min-width: 0; }
+}
+nav.toc {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+}
+nav.toc h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: 1.6px; color: var(--acc); text-transform: uppercase; }
+nav.toc ol { margin: 0; padding: 0; list-style: none; counter-reset: les; }
+nav.toc li { counter-increment: les; margin: 0; }
+nav.toc a {
+  display: flex; gap: 8px; align-items: baseline; text-decoration: none; color: var(--text);
+  padding: 8px 6px; border-radius: 8px; min-height: 44px; font-size: 14px; line-height: 1.3;
+}
+nav.toc a:hover, nav.toc a:focus { background: rgba(45,226,255,.08); text-decoration: none; }
+nav.toc a::before {
+  content: counter(les, decimal-leading-zero); color: var(--acc); font-weight: 700; font-size: 12px; min-width: 1.8em;
+}
+nav.toc .adv { color: var(--acc2); font-size: 10px; letter-spacing: 1px; font-weight: 700; margin-left: 4px; }
+nav.toc .time { color: var(--dim); font-size: 11px; margin-left: auto; white-space: nowrap; }
+main { min-width: 0; }
+.hero {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 22px 18px 18px; margin-bottom: 8px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.35);
+}
+.kicker {
+  display: inline-block; letter-spacing: 2.2px; font-size: 11px; font-weight: 700;
+  color: var(--acc); border: 1px solid rgba(255,122,26,.45); padding: 4px 8px; margin-bottom: 10px;
+}
+.hero h1 { margin: 0 0 8px; font-size: clamp(26px, 7vw, 40px); letter-spacing: .5px; line-height: 1.15; }
+.hero h1 span { color: var(--acc); }
+.hero .sub { color: var(--dim); margin: 0 0 8px; font-size: 16px; }
+.credit { color: var(--dim); font-size: 13px; margin: 12px 0 0; }
+.credit b { color: var(--text); }
+article.lesson, #start, .intro { scroll-margin-top: 78px; }
+article.lesson {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 22px 16px 28px; margin: 0 0 22px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.28);
+}
+article.lesson h1 { margin: 0 0 6px; font-size: clamp(22px, 6vw, 30px); letter-spacing: .4px; line-height: 1.2; }
+.lesson-meta { color: var(--dim); font-size: 13px; margin: 0 0 16px; font-weight: 600; }
+.badge-adv {
+  display: inline-block; margin-right: 8px; color: #062028; background: var(--acc2);
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 2px 7px; border-radius: 999px;
+}
+article.lesson h2 { font-size: 20px; margin: 26px 0 10px; letter-spacing: .3px; }
+article.lesson h3 { font-size: 17px; margin: 20px 0 8px; color: #d5dbe6; }
+article.lesson p { margin: 0 0 12px; }
+article.lesson ul, article.lesson ol { margin: 0 0 14px; padding-left: 1.2em; }
+article.lesson li { margin: 0 0 6px; }
+article.lesson li::marker { color: var(--acc); }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 0 16px; border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--acc2); font-size: 12px; letter-spacing: .6px; text-transform: uppercase; background: #0c1119; }
+tr:last-child td { border-bottom: 0; }
+code {
+  font-family: var(--mono); font-size: 0.88em;
+  background: #0a0d14; border: 1px solid var(--line); border-radius: 5px;
+  padding: 0.05em 0.35em; color: #d7ecff; word-break: break-word;
+}
+.codeblock {
+  margin: 0 0 16px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #0a0d14;
+}
+.code-bar {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--line); color: var(--dim); font-size: 12px; font-weight: 700; letter-spacing: .6px;
+}
+.code-bar .copy {
+  margin-left: auto; background: rgba(45,226,255,.12); color: #bff6ff; border: 1px solid rgba(45,226,255,.35);
+  border-radius: 8px; padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 700;
+  min-height: 40px; cursor: pointer;
+}
+.code-bar .copy:focus, .code-bar .copy:hover { background: rgba(45,226,255,.22); }
+.code-bar .copy.ok { color: #062016; background: var(--ok); border-color: var(--ok); }
+pre { margin: 0; padding: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+pre code {
+  background: none; border: 0; padding: 0; color: #e8eef8; font-size: 13px; line-height: 1.5;
+  white-space: pre; display: block; word-break: normal;
+}
+.callout {
+  border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; border: 1px solid var(--line);
+}
+.callout p { margin: 0; }
+.callout .c-kicker {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; margin: 0 0 6px;
+}
+.callout.do { background: rgba(255,122,26,.10); border-color: rgba(255,122,26,.4); }
+.callout.do .c-kicker { color: var(--acc); }
+.callout.payoff { background: rgba(45,255,176,.08); border-color: rgba(45,255,176,.35); }
+.callout.payoff .c-kicker { color: var(--ok); }
+.callout.todo { background: rgba(255,210,31,.08); border-color: rgba(255,210,31,.4); }
+.callout.todo .c-kicker { color: var(--warn); }
+.callout.compare { background: rgba(45,226,255,.06); border-color: rgba(45,226,255,.28); }
+.callout.compare .c-kicker { color: var(--acc2); }
+.callout.note { background: #0c1119; }
+.callout.note .c-kicker { color: var(--dim); }
+.lesson-nav {
+  display: flex; justify-content: space-between; gap: 8px; margin-top: 20px; flex-wrap: wrap;
+}
+.lesson-nav a {
+  flex: 1; min-width: 140px; min-height: 48px; display: flex; align-items: center; justify-content: center;
+  text-decoration: none; font-weight: 700; letter-spacing: .4px; border-radius: 10px;
+  border: 1px solid var(--line); background: #0c1119; color: var(--text); padding: 10px 12px; text-align: center;
+}
+.lesson-nav a.next { background: linear-gradient(180deg, #ff8a3d, #e0561a); color: #1a0800; border-color: #ff9d5c; }
+footer.site {
+  color: var(--dim); font-size: 13px; line-height: 1.5; padding: 8px 2px 20px;
+}
+footer.site b { color: var(--text); }
+@media (max-width: 620px) {
+  body { font-size: 16px; }
+  article.lesson { padding: 18px 12px 24px; }
+  pre code { font-size: 12.5px; }
+}
+
+  </style>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="#start">RETRO<span>ENGINE</span> TUTORIAL</a>
+      <div class="top-meta">DMB TECH 1</div>
+    </div>
+  </header>
+  <div class="wrap">
+      <div class="hero" id="start">
+        <div class="kicker">HANDS-ON · EARLY TRIAL</div>
+        <h1>RETRO<span>ENGINE</span> TUTORIAL</h1>
+        <p class="sub">Bite-size lessons for making maps, adding assets, changing DMB Tech 1 engine code, and shipping a pack. Written for phones (Spck Editor and Acode) as well as the desk.</p>
+        <p class="credit"><b>Darcy D. Demby</b> · Chief Software Architect · DembySoftwareSystems<br>Making cool tools with AI...</p>
+      </div>
+    <nav class="toc" aria-label="Lessons">
+      <h2>Lessons</h2>
+      <ol>
+        <li><a href="#l01"><span>Tour the project folders</span><span class="time">5 min</span></a></li><li><a href="#l02"><span>Open RetroEngine on your phone</span><span class="time">5 min</span></a></li><li><a href="#l03"><span>Add a 3D model with no code</span><span class="time">5 min</span></a></li><li><a href="#l04"><span>Load and scale a GLB in code</span><span class="time">10 min</span></a></li><li><a href="#l05"><span>Music, sounds, textures, and credits</span><span class="time">8 min</span></a></li><li><a href="#l06"><span>Make an escape-pad map</span><span class="time">10 min</span></a></li><li><a href="#l07"><span>Add keys, guards, and a boss</span><span class="time">10 min</span></a></li><li><a href="#l08"><span>Save, load, and share</span><span class="time">8 min</span></a></li><li><a href="#l09"><span>Add a map to the site pack</span><span class="time">10 min</span></a></li><li><a href="#l10"><span>Change engine code safely</span><span class="time">10 min</span></a></li><li><a href="#l11"><span>Build and publish</span><span class="time">10 min</span></a></li><li><a href="#l12"><span>Troubleshooting</span><span class="time">5 min</span></a></li><li><a href="#l13"><span>Level scripts<span class=adv> ADV</span></span><span class="time">10 min</span></a></li><li><a href="#l14"><span>Calling APIs from a script<span class=adv> ADV</span></span><span class="time">10 min</span></a></li>
+      </ol>
+    </nav>
+    <main id="content">
+      <section id="start" class="intro"><p>A bite-size guide for early trial users and for Darcy. Each lesson takes about 5–10 minutes and ends with something you can see or play.</p>
+<p><strong>Engine name:</strong> RetroEngine is the game maker (editor + maps + pack). The 3D game runtime inside it is the <strong>DMB Tech 1</strong> engine layer, built on three.js r128. This tutorial always calls that runtime DMB Tech 1.</p>
+<p><strong>Who it&#x27;s for:</strong> people opening the trial map pack, and Darcy editing the source on a phone in <strong>Spck Editor</strong> or <strong>Acode</strong> (Android). These lessons do not assume a desktop IDE.</p>
+<p><strong>Live app:</strong> <a href="https://ddemby424.github.io/dystopia-project-moses/retroengine/">RetroEngine</a> · <a href="https://ddemby424.github.io/dystopia-project-moses/retroengine/maps/">Trial map pack</a></p>
+<p><strong>How to read this:</strong> open <a href="tutorial.html"><code>tutorial.html</code></a> on your phone for the comfortable layout, copy buttons, and jump list. The <code>.md</code> files here are the same lessons in plain text.</p>
+<h2>Lessons</h2>
+<ol><li><a href="#l01">Tour the project folders</a> — 5 min</li><li><a href="#l02">Open RetroEngine on your phone</a> — 5 min</li><li><a href="#l03">Add a 3D model with no code</a> — 5 min</li><li><a href="#l04">Load and scale a GLB in code</a> — 10 min</li><li><a href="#l05">Music, sounds, textures, and credits</a> — 8 min</li><li><a href="#l06">Make an escape-pad map</a> — 10 min</li><li><a href="#l07">Add keys, guards, and a boss</a> — 10 min</li><li><a href="#l08">Save, load, and share</a> — 8 min</li><li><a href="#l09">Add a map to the site pack</a> — 10 min</li><li><a href="#l10">Change engine code safely</a> — 10 min</li><li><a href="#l11">Build and publish</a> — 10 min</li><li><a href="#l12">Troubleshooting</a> — 5 min</li><li><a href="#l13">ADVANCED: Level scripts</a> — 10 min</li><li><a href="#l14">ADVANCED: Calling APIs from a script</a> — 10 min</li></ol>
+<p>Paths, function names, and file formats in these lessons were read from the real RetroEngine source. Nothing here is an invented API.</p>
+<p>Darcy D. Demby, Chief Software Architect — DembySoftwareSystems — Making cool tools with AI...</p></section><article class="lesson" id="l01"><h1>Lesson 1 — Tour the project folders</h1><p class="lesson-meta">Lesson 1 of 14 · 5 min</p><p><strong>Time:</strong> about 5 minutes</p>
+<p><strong>Payoff:</strong> you can point at every important file and say what it does.</p>
+<p>RetroEngine has two folders that matter. Think of them like a TI-89 program you edit, and the &quot;compiled&quot; copy you actually run.</p>
+<ul><li><strong>Source</strong> (the folder you edit): the directory that contains <code>app.js</code>, <code>build.py</code>, and <code>assets/</code>. In this workspace that is <code>/workspace/dfide/re/</code>.</li><li><strong>Built copy</strong> (what you publish): running <code>python3 build.py</code> writes a playable site to the sibling folder <code>../retroengine/</code>. The live site is that built copy, hosted at <a href="https://ddemby424.github.io/dystopia-project-moses/retroengine/">ddemby424.github.io/dystopia-project-moses/retroengine/</a>.</li></ul>
+<p><code>index.html</code> is the shell. <code>app.js</code> is almost the whole product: the <strong>DMB Tech 1</strong> runtime (the function <code>DFRuntime</code>) plus the 2D editor. There is not a separate <code>dmbtech1.js</code> file yet. three.js r128 is the 3D library loaded from a CDN, the way a TI-89 program might call built-in graph commands instead of drawing every pixel itself.</p>
+<h2>Source files</h2>
+<div class='table-wrap'><table><thead><tr><th>Path</th><th>What it does</th></tr></thead><tbody><tr><td><code>index.html</code></td><td>Open this to start. It loads the font, three.js r128, <code>GLTFLoader.js</code>, <code>SkeletonUtils.js</code>, <code>styles.css</code>, and <code>app.js</code>. It also draws the <strong>DMB TECH 1</strong> splash (title, stamp, credits, TAP TO BOOT).</td></tr><tr><td><code>app.js</code></td><td>The engine and the editor. Section 1 is <code>DFRuntime</code> (the game). Section 2 is room templates and starter levels. Section 3 is the editor UI.</td></tr><tr><td><code>styles.css</code></td><td>Editor look (the in-game HUD CSS is also generated from inside <code>app.js</code>).</td></tr><tr><td><code>build.py</code></td><td>Copies sources into <code>../retroengine/</code>, inlines help text into <code>app.js</code>, and builds the single-file <code>retroengine.html</code>.</td></tr><tr><td><code>help_content.html</code></td><td>The manual chapters. Built into the app (Menu → Help) and into <code>help.html</code>.</td></tr><tr><td><code>help_template.html</code></td><td>The wrapper page used to make <code>help.html</code>.</td></tr><tr><td><code>README.md</code></td><td>User-facing overview.</td></tr><tr><td><code>CHANGELOG.md</code></td><td>Version history. Add a note here when you ship.</td></tr><tr><td><code>CREDITS.md</code></td><td>Licenses and author credits for models, music, code, and fonts.</td></tr><tr><td><code>assets/models/</code></td><td>Enemy and gun <code>.glb</code> files (CC0, by Quaternius).</td></tr><tr><td><code>assets/music/</code></td><td>Five <code>.mp3</code> tracks (CC BY 4.0).</td></tr><tr><td><code>maps/</code></td><td>Trial map pack: <code>.retro</code> files, <code>manifest.json</code>, <code>index.html</code>, and <code>shots/</code>.</td></tr><tr><td><code>maps/README.md</code></td><td>How to play the pack and how to rebuild the maps.</td></tr><tr><td><code>tools/build_trial_maps.py</code></td><td>Authoring script that rebuilds the three trial <code>.retro</code> files. Not copied to the published site.</td></tr><tr><td><code>docs/tutorial/</code></td><td>This tutorial.</td></tr></tbody></table></div>
+<h2>Built files (after <code>build.py</code>)</h2>
+<div class='table-wrap'><table><thead><tr><th>Path</th><th>What it does</th></tr></thead><tbody><tr><td><code>../retroengine/index.html</code></td><td>Same starter page, ready to host.</td></tr><tr><td><code>../retroengine/app.js</code></td><td>Same engine, with the help manual baked in.</td></tr><tr><td><code>../retroengine/retroengine.html</code></td><td>The whole app as <strong>one file</strong>, handy to send or open offline.</td></tr><tr><td><code>../retroengine/retroengine.txt</code></td><td>A copy of that single file, same content.</td></tr><tr><td><code>../retroengine/help.html</code></td><td>Standalone manual page.</td></tr><tr><td><code>../retroengine/assets/</code> and <code>maps/</code></td><td>Copied across (Python caches and <code>.py</code> files in <code>maps/</code> are skipped).</td></tr></tbody></table></div>
+<aside class="callout note"><p class="c-kicker">Note</p><p><code>build.py</code> currently copies <code>styles.css</code>, <code>index.html</code>, <code>README.md</code>, <code>CHANGELOG.md</code>, <code>CREDITS.md</code>, <code>assets/</code>, and <code>maps/</code>. It does <strong>not</strong> yet copy <code>docs/tutorial/</code>. To put this tutorial on the live site, copy this folder into the published <code>retroengine/docs/tutorial/</code> directory (or add that copy step to <code>build.py</code> later).</p></aside>
+<h2>Models and music already in the pack</h2>
+<p><strong>Models</strong> (<code>assets/models/</code>): <code>soldier_swat.glb</code>, <code>robot_flying_gun.glb</code>, <code>robot_legs_gun.glb</code>, <code>robot_large_gun.glb</code>, <code>gun_shotgun.glb</code>, <code>gun_rifle.glb</code>, <code>gun_scifi_rifle.glb</code>, <code>gun_rocket.glb</code>, and <code>gun_pistol.glb</code>. The pistol file is still in the folder; the default starting firearm is the procedural <strong>Pulse Cannon</strong> built in <code>buildWeaponMesh</code>, not loaded from that file. See Lesson 4.</p>
+<p><strong>Music</strong> (<code>assets/music/</code>): <code>metalmania.mp3</code>, <code>aggressor.mp3</code>, <code>lewis_and_dekalb.mp3</code>, <code>griphop.mp3</code>, <code>seismic.mp3</code>.</p>
+<h2>3D coordinates, in one breath</h2>
+<p>DMB Tech 1 stores the map as a 2D grid: <code>x</code> across, <code>y</code> depth. When it builds the 3D scene, map <code>x</code> becomes three.js <code>x</code>, map <code>y</code> becomes three.js <code>z</code>, and three.js <code>y</code> is <strong>up</strong> (height). One grid cell is 1 unit, about 2 meters. Eye height is the constant <code>EYE</code> (<code>0.62</code>) above the floor.</p>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> In Spck or Acode, open the source folder and tap <code>index.html</code>, <code>app.js</code>, <code>assets/models/</code>, and <code>maps/</code>. Confirm you can see those names. You do not need to edit anything yet.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>the project is no longer a mystery pile of files. Next lesson, you actually boot it.</p></aside><div class="lesson-nav"><a href="#start">← Previous</a><a class="next" href="#l02">Next: Open RetroEngine on your phone →</a></div></article><article class="lesson" id="l02"><h1>Lesson 2 — Open RetroEngine on your phone</h1><p class="lesson-meta">Lesson 2 of 14 · 5 min</p><p><strong>Time:</strong> about 5 minutes</p>
+<p><strong>Payoff:</strong> the DMB TECH 1 splash, then the editor, running on your phone.</p>
+<p>Use <strong>Spck Editor</strong> or <strong>Acode</strong> on Android. Both can serve the folder so models and music load. Opening <code>index.html</code> straight from the Files app uses <code>file://</code>, and the browser then blocks those local asset files. RetroEngine has a fallback for that (it tries the hosted copy, or built-in robots and synth music), but a preview server is the honest way to work.</p>
+<h2>In Spck Editor</h2>
+<ol><li>Copy the RetroEngine folder (or <code>retroengine-release.zip</code>) onto the phone.</li><li>Create a new project, then <strong>Import → from ZIP</strong>, or unzip it and open the folder as a project.</li><li>Open <code>index.html</code>.</li><li>Tap <strong>▶ Run / Preview</strong>. Spck serves the files, so <code>assets/models/</code> and <code>assets/music/</code> load.</li><li>For a bigger view, use Spck&#x27;s &quot;open in browser&quot; option.</li></ol>
+<h2>In Acode</h2>
+<ol><li>Open the project folder (the one that contains <code>index.html</code>).</li><li>Use Acode&#x27;s preview / browser preview so the page is served, not opened as a raw file.</li><li>Stay on <code>index.html</code> for editing. The single-file <code>retroengine.html</code> is for sending or offline play, not for day-to-day edits (changes in <code>app.js</code> would not be in it until you run <code>build.py</code>).</li></ol>
+<h2>First boot</h2>
+<ol><li>You should see the splash: <strong>RETROENGINE</strong>, the <strong>DMB TECH 1</strong> stamp, and the credits (Darcy D. Demby, Chief Software Architect, DembySoftwareSystems, Making cool tools with AI...).</li><li>Tap once (<strong>TAP TO BOOT</strong>). The first tap is also what lets the phone play sound.</li><li>After the splash, you are in the editor. If this browser has never seen the help flag (<code>retroengine.seenHelp.v1</code>), the help / tutorial card may open.</li><li>Tap <strong>Play</strong> on a starter level, or open Menu → <strong>Trial map pack</strong>.</li></ol>
+<p>The very first launch needs the internet: three.js r128 and the font load from a CDN (<code>cdnjs</code>, <code>jsDelivr</code>, Google Fonts). After that, a lot still works offline, with synth music and procedural models as fallbacks.</p>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Preview <code>index.html</code>, tap the splash, and press <strong>Play</strong> on any starter level (the level picker in the top bar). Walk with the left half of the screen, look with the right half, and fire.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>you are in a 3D level you can also edit. If the screen stays black or you see &quot;3D NOT AVAILABLE&quot;, jump to <a href="#l12">Lesson 12</a>.</p></aside><div class="lesson-nav"><a href="#l01">← Previous</a><a class="next" href="#l03">Next: Add a 3D model with no code →</a></div></article><article class="lesson" id="l03"><h1>Lesson 3 — Add a 3D model with no code</h1><p class="lesson-meta">Lesson 3 of 14 · 5 min</p><p><strong>Time:</strong> about 5 minutes</p>
+<p><strong>Payoff:</strong> a soldier or crate that uses <em>your</em> <code>.glb</code> after one Playtest.</p>
+<p>You do not have to touch <code>app.js</code> to try a custom model. The editor has slots for this.</p>
+<h2>Where the slots live</h2>
+<ol><li>In the editor, open the <strong>Project</strong> tab (the right-hand panel, or the Panel button on a phone).</li><li>Find <strong>Custom 3D models (.glb)</strong>.</li></ol>
+<p>These are the real slot names in <code>MODEL_SLOTS</code> inside <code>app.js</code>:</p>
+<div class='table-wrap'><table><thead><tr><th>Slot key</th><th>What you see in the UI</th></tr></thead><tbody><tr><td><code>enemy_grunt</code></td><td>Soldier</td></tr><tr><td><code>enemy_drone</code></td><td>Gun Drone</td></tr><tr><td><code>enemy_heavy</code></td><td>Heavy Walker</td></tr><tr><td><code>enemy_turret</code></td><td>Sentry Turret</td></tr><tr><td><code>enemy_titan</code></td><td>Titan boss</td></tr><tr><td><code>prop_crate</code></td><td>Crate</td></tr><tr><td><code>prop_barrel</code></td><td>Barrel</td></tr><tr><td><code>prop_server</code></td><td>Server rack</td></tr><tr><td><code>prop_desk</code></td><td>Desk</td></tr><tr><td><code>prop_terminal</code></td><td>Terminal</td></tr><tr><td><code>prop_pillar</code></td><td>Pillar</td></tr><tr><td><code>prop_generator</code></td><td>Generator</td></tr></tbody></table></div>
+<p>Each row has <strong>File</strong>, <strong>URL</strong>, and a clear button if a custom model is already set. There is also <strong>Use Dystopia pack (online)</strong> (fills several slots with models from the hosted DYSTOPIA folder) and <strong>All built-in</strong> (clears them).</p>
+<h2>Rules the code actually enforces</h2>
+<ul><li>Uploads are stored <em>inside the project</em> (as a data URL), so they count against browser storage.</li><li>The UI note says keep files small, <strong>under about 2 MB</strong>.</li><li>The file picker <strong>rejects files over 6 MB</strong> (<code>if (f.size &gt; 6e6)</code>).</li><li>A URL must start with <code>http://</code> or <code>https://</code>.</li><li>When the game loads the slot, DMB Tech 1 auto-sizes the model and stands it on the floor. Animated enemies look for clips named roughly Idle, Walk/Run, Shoot/Attack, HitReact, and Death (<code>ENEMY_CLIPS</code> in <code>app.js</code>).</li><li>Use only models whose license allows it (CC0 or CC BY are the usual safe choices), and credit the author in <code>CREDITS.md</code> (Lesson 5).</li></ul>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Pick <strong>Soldier</strong> → <strong>File</strong>, choose a small <code>.glb</code> (or tap <strong>Use Dystopia pack (online)</strong> if you just want to see a swap). Press <strong>Play</strong>. Find a Soldier in the level, or drop one with the Things tab first.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>the procedural robot is hidden and your model is in its place. If it fails to load, the built-in mesh stays visible, and the console shows <code>RetroEngine: model failed to load</code>.</p></aside><div class="lesson-nav"><a href="#l02">← Previous</a><a class="next" href="#l04">Next: Load and scale a GLB in code →</a></div></article><article class="lesson" id="l04"><h1>Lesson 4 — Load and scale a GLB in code</h1><p class="lesson-meta">Lesson 4 of 14 · 10 min</p><p><strong>Time:</strong> about 10 minutes</p>
+<p><strong>Payoff:</strong> you know the exact functions DMB Tech 1 uses, and you can point a slot at a new file.</p>
+<p>A <code>.glb</code> is a 3D model in one file: the shape, the colors, and sometimes bones plus animations. DMB Tech 1 does not have a <code>registerModel()</code> function. It has <strong>slots</strong>. If a slot has a file, <code>loadGlb</code> fetches it, <code>normalizeModel</code> sizes it, and <code>attachModel</code> (or <code>buildGunFromGlb</code> for guns) swaps it in.</p>
+<aside class="callout compare"><p class="c-kicker">Compare</p><p>on a TI-89 this is like loading a picture variable and then scaling it so it fits a window. In VB, think <code>LoadPicture</code> plus setting <code>Width</code> and <code>Top</code> so the graphic sits on a floor line.</p></aside>
+<h2>1. Put the file in the right folder</h2>
+<p>Copy your <code>.glb</code> into the source folder:</p>
+<div class="codeblock" data-lang="code"><div class="code-bar"><span>code</span><button type="button" class="copy">Copy</button></div><pre><code>assets/models/my_soldier.glb</code></pre></div>
+<p>Keep the name simple: letters, numbers, underscores. After you run <code>build.py</code>, the same file must exist in <code>../retroengine/assets/models/</code> or the hosted site will 404.</p>
+<h2>2. How DMB Tech 1 actually loads a GLB</h2>
+<p>These are the real functions from <code>app.js</code>. Comments were added for this tutorial. Do not paste this block back into <code>app.js</code> as a second copy — it is already there.</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// Cache: if two soldiers share one file, download it only once.
+const glbCache = {};
+
+// src is a path, a full URL, or a data: URL from an upload.
+function loadGlb(src) {
+  // No loader (or no path) → give back null, and the built-in mesh stays.
+  if (!THREE.GLTFLoader || !src) return Promise.resolve(null);
+  // First time we see this src, start a load and remember the Promise.
+  if (!glbCache[src]) glbCache[src] = new Promise(res =&gt; {
+    // Blender often embeds a sun light and a camera. If we kept them,
+    // every enemy copy would add a bright light and blow the scene out.
+    const strip = g =&gt; {
+      const rm = [];
+      g.scene.traverse(o =&gt; { if (o.isLight || o.isCamera) rm.push(o); });
+      rm.forEach(o =&gt; o.parent &amp;&amp; o.parent.remove(o));
+      return g;
+    };
+    try {
+      // GLTFLoader is three.js&#x27;s reader for .glb / .gltf files.
+      new THREE.GLTFLoader().load(
+        src,
+        g =&gt; res(strip(g)),               // success: strip lights, then keep it
+        undefined,                        // no progress callback
+        err =&gt; {                          // failure: warn, but do not crash
+          console.warn(&#x27;RetroEngine: model failed to load&#x27;, String(src).slice(0, 80), err &amp;&amp; err.message);
+          res(null);
+        }
+      );
+    } catch (e) { res(null); }
+  });
+  return glbCache[src];
+}</code></pre></div>
+<h2>3. How it is scaled and stood on the floor</h2>
+<p><code>normalizeModel</code> uses a bounding box (<code>Box3</code>) — the smallest box that fits the mesh. It scales the model so its height matches the slot, centers it on X and Z, and lifts the lowest point to <code>y = 0</code> (the floor). Hovering enemies pass <code>centered = true</code> so they sit around their mid-point instead.</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>function normalizeModel(scene, height, centered) {
+  // holder is the object we add to the world; model is a clone of the file.
+  const holder = new THREE.Group(), model = cloneSkinned(scene);
+  holder.add(model);
+  model.updateMatrixWorld(true);                 // bake current transforms
+  const b = new THREE.Box3().setFromObject(model);
+  if (b.isEmpty()) return null;                  // nothing to measure
+  const size = b.getSize(new THREE.Vector3());
+  const c = b.getCenter(new THREE.Vector3());
+  // Scale so the model&#x27;s height equals the slot height (spec.h or the enemy def).
+  const s = height / Math.max(size.y, 1e-4);
+  model.scale.multiplyScalar(s);
+  // Center X/Z. If centered, also mid Y; otherwise sit the feet on y = 0.
+  model.position.set(-c.x * s, centered ? -c.y * s : -b.min.y * s, -c.z * s);
+  model.traverse(o =&gt; {
+    if (o.isMesh) {
+      o.frustumCulled = false;                   // never pop out at the screen edge
+      if (o.material &amp;&amp; o.material.map) o.material.map.encoding = THREE.sRGBEncoding;
+    }
+  });
+  return holder;
+}</code></pre></div>
+<p>Skinned (rigged) models must be cloned with <code>THREE.SkeletonUtils.clone</code>. A plain <code>.clone()</code> would make every soldier share one skeleton, so animating one would twitch all of them.</p>
+<h2>4. Point a built-in slot at your file</h2>
+<p>The built-in pack is the <code>ASSET_PACK</code> table, still in <code>app.js</code>. Each key is a slot. <code>h</code> is the target height. <code>tint</code> darkens the colors. Guns use <code>len</code> (barrel length in world units), and sometimes <code>flip</code> or <code>off</code>.</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>const ASSET_PACK = {
+  // Soldiers use this file and are scaled to height 1.12.
+  enemy_grunt: { src: &#x27;assets/models/soldier_swat.glb&#x27;, h: 1.12, tint: 0.72 },
+  enemy_drone: { src: &#x27;assets/models/robot_flying_gun.glb&#x27;, h: 0.46, tint: 0.7 },
+  enemy_heavy: { src: &#x27;assets/models/robot_legs_gun.glb&#x27;, h: 1.3, tint: 0.62 },
+  enemy_titan: { src: &#x27;assets/models/robot_large_gun.glb&#x27;, h: 1.45, tint: 0.55 },
+  // Weapons 2–5 (shotgun, rifle, plasma, rocket). Index matches WEAPON_DEFS.
+  weapon_2: { src: &#x27;assets/models/gun_shotgun.glb&#x27;, len: 0.66 },
+  weapon_3: { src: &#x27;assets/models/gun_rifle.glb&#x27;, len: 0.64 },
+  weapon_4: { src: &#x27;assets/models/gun_scifi_rifle.glb&#x27;, len: 0.58 },
+  weapon_5: { src: &#x27;assets/models/gun_rocket.glb&#x27;, len: 0.5, flip: true, off: [0.06, -0.05, 0.02] }
+};</code></pre></div>
+<p>To use your soldier instead of the default one, change only the <code>src</code> (and <code>h</code> if the new mesh is taller or shorter than you want):</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// Was soldier_swat.glb. Now load your file from the same models folder.
+enemy_grunt: { src: &#x27;assets/models/my_soldier.glb&#x27;, h: 1.12, tint: 0.72 },</code></pre></div>
+<p>The game builds the path as <code>assetBase + p.src</code>. When you open the app from a real web server, <code>assetBase</code> is usually <code>&#x27;&#x27;</code>, so the path is just <code>assets/models/my_soldier.glb</code> next to <code>index.html</code>. If you open the page as <code>file://</code>, <code>assetBase</code> becomes <code>HOSTED_BASE</code> (the live GitHub Pages URL) so models can still load from the hosted copy.</p>
+<h2>5. Guns, and the default starting firearm</h2>
+<p>First-person guns that have an <code>ASSET_PACK</code> entry go through <code>buildGunFromGlb</code>: the longest axis is lined up with <code>-Z</code> (barrel away from the camera), then the gun is scaled to <code>spec.len</code>.</p>
+<p>The default starting firearm is <strong>not</strong> a GLB. It is weapon index <code>1</code> (the second slot, after the wrench at index <code>0</code>). <code>WEAPON_DEFS[1]</code> is the <strong>Pulse Cannon</strong>. Its <code>id</code> is still <code>&#x27;pistol&#x27;</code> so existing maps and pickups stay compatible. There is no <code>weapon_1</code> entry in <code>ASSET_PACK</code>, so the first-person mesh comes from <code>buildWeaponMesh</code> — a compact procedural model (amber coils, rusted shroud, cyan muzzle flash) scaled with <code>inner.scale.setScalar(0.62)</code>. <code>assets/models/gun_pistol.glb</code> is still in the folder but is not loaded as the default.</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// WEAPON_DEFS[1] — the gun you start with. id stays &#x27;pistol&#x27; for map compatibility.
+{ id: &#x27;pistol&#x27;,  name: &#x27;Pulse Cannon&#x27;,    ammo: null,    cd: 0.13, dmg: 28, pellets: 1, spread: 0.008, auto: true, proj: &#x27;pulse&#x27;, speed: 22, recoil: 0.14, snd: &#x27;pulse&#x27; },</code></pre></div>
+<p><code>ammo: null</code> means infinite ammo (the HUD shows ∞). <code>proj: &#x27;pulse&#x27;</code> fires a cyan bolt at speed 22. The fire sound is the synthesized <code>play(&#x27;pulse&#x27;)</code> sting (square 220→55 Hz plus saw 880→140 Hz). To put a GLB on this slot later, add a <code>weapon_1</code> row to <code>ASSET_PACK</code> and the loader will replace the procedural mesh. To retune the feel, change the numbers on that <code>WEAPON_DEFS</code> row (keep <code>MAG_SIZE[1]</code> at <code>0</code> while ammo is infinite).</p>
+<p>Aim assist, look sensitivity, and movement knobs are in Lesson 10.</p>
+<h2>6. Registering a new enemy, weapon, or prop</h2>
+<p>There is no <code>registerEnemy()</code> API. The editor Things tab is built from the real tables:</p>
+<ul><li><strong>Enemies:</strong> add a key to <code>ENEMY_DEFS</code>. The Things tab lists <code>Object.keys(RT.ENEMY_DEFS)</code>. <code>buildEnemyMesh</code> already has shapes for <code>drone</code>, <code>titan</code>, <code>turret</code>; anything else uses the soldier / heavy body. Add <code>ASSET_PACK.enemy_yourkey</code> if you have a GLB. You may also add a row to <code>MODEL_SLOTS</code> if you want it in the Custom 3D models UI.</li><li><strong>Props:</strong> add a key to <code>PROP_DEFS</code>. <code>buildPropMesh</code> has a <code>switch</code> of named cases and a default crate-like box. Optional: <code>ASSET_PACK</code> is not used for every prop; custom props use the <code>prop_&lt;key&gt;</code> slot on the project (<code>attachModel(mesh, &#x27;prop_&#x27; + e.s, ...)</code>).</li><li><strong>Weapons:</strong> <code>WEAPON_DEFS</code> is an array of six entries, and the HUD / number keys are built around those six. <code>MAG_SIZE</code> and <code>RELOAD_TIME</code> are parallel arrays. Pickup items such as <code>w_shotgun</code> give a weapon <em>index</em> (<code>give: { weapon: 2, shells: 8 }</code>). Adding a seventh gun means updating those tables and the HUD. The safe first step is to retune an existing slot, not invent a seventh one.</li></ul>
+<p>Unknown enemy types in a map file fall back to <code>grunt</code> (<code>e.s in ENEMY_DEFS ? e.s : &#x27;grunt&#x27;</code>).</p>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Add a dummy change you can see: set <code>enemy_titan</code> <code>tint</code> from <code>0.55</code> to <code>0.2</code> (much darker), save <code>app.js</code>, refresh the preview, and Play a map that has a Titan (Nightwatch or Plant 4). Then change it back, or keep it if you like the look.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>you have walked the real load path: file on disk → <code>ASSET_PACK</code> → <code>loadGlb</code> → <code>normalizeModel</code> → the 3D scene. That is how DMB Tech 1 brings a model into the world.</p></aside><div class="lesson-nav"><a href="#l03">← Previous</a><a class="next" href="#l05">Next: Music, sounds, textures, and credits →</a></div></article><article class="lesson" id="l05"><h1>Lesson 5 — Music, sounds, textures, and credits</h1><p class="lesson-meta">Lesson 5 of 14 · 8 min</p><p><strong>Time:</strong> about 8 minutes</p>
+<p><strong>Payoff:</strong> a new track in the Pause menu music player, with a legal credit line.</p>
+<h2>Music files</h2>
+<p>Put the audio file here:</p>
+<div class="codeblock" data-lang="code"><div class="code-bar"><span>code</span><button type="button" class="copy">Copy</button></div><pre><code>assets/music/my_track.mp3</code></pre></div>
+<p>Then add one object to the real <code>MUSIC_TRACKS</code> list in <code>app.js</code>. This list is also what the Level tab and the in-game music player use.</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>const MUSIC_TRACKS = [
+  // id is what a level stores in props.track. file is relative to the app folder.
+  { id: &#x27;metalmania&#x27;, file: &#x27;assets/music/metalmania.mp3&#x27;, title: &#x27;Metalmania&#x27;, artist: &#x27;Kevin MacLeod&#x27;, genre: &#x27;Metal&#x27;, license: &#x27;CC BY 4.0&#x27;, url: &#x27;https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1700023&#x27; },
+  { id: &#x27;seismic&#x27;, file: &#x27;assets/music/seismic.mp3&#x27;, title: &#x27;Seismic&#x27;, artist: &#x27;Shane Ivers&#x27;, genre: &#x27;Trap&#x27;, license: &#x27;CC BY 4.0&#x27;, url: &#x27;https://www.silvermansound.com/free-music/seismic&#x27; },
+  { id: &#x27;aggressor&#x27;, file: &#x27;assets/music/aggressor.mp3&#x27;, title: &#x27;Aggressor&#x27;, artist: &#x27;Kevin MacLeod&#x27;, genre: &#x27;Orchestral metal&#x27;, license: &#x27;CC BY 4.0&#x27;, url: &#x27;https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1700051&#x27; },
+  { id: &#x27;lewis_and_dekalb&#x27;, file: &#x27;assets/music/lewis_and_dekalb.mp3&#x27;, title: &#x27;Lewis and Dekalb&#x27;, artist: &#x27;Kevin MacLeod&#x27;, genre: &#x27;Trap&#x27;, license: &#x27;CC BY 4.0&#x27;, url: &#x27;https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1600027&#x27; },
+  { id: &#x27;griphop&#x27;, file: &#x27;assets/music/griphop.mp3&#x27;, title: &#x27;Griphop&#x27;, artist: &#x27;Kevin MacLeod&#x27;, genre: &#x27;Hip-hop&#x27;, license: &#x27;CC BY 4.0&#x27;, url: &#x27;https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100413&#x27; }
+  // Add your track as one more object, then pick its id in the Level tab.
+];</code></pre></div>
+<p>A new line looks like this:</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// id must be unique. The Level tab will show title — artist (genre).
+{ id: &#x27;my_track&#x27;, file: &#x27;assets/music/my_track.mp3&#x27;, title: &#x27;My Track&#x27;, artist: &#x27;Artist Name&#x27;, genre: &#x27;Trap&#x27;, license: &#x27;CC BY 4.0&#x27;, url: &#x27;https://example.com/the-track-page&#x27; },</code></pre></div>
+<p>The player does <code>TP.audio.src = assetBase + t.file</code>. If the MP3 is missing, that track fails and RetroEngine can fall back to <strong>Synth ambient</strong>, which is generated in code and works offline.</p>
+<p>Only add music you have the rights to. CC BY 4.0 requires a credit. CC0 does not require one, but credit the author anyway.</p>
+<h2>Sound effects are not files</h2>
+<p>Gunshots, doors, pickups, and so on are synthesized with the Web Audio API inside the <code>Sound</code> object in <code>app.js</code>. There is no <code>assets/sfx/</code> folder. <code>api.sound(name)</code> in a level script (Lesson 13) can play those named effects: <code>pistol</code>, <code>pulse</code>, <code>rifle</code>, <code>shotgun</code>, <code>rocket</code>, <code>plasma</code>, <code>wrench</code>, <code>hit</code>, <code>explode</code>, <code>bolt</code>, <code>alert</code>, <code>pain</code>, <code>edie</code>, <code>hurt</code>, <code>pickup</code>, <code>weapon</code>, <code>key</code>, <code>door</code>, <code>locked</code>, <code>empty</code>, <code>step</code>, <code>reload</code>, <code>reload2</code>, <code>jump</code>, <code>win</code>, <code>ui</code>.</p>
+<h2>Textures are not image files either</h2>
+<p>The 20 wall, floor, and ceiling looks are painted in code when the game starts (<code>TEX_DEFS</code>, then <code>paintTexture</code>). Names you will see in the Build tab include Concrete, Bunker Concrete, Grimy Brick, Steel Panels, Tech Wall, Rusted Steel, Floor Grate, Hazard Stripes, Ceramic Tile, Industrial Tile, Tread Plate, Asphalt, Wood Planks, Ceiling Panels, Ceiling Lights, Server Racks, Blast Door, and the Red, Blue and Yellow Key Doors. Sky scenes (Night City, Red Dusk, Overcast, Toxic Haze, Black Void) are also generated. There is nothing to drop into an <code>assets/textures/</code> folder.</p>
+<h2>How to add a credit to CREDITS.md</h2>
+<p>Open <code>CREDITS.md</code> in the source folder and add a row next to the others, in the right section.</p>
+<p>For a <strong>CC0</strong> model:</p>
+<div class="codeblock" data-lang="markdown"><div class="code-bar"><span>markdown</span><button type="button" class="copy">Copy</button></div><pre><code>| In game | Original title | File | Source (license shown on page) |
+|---|---|---|---|
+| My Soldier | Original Name | `assets/models/my_soldier.glb` | https://the-source-page (CC0 1.0) |</code></pre></div>
+<p>For <strong>CC BY</strong> music, copy the existing table shape and include the attribution line the artist asked for, for example:</p>
+<div class="codeblock" data-lang="markdown"><div class="code-bar"><span>markdown</span><button type="button" class="copy">Copy</button></div><pre><code>| &quot;My Track&quot; | Artist Name | Trap | `assets/music/my_track.mp3` | https://the-source-page |</code></pre></div>
+<p>And under the attribution list:</p>
+<div class="codeblock" data-lang="markdown"><div class="code-bar"><span>markdown</span><button type="button" class="copy">Copy</button></div><pre><code>- &quot;My Track&quot;: Artist Name, https://the-source-page. Licensed under Creative Commons: By Attribution 4.0 License, http://creativecommons.org/licenses/by/4.0/</code></pre></div>
+<p>Menu → <strong>About &amp; credits</strong> reads the in-game <code>MUSIC_TRACKS</code> list (and the built-in model credits). Keep <code>CREDITS.md</code> in sync so the shipped folder is honest.</p>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Open <code>CREDITS.md</code> and Menu → About &amp; credits, and match one music row in both places (for example &quot;Seismic&quot; by Shane Ivers). If you are not adding a file today, just confirm you know where the next credit would go.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>you will not ship a track or model without a license line. That is the badge of a real release.</p></aside><div class="lesson-nav"><a href="#l04">← Previous</a><a class="next" href="#l06">Next: Make an escape-pad map →</a></div></article><article class="lesson" id="l06"><h1>Lesson 6 — Make an escape-pad map</h1><p class="lesson-meta">Lesson 6 of 14 · 10 min</p><p><strong>Time:</strong> about 10 minutes</p>
+<p><strong>Payoff:</strong> a tiny level you can walk, with a start and an exit pad that ends the level.</p>
+<p>An escape-pad map is a level whose goal is to reach an <strong>Exit pad</strong>. Standing on the pad (distance under <code>0.42</code> cells) calls <code>levelComplete()</code>. Every trial pack map works this way.</p>
+<h2>Start a clean level</h2>
+<ol><li>Menu → <strong>Projects</strong> → <strong>New project</strong> (save the current one first if you care about it).</li><li>You get one empty level named Level 1. Open the <strong>Level</strong> tab and name it something like <code>Pad Drill</code>.</li><li>Optional: set a sky (Night City, Red Dusk, Overcast, Toxic Haze, Black Void), a music track, and a par time.</li></ol>
+<p>Default new-level size is <strong>40×32</strong> cells. You can resize in the Project / Level size controls. The engine accepts <strong>8 to 128</strong> on each side (<code>normalizeLevel</code>).</p>
+<h2>Draw a room</h2>
+<p>The tool bar is on the left (or the bottom on phones). These are the real tool ids and keys from <code>TOOLS</code> in <code>app.js</code>:</p>
+<div class='table-wrap'><table><thead><tr><th>Tool</th><th>Key</th><th>What it does</th></tr></thead><tbody><tr><td>Select</td><td>V</td><td>Tap a thing to move it. Drag empty space to select an area.</td></tr><tr><td>Pan</td><td>H</td><td>Drag to move the view. Pinch or wheel to zoom.</td></tr><tr><td>Wall</td><td>B</td><td>Paint solid walls with the current texture.</td></tr><tr><td>Floor</td><td>F</td><td>Paint floor (also carves through walls).</td></tr><tr><td>Ceiling</td><td>C</td><td>Paint ceiling. Pick <strong>Sky</strong> for open air.</td></tr><tr><td>Height</td><td>U</td><td>Raise floors.</td></tr><tr><td>Rect</td><td>R</td><td>Drag a rectangle: room, solid block, carved floor, or outline.</td></tr><tr><td>Fill</td><td>G</td><td>Flood-fill a connected area of the same texture.</td></tr><tr><td>Erase</td><td>E</td><td>Things first, then walls, then floor details.</td></tr><tr><td>Door</td><td>D</td><td>Place doors. Keycard doors need the matching key.</td></tr><tr><td>Thing</td><td>T</td><td>Place the item chosen in the Things tab.</td></tr><tr><td>Start</td><td>S</td><td>Player start. Tap again to turn 90°.</td></tr><tr><td>Picker</td><td>I</td><td>Copy a cell&#x27;s textures into your brushes.</td></tr><tr><td>Rooms</td><td>—</td><td>Opens the 22-room template library.</td></tr></tbody></table></div>
+<p>On a phone: one finger uses the tool, two fingers pan and pinch-zoom. <strong>Fit</strong> frames the whole map. Undo is the top-bar button, or Ctrl/Cmd+Z.</p>
+<p><strong>Floor height</strong> (Build tab): steps of <code>0.15</code> make stairs you can climb (<code>STEP_H</code> is <code>0.36</code>, so two steps of 0.15 are fine; a jump of more than 0.36 is a ledge). <code>0.60</code> is a catwalk. <code>0.75</code> is a cover block the player cannot climb.</p>
+<h2>Place the start and the exit</h2>
+<ol><li>Choose <strong>Start</strong> (S). Tap a floor cell in your room. Tap it again if you want to face another way. The start must not sit inside a wall or door — Menu → <strong>Check level</strong> will error if it does.</li><li>Open the <strong>Things</strong> tab. Under <strong>Keys &amp; goals</strong>, choose <strong>Exit pad</strong>.</li><li>The Thing tool stays selected. Tap a floor cell at the far end of the room.</li></ol>
+<p>A level with no exit can only be finished by a script calling <code>api.win()</code> (Lesson 13). Check level will <em>warn</em> if there is no pad.</p>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Draw one rectangle room, place Start at one end and an Exit pad at the other, then press <strong>Play</strong>. Walk onto the pad.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>the level-complete screen. You just made a finishable RetroEngine map. Next lesson we put a locked door and a Titan in the way.</p></aside><div class="lesson-nav"><a href="#l05">← Previous</a><a class="next" href="#l07">Next: Add keys, guards, and a boss →</a></div></article><article class="lesson" id="l07"><h1>Lesson 7 — Add keys, guards, and a boss</h1><p class="lesson-meta">Lesson 7 of 14 · 10 min</p><p><strong>Time:</strong> about 10 minutes</p>
+<p><strong>Payoff:</strong> a locked door, a key, a few guards, and a Titan in front of the pad — and Check level says the exit is reachable.</p>
+<h2>Doors and keycards</h2>
+<ol><li>Leave a one-cell gap in a wall (or carve one with Floor / Erase).</li><li>Choose <strong>Door</strong> (D). In the Build tab, pick a door type: a plain door, or Red / Blue / Yellow keycard doors.</li><li>Tap the gap. The door texture follows the color (<code>door</code>, <code>door_red</code>, <code>door_blue</code>, <code>door_yellow</code>).</li></ol>
+<p>Plain doors open when you press <strong>USE</strong> / E, and enemies can open those too. Keycard doors need the matching key. The in-game message is <code>You need the RED keycard</code> (or BLUE / YELLOW). Enemies do <strong>not</strong> open keycard doors.</p>
+<p>Place the key from Things → <strong>Keys &amp; goals</strong>:</p>
+<ul><li><code>key_red</code> — Red Keycard</li><li><code>key_blue</code> — Blue Keycard</li><li><code>key_yellow</code> — Yellow Keycard</li></ul>
+<p>Put the key <em>before</em> the door on the path from the start. Menu → <strong>Check level</strong> flood-fills from the start, picks up keys as it reaches them, and errors if the exit is still unreachable (walls, missing keys, or stairs taller than <code>STEP_H</code>).</p>
+<h2>Enemies (the real types)</h2>
+<p>Things → <strong>Enemies</strong>. The <code>s</code> value stored on the entity is the key in <code>ENEMY_DEFS</code>:</p>
+<div class='table-wrap'><table><thead><tr><th>Things name</th><th>Key (<code>s</code>)</th><th>Role (Normal difficulty)</th></tr></thead><tbody><tr><td>Soldier</td><td><code>grunt</code></td><td>HP 45, speed 1.7, rifle-like bolt, flanks and calls allies.</td></tr><tr><td>Gun Drone</td><td><code>drone</code></td><td>HP 25, faster, hovers (<code>hover: 0.62</code>).</td></tr><tr><td>Heavy Walker</td><td><code>heavy</code></td><td>HP 120, slow, 3-shot bursts.</td></tr><tr><td>Sentry Turret</td><td><code>turret</code></td><td>HP 70, <code>speed: 0</code>, long range, rapid fire. Does not move.</td></tr><tr><td>Titan (Boss)</td><td><code>titan</code></td><td>HP 650, fires rockets, big radius, score 2000. Does not flank.</td></tr></tbody></table></div>
+<p>Difficulty (Easy / Normal / Hard in Game settings) multiplies health, damage, speed, fire cooldown, reaction time, and the chance an enemy is a flanker (<code>DIFF</code> in <code>app.js</code>).</p>
+<p>Place 2–3 Soldiers in the first room, not on top of the start. Face them by selecting the enemy and rotating it in the inspector (or place, then nudge). Leave cover: crates and sandbags (<code>PROP_DEFS</code>) block movement; barrels explode.</p>
+<h2>A boss at the pad</h2>
+<ol><li>At the end of the route, open a last room around the Exit pad.</li><li>Place <strong>Titan (Boss)</strong> on or just in front of the pad.</li><li>Put a <strong>Rocket Launcher</strong> (<code>w_rocket</code>) and <strong>Rockets</strong> (<code>ammo_rockets</code>) where the player will find them <em>before</em> the fight, plus a <strong>Medkit</strong> or <strong>Heavy Armor</strong>. This is how the trial maps are built.</li></ol>
+<p>The trial pack maps are good references: Plant 4: Lockdown (22 enemies, blue and red keys), Drainworks: Overflow (25 enemies, three keys), Nightwatch: Helipad (21 enemies). Play them from the <a href="https://ddemby424.github.io/dystopia-project-moses/retroengine/maps/">map pack page</a>, then Menu → the imported level sits in your project so you can inspect it. (Pack maps keep their scripts on. A <code>.retro</code> you import from a file has its script switched off until you review it — Lesson 8 and 13.)</p>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> On the map from Lesson 6, add a yellow door in the middle, a Yellow Keycard before it, two Soldiers, one Titan by the pad, and a rocket pickup just before the Titan. Menu → <strong>Check level</strong>. Fix any red errors. Then Play.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>you can grab the key, open the door, fight, and step on the pad. That is a complete escape-pad map.</p></aside><div class="lesson-nav"><a href="#l06">← Previous</a><a class="next" href="#l08">Next: Save, load, and share →</a></div></article><article class="lesson" id="l08"><h1>Lesson 8 — Save, load, and share</h1><p class="lesson-meta">Lesson 8 of 14 · 8 min</p><p><strong>Time:</strong> about 8 minutes</p>
+<p><strong>Payoff:</strong> a <code>.retro</code> file on your phone, and a clear picture of what is (and is not) a backup.</p>
+<h2>Autosave (this browser only)</h2>
+<p>Edits autosave about 600 ms after you stop changing things (<code>markDirty</code> → <code>autosave</code>). The data is written to <strong>localStorage</strong> under:</p>
+<div class='table-wrap'><table><thead><tr><th>Key</th><th>What it holds</th></tr></thead><tbody><tr><td><code>retroengine.autosave.v1</code></td><td>The whole current project (JSON).</td></tr><tr><td><code>retroengine.slots.v1</code></td><td>Named project slots from Menu → Projects.</td></tr><tr><td><code>retroengine.settings.v1</code></td><td>Look sensitivity, volume, quality, aim assist, and so on.</td></tr><tr><td><code>retroengine.seenHelp.v1</code></td><td>Whether the first-run help has been shown.</td></tr></tbody></table></div>
+<p>Old DOOMFORGE keys are copied to these names once, if the new key is empty.</p>
+<aside class="callout compare"><p class="c-kicker">Compare</p><p>localStorage is like a named list in TI-89 RAM. It survives leaving the program. It does <strong>not</strong> survive clearing the site&#x27;s data, switching browsers, or some in-app browsers with tight storage. Ctrl/Cmd+S also forces an autosave and toasts &quot;Saved in this browser&quot;.</p></aside>
+<p>The status line shows <strong>Saved</strong> plus the time. This is not a file on disk.</p>
+<h2>Named slots and real backups</h2>
+<ul><li><strong>Menu → Projects</strong> — save as a named slot, open a slot, or start a new project. If browser storage is full, you will get a toast to export JSON instead.</li><li><strong>Menu → Export project file (.json)</strong> — downloads <code>YourName.retroengine.json</code>. This is a full project: <code>{ format: &#x27;retroengine-project&#x27;, version: 2, name, levels, models, customTemplates }</code>. This is the backup you should keep.</li><li><strong>Menu → Import project file (.json)</strong> — opens that backup (or an old DOOMFORGE project). Save the current project first.</li></ul>
+<h2>One level: <code>.retro</code> files</h2>
+<p>A <code>.retro</code> file is versioned JSON for <strong>one level</strong>. The real format constants are:</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// format must match, or import throws &quot;not a RetroEngine level file&quot;.
+const RETRO_FORMAT = &#x27;retroengine-level&#x27;, RETRO_VERSION = 1, LINK_MAX = 7500;</code></pre></div>
+<p>The file looks like this (grids are run-length encoded to stay small):</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>{
+  &quot;format&quot;: &quot;retroengine-level&quot;,   // required marker
+  &quot;version&quot;: 1,                    // importer rejects a newer format version
+  &quot;app&quot;: &quot;RetroEngine 1.1.0&quot;,      // written from RT.VERSION at export time
+  &quot;level&quot;: { &quot;name&quot;: &quot;Pad Drill&quot;, &quot;w&quot;: 40, &quot;h&quot;: 32, &quot;ents&quot;: [], &quot;spawn&quot;: {}, &quot;props&quot;: {} },
+  &quot;grid&quot;: { &quot;wall&quot;: [], &quot;kind&quot;: [], &quot;floor&quot;: [], &quot;ceil&quot;: [], &quot;fh&quot;: [] }
+  // &quot;assets&quot;: { &quot;models&quot;: { ... } } appears only if the project has custom models
+}</code></pre></div>
+<p>Export: <strong>Level</strong> tab → Share this level → <strong>Export .retro</strong>, or Menu → <strong>Export this level (.retro)</strong>. On a phone, the share sheet may open so you can save the file.</p>
+<p>Import: Menu → <strong>Import level (.retro)</strong>, or <strong>drag the file onto the editor</strong>. The file must end in <code>.retro</code> or <code>.json</code>. Max size <strong>30 MB</strong>. A whole project <code>.json</code> also works here (it asks to open the project).</p>
+<p>Imported <strong>level scripts are switched off</strong> when the source is a file or a share link. Official <code>#pack=</code> maps keep their scripts on. Review a switched-off script in Level → Logic, then Apply in the code editor to turn it on (Lesson 13).</p>
+<h2>Share links (<code>#map=</code>)</h2>
+<p><strong>Level</strong> tab → <strong>Share link</strong>, or Menu → <strong>Share level link</strong>. The level is compressed (deflate) and put in the URL hash after <code>#map=</code>. Nothing is uploaded to a server.</p>
+<ul><li>If the URL is longer than about <strong>7500</strong> characters (<code>LINK_MAX</code>), RetroEngine tells you to send a <code>.retro</code> file instead.</li><li>Custom models you <em>uploaded</em> are included in <code>.retro</code> files, not in share links. URL-based model references can be packed into the file/link when they are not <code>data:</code> uploads.</li><li>Opening a <code>#map=</code> link adds the level to the project and jumps into Playtest (Back to editor is available).</li><li>A link only works for other people when RetroEngine is <strong>hosted</strong> (for example GitHub Pages). A <code>file://</code> or some local preview URLs make links that only open on that device.</li></ul>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Export your Lesson 7 map as a <code>.retro</code>. Then Menu → New project (or add a blank level), and import that file (or drag it in). Confirm the rooms, keys, and Titan are there.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>you have a file you can email, drop in <code>maps/</code>, or keep as a backup. Autosave is comfort; <code>.retro</code> and <code>.retroengine.json</code> are real saves.</p></aside><div class="lesson-nav"><a href="#l07">← Previous</a><a class="next" href="#l09">Next: Add a map to the site pack →</a></div></article><article class="lesson" id="l09"><h1>Lesson 9 — Add a map to the site pack</h1><p class="lesson-meta">Lesson 9 of 14 · 10 min</p><p><strong>Time:</strong> about 10 minutes</p>
+<p><strong>Payoff:</strong> a Play link of the form <code>#pack=maps/your-name.retro</code> that loads your map in the hosted app.</p>
+<p>The trial pack is just files in <code>maps/</code>. Visitors open <code>maps/index.html</code>, tap Play, and RetroEngine fetches the <code>.retro</code> from the same site.</p>
+<h2>1. Name the file carefully</h2>
+<p>The loader only accepts a tight path. This is the real check in <code>app.js</code>:</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// Official trial maps: #pack=maps/name.retro (same origin only).
+// Also allowed: packs/name.retro. Letters, numbers, dot, underscore, hyphen.
+const PACK_PATH = /^(?:maps|packs)\/[A-Za-z0-9][A-Za-z0-9._-]*\.retro$/;</code></pre></div>
+<p>Good: <code>maps/pad-drill.retro</code>. Bad: spaces, folders deeper than one level, or a path that starts with <code>/</code> or <code>https://</code>. The hash is loaded with <code>fetch</code> and is rejected if the file is on a different origin.</p>
+<h2>2. Put the file in maps/</h2>
+<ol><li>Export your level as a <code>.retro</code> (Lesson 8).</li><li>Copy it to the source folder as <code>maps/pad-drill.retro</code> (use your real slug).</li><li>Optional: add a screenshot at <code>maps/shots/pad-drill.png</code>.</li></ol>
+<h2>3. Add a row to manifest.json</h2>
+<p><code>maps/manifest.json</code> is the pack catalog. It is not what the game loads at Play time (Play loads the <code>.retro</code> directly), but it is the record of the pack. Open it and append one object to the <code>maps</code> array. Copy the shape of an existing entry:</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>{
+  &quot;slug&quot;: &quot;pad-drill&quot;,                 // short id, usually matches the file name
+  &quot;name&quot;: &quot;Pad Drill&quot;,                 // title shown to people
+  &quot;file&quot;: &quot;pad-drill.retro&quot;,           // file name inside maps/
+  &quot;blurb&quot;: &quot;A tiny escape-pad drill with a yellow door and a Titan.&quot;,
+  &quot;w&quot;: 40,                             // map width in cells
+  &quot;h&quot;: 32,                             // map height in cells
+  &quot;par&quot;: 180,                          // par time in seconds (Level tab)
+  &quot;sky&quot;: &quot;night&quot;,                      // one of: night, dusk, overcast, toxic, void
+  &quot;track&quot;: &quot;metalmania&quot;                // a MUSIC_TRACKS id, or omit
+  // The trial entries also store ents / enemies / pickups counts from the build script.
+}</code></pre></div>
+<p>Bump the pack <code>&quot;version&quot;</code> at the top of the file if you are shipping a new pack release (the 1.0.2 pack uses <code>&quot;1.0.2&quot;</code>).</p>
+<h2>4. Add a card to maps/index.html</h2>
+<p>Copy one of the three <code>&lt;article&gt;</code> blocks and change:</p>
+<ul><li>the shot <code>src</code> and <code>alt</code></li><li>the <code>&lt;h2&gt;</code> title and the blurb</li><li>the Play href</li><li>the Download href</li></ul>
+<p>The Play link must be relative to the app root:</p>
+<div class="codeblock" data-lang="html"><div class="code-bar"><span>html</span><button type="button" class="copy">Copy</button></div><pre><code>&lt;!-- From maps/index.html, ../index.html is the editor. The hash is the pack path. --&gt;
+&lt;a class=&quot;btn play&quot; href=&quot;../index.html#pack=maps/pad-drill.retro&quot;&gt;Play&lt;/a&gt;
+&lt;a class=&quot;btn dl&quot; href=&quot;pad-drill.retro&quot; download&gt;Download&lt;/a&gt;</code></pre></div>
+<p>On the live site that becomes:</p>
+<div class="codeblock" data-lang="code"><div class="code-bar"><span>code</span><button type="button" class="copy">Copy</button></div><pre><code>https://ddemby424.github.io/dystopia-project-moses/retroengine/index.html#pack=maps/pad-drill.retro</code></pre></div>
+<p>When the editor sees <code>#pack=...</code> at boot (or on <code>hashchange</code>), <code>openFromPack</code> fetches that file, imports it, and starts Playtest. Because <code>how === &#x27;pack&#x27;</code>, <strong>the level script stays on</strong>.</p>
+<p>Menu → <strong>Trial map pack</strong> simply goes to <code>maps/</code> next to the current page.</p>
+<h2>5. Build and check</h2>
+<p>Run <code>python3 build.py</code> from the source folder so <code>../retroengine/maps/</code> gets the new file (Lesson 11). Preview the built <code>maps/index.html</code>, tap Play, and confirm your map starts.</p>
+<p><code>tools/build_trial_maps.py</code> is how the <em>original three</em> maps were authored in Python. You do not have to use it for a map you already exported from the editor.</p>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Drop your <code>.retro</code> into <code>maps/</code>, add the Play link on a local copy of <code>maps/index.html</code>, preview, and tap Play. You should land in your level after the splash.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>that <code>#pack=</code> URL is what you can put in a TikTok bio or on the pack page, the same way Plant 4 / Drainworks / Nightwatch already work.</p></aside><div class="lesson-nav"><a href="#l08">← Previous</a><a class="next" href="#l10">Next: Change engine code safely →</a></div></article><article class="lesson" id="l10"><h1>Lesson 10 — Change engine code safely</h1><p class="lesson-meta">Lesson 10 of 14 · 10 min</p><p><strong>Time:</strong> about 10 minutes</p>
+<p><strong>Payoff:</strong> one small, visible change (Titan health or walk speed) that you can feel in Playtest, then undo if you want.</p>
+<p><code>app.js</code> is large, but you rarely need to wander. The <strong>DMB Tech 1</strong> tunables live near the top of <code>DFRuntime</code> and in a few tables. Change one number, save, refresh the preview, and Play. Keep a copy of the original line (or export a project first) so you can go back.</p>
+<p>Do not edit <code>app.js</code> in two tools at once. Change a line you can clearly see, and re-read that line before you ship.</p>
+<h2>Where the knobs are</h2>
+<p>All of these are real names in <code>app.js</code>.</p>
+<div class='table-wrap'><table><thead><tr><th>What</th><th>Where</th><th>Current value in source</th></tr></thead><tbody><tr><td>Version string</td><td><code>const VERSION</code></td><td><code>&#x27;1.1.0&#x27;</code> (bump this when you ship).</td></tr><tr><td>Eye height</td><td><code>EYE</code></td><td><code>0.62</code></td></tr><tr><td>Player radius</td><td><code>PLAYER_R</code></td><td><code>0.22</code> cells</td></tr><tr><td>Max walk-up height</td><td><code>STEP_H</code></td><td><code>0.36</code></td></tr><tr><td>Gravity</td><td><code>GRAV</code></td><td><code>11</code></td></tr><tr><td>Walk / run speed</td><td><code>updatePlayer</code>: <code>const sp = 3.1 * (running ? 1.6 : 1)</code></td><td>walk <code>3.1</code>, run <code>× 1.6</code></td></tr><tr><td>Start/stop snap</td><td><code>1 - Math.exp(-dt * (G.onGround ? 28 : 8))</code></td><td>28 on ground, 8 in air</td></tr><tr><td>Jump</td><td><code>G.vz = 3.6</code></td><td><code>3.6</code></td></tr><tr><td>Look sensitivity</td><td><code>const sens = 0.0022 * S.sens</code></td><td>default <code>S.sens</code> is <code>1.25</code></td></tr><tr><td>Pitch limits</td><td><code>clamp(..., -1.35, 1.35)</code></td><td>about ±77°</td></tr><tr><td>Arrow-key turn</td><td><code>2.8 * dt</code></td><td>radians per second-ish</td></tr><tr><td>Touch look</td><td><code>tMove</code>: multiply drag by <code>2.0</code></td><td><code>2.0</code></td></tr><tr><td>Joystick</td><td>dead zone <code>8</code> px, max <code>56</code> px, auto-run if <code>joyY &lt; -0.72</code></td><td>—</td></tr><tr><td>Enemy stats</td><td><code>ENEMY_DEFS</code></td><td>hp, speed, range, dmg, cd, shots…</td></tr><tr><td>Weapon stats</td><td><code>WEAPON_DEFS</code></td><td>cd, dmg, spread, ammo type…</td></tr><tr><td>Magazines</td><td><code>MAG_SIZE</code>, <code>RELOAD_TIME</code></td><td>parallel arrays, one entry per weapon index</td></tr><tr><td>Ammo caps</td><td><code>AMMO_MAX</code></td><td>bullets 300, shells 60, cells 300, rockets 30</td></tr><tr><td>Difficulty</td><td><code>DIFF</code> inside <code>play()</code></td><td>easy / normal / hard multipliers</td></tr><tr><td>Graphics tiers</td><td><code>QUALITY</code></td><td>low / medium / high</td></tr></tbody></table></div>
+<p>Settings the player can move in <strong>Menu → Game settings</strong> (saved in <code>retroengine.settings.v1</code>): look sensitivity, field of view, volumes, quality, invert Y, <strong>Aim assist</strong>, <strong>Also use aim assist with mouse</strong>, show FPS, and on touch also button size. Those are <code>DEFAULT_SETTINGS</code> / <code>S</code>.</p>
+<h2>Aim assist and movement settings</h2>
+<p>The starting firearm is <code>WEAPON_DEFS[1]</code>, the <strong>Pulse Cannon</strong> (Lesson 4 has the full row and the procedural mesh in <code>buildWeaponMesh</code>).</p>
+<p><strong>Aim assist</strong> is light shot magnetism, not sticky look. When you fire, <code>aimAssistDir</code> (called from <code>shoot()</code>) steers the shot toward the nearest unblocked enemy already near the crosshair.</p>
+<div class='table-wrap'><table><thead><tr><th>What</th><th>Where</th><th>Default</th></tr></thead><tbody><tr><td>Aim assist strength</td><td><code>S.aimAssist</code> in <code>DEFAULT_SETTINGS</code>; slider in Game settings</td><td><code>0.80</code> (0–1, shown as 0–100%)</td></tr><tr><td>Also use with mouse</td><td><code>S.aimAssistMouse</code></td><td><code>false</code> (checkbox off)</td></tr><tr><td>When it engages</td><td>slider &gt; 0, and (a touch has been used in this play session, or the mouse checkbox is on)</td><td><strong>on for touch</strong> by default</td></tr><tr><td>Cone / range</td><td><code>0.08 * S.aimAssist</code> radians, 28 cells, needs <code>los(...)</code></td><td>about 3.7° at 80%</td></tr></tbody></table></div>
+<p>To make assist stronger, raise the slider, or change the default in <code>DEFAULT_SETTINGS</code>. To turn it off, set the slider to 0.</p>
+<p>Movement and turning are RetroEngine’s own knobs, retuned in 1.1.0 so the feel is freer (quicker turning, less stiffness when you start, stop, or strafe). The current values are the walk/run, start/stop snap, look sensitivity, pitch limits, arrow-key turn, touch look, and joystick rows in the table above. Change <strong>one</strong> of those at a time if you are tuning feel.</p>
+<h2>A small example edit</h2>
+<p>Make the Titan tougher. In <code>ENEMY_DEFS</code>, find the <code>titan</code> row and change <code>hp</code>.</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// Before: a Normal-difficulty Titan has 650 health (Hard multiplies this by 1.3).
+titan:  { name: &#x27;Titan (Boss)&#x27;,  hp: 650, speed: 1.0, range: 14, dmg: 22, cd: 1.9, shots: 2, h: 1.3,  r: 0.45, score: 2000, proj: &#x27;rocket&#x27; }
+
+// After: 800 HP. Only this one number needs to change for the test.
+titan:  { name: &#x27;Titan (Boss)&#x27;,  hp: 800, speed: 1.0, range: 14, dmg: 22, cd: 1.9, shots: 2, h: 1.3,  r: 0.45, score: 2000, proj: &#x27;rocket&#x27; }</code></pre></div>
+<p>Or make walking feel quicker, if that is the feel you want to try:</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// Walk speed. running is true when Shift, the RUN button, or auto-run is on.
+const sp = 3.4 * (running ? 1.6 : 1);  // was 3.1</code></pre></div>
+<p>Change <strong>one</strong> of those, not both, so you can tell what you felt.</p>
+<h2>How to test it</h2>
+<ol><li>Save <code>app.js</code> in Spck or Acode.</li><li>Refresh the preview (a hard refresh if the old script is cached).</li><li>Play a map with a Titan, or your Lesson 7 map. Use Normal difficulty first.</li><li>Confirm the change (the Titan takes more rockets, or you cross the room faster).</li><li>If something feels wrong, put the old number back and refresh again.</li><li>If you opened the single-file <code>retroengine.html</code>, it will <strong>not</strong> see <code>app.js</code> edits until you run <code>build.py</code>.</li></ol>
+<p>Avoid drive-by edits in the middle of <code>updatePlayer</code> or <code>shoot</code> unless you are chasing a specific bug. Tables at the top are the safe knobs.</p>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Change Titan <code>hp</code> from <code>650</code> to <code>800</code>, refresh, fight one Titan, then set it back (or keep it and note it in CHANGELOG when you ship).</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>you have a safe loop: change a named tunable, play, judge, revert or keep. That is how engine feel gets tuned.</p></aside><div class="lesson-nav"><a href="#l09">← Previous</a><a class="next" href="#l11">Next: Build and publish →</a></div></article><article class="lesson" id="l11"><h1>Lesson 11 — Build and publish</h1><p class="lesson-meta">Lesson 11 of 14 · 10 min</p><p><strong>Time:</strong> about 10 minutes</p>
+<p><strong>Payoff:</strong> a fresh <code>../retroengine/</code> folder and a checklist for GitHub Pages, the changelog, and a version tag.</p>
+<h2>What build.py does</h2>
+<p>From the <strong>source</strong> folder (the one that contains <code>build.py</code>):</p>
+<div class="codeblock" data-lang="code"><div class="code-bar"><span>code</span><button type="button" class="copy">Copy</button></div><pre><code>python3 build.py</code></pre></div>
+<p>On a phone, Acode and some Termux setups can run that if Python is installed. If not, run it on a computer that has the source.</p>
+<p>The script (this is the real behavior, not a guess):</p>
+<ol><li>Reads <code>app.js</code>, <code>styles.css</code>, <code>index.html</code>, and <code>help_content.html</code>.</li><li>Inlines the help HTML into <code>app.js</code> where the marker <code>/*@@HELP@@*/&#x27;&#x27;</code> sits, then writes <code>../retroengine/app.js</code>.</li><li>Copies <code>styles.css</code>, <code>index.html</code>, <code>README.md</code>, <code>CHANGELOG.md</code>, <code>CREDITS.md</code>.</li><li>Replaces <code>../retroengine/assets/</code> with a fresh copy of <code>assets/</code>.</li><li>Copies <code>maps/</code>, skipping <code>.py</code> files and <code>__pycache__</code>.</li><li>Builds <code>../retroengine/retroengine.html</code> (CSS and JS inlined into <code>index.html</code>) and copies it to <code>retroengine.txt</code>.</li><li>Builds <code>../retroengine/help.html</code> from <code>help_template.html</code>.</li><li>Prints the JS line count and the single-file size.</li></ol>
+<p>It does <strong>not</strong> currently copy <code>docs/tutorial/</code>. Copy this tutorial folder into the published tree if you want it on the live site, or add that step to <code>build.py</code> later.</p>
+<h2>Version bumps</h2>
+<p>When the release is real, update every place the version is stated:</p>
+<ol><li><code>const VERSION = &#x27;1.1.0&#x27;;</code> inside <code>DFRuntime</code> in <code>app.js</code> (this is what About and exports show).</li><li>A new <code>## 1.1.x (date):</code> section at the <strong>top</strong> of <code>CHANGELOG.md</code>.</li><li><code>README.md</code> if the title still says an old major version.</li><li><code>maps/manifest.json</code> <code>&quot;version&quot;</code> if the pack changed.</li><li>Any pack page copy in <code>maps/index.html</code> / <code>maps/README.md</code> if needed.</li></ol>
+<p>The previous shipped tag was <code>retroengine-v1.0.2</code>. Keep that pattern: <code>retroengine-vMAJOR.MINOR.PATCH</code>.</p>
+<h2>GitHub Pages</h2>
+<p>The live app is the built <code>retroengine/</code> folder of the GitHub repo <code>ddemby424/dystopia-project-moses</code>:</p>
+<ul><li>App: <code>https://ddemby424.github.io/dystopia-project-moses/retroengine/</code></li><li>Pack: <code>https://ddemby424.github.io/dystopia-project-moses/retroengine/maps/</code></li></ul>
+<p>After <code>build.py</code>, the contents of <code>../retroengine/</code> are what should be committed to that <code>retroengine/</code> path on <code>main</code> (or whatever branch Pages is serving). Keep <code>assets/</code> next to <code>index.html</code>. Then:</p>
+<ol><li>Commit the built files plus the source changes and the changelog.</li><li>Push to GitHub.</li><li>Create an annotated tag, for example <code>retroengine-v1.1.0</code>, and a GitHub Release with notes (see <code>CHANGELOG.md</code>).</li><li>Open the live URLs in a phone browser (not only the preview) and tap a <code>#pack=</code> link.</li></ol>
+<p>GitHub Pages can take a short time to update. Hard-refresh if you still see the old version in Menu → About &amp; credits.</p>
+<h2>Exporting a whole game without Pages</h2>
+<p>Menu → <strong>Export playable game (.html)</strong> builds one file with all of the current project&#x27;s levels and a copy of the runtime. Models and music still load from wherever the editor is hosted (<code>assetBase</code>), with procedural / synth fallbacks offline. That file is a great way to send a campaign to a tester. The official site still wants the full <code>retroengine/</code> folder so the map pack and assets stay together.</p>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Run <code>python3 build.py</code> (when you can) and confirm <code>../retroengine/app.js</code>, <code>maps/</code>, and <code>retroengine.html</code> have fresh timestamps. Open the built <code>index.html</code> in a preview and check the version on the About screen.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>you have a publishable folder and a version ritual. Shipping is a checklist, not a mystery.</p></aside><div class="lesson-nav"><a href="#l10">← Previous</a><a class="next" href="#l12">Next: Troubleshooting →</a></div></article><article class="lesson" id="l12"><h1>Lesson 12 — Troubleshooting</h1><p class="lesson-meta">Lesson 12 of 14 · 5 min</p><p><strong>Time:</strong> about 5 minutes</p>
+<p><strong>Payoff:</strong> a short list you can actually use when something is blank, silent, or missing.</p>
+<h2>Black screen, or &quot;needs Three.js&quot;</h2>
+<p>The 3D library (three.js r128) loads from a CDN on first launch. Go online once, then reload. If you are in an in-app browser (TikTok, Instagram, Facebook), open the link in Chrome, Samsung Internet, Firefox, or Safari instead.</p>
+<h2>&quot;3D NOT AVAILABLE&quot; / WebGL</h2>
+<p>Playtest shows a panel: this browser could not start WebGL. The <strong>editor still works</strong>. Try a full browser (not an in-app one), turn off battery saver or &quot;lite&quot; mode, and enable hardware acceleration. Update the browser if it is very old.</p>
+<h2>Enemies look like simple robots, music is synth</h2>
+<p>The asset pack did not load. That is normal when the page is opened as <code>file://</code> with no internet. Preview through Spck/Acode, or use the <a href="https://ddemby424.github.io/dystopia-project-moses/retroengine/">hosted app</a>. Check the console for <code>RetroEngine: model failed to load</code>.</p>
+<h2>A new GLB never appears</h2>
+<ul><li>Path typo in <code>ASSET_PACK</code> (it is relative, like <code>assets/models/name.glb</code>).</li><li>You edited <code>app.js</code> but are playing <code>retroengine.html</code> without running <code>build.py</code>.</li><li>The hosted <code>assetBase</code> does not have the new file yet (you changed source but did not publish <code>assets/</code>).</li><li>The file is huge or not a real <code>.glb</code>. Lights in the file are stripped; they will not &quot;light up&quot; the level.</li></ul>
+<h2>A custom upload vanished, or &quot;storage is full&quot;</h2>
+<p>Browser storage is about 5–10 MB per site. Uploaded models fill it quickly. Export a <code>.retroengine.json</code> or <code>.retro</code>, remove unused models (Project → Custom 3D models → ✕ or All built-in), and import again.</p>
+<h2>Share link does nothing</h2>
+<p>Some in-app browsers block the share sheet and the clipboard. Select the URL in the box and copy it, or export a <code>.retro</code>. Remember the ~7 KB (<code>LINK_MAX</code> 7500) cap, and that <code>file://</code> links only work on that device.</p>
+<h2><code>#pack=</code> says the link is not valid, or the map does not load</h2>
+<p>The path must match <code>maps/name.retro</code> or <code>packs/name.retro</code> with a simple file name. It must be on the <strong>same origin</strong> as the app. A typo, a missing file on Pages, or a cross-site URL will toast an error.</p>
+<h2>Mouse look will not lock</h2>
+<p>Some browsers block pointer lock. Drag to look instead. On a phone, drag the right half of the screen (or drag on FIRE to aim).</p>
+<h2>Slow on a phone</h2>
+<p>Leave Graphics quality on <strong>Auto</strong>, or pick Low in Settings. Close other apps. Turn off battery saver (it caps frame rate). The known limit is that very old phones may stay under 60 fps even on Low.</p>
+<h2>Playtest will not start</h2>
+<p>Menu → <strong>Check level</strong>. If the start is inside a wall or door, that is an error and Play is blocked. Other issues (no exit, unreachable pad, entity in a wall) are listed as warnings or errors.</p>
+<h2>A level script does nothing</h2>
+<p>Imported file and share-link scripts are moved to <code>scriptPending</code> and cleared from <code>script</code> until you review and <strong>Apply</strong> them (Lesson 13). Pack scripts stay on. A syntax error toasts <code>Script syntax error</code> on Apply, or <code>Script error: ...</code> at run time.</p>
+<h2>Sound is silent</h2>
+<p>Phones require a tap before audio. Tap the splash (<strong>TAP TO BOOT</strong>), and tap once in the game if you skipped that. Check Master / Effects / Music sliders in Settings.</p>
+<h2>Autosave looks gone</h2>
+<p>You may be in a different browser, private mode, or the site data was cleared. This is why Lesson 8 tells you to export <code>.json</code> / <code>.retro</code> files.</p>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Pick one thing you have actually seen go wrong (or open the app in a second browser and try a <code>#pack=</code> typo on purpose). Find the matching row above.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>when the screen is black or a model is missing, you have a first place to look instead of starting over.</p></aside><div class="lesson-nav"><a href="#l11">← Previous</a><a class="next" href="#l13">Next: Level scripts →</a></div></article><article class="lesson" id="l13"><h1><span class="badge-adv">ADVANCED</span>Lesson 13 — Level scripts</h1><p class="lesson-meta">Lesson 13 of 14 · 10 min</p><p><strong>Time:</strong> about 10 minutes</p>
+<p><strong>Payoff:</strong> a message when the level starts, and a heal plus a line of text when the Titan dies — the same pattern the trial maps use.</p>
+<p>RetroEngine already has a real level-script system. You do not need a new <code>.js</code> module or a hook into the engine game loop for map logic. Each level stores a JavaScript string in <code>level.props.script</code>. When the level starts, DMB Tech 1 runs it once and lets it subscribe to events.</p>
+<aside class="callout compare"><p class="c-kicker">Compare</p><p>this is like a TI-89 program that sits in a loop and waits for keys, except you <em>register</em> a small function for each event. In VB, it is closer to <code>WithEvents</code> than to a big <code>Do</code> loop.</p></aside>
+<h2>Where to type the script</h2>
+<p>Either:</p>
+<ul><li><strong>Level</strong> tab → Logic → <strong>Edit level script</strong>, or</li><li><strong>Menu → Code editor</strong> → the <strong>script.js</strong> tab.</li></ul>
+<p>Paste or write the script, then press <strong>Apply</strong>. Apply first compiles it with <code>new Function(&#x27;api&#x27;, text)</code>. If the syntax is bad, you get <code>Script syntax error: ...</code> and nothing is saved. If it is fine, the text is stored on the level, any <code>scriptPending</code> flag is cleared, and a toast says to Playtest.</p>
+<p>The starter example already in the editor (<code>SCRIPT_EXAMPLE</code>) is:</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// Level script — runs when the level starts.
+// Events: &#x27;start&#x27;, &#x27;tick&#x27;(dt), &#x27;kill&#x27;(enemyType), &#x27;pickup&#x27;(itemType),
+//         &#x27;door&#x27;({x,y}), &#x27;use&#x27;({x,y}), &#x27;exit&#x27;
+// api: message, heal, giveArmor, giveAmmo, openDoor, enemiesLeft,
+//      kills, time, win, sound, player
+api.on(&#x27;start&#x27;, () =&gt; api.message(&#x27;Find the exit. Stay alive.&#x27;));
+api.on(&#x27;kill&#x27;, () =&gt; {
+  if (api.enemiesLeft() === 0) api.message(&#x27;Sector clear!&#x27;);
+});</code></pre></div>
+<h2>The real api object</h2>
+<p>This is the object the engine actually builds in <code>runScript()</code> and passes in as <code>api</code>:</p>
+<div class='table-wrap'><table><thead><tr><th>Call</th><th>What it does</th></tr></thead><tbody><tr><td><code>api.on(event, fn)</code></td><td>Register a function for an event. You can call this more than once.</td></tr><tr><td><code>api.message(text)</code></td><td>Show a line on screen (up to four at a time; they wait if a menu is open).</td></tr><tr><td><code>api.heal(n)</code></td><td>Add <code>n</code> to health, clamped 0–200.</td></tr><tr><td><code>api.giveArmor(n)</code></td><td>Add <code>n</code> to armor, clamped 0–200.</td></tr><tr><td><code>api.giveAmmo(type, n)</code></td><td>Add ammo. <code>type</code> must already be a key of <code>AMMO_MAX</code>: <code>bullets</code>, <code>shells</code>, <code>cells</code>, or <code>rockets</code>.</td></tr><tr><td><code>api.openDoor(x, y)</code></td><td>Open the door in cell <code>(x, y)</code> even without a key (<code>force</code>).</td></tr><tr><td><code>api.enemiesLeft()</code></td><td>How many enemies are not dead.</td></tr><tr><td><code>api.kills()</code></td><td>Kill count so far.</td></tr><tr><td><code>api.time()</code></td><td>Seconds since the level started.</td></tr><tr><td><code>api.win()</code></td><td>Finish the level (same as stepping on an exit pad).</td></tr><tr><td><code>api.sound(name)</code></td><td>Play a built-in synthesized sound (see Lesson 5 for names).</td></tr><tr><td><code>api.player</code></td><td>A snapshot: <code>{ x, y, hp, armor, keys }</code>. <code>keys</code> is an array of key color names you hold.</td></tr></tbody></table></div>
+<p>There is no <code>api.spawnEnemy</code> or <code>api.fetch</code>. Anything else you call must already exist as a browser global (Lesson 14 talks about <code>fetch</code>).</p>
+<h2>Events the engine really fires</h2>
+<div class='table-wrap'><table><thead><tr><th>Event</th><th>When</th><th>Argument</th></tr></thead><tbody><tr><td><code>start</code></td><td>After the level is built and the script has been installed</td><td>none</td></tr><tr><td><code>tick</code></td><td>Every frame while state is <code>playing</code></td><td><code>dt</code> (seconds since last frame)</td></tr><tr><td><code>kill</code></td><td>An enemy has just died</td><td>the enemy type string, such as <code>&#x27;titan&#x27;</code> or <code>&#x27;grunt&#x27;</code></td></tr><tr><td><code>pickup</code></td><td>You just picked something up</td><td>the pickup key, such as <code>&#x27;key_red&#x27;</code> or <code>&#x27;w_rocket&#x27;</code></td></tr><tr><td><code>door</code></td><td>A door started opening</td><td><code>{ x, y }</code> of the door cell</td></tr><tr><td><code>use</code></td><td>You pressed USE / E toward a cell</td><td><code>{ x, y }</code> of that cell</td></tr><tr><td><code>exit</code></td><td>The level-complete path has begun</td><td>none</td></tr></tbody></table></div>
+<p><code>tick</code> is the official &quot;game loop&quot; hook for a map. Use it sparingly (for example a timed message). Do not do heavy work every frame on a phone.</p>
+<h2>A script you can paste (trial-pack style)</h2>
+<p>This is the same idea as Plant 4: Lockdown&#x27;s real script, written for your Lesson 7 map. Open script.js, paste, Apply, Play.</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// Runs once, when this level finishes loading.
+api.on(&#x27;start&#x27;, () =&gt; {
+  // message() is the on-screen line the player sees after the splash.
+  api.message(&#x27;PAD DRILL — grab the key, drop the Titan, reach the pad&#x27;);
+});
+
+// t is the pickup type, for example &#x27;key_yellow&#x27; or &#x27;w_rocket&#x27;.
+api.on(&#x27;pickup&#x27;, t =&gt; {
+  // Only talk when it is the key this map cares about.
+  if (t === &#x27;key_yellow&#x27;) api.message(&#x27;Yellow keycard — the inner door is open&#x27;);
+  // Remind the player not to waste rockets on Soldiers.
+  if (t === &#x27;w_rocket&#x27;) api.message(&#x27;Rocket launcher: save it for the Titan&#x27;);
+});
+
+// t is the enemy kind that just died (&#x27;grunt&#x27;, &#x27;drone&#x27;, &#x27;heavy&#x27;, &#x27;turret&#x27;, &#x27;titan&#x27;).
+api.on(&#x27;kill&#x27;, t =&gt; {
+  // When the boss falls, heal a little and tell the player to run to the pad.
+  if (t === &#x27;titan&#x27;) {
+    api.message(&#x27;TITAN DOWN — get to the escape pad&#x27;);
+    api.heal(25);            // +25 HP, same reward Plant 4 uses
+    api.sound(&#x27;win&#x27;);        // short victory tones (does not end the level)
+  }
+  // When the room is empty, say so. enemiesLeft() counts living enemies.
+  if (api.enemiesLeft() === 0) api.message(&#x27;Sector clear!&#x27;);
+});</code></pre></div>
+<p>A door-unlock pattern (coordinates must match <em>your</em> door cell; Check the door in the editor):</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// When the last enemy dies, force-open the door at cell (10, 4).
+api.on(&#x27;kill&#x27;, () =&gt; {
+  if (api.enemiesLeft() === 0) {
+    api.message(&#x27;Vault unlocked&#x27;);
+    api.openDoor(10, 4);    // x and y are integers, the cell you painted the door on
+  }
+});</code></pre></div>
+<p>A USE trigger, from the built-in help example:</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// When the player presses USE on cell (5, 9), give two rockets.
+api.on(&#x27;use&#x27;, c =&gt; {
+  if (c.x === 5 &amp;&amp; c.y === 9) api.giveAmmo(&#x27;rockets&#x27;, 2);
+});</code></pre></div>
+<h2>Pack scripts stay on; shared scripts are reviewed</h2>
+<p>This is a safety rule in <code>importMapObject</code>:</p>
+<ul><li>Official same-origin <code>#pack=maps/name.retro</code> loads with <code>how === &#x27;pack&#x27;</code>. The script <strong>stays on</strong> and Playtest starts.</li><li>A share link (<code>#map=</code>) or a dropped / imported <code>.retro</code> moves a non-empty script into <code>props.scriptPending</code> and clears <code>props.script</code>. The Level tab shows that it is switched off. You read it, then Apply to turn it on.</li></ul>
+<p>Treat other people&#x27;s scripts like a program you did not write: read every line before Apply. A script can call <code>api.win()</code>, change ammo, and (because it is ordinary page JavaScript) also call browser APIs. That is why the switch-off exists.</p>
+<h2>If you ever need a separate JS file</h2>
+<p>Maps should keep using <code>props.script</code>. A new engine-wide module would mean adding a <code>&lt;script src=&quot;my-module.js&quot;&gt;&lt;/script&gt;</code> next to <code>app.js</code> in <code>index.html</code>, and teaching <code>build.py</code> to include it in <code>retroengine.html</code>. There is no plug-in hook for that today. Prefer a level script, or a careful change inside <code>DFRuntime</code>, over inventing a side file.</p>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Paste the Pad Drill script into script.js, press Apply, and Play. You should see the start message, a line when you pick up the yellow key, and &quot;TITAN DOWN&quot; plus a heal when the boss dies.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>your map talks back. That is real DMB Tech 1 scripting, the same system the trial pack uses.</p></aside><div class="lesson-nav"><a href="#l12">← Previous</a><a class="next" href="#l14">Next: Calling APIs from a script →</a></div></article><article class="lesson" id="l14"><h1><span class="badge-adv">ADVANCED</span>Lesson 14 — Calling APIs from a script</h1><p class="lesson-meta">Lesson 14 of 14 · 10 min</p><p><strong>Time:</strong> about 10 minutes</p>
+<p><strong>Payoff:</strong> a level that, on start, shows a real temperature from a free public weather API, with errors handled so a dead network does not break the map.</p>
+<p><code>api</code> has no <code>fetch</code> method. A level script is still ordinary JavaScript running in the page (<code>new Function(&#x27;api&#x27;, src)(api)</code>), so the browser&#x27;s built-in <code>fetch</code> is visible as a global, the same way <code>Math</code> is. Use it only for <strong>public</strong> data, and only when the player has a network connection.</p>
+<aside class="callout compare"><p class="c-kicker">Compare</p><p><code>await fetch(...)</code> is like a TI-89 program that <code>Pause</code>s until another calc answers a <code>GetCalc</code>, or like VB <code>XMLHttpRequest</code> / <code>Await</code> a network call. The game keeps drawing while the reply is in flight, because we do not freeze the whole engine — we only wait inside our little async function.</p></aside>
+<h2>async / await in one breath</h2>
+<ul><li><code>fetch(url)</code> returns a <strong>Promise</strong>: a value that will show up later.</li><li><code>await</code> means &quot;pause <em>this</em> function until that Promise finishes.&quot;</li><li>The function that uses <code>await</code> must be marked <code>async</code>.</li><li><code>api.on(&#x27;start&#x27;, () =&gt; { ... })</code> is not async by itself, so we start an inner <code>async</code> function and run it. The start event can return immediately; the message appears when the reply lands.</li></ul>
+<h2>CORS, in plain terms</h2>
+<p>Browsers block a page from reading another site&#x27;s data unless that site says it is allowed. That rule is <strong>CORS</strong>. If the API does not send the right headers, <code>fetch</code> fails in the console even though the URL works in a new tab. The example below uses <a href="https://open-meteo.com/">Open-Meteo</a>, a free forecast API that allows browser calls and <strong>needs no key</strong>.</p>
+<p>If a fetch fails with a CORS error, you cannot &quot;fix&quot; it from the level script. Pick an API that allows browsers, or have your own server talk to the other site. Do not look for a secret header hack in client code.</p>
+<h2>Never put secret keys in game code</h2>
+<p>Anything in a level script, in <code>app.js</code>, or in a shipped <code>.html</code> file is <strong>public</strong>. Anyone can Save-As or open DevTools and read it.</p>
+<ul><li>No API tokens, no passwords, no webhook secrets, no private X / Discord / database keys.</li><li>If a service requires a key, it does not belong in RetroEngine client code.</li><li>A <code>#pack=</code> map is especially public: the <code>.retro</code> file is just JSON, and the script is sitting in <code>level.props.script</code> in plain text.</li></ul>
+<p>This is also why imported scripts stay off until you review them (Lesson 13). A hostile script could call <code>fetch</code> too.</p>
+<h2>A paste-ready example</h2>
+<p>This asks Open-Meteo for the current temperature near Chicago (change the numbers if you want a different city). Paste it into <strong>script.js</strong>, Apply, then Play while online. Hosted RetroEngine or a Spck preview both work; <code>file://</code> often cannot fetch other sites.</p>
+<div class="codeblock" data-lang="javascript"><div class="code-bar"><span>javascript</span><button type="button" class="copy">Copy</button></div><pre><code>// When the level starts, show a line, then ask a public weather API for the temperature.
+api.on(&#x27;start&#x27;, () =&gt; {
+  // Instant payoff so the player is not staring at a silent map while the net works.
+  api.message(&#x27;Checking outside conditions…&#x27;);
+
+  // Inner async function so we can use await. The () at the end starts it immediately.
+  (async () =&gt; {
+    try {
+      // Open-Meteo: no key, CORS-friendly. latitude/longitude are Chicago.
+      // current=temperature_2m asks for just the current temperature.
+      const url = &#x27;https://api.open-meteo.com/v1/forecast?latitude=41.85&amp;longitude=-87.65&amp;current=temperature_2m&amp;temperature_unit=fahrenheit&#x27;;
+
+      // fetch() is the browser&#x27;s HTTP call. await waits for the headers/status.
+      const res = await fetch(url);
+
+      // res.ok is false for 404, 500, and other HTTP errors. Throw so catch can talk.
+      if (!res.ok) throw new Error(&#x27;HTTP &#x27; + res.status);
+
+      // Parse the JSON body. await again: the body streams in after the headers.
+      const data = await res.json();
+
+      // Defensive read: APIs change, so we never assume the shape blindly.
+      const t = data &amp;&amp; data.current &amp;&amp; data.current.temperature_2m;
+
+      if (typeof t === &#x27;number&#x27;) {
+        // Math.round keeps the HUD line short. This is a message, not a game rule.
+        api.message(&#x27;Outside temp near Chicago: &#x27; + Math.round(t) + &#x27; F&#x27;);
+      } else {
+        api.message(&#x27;Weather data was incomplete.&#x27;);
+      }
+    } catch (err) {
+      // Offline, CORS, typo, or a dead API should never freeze or crash the level.
+      api.message(&#x27;Could not reach weather net.&#x27;);
+      // console.warn is for you in DevTools; players do not see it.
+      console.warn(&#x27;RetroEngine weather fetch&#x27;, err);
+    }
+  })();
+});</code></pre></div>
+<p>You can keep your Titan / key messages in the same script; just add more <code>api.on(...)</code> blocks.</p>
+<h2>What &quot;good&quot; looks like</h2>
+<ul><li>A visible fallback message when the call fails.</li><li>No key or cookie in the URL or in the script.</li><li>No <code>await fetch</code> on every <code>tick</code> (that would hammer the API and stutter a phone). Once on <code>start</code>, or once on <code>use</code> of a terminal prop, is enough.</li><li>The map still plays if the request never returns.</li></ul>
+<aside class="callout do"><p class="c-kicker">Do this now</p><p><strong>Do this now.</strong> Paste the script, Apply, Play on a preview that is online, and wait a second for the temperature line. Then turn on airplane mode, Play again, and confirm you see &quot;Could not reach weather net.&quot; instead of a frozen game.</p></aside>
+<aside class="callout payoff"><p class="c-kicker">Payoff</p><p>your level talked to the public internet and used the result in-game, without putting a secret in the client and without breaking offline play.</p></aside><div class="lesson-nav"><a href="#l13">← Previous</a><a class="next" href="#start">Back to the top</a></div></article>
+      <footer class="site">
+        <p><b>Darcy D. Demby</b> · Chief Software Architect · DembySoftwareSystems · Making cool tools with AI...</p>
+        <p>Paths, functions, and file formats in this tutorial were read from the RetroEngine source. The 3D runtime is the DMB Tech 1 engine layer, built on three.js r128.</p>
+      </footer>
+    </main>
+  </div>
+  <script>
+
+(function () {
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('button.copy');
+    if (!b) return;
+    var pre = b.closest('.codeblock').querySelector('code');
+    var text = pre ? pre.textContent : '';
+    function ok() { b.textContent = 'Copied'; b.classList.add('ok'); setTimeout(function () { b.textContent = 'Copy'; b.classList.remove('ok'); }, 1400); }
+    function fail() { b.textContent = 'Select the text'; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(ok, fail);
+    } else {
+      var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); ok(); } catch (err) { fail(); }
+      ta.remove();
+    }
+  });
+})();
+
+  </script>
+</body>
+</html>

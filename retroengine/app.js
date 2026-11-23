@@ -24,7 +24,7 @@
 function DFRuntime() {
 'use strict';
 const THREE = window.THREE;
-const VERSION = '1.0.2';
+const VERSION = '1.1.0';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 const STEP_H = 0.36;         // max height you can walk up without jumping
@@ -46,9 +46,18 @@ const SETTINGS_KEY = 'retroengine.settings.v1';
 // One-time migration: copy saves made under the old DOOMFORGE name to the new RetroEngine keys.
 try { [['doomforge.settings.v2', SETTINGS_KEY], ['doomforge.autosave.v2', 'retroengine.autosave.v1'], ['doomforge.slots.v2', 'retroengine.slots.v1'], ['doomforge.seenHelp.v2', 'retroengine.seenHelp.v1']]
   .forEach(([o, n]) => { const v = localStorage.getItem(o); if (v !== null && localStorage.getItem(n) === null) localStorage.setItem(n, v); }); } catch (e) { /* storage blocked */ }
-const DEFAULT_SETTINGS = { sens: 1.0, invertY: false, fov: 75, volume: 0.8, sfx: 0.9, music: 0.5, quality: 'auto', showFps: false, touchScale: 1.0, bob: true, difficulty: 'normal', haptics: true };
+const DEFAULT_SETTINGS = { sens: 1.25, invertY: false, fov: 75, volume: 0.8, sfx: 0.9, music: 0.5, quality: 'auto', showFps: false, touchScale: 1.0, bob: true, difficulty: 'normal', haptics: true, aimAssist: 0.80, aimAssistMouse: false };
 const S = Object.assign({}, DEFAULT_SETTINGS);
-try { Object.assign(S, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { /* private mode: keep defaults */ }
+try {
+  const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+  Object.assign(S, saved);
+  // First 1.1.0 load: pick up the freer-movement and aim-assist defaults if this device still has the old 1.0.2 settings.
+  if (saved.aimAssist === undefined) {
+    S.aimAssist = 0.80;
+    if (saved.sens === undefined || saved.sens === 1) S.sens = 1.25;
+    if (saved.aimAssistMouse === undefined) S.aimAssistMouse = false;
+  }
+} catch (e) { /* private mode: keep defaults */ }
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(S)); } catch (e) {} }
 const QUALITY = {
   low:    { ratio: 0.6,  lights: 4, tex: 128, aa: false },
@@ -121,6 +130,7 @@ const Sound = (function () {
     if (v < 0.02) return;
     switch (name) {
       case 'pistol': noise(0.18, 2200, 0.7, 0.5 * v); tone(0.08, 300, 60, 'square', 0.18 * v); break;
+      case 'pulse': tone(0.18, 220, 55, 'square', 0.22 * v); tone(0.12, 880, 140, 'sawtooth', 0.16 * v); break;
       case 'rifle': noise(0.11, 3000, 0.8, 0.38 * v); tone(0.05, 420, 90, 'sawtooth', 0.12 * v); break;
       case 'shotgun': noise(0.42, 1200, 0.6, 0.8 * v); tone(0.2, 160, 40, 'square', 0.3 * v); noise(0.1, 4000, 1, 0.2 * v, 'highpass', 0.35); break;
       case 'rocket': noise(0.6, 600, 0.5, 0.5 * v); tone(0.5, 200, 50, 'sawtooth', 0.2 * v); break;
@@ -473,13 +483,13 @@ const ENEMY_DEFS = {
 };
 const WEAPON_DEFS = [
   { id: 'wrench',  name: 'Wrench',          ammo: null,      cd: 0.45, dmg: 30, melee: true, range: 1.15, snd: 'wrench' },
-  { id: 'pistol',  name: 'Pistol',          ammo: 'bullets', cd: 0.3,  dmg: 14, pellets: 1, spread: 0.012, snd: 'pistol' },
+  { id: 'pistol',  name: 'Pulse Cannon',    ammo: null,    cd: 0.13, dmg: 28, pellets: 1, spread: 0.008, auto: true, proj: 'pulse', speed: 22, recoil: 0.14, snd: 'pulse' },
   { id: 'shotgun', name: 'Combat Shotgun',  ammo: 'shells',  cd: 0.85, dmg: 9,  pellets: 8, spread: 0.085, snd: 'shotgun' },
   { id: 'rifle',   name: 'Assault Rifle',     ammo: 'bullets', cd: 0.095,dmg: 10, pellets: 1, spread: 0.03, auto: true, snd: 'rifle' },
   { id: 'plasma',  name: 'Plasma Caster',   ammo: 'cells',   cd: 0.12, dmg: 20, proj: 'plasma', speed: 15, auto: true, snd: 'plasma' },
   { id: 'rocket',  name: 'Rocket Launcher', ammo: 'rockets', cd: 0.9,  dmg: 110, proj: 'rocket', speed: 9, splash: 1.9, snd: 'rocket' }
 ];
-const MAG_SIZE = [0, 12, 6, 30, 40, 1], RELOAD_TIME = [0, 1.1, 1.7, 1.5, 1.4, 1.9];
+const MAG_SIZE = [0, 0, 6, 30, 40, 1], RELOAD_TIME = [0, 0, 1.7, 1.5, 1.4, 1.9];
 const AMMO_MAX = { bullets: 300, shells: 60, cells: 300, rockets: 30 };
 const PICKUP_DEFS = {
   health:       { name: 'Stimpack',        give: { hp: 20 } },
@@ -652,8 +662,28 @@ function buildWeaponMesh(idx) {
   if (idx === 0) { // wrench
     box(inner, 0.035, 0.035, 0.34, mat(0x8a8f98, { metal: 0.9, rough: 0.3 }), 0, 0, -0.12);
     box(inner, 0.1, 0.03, 0.06, mat(0x8a8f98, { metal: 0.9, rough: 0.3 }), 0, 0, -0.3); box(inner, 0.04, 0.04, 0.12, mat(0xaa2222, { metal: 0.1 }), 0, 0, 0.02); mz = -0.32;
-  } else if (idx === 1) { // pistol
-    box(inner, 0.05, 0.06, 0.22, body, 0, 0, -0.1); box(inner, 0.045, 0.11, 0.05, dark, 0, -0.07, -0.02).rotation.x = 0.25; box(inner, 0.054, 0.022, 0.23, dark, 0, 0.038, -0.1); box(inner, 0.012, 0.006, 0.05, acc, 0, 0.052, -0.04); box(inner, 0.01, 0.014, 0.01, dark, 0, 0.055, -0.205); mz = -0.23; // slide, tritium strip, front sight
+  } else if (idx === 1) { // Pulse Cannon — procedural port of early DYSTOPIA v2 default (commit 16322b7)
+    const rust = mat(0x5c4030, { metal: 0.55, rough: 0.55 }), grip = mat(0x1a1510, { metal: 0.3, rough: 0.7 });
+    const coilM = glowMat(0xf59e0b), flesh = mat(0x6b3a2a, { metal: 0.1, rough: 0.85 }), bodyP = mat(0x2a241c, { metal: 0.75, rough: 0.38 });
+    box(inner, 0.07, 0.084, 0.24, bodyP, 0, 0, -0.02);
+    cyl(inner, 0.038, 0.046, 0.24, 12, rust, 0, 0.01, -0.2).rotation.x = Math.PI / 2;
+    cyl(inner, 0.015, 0.017, 0.18, 10, bodyP, 0, 0.01, -0.34).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 3; i++) {
+      const coil = new THREE.Mesh(new THREE.TorusGeometry(0.042, 0.008, 6, 14), coilM);
+      coil.position.set(0, 0.01, -0.14 - i * 0.05); inner.add(coil);
+      const wrap = new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.004, 4, 10), flesh);
+      wrap.position.copy(coil.position); wrap.rotation.z = 0.4; inner.add(wrap);
+    }
+    box(inner, 0.026, 0.042, 0.034, coilM, 0.044, 0.025, -0.04);
+    box(inner, 0.026, 0.042, 0.034, coilM, 0.044, 0.025, -0.09);
+    for (let i = 0; i < 4; i++) box(inner, 0.01, 0.017, 0.034, rust, -0.038, 0.034, -0.1 - i * 0.034);
+    box(inner, 0.017, 0.013, 0.15, bodyP, 0, 0.058, -0.06);
+    cyl(inner, 0.015, 0.015, 0.07, 10, rust, 0, 0.084, -0.02).rotation.x = Math.PI / 2;
+    box(inner, 0.03, 0.076, 0.042, grip, 0, -0.067, 0.02).rotation.x = 0.35;
+    box(inner, 0.034, 0.042, 0.092, rust, 0, 0, 0.13);
+    box(inner, 0.012, 0.008, 0.04, acc, 0, 0.05, -0.08);
+    inner.scale.setScalar(0.62); // keep the v2 silhouette, but at a compact first-person size
+    mz = -0.27;
   } else if (idx === 2) { // shotgun
     box(inner, 0.07, 0.08, 0.32, body, 0, 0, -0.12); cyl(inner, 0.022, 0.022, 0.36, 8, dark, -0.017, 0.015, -0.38).rotation.x = Math.PI / 2; cyl(inner, 0.022, 0.022, 0.36, 8, dark, 0.017, 0.015, -0.38).rotation.x = Math.PI / 2;
     box(inner, 0.06, 0.05, 0.14, mat(0x5a3a1e, { metal: 0 }), 0, -0.035, -0.34); box(inner, 0.05, 0.13, 0.05, dark, 0, -0.09, -0.02).rotation.x = 0.3; box(inner, 0.072, 0.012, 0.16, acc, 0, 0.044, -0.12); mz = -0.56;
@@ -668,7 +698,7 @@ function buildWeaponMesh(idx) {
     cyl(inner, 0.07, 0.07, 0.6, 10, body, 0.02, 0.02, -0.2).rotation.x = Math.PI / 2; cyl(inner, 0.075, 0.075, 0.04, 10, acc, 0.02, 0.02, -0.5).rotation.x = Math.PI / 2;
     box(inner, 0.05, 0.13, 0.05, dark, 0, -0.1, -0.08).rotation.x = 0.3; box(inner, 0.03, 0.05, 0.1, dark, 0.02, 0.1, -0.18); mz = -0.52;
   }
-  const flash = new THREE.Mesh(new THREE.OctahedronGeometry(0.05, 0), new THREE.MeshBasicMaterial({ color: idx === 4 ? 0x9dff6a : 0xffd27a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const flash = new THREE.Mesh(new THREE.OctahedronGeometry(0.05, 0), new THREE.MeshBasicMaterial({ color: idx === 4 ? 0x9dff6a : idx === 1 ? 0x7dd3fc : 0xffd27a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
   flash.position.set(0, 0.01, mz - 0.03); flash.scale.set(1, 1, 2.2); flash.visible = false; g.add(flash);
   g.userData = { flash, inner };
   g.scale.setScalar(0.72);
@@ -765,7 +795,6 @@ const ASSET_PACK = {
   enemy_drone: { src: 'assets/models/robot_flying_gun.glb', h: 0.46, tint: 0.7 },
   enemy_heavy: { src: 'assets/models/robot_legs_gun.glb', h: 1.3, tint: 0.62 },
   enemy_titan: { src: 'assets/models/robot_large_gun.glb', h: 1.45, tint: 0.55 },
-  weapon_1: { src: 'assets/models/gun_pistol.glb', len: 0.26 },
   weapon_2: { src: 'assets/models/gun_shotgun.glb', len: 0.66 },
   weapon_3: { src: 'assets/models/gun_rifle.glb', len: 0.64 },
   weapon_4: { src: 'assets/models/gun_scifi_rifle.glb', len: 0.58 },
@@ -1120,7 +1149,7 @@ function play(container, project, opts) {
   let state = 'menu';  // 'menu' | 'playing' | 'paused' | 'dead' | 'won'
   let raf = 0, last = performance.now(), fpsAcc = 0, fpsN = 0, destroyed = false;
   const carry = { hp: 100, armor: 0, ammo: { bullets: 50, shells: 0, cells: 0, rockets: 0 }, owned: [true, true, false, false, false, false], cur: 1 };
-  const input = { keys: {}, mdx: 0, mdy: 0, fire: false, joyX: 0, joyY: 0, run: false, dragLook: false };
+  const input = { keys: {}, mdx: 0, mdy: 0, fire: false, joyX: 0, joyY: 0, run: false, autoRun: false, dragLook: false, touchAim: false };
   let lookTouch = null, moveTouch = null, fireTouch = null;
 
   /* ---------- level loading ---------- */
@@ -1325,19 +1354,20 @@ function play(container, project, opts) {
   function updatePlayer(dt) {
     const k = input.keys;
     // Look: mouse / touch deltas are accumulated between frames
-    const sens = 0.0022 * S.sens;
-    G.yaw += input.mdx * sens; G.pitch = clamp(G.pitch - input.mdy * sens * (S.invertY ? -1 : 1), -1.25, 1.25);
+    const sens = 0.0022 * S.sens; // default S.sens is 1.25 so turning is quicker than the old 1.0 default
+    G.yaw += input.mdx * sens; G.pitch = clamp(G.pitch - input.mdy * sens * (S.invertY ? -1 : 1), -1.35, 1.35);
     input.mdx = input.mdy = 0;
-    if (k.ArrowLeft) G.yaw -= 2.4 * dt; if (k.ArrowRight) G.yaw += 2.4 * dt;
+    if (k.ArrowLeft) G.yaw -= 2.8 * dt; if (k.ArrowRight) G.yaw += 2.8 * dt;
     // Move: forward = (cos yaw, sin yaw) on the map, right = (-sin yaw, cos yaw)
     let f = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0) - input.joyY;
     let s = (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0) + input.joyX;
     const len = Math.hypot(f, s); if (len > 1) { f /= len; s /= len; }
-    const running = k.ShiftLeft || k.ShiftRight || input.run;
+    const running = k.ShiftLeft || k.ShiftRight || input.run || input.autoRun;
     const sp = 3.1 * (running ? 1.6 : 1);
     const cy = Math.cos(G.yaw), sy = Math.sin(G.yaw);
     const tvx = (cy * f - sy * s) * sp, tvy = (sy * f + cy * s) * sp;
-    const a = 1 - Math.exp(-dt * (G.onGround ? 14 : 3));     // smooth acceleration (less control in the air)
+    // Same lerp as before, but snappier (was 14 ground / 3 air) so starts, stops and strafes with less stiffness.
+    const a = 1 - Math.exp(-dt * (G.onGround ? 28 : 8));
     G.vx = lerp(G.vx, tvx, a); G.vy = lerp(G.vy, tvy, a);
     const nx = G.px + G.vx * dt, ny = G.py + G.vy * dt;
     if (!blocked(nx, G.py, G.pz, PLAYER_R, false, G)) G.px = nx; else bumpDoor(nx, G.py);
@@ -1405,13 +1435,34 @@ function play(container, project, opts) {
   const hasAmmo = i => { const w = WEAPON_DEFS[i]; return !w.ammo || G.ammo[w.ammo] > 0; };
 
   /* ---------- shooting ---------- */
+  // Shot magnetism from early DYSTOPIA v2 (combat.js, commit 16322b7): snap the shot toward the
+  // nearest unblocked enemy already inside a tight cone (0.05 * strength rad, ~2.3° at 0.80).
+  function aimAssistDir(dx, dy, dz, eyeZ) {
+    G.lastAimAssist = false;
+    const assist = S.aimAssist || 0;
+    if (assist <= 0) return null;
+    const touch = !!(lookTouch || fireTouch || moveTouch || input.touchAim);
+    if (!touch && !S.aimAssistMouse) return null;
+    let best = null, bestAng = 0.08 * assist; // light cone (~3.7° at the 0.80 default)
+    G.enemies.forEach(e => {
+      if (e.state === 'dead') return;
+      const tx = e.x - G.px, ty = e.y - G.py, tz = (e.z + (e.def.hover || 0) + e.def.h * 0.55) - eyeZ;
+      const L = Math.hypot(tx, ty, tz);
+      if (L < 0.4 || L > 28) return;
+      const nx = tx / L, ny = ty / L, nz = tz / L;
+      const ang = Math.acos(Math.max(-1, Math.min(1, nx * dx + ny * dy + nz * dz)));
+      if (ang < bestAng && los(G.px, G.py, e.x, e.y)) { bestAng = ang; best = { x: nx, y: ny, z: nz }; }
+    });
+    if (best) G.lastAimAssist = true;
+    return best;
+  }
   function shoot() {
     const w = WEAPON_DEFS[G.cur];
     if (w.ammo && G.ammo[w.ammo] <= 0) { Sound.play('empty'); G.cd = 0.3; input.mouseFire = false; for (let i = WEAPON_DEFS.length - 1; i >= 0; i--) if (G.owned[i] && hasAmmo(i) && i !== G.cur) { selectWeapon(i); break; } return; }
     if (w.ammo) { const i = G.cur; if (G.mag[i] > G.ammo[w.ammo]) G.mag[i] = G.ammo[w.ammo]; if (G.reloadT > 0) return; if (G.mag[i] <= 0) { startReload(); return; } G.mag[i]--; }
     if (w.ammo) G.ammo[w.ammo]--;
     G.cd = w.cd; G.recoil = 1; Sound.play(w.snd);
-    { const kick = [0, 0.012, 0.035, 0.007, 0.006, 0.045][G.cur] || 0; G.pitch = Math.min(1.4, G.pitch + kick * rand(0.8, 1.2)); G.yaw += kick * rand(-0.3, 0.3); G.kickT = 1; }
+    { const kick = [0, 0.014, 0.035, 0.007, 0.006, 0.045][G.cur] || 0; G.pitch = Math.min(1.4, G.pitch + kick * rand(0.8, 1.2)); G.yaw += kick * rand(-0.3, 0.3); G.kickT = 1; }
     if (w.ammo === 'bullets' || w.ammo === 'shells') ejectShell(w.ammo === 'shells');
     { const fl = weaponMeshes[G.cur].userData.flash, r = rand(0.8, 1.35); fl.rotation.z = rand(0, Math.PI); fl.scale.set(r * 1.3, r * 1.3, 2.4 * r); }
     const eyeZ = G.pz + EYE;
@@ -1427,12 +1478,24 @@ function play(container, project, opts) {
     }
     if (w.proj) {
       const cp = Math.cos(G.pitch);
-      spawnProj('player', w.proj, G.px + cyaw * 0.3, G.py + syaw * 0.3, eyeZ - 0.08, cyaw * cp, syaw * cp, Math.sin(G.pitch), w.speed, w.dmg, w.splash || 0);
+      let pdx = cyaw * cp, pdy = syaw * cp, pdz = Math.sin(G.pitch);
+      const aa = aimAssistDir(pdx, pdy, pdz, eyeZ);
+      if (aa) { pdx = aa.x; pdy = aa.y; pdz = aa.z; }
+      if (w.spread) {
+        const sa = (Math.random() - 0.5) * 2 * w.spread, sp = (Math.random() - 0.5) * 2 * w.spread;
+        const cy2 = Math.cos(Math.atan2(pdy, pdx) + sa), sy2 = Math.sin(Math.atan2(pdy, pdx) + sa);
+        const cp2 = Math.cos(Math.asin(Math.max(-1, Math.min(1, pdz))) + sp), sp2 = Math.sin(Math.asin(Math.max(-1, Math.min(1, pdz))) + sp);
+        pdx = cy2 * cp2; pdy = sy2 * cp2; pdz = sp2;
+      }
+      spawnProj('player', w.proj, G.px + cyaw * 0.3, G.py + syaw * 0.3, eyeZ - 0.08, pdx, pdy, pdz, w.speed, w.dmg, w.splash || 0);
       return;
     }
     let anyHit = false;
+    let hyaw = G.yaw, hpt = G.pitch;
+    { const cp = Math.cos(G.pitch), aa = aimAssistDir(cyaw * cp, syaw * cp, Math.sin(G.pitch), eyeZ);
+      if (aa) { hyaw = Math.atan2(aa.y, aa.x); hpt = Math.asin(Math.max(-1, Math.min(1, aa.z))); } }
     for (let n = 0; n < (w.pellets || 1); n++) {
-      const a = G.yaw + rand(-w.spread, w.spread), pt = G.pitch + rand(-w.spread, w.spread) * 0.6;
+      const a = hyaw + rand(-w.spread, w.spread), pt = hpt + rand(-w.spread, w.spread) * 0.6;
       const dx = Math.cos(a), dy = Math.sin(a), tp = Math.tan(pt);
       const wd = rayDist(G.px, G.py, dx, dy, 40);
       let best = null, bt = wd;
@@ -1503,9 +1566,9 @@ function play(container, project, opts) {
   /* ---------- projectiles ---------- */
   const projGeo = new THREE.SphereGeometry(0.05, 8, 6);
   function spawnProj(owner, kind, x, y, z, dx, dy, dz, speed, dmg, splash) {
-    const color = kind === 'plasma' ? 0x7cff4f : kind === 'rocket' ? 0xffa040 : 0xff3b1f;
+    const color = kind === 'plasma' ? 0x7cff4f : kind === 'pulse' ? 0x38bdf8 : kind === 'rocket' ? 0xffa040 : 0xff3b1f;
     const mesh = new THREE.Mesh(projGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
-    mesh.scale.setScalar(kind === 'rocket' ? 1.6 : kind === 'plasma' ? 1.3 : 1.1);
+    mesh.scale.setScalar(kind === 'rocket' ? 1.6 : kind === 'plasma' ? 1.3 : kind === 'pulse' ? 1.15 : 1.1);
     const halo = new THREE.Mesh(projGeo, mesh.material.clone()); halo.material.opacity = 0.25; halo.scale.setScalar(2.6); mesh.add(halo);
     G.scene.add(mesh);
     G.projectiles.push({ owner, kind, x, y, z, vx: dx * speed, vy: dy * speed, vz: dz * speed, dmg, splash, mesh, life: 5 });
@@ -1513,7 +1576,7 @@ function play(container, project, opts) {
   function updateProjectiles(dt) {
     for (let i = G.projectiles.length - 1; i >= 0; i--) {
       const p = G.projectiles[i]; let hit = false;
-      const steps = 3; // sub-steps so fast shots don't skip through thin targets
+      const steps = Math.max(3, Math.ceil(Math.hypot(p.vx, p.vy, p.vz) * dt / 0.12)); // sub-steps so fast shots don't skip thin targets
       for (let s = 0; s < steps && !hit; s++) {
         p.x += p.vx * dt / steps; p.y += p.vy * dt / steps; p.z += p.vz * dt / steps;
         const cx = Math.floor(p.x), cy = Math.floor(p.y);
@@ -1934,6 +1997,7 @@ function play(container, project, opts) {
   const joy = touch.querySelector('.dfg-joy'), knob = joy.querySelector('i');
   function tStart(ev) {
     if (state !== 'playing') return;
+    input.touchAim = true;
     for (const t of ev.changedTouches) {
       const tgt = document.elementFromPoint(t.clientX, t.clientY) || t.target;
       const btn = tgt.closest && tgt.closest('.dfg-tb');
@@ -1954,18 +2018,22 @@ function play(container, project, opts) {
   function tMove(ev) {
     for (const t of ev.changedTouches) {
       if (moveTouch && t.identifier === moveTouch.id) {
-        let dx = t.clientX - moveTouch.ox, dy = t.clientY - moveTouch.oy; const d = Math.hypot(dx, dy), max = 50;
-        if (d > max) { dx = dx / d * max; dy = dy / d * max; }
-        input.joyX = dx / max; input.joyY = dy / max; knob.style.transform = `translate(${dx}px,${dy}px)`;
-        if (d > 70 && !input.run) input.autoRun = true;
-      } else if (lookTouch && t.identifier === lookTouch.id) { input.mdx += (t.clientX - lookTouch.x) * 1.6; input.mdy += (t.clientY - lookTouch.y) * 1.6; lookTouch.x = t.clientX; lookTouch.y = t.clientY; }
-      else if (fireTouch && t.identifier === fireTouch.id) { input.mdx += (t.clientX - fireTouch.x) * 1.6; input.mdy += (t.clientY - fireTouch.y) * 1.6; fireTouch.x = t.clientX; fireTouch.y = t.clientY; }
+        let dx = t.clientX - moveTouch.ox, dy = t.clientY - moveTouch.oy;
+        const d = Math.hypot(dx, dy), max = 56, dead = 8;
+        if (d < dead) { input.joyX = input.joyY = 0; input.autoRun = false; knob.style.transform = ''; }
+        else {
+          if (d > max) { dx = dx / d * max; dy = dy / d * max; }
+          input.joyX = dx / max; input.joyY = dy / max; knob.style.transform = `translate(${dx}px,${dy}px)`;
+          input.autoRun = !input.run && input.joyY < -0.72;
+        }
+      } else if (lookTouch && t.identifier === lookTouch.id) { input.mdx += (t.clientX - lookTouch.x) * 2.0; input.mdy += (t.clientY - lookTouch.y) * 2.0; lookTouch.x = t.clientX; lookTouch.y = t.clientY; }
+      else if (fireTouch && t.identifier === fireTouch.id) { input.mdx += (t.clientX - fireTouch.x) * 2.0; input.mdy += (t.clientY - fireTouch.y) * 2.0; fireTouch.x = t.clientX; fireTouch.y = t.clientY; }
     }
     ev.preventDefault();
   }
   function tEnd(ev) {
     for (const t of ev.changedTouches) {
-      if (moveTouch && t.identifier === moveTouch.id) { moveTouch = null; input.joyX = input.joyY = 0; joy.style.display = 'none'; }
+      if (moveTouch && t.identifier === moveTouch.id) { moveTouch = null; input.joyX = input.joyY = 0; input.autoRun = false; joy.style.display = 'none'; }
       if (lookTouch && t.identifier === lookTouch.id) lookTouch = null;
       if (fireTouch && t.identifier === fireTouch.id) { input.fire = false; fireTouch.btn.classList.remove('down'); fireTouch = null; }
     }
@@ -3490,17 +3558,18 @@ window.addEventListener('hashchange', () => { if (playHandle) return; if (/^#map
 
 /* ---------- main menu ---------- */
 async function openMenu() {
-  const items = [['projects', 'Projects (save / open)'], ['import', 'Import project file (.json)'], ['exportJson', 'Export project file (.json)'], ['export', 'Export playable game (.html)'], ['exportLevel', 'Export this level (.retro)'], ['importLevel', 'Import level (.retro)'], ['shareLink', 'Share level link'], ['code', 'Code editor (level.json / script)'], ['validate', 'Check level for problems'], ['playFirst', 'Play campaign from level 1'], ['tutorial', 'Tutorial: build your first level'], ['mapPack', 'Trial map pack'], ['help', 'Help & manual'], ['settings', 'Game settings'], ['about', 'About & credits']];
+  const items = [['projects', 'Projects (save / open)'], ['import', 'Import project file (.json)'], ['exportJson', 'Export project file (.json)'], ['export', 'Export playable game (.html)'], ['exportLevel', 'Export this level (.retro)'], ['importLevel', 'Import level (.retro)'], ['shareLink', 'Share level link'], ['code', 'Code editor (level.json / script)'], ['validate', 'Check level for problems'], ['playFirst', 'Play campaign from level 1'], ['tutorial', 'Tutorial: build your first level'], ['docsTutorial', 'Tutorial'], ['mapPack', 'Trial map pack'], ['help', 'Help & manual'], ['settings', 'Game settings'], ['about', 'About & credits']];
   const v = await modal({ title: 'Menu', body: `<div class="menu-list">${items.map(i => `<button class="tb" data-m="${i[0]}">${esc(i[1])}</button>`).join('')}</div>`, onOpen: (bk, close) => bk.addEventListener('click', e => { const t = e.target.closest('[data-m]'); if (t) close(t.dataset.m); }) });
   if (v === 'projects') openProjects(); else if (v === 'import') $('#file-json').click(); else if (v === 'exportJson') exportJson(); else if (v === 'export') openExport(); else if (v === 'exportLevel') exportLevelFile(); else if (v === 'importLevel') $('#file-retro').click(); else if (v === 'shareLink') shareLink();
-  else if (v === 'code') openCode('level'); else if (v === 'validate') openValidate(); else if (v === 'playFirst') playtest(0); else if (v === 'help') openHelp(); else if (v === 'tutorial') startTutorial(); else if (v === 'mapPack') { location.href = new URL('maps/', location.href).href; } else if (v === 'about') openAbout(); else if (v === 'settings') openGameSettings();
+  else if (v === 'code') openCode('level'); else if (v === 'validate') openValidate(); else if (v === 'playFirst') playtest(0); else if (v === 'help') openHelp(); else if (v === 'tutorial') startTutorial(); else if (v === 'docsTutorial') { location.href = new URL('tutorial/', location.href).href; } else if (v === 'mapPack') { location.href = new URL('maps/', location.href).href; } else if (v === 'about') openAbout(); else if (v === 'settings') openGameSettings();
 }
 function openGameSettings() {
   const S = RT.S, r = (k, lab, a, b, st) => `<div class="row"><label>${lab}</label><input type="range" min="${a}" max="${b}" step="${st}" data-gs="${k}" value="${S[k]}"><output>${S[k]}</output></div>`;
   modal({ title: 'Game settings (this device)', body: r('sens', 'Look sensitivity', 0.2, 3, 0.05) + r('fov', 'Field of view', 60, 100, 1) + r('volume', 'Volume', 0, 1, 0.05) + r('music', 'Music', 0, 1, 0.05) +
-    `<div class="row"><label>Quality</label><select data-gs="quality">${['low', 'medium', 'high'].map(q => `<option ${S.quality === q ? 'selected' : ''}>${q}</option>`).join('')}</select></div><label class="check"><input type="checkbox" data-gs="invertY" ${S.invertY ? 'checked' : ''}> Invert look up/down</label><label class="check"><input type="checkbox" data-gs="showFps" ${S.showFps ? 'checked' : ''}> Show FPS</label>`,
+    `<div class="row"><label>Aim assist</label><input type="range" min="0" max="1" step="0.05" data-gs="aimAssist" value="${S.aimAssist}"><output>${Math.round((S.aimAssist || 0) * 100)}%</output></div>` +
+    `<div class="row"><label>Quality</label><select data-gs="quality">${['low', 'medium', 'high'].map(q => `<option ${S.quality === q ? 'selected' : ''}>${q}</option>`).join('')}</select></div><label class="check"><input type="checkbox" data-gs="invertY" ${S.invertY ? 'checked' : ''}> Invert look up/down</label><label class="check"><input type="checkbox" data-gs="aimAssistMouse" ${S.aimAssistMouse ? 'checked' : ''}> Also use aim assist with mouse</label><label class="check"><input type="checkbox" data-gs="showFps" ${S.showFps ? 'checked' : ''}> Show FPS</label>`,
     buttons: [{ label: 'Done', cls: 'primary', value: 1 }],
-    onOpen: bk => bk.addEventListener('input', e => { const t = e.target, k = t.dataset.gs; if (!k) return; S[k] = t.type === 'checkbox' ? t.checked : t.tagName === 'SELECT' ? t.value : +t.value; if (t.nextElementSibling) t.nextElementSibling.textContent = t.value; RT.saveSettings(); }) });
+    onOpen: bk => bk.addEventListener('input', e => { const t = e.target, k = t.dataset.gs; if (!k) return; S[k] = t.type === 'checkbox' ? t.checked : t.tagName === 'SELECT' ? t.value : +t.value; if (t.nextElementSibling) t.nextElementSibling.textContent = k === 'aimAssist' ? Math.round(S[k] * 100) + '%' : t.value; RT.saveSettings(); }) });
 }
 const MODEL_CREDITS = [
   ['Soldier (SWAT)', 'enemy', 'https://poly.pizza/m/Btfn3G5Xv4'], ['Robot Enemy Flying Gun (Gun Drone)', 'enemy', 'https://poly.pizza/m/UDTM6X1y9a'],
@@ -3564,7 +3633,7 @@ function openCode(which) {
 
 /* ---------- help / onboarding ---------- */
 // The manual text is shared with help.html (the build injects help_content.html here).
-const HELP_HTML = "<section id=\"h-start\"><h2>Getting started<\/h2>\n<p>RetroEngine is a game maker for retro-style first-person shooters. You draw levels on a top-down grid, drop in enemies, weapons, keys and lights, then press <b>Play<\/b> to walk through them in 3D. When you're happy, <b>Export<\/b> turns your project into one HTML file anyone can play in a browser.<\/p>\n<ol><li><b>Take the tutorial.<\/b> Menu \u2192 <b>Tutorial: build your first level<\/b>. It takes about 5 minutes.<\/li>\n<li><b>Or open a starter level.<\/b> The level picker in the top bar has three finished levels (E1M1\u2013E1M3). Play them, then take them apart to see how they work.<\/li>\n<li><b>Save often.<\/b> Work autosaves in this browser. Use Menu \u2192 <b>Projects<\/b> for named saves, and <b>Export project file (.json)<\/b> for real backups.<\/li><\/ol><\/section>\n\n<section id=\"h-ui\"><h2>The editor screen<\/h2>\n<ul><li><b>Top bar:<\/b> level picker, undo/redo, <b>Play<\/b>, <b>Export<\/b> and the <b>Menu<\/b>.<\/li>\n<li><b>Tool bar<\/b> (left on tablets and desktop, bottom on phones): the drawing tools.<\/li>\n<li><b>Panel<\/b> (right; a slide-up sheet on folded phones, opened with the panel button): <b>Build<\/b> (textures, door types, heights), <b>Things<\/b> (enemies, items, props, lights), <b>Rooms<\/b> (template library), <b>Level<\/b> (sky, fog, lighting, music, script) and <b>Project<\/b> (levels, models, map layers).<\/li>\n<li><b>Map:<\/b> one finger or the mouse uses the current tool. Two fingers pan and pinch-zoom; on desktop use Space+drag and the mouse wheel. <b>Fit<\/b> frames the whole level.<\/li><\/ul><\/section>\n\n<section id=\"h-tools\"><h2>Tools<\/h2>\n<table><tr><th>Tool<\/th><th>Key<\/th><th>What it does<\/th><\/tr>\n<tr><td>Select<\/td><td>V<\/td><td>Tap a thing to select and inspect it, drag to move it. Drag on empty space to select an area, then Copy / Cut / Delete / Save as template.<\/td><\/tr>\n<tr><td>Pan<\/td><td>H<\/td><td>Drag to move the view.<\/td><\/tr>\n<tr><td>Wall<\/td><td>B<\/td><td>Paint solid walls with the chosen texture.<\/td><\/tr>\n<tr><td>Floor<\/td><td>F<\/td><td>Paint floor texture. Painting floor also removes walls.<\/td><\/tr>\n<tr><td>Ceiling<\/td><td>C<\/td><td>Paint ceiling texture. Choose <b>Sky<\/b> for outdoor areas.<\/td><\/tr>\n<tr><td>Height<\/td><td>U<\/td><td>Raise floors: 0.15 per step makes stairs, 0.6 a catwalk, 0.75 a cover block the player can't climb.<\/td><\/tr>\n<tr><td>Rect<\/td><td>R<\/td><td>Drag a rectangle: a room with walls, a solid block, a carved floor or an outline.<\/td><\/tr>\n<tr><td>Fill<\/td><td>G<\/td><td>Flood-fill a connected area that has the same texture.<\/td><\/tr>\n<tr><td>Erase<\/td><td>E<\/td><td>Removes things first, then walls, then floor details.<\/td><\/tr>\n<tr><td>Door<\/td><td>D<\/td><td>Place doors in wall gaps. Red, blue and yellow doors need the matching keycard.<\/td><\/tr>\n<tr><td>Thing<\/td><td>T<\/td><td>Place whatever is chosen in the Things tab.<\/td><\/tr>\n<tr><td>Start<\/td><td>S<\/td><td>Set the player start. Tap it again to turn it 90\u00b0.<\/td><\/tr>\n<tr><td>Picker<\/td><td>I<\/td><td>Copy a cell's textures into your brushes.<\/td><\/tr><\/table>\n<p>Shortcuts: <kbd>Ctrl+Z<\/kbd>/<kbd>Ctrl+Y<\/kbd> undo/redo \u00b7 <kbd>Ctrl+C<\/kbd>/<kbd>X<\/kbd>/<kbd>V<\/kbd> copy/cut/paste an area \u00b7 <kbd>Del<\/kbd> delete \u00b7 <kbd>[<\/kbd> <kbd>]<\/kbd> cycle textures \u00b7 <kbd>0<\/kbd> fit \u00b7 <kbd>P<\/kbd> playtest \u00b7 <kbd>?<\/kbd> help \u00b7 <kbd>Esc<\/kbd> cancel.<\/p><\/section>\n\n<section id=\"h-build\"><h2>Building good levels<\/h2>\n<ul><li><b>Start with rooms.<\/b> The <b>Rooms<\/b> tab has 22 rotatable templates: rooms, corridors, stairs and buildings such as Bunker, Guard Tower, Mezzanine, Courtyard, Hangar and Server Room. Tap one, tap the map, and press <kbd>R<\/kbd> or \u27f3 to rotate.<\/li>\n<li><b>Connect rooms with doors.<\/b> Use a plain door for flow and keycard doors to gate progress. Put the key somewhere the player must fight through.<\/li>\n<li><b>Use height.<\/b> Catwalks and raised platforms give enemies firing positions, and stairs let the player reach them.<\/li>\n<li><b>Light it.<\/b> Coloured light fixtures (Things \u2192 Light) set the mood. Flickering lights make horror corners. Keep the level's ambient light low for a gritty look.<\/li>\n<li><b>Give cover.<\/b> Crates, sandbags and barrels block bullets. The smarter enemies hide behind them, and barrels explode.<\/li>\n<li><b>Check it.<\/b> Menu \u2192 <b>Check level<\/b> confirms the exit can be reached and that keys come before their doors.<\/li><\/ul><\/section>\n\n<section id=\"h-things\"><h2>Enemies, items and props<\/h2>\n<table><tr><th>Enemy<\/th><th>Behaviour<\/th><\/tr>\n<tr><td>Soldier<\/td><td>Fast rifleman. Strafes while reloading, flanks, and calls in nearby allies.<\/td><\/tr>\n<tr><td>Gun Drone<\/td><td>Hovering, fast and fragile. Hard to hit.<\/td><\/tr>\n<tr><td>Heavy Walker<\/td><td>Slow armoured walker that fires 3-shot bursts.<\/td><\/tr>\n<tr><td>Sentry Turret<\/td><td>Never moves. Rapid fire with long sight lines.<\/td><\/tr>\n<tr><td>Titan (Boss)<\/td><td>Huge HP and twin rockets. Explodes when it dies.<\/td><\/tr><\/table>\n<p><b>How enemies think:<\/b> they stand idle until they <b>see<\/b> you (line of sight, roughly in front of them) or <b>hear<\/b> you (gunfire carries far; running footsteps carry a short way). An alerted enemy radios nearby allies. In a fight they strafe between shots, some swing wide to flank, and badly hurt ones run to cover and pop back out. They path around walls and open plain doors themselves. Difficulty (Easy / Normal / Hard, in game Settings) changes their health, damage, fire rate, speed and reaction time.<\/p>\n<p><b>Pickups:<\/b> health, medkit, armor, ammo (bullets, shells, cells, rockets), weapon pickups (shotgun, rifle, plasma, rockets; you start with the wrench and pistol), the three keycards, and data chips (secrets). <b>Props:<\/b> crates, barrels (explosive), lockers, server racks, terminals, desks, pillars, generators, sandbags, lamps, cones and debris.<\/p><\/section>\n\n<section id=\"h-play\"><h2>Playing<\/h2>\n<table><tr><th><\/th><th>Keyboard &amp; mouse<\/th><th>Touch<\/th><\/tr>\n<tr><td>Move<\/td><td>WASD \u00b7 Shift to run<\/td><td>Drag anywhere on the left half<\/td><\/tr>\n<tr><td>Look<\/td><td>Mouse (click the game to lock the pointer, or drag if your browser blocks that)<\/td><td>Drag on the right half<\/td><\/tr>\n<tr><td>Shoot<\/td><td>Left click<\/td><td>Hold FIRE (drag it to aim)<\/td><\/tr>\n<tr><td>Reload<\/td><td>R (reloads automatically when empty)<\/td><td>RLD<\/td><\/tr>\n<tr><td>Use / open<\/td><td>E<\/td><td>USE<\/td><\/tr>\n<tr><td>Jump<\/td><td>Space<\/td><td>JUMP<\/td><\/tr>\n<tr><td>Weapons<\/td><td>1\u20136, Q or mouse wheel<\/td><td>SWAP<\/td><\/tr>\n<tr><td>Map \u00b7 flashlight \u00b7 pause<\/td><td>M \u00b7 F \u00b7 Esc<\/td><td>Buttons at the top<\/td><\/tr><\/table>\n<p><b>Weapons:<\/b> Wrench (melee), Pistol (12-round mag), Combat Shotgun (6 shells, spread), Assault Rifle (30 rounds, automatic), Plasma Caster (40 cells, splash) and Rocket Launcher (1 rocket, big splash). The HUD shows <i>loaded / reserve<\/i> ammo.<\/p><\/section>\n\n<section id=\"h-levelprops\"><h2>Level settings &amp; music<\/h2>\n<p>The <b>Level<\/b> tab sets the name, sky (Night City, Red Dusk, Overcast, Toxic Haze, Black Void), fog, ambient light, wall height, default textures, par time and music. <b>Music:<\/b> pick <i>Playlist<\/i> to shuffle the bundled tracks, a single track, or <i>Synth ambient<\/i>, the built-in generative music that works offline. During play, open Pause \u2192 <b>Music player<\/b> to switch tracks and see their credits. To add your own music, put MP3s in <code>assets/music/<\/code> and list them in <code>MUSIC_TRACKS<\/code> near the top of <code>app.js<\/code>. Only use music you have the rights to, and credit it.<\/p><\/section>\n\n<section id=\"h-script\"><h2>Level scripting<\/h2>\n<p>Menu \u2192 Code editor \u2192 <b>script.js<\/b>. Scripts react to events: <code>start<\/code>, <code>tick<\/code>(dt), <code>kill<\/code>(type), <code>pickup<\/code>(type), <code>door<\/code>, <code>use<\/code>({x,y}) and <code>exit<\/code>.<\/p>\n<pre>api.on('start', () =&gt; api.message('Find the red keycard.'));\napi.on('kill', () =&gt; { if (api.enemiesLeft() === 0) { api.message('Vault unlocked'); api.openDoor(20, 8); } });\napi.on('use', c =&gt; { if (c.x === 5 &amp;&amp; c.y === 9) api.giveAmmo('rockets', 2); });<\/pre>\n<p>API: <code>message(t)<\/code>, <code>heal(n)<\/code>, <code>giveArmor(n)<\/code>, <code>giveAmmo(type, n)<\/code>, <code>openDoor(x, y)<\/code>, <code>enemiesLeft()<\/code>, <code>kills()<\/code>, <code>time()<\/code>, <code>win()<\/code>, <code>sound(name)<\/code> and <code>player<\/code> {x, y, hp, armor, keys}.<\/p><\/section>\n\n<section id=\"h-share\"><h2>Saving, exporting &amp; publishing<\/h2>\n<ul><li><b>Projects:<\/b> Menu \u2192 Projects keeps named save slots in this browser.<\/li>\n<li><b>Backups:<\/b> Export project file (.json) and Import project file. Old DOOMFORGE projects and saves are imported automatically.<\/li>\n<li><b>Export game:<\/b> makes one .html file with your levels. The 3D models and music load from where RetroEngine is hosted. Offline, the game falls back to built-in models and synth music, so it always works.<\/li>\n<li><b>Publish:<\/b> put the whole <code>retroengine/<\/code> folder (with <code>assets/<\/code>) on any static host, such as GitHub Pages, Netlify or itch.io (HTML5), and share the link.<\/li><\/ul><\/section>\n\n<section id=\"h-sharemaps\"><h2>Sharing your maps<\/h2>\n<p>Send a single level to a friend in one of two ways. Find both in the <b>Level<\/b> tab under <i>Share this level<\/i>, or in the Menu.<\/p>\n<ul><li><b>Share link:<\/b> the whole level is compressed into the link itself (the part after <code>#map=<\/code>), so no server or account is needed. On a phone, the share sheet opens (Messages, WhatsApp, Discord\u2026). On a computer, the link is copied. Opening the link loads the level and drops you straight into Playtest. Press <i>Back to editor<\/i> to look at how it was built, and it is added to your project as a new level.<\/li>\n<li><b>Export .retro file:<\/b> a small file holding the level plus any custom models (including uploaded .glb files). Use it when a level is too big for a link (about 7 KB). RetroEngine tells you when that happens. To open one, use Menu \u2192 <b>Import level (.retro)<\/b>, or drag the file onto the editor. On phones you pick it from Files, Drive or Downloads.<\/li><\/ul>\n<p><b>Safety:<\/b> level scripts from other people are <b>switched off<\/b> when you import. The Level tab shows a warning, and you can review the code in <i>Edit level script<\/i> and press Apply to turn it on. Imported files are checked for size, map dimensions and valid entities. A whole project .json also works with Import level.<\/p>\n<p><b>Tip:<\/b> links only work for others when RetroEngine is hosted (for example on GitHub Pages). A copy opened from a file on your own device makes links that only work there.<\/p><\/section>\n\n<section id=\"h-mobile\"><h2>Phones &amp; tablets<\/h2>\n<ul><li>Works in Chrome, Samsung Internet, Firefox, Safari (iPhone/iPad) and in-app browsers. Everything is touch-first: no mouse, keyboard or pointer lock needed.<\/li>\n<li><b>Editor:<\/b> one finger uses the tool, two fingers pan and pinch-zoom the map. The <i>Panel<\/i> button opens the side panel as a sheet.<\/li>\n<li><b>Game:<\/b> use the <b>Full screen<\/b> button (where the browser supports it) to hide the address bar. Turn the phone sideways for the best view. Sound starts on your first tap (a phone rule).<\/li>\n<li><b>Graphics quality: Auto<\/b> (the default) picks settings for your device and lowers the resolution on the fly to keep the game smooth. Choose Low/Medium/High in Settings to fix it.<\/li>\n<li>If a phone can't run 3D (no WebGL), Playtest explains why and the editor keeps working. Try another browser, or turn off battery saver.<\/li><\/ul><\/section>\n\n<section id=\"h-models\"><h2>Custom 3D models<\/h2>\n<p>Project \u2192 <b>Custom 3D models<\/b> lets you replace any enemy or prop with your own <code>.glb<\/code> file or URL. Models are auto-scaled and placed on the floor. Animated models use clips named Idle, Walk/Run, Shoot/Attack, HitReact and Death. Use only CC0 or CC-BY models, credit the authors, and keep files under about 2 MB because uploads are stored in the project.<\/p><\/section>\n\n<section id=\"h-trouble\"><h2>Troubleshooting<\/h2>\n<ul><li><b>Black screen or \"needs Three.js\":<\/b> the 3D engine loads from a CDN the first time, so connect to the internet once.<\/li>\n<li><b>Enemies look like simple robots and the music is synth:<\/b> the asset pack couldn't load. That happens when the page is opened straight from a file (file://) with no internet. Open it through a web server, or from the hosted link.<\/li>\n<li><b>Mouse look doesn't lock:<\/b> some in-app browsers block pointer lock. Drag to look instead.<\/li>\n<li><b>Slow on a phone:<\/b> keep Graphics quality on Auto, or choose Low. Close other apps, and turn off battery saver (it limits the frame rate).<\/li>\n<li><b>Share link does nothing:<\/b> some in-app browsers block the share sheet and clipboard. Select the link text in the box and copy it, or export a .retro file.<\/li>\n<li><b>\"3D not available\":<\/b> the browser has WebGL turned off or blocked. Open the page in a full browser (not an in-app one) and enable hardware acceleration.<\/li>\n<li><b>Storage full:<\/b> browser storage is about 5\u201310 MB. Remove uploaded models, or export a JSON backup and start a new project.<\/li><\/ul><\/section>\n";
+const HELP_HTML = "<section id=\"h-start\"><h2>Getting started<\/h2>\n<p>RetroEngine is a game maker for retro-style first-person shooters. You draw levels on a top-down grid, drop in enemies, weapons, keys and lights, then press <b>Play<\/b> to walk through them in 3D. When you're happy, <b>Export<\/b> turns your project into one HTML file anyone can play in a browser.<\/p>\n<ol><li><b>Take the first-level tutorial.<\/b> Menu \u2192 <b>Tutorial: build your first level<\/b>. It takes about 5 minutes.<\/li>\n<li><b>Or open the Tutorial.<\/b> Menu \u2192 <b>Tutorial<\/b> (also at <a href=\"tutorial/\">tutorial/<\/a>) teaches adding maps, saving files, putting assets in code, changing engine knobs, and \u2014 in the advanced lessons \u2014 writing scripts and calling APIs.<\/li>\n<li><b>Or open a starter level.<\/b> The level picker in the top bar has three finished levels (E1M1\u2013E1M3). Play them, then take them apart to see how they work.<\/li>\n<li><b>Save often.<\/b> Work autosaves in this browser. Use Menu \u2192 <b>Projects<\/b> for named saves, and <b>Export project file (.json)<\/b> for real backups.<\/li><\/ol><\/section>\n\n<section id=\"h-tutorial\"><h2>Tutorial<\/h2>\n<p>Menu \u2192 <b>Tutorial<\/b> opens the Tinkerer tutorial: adding maps, saving and sharing files, loading assets in code, and changing engine knobs, with an advanced section on level scripts and APIs. You can also open <a href=\"tutorial/tutorial.html\">tutorial/tutorial.html<\/a> (or just <a href=\"tutorial/\">tutorial/<\/a>) directly. For a five-minute first level inside the editor, use Menu \u2192 <b>Tutorial: build your first level<\/b>.<\/p><\/section>\n\n<section id=\"h-ui\"><h2>The editor screen<\/h2>\n<ul><li><b>Top bar:<\/b> level picker, undo/redo, <b>Play<\/b>, <b>Export<\/b> and the <b>Menu<\/b>.<\/li>\n<li><b>Tool bar<\/b> (left on tablets and desktop, bottom on phones): the drawing tools.<\/li>\n<li><b>Panel<\/b> (right; a slide-up sheet on folded phones, opened with the panel button): <b>Build<\/b> (textures, door types, heights), <b>Things<\/b> (enemies, items, props, lights), <b>Rooms<\/b> (template library), <b>Level<\/b> (sky, fog, lighting, music, script) and <b>Project<\/b> (levels, models, map layers).<\/li>\n<li><b>Map:<\/b> one finger or the mouse uses the current tool. Two fingers pan and pinch-zoom; on desktop use Space+drag and the mouse wheel. <b>Fit<\/b> frames the whole level.<\/li><\/ul><\/section>\n\n<section id=\"h-tools\"><h2>Tools<\/h2>\n<table><tr><th>Tool<\/th><th>Key<\/th><th>What it does<\/th><\/tr>\n<tr><td>Select<\/td><td>V<\/td><td>Tap a thing to select and inspect it, drag to move it. Drag on empty space to select an area, then Copy / Cut / Delete / Save as template.<\/td><\/tr>\n<tr><td>Pan<\/td><td>H<\/td><td>Drag to move the view.<\/td><\/tr>\n<tr><td>Wall<\/td><td>B<\/td><td>Paint solid walls with the chosen texture.<\/td><\/tr>\n<tr><td>Floor<\/td><td>F<\/td><td>Paint floor texture. Painting floor also removes walls.<\/td><\/tr>\n<tr><td>Ceiling<\/td><td>C<\/td><td>Paint ceiling texture. Choose <b>Sky<\/b> for outdoor areas.<\/td><\/tr>\n<tr><td>Height<\/td><td>U<\/td><td>Raise floors: 0.15 per step makes stairs, 0.6 a catwalk, 0.75 a cover block the player can't climb.<\/td><\/tr>\n<tr><td>Rect<\/td><td>R<\/td><td>Drag a rectangle: a room with walls, a solid block, a carved floor or an outline.<\/td><\/tr>\n<tr><td>Fill<\/td><td>G<\/td><td>Flood-fill a connected area that has the same texture.<\/td><\/tr>\n<tr><td>Erase<\/td><td>E<\/td><td>Removes things first, then walls, then floor details.<\/td><\/tr>\n<tr><td>Door<\/td><td>D<\/td><td>Place doors in wall gaps. Red, blue and yellow doors need the matching keycard.<\/td><\/tr>\n<tr><td>Thing<\/td><td>T<\/td><td>Place whatever is chosen in the Things tab.<\/td><\/tr>\n<tr><td>Start<\/td><td>S<\/td><td>Set the player start. Tap it again to turn it 90\u00b0.<\/td><\/tr>\n<tr><td>Picker<\/td><td>I<\/td><td>Copy a cell's textures into your brushes.<\/td><\/tr><\/table>\n<p>Shortcuts: <kbd>Ctrl+Z<\/kbd>/<kbd>Ctrl+Y<\/kbd> undo/redo \u00b7 <kbd>Ctrl+C<\/kbd>/<kbd>X<\/kbd>/<kbd>V<\/kbd> copy/cut/paste an area \u00b7 <kbd>Del<\/kbd> delete \u00b7 <kbd>[<\/kbd> <kbd>]<\/kbd> cycle textures \u00b7 <kbd>0<\/kbd> fit \u00b7 <kbd>P<\/kbd> playtest \u00b7 <kbd>?<\/kbd> help \u00b7 <kbd>Esc<\/kbd> cancel.<\/p><\/section>\n\n<section id=\"h-build\"><h2>Building good levels<\/h2>\n<ul><li><b>Start with rooms.<\/b> The <b>Rooms<\/b> tab has 22 rotatable templates: rooms, corridors, stairs and buildings such as Bunker, Guard Tower, Mezzanine, Courtyard, Hangar and Server Room. Tap one, tap the map, and press <kbd>R<\/kbd> or \u27f3 to rotate.<\/li>\n<li><b>Connect rooms with doors.<\/b> Use a plain door for flow and keycard doors to gate progress. Put the key somewhere the player must fight through.<\/li>\n<li><b>Use height.<\/b> Catwalks and raised platforms give enemies firing positions, and stairs let the player reach them.<\/li>\n<li><b>Light it.<\/b> Coloured light fixtures (Things \u2192 Light) set the mood. Flickering lights make horror corners. Keep the level's ambient light low for a gritty look.<\/li>\n<li><b>Give cover.<\/b> Crates, sandbags and barrels block bullets. The smarter enemies hide behind them, and barrels explode.<\/li>\n<li><b>Check it.<\/b> Menu \u2192 <b>Check level<\/b> confirms the exit can be reached and that keys come before their doors.<\/li><\/ul><\/section>\n\n<section id=\"h-things\"><h2>Enemies, items and props<\/h2>\n<table><tr><th>Enemy<\/th><th>Behaviour<\/th><\/tr>\n<tr><td>Soldier<\/td><td>Fast rifleman. Strafes while reloading, flanks, and calls in nearby allies.<\/td><\/tr>\n<tr><td>Gun Drone<\/td><td>Hovering, fast and fragile. Hard to hit.<\/td><\/tr>\n<tr><td>Heavy Walker<\/td><td>Slow armoured walker that fires 3-shot bursts.<\/td><\/tr>\n<tr><td>Sentry Turret<\/td><td>Never moves. Rapid fire with long sight lines.<\/td><\/tr>\n<tr><td>Titan (Boss)<\/td><td>Huge HP and twin rockets. Explodes when it dies.<\/td><\/tr><\/table>\n<p><b>How enemies think:<\/b> they stand idle until they <b>see<\/b> you (line of sight, roughly in front of them) or <b>hear<\/b> you (gunfire carries far; running footsteps carry a short way). An alerted enemy radios nearby allies. In a fight they strafe between shots, some swing wide to flank, and badly hurt ones run to cover and pop back out. They path around walls and open plain doors themselves. Difficulty (Easy / Normal / Hard, in game Settings) changes their health, damage, fire rate, speed and reaction time.<\/p>\n<p><b>Pickups:<\/b> health, medkit, armor, ammo (bullets, shells, cells, rockets), weapon pickups (shotgun, rifle, plasma, rockets; you start with the wrench and pistol), the three keycards, and data chips (secrets). <b>Props:<\/b> crates, barrels (explosive), lockers, server racks, terminals, desks, pillars, generators, sandbags, lamps, cones and debris.<\/p><\/section>\n\n<section id=\"h-play\"><h2>Playing<\/h2>\n<table><tr><th><\/th><th>Keyboard &amp; mouse<\/th><th>Touch<\/th><\/tr>\n<tr><td>Move<\/td><td>WASD \u00b7 Shift to run<\/td><td>Drag anywhere on the left half<\/td><\/tr>\n<tr><td>Look<\/td><td>Mouse (click the game to lock the pointer, or drag if your browser blocks that)<\/td><td>Drag on the right half<\/td><\/tr>\n<tr><td>Shoot<\/td><td>Left click<\/td><td>Hold FIRE (drag it to aim)<\/td><\/tr>\n<tr><td>Reload<\/td><td>R (reloads automatically when empty)<\/td><td>RLD<\/td><\/tr>\n<tr><td>Use / open<\/td><td>E<\/td><td>USE<\/td><\/tr>\n<tr><td>Jump<\/td><td>Space<\/td><td>JUMP<\/td><\/tr>\n<tr><td>Weapons<\/td><td>1\u20136, Q or mouse wheel<\/td><td>SWAP<\/td><\/tr>\n<tr><td>Map \u00b7 flashlight \u00b7 pause<\/td><td>M \u00b7 F \u00b7 Esc<\/td><td>Buttons at the top<\/td><\/tr><\/table>\n<p><b>Weapons:<\/b> Wrench (melee), Pulse Cannon (default starting gun, infinite ammo, automatic cyan pulses, tight spread), Combat Shotgun (6 shells, spread), Assault Rifle (30 rounds, automatic), Plasma Caster (40 cells, projectiles) and Rocket Launcher (1 rocket, big splash). The HUD shows <i>loaded / reserve<\/i> ammo, or \u221e when a gun does not use ammo. Touch aim assist is on by default; you can change its strength in Game settings.<\/p><\/section>\n\n<section id=\"h-levelprops\"><h2>Level settings &amp; music<\/h2>\n<p>The <b>Level<\/b> tab sets the name, sky (Night City, Red Dusk, Overcast, Toxic Haze, Black Void), fog, ambient light, wall height, default textures, par time and music. <b>Music:<\/b> pick <i>Playlist<\/i> to shuffle the bundled tracks, a single track, or <i>Synth ambient<\/i>, the built-in generative music that works offline. During play, open Pause \u2192 <b>Music player<\/b> to switch tracks and see their credits. To add your own music, put MP3s in <code>assets/music/<\/code> and list them in <code>MUSIC_TRACKS<\/code> near the top of <code>app.js<\/code>. Only use music you have the rights to, and credit it.<\/p><\/section>\n\n<section id=\"h-script\"><h2>Level scripting<\/h2>\n<p>Menu \u2192 Code editor \u2192 <b>script.js<\/b>. Scripts react to events: <code>start<\/code>, <code>tick<\/code>(dt), <code>kill<\/code>(type), <code>pickup<\/code>(type), <code>door<\/code>, <code>use<\/code>({x,y}) and <code>exit<\/code>.<\/p>\n<pre>api.on('start', () =&gt; api.message('Find the red keycard.'));\napi.on('kill', () =&gt; { if (api.enemiesLeft() === 0) { api.message('Vault unlocked'); api.openDoor(20, 8); } });\napi.on('use', c =&gt; { if (c.x === 5 &amp;&amp; c.y === 9) api.giveAmmo('rockets', 2); });<\/pre>\n<p>API: <code>message(t)<\/code>, <code>heal(n)<\/code>, <code>giveArmor(n)<\/code>, <code>giveAmmo(type, n)<\/code>, <code>openDoor(x, y)<\/code>, <code>enemiesLeft()<\/code>, <code>kills()<\/code>, <code>time()<\/code>, <code>win()<\/code>, <code>sound(name)<\/code> and <code>player<\/code> {x, y, hp, armor, keys}.<\/p><\/section>\n\n<section id=\"h-share\"><h2>Saving, exporting &amp; publishing<\/h2>\n<ul><li><b>Projects:<\/b> Menu \u2192 Projects keeps named save slots in this browser.<\/li>\n<li><b>Backups:<\/b> Export project file (.json) and Import project file. Old DOOMFORGE projects and saves are imported automatically.<\/li>\n<li><b>Export game:<\/b> makes one .html file with your levels. The 3D models and music load from where RetroEngine is hosted. Offline, the game falls back to built-in models and synth music, so it always works.<\/li>\n<li><b>Publish:<\/b> put the whole <code>retroengine/<\/code> folder (with <code>assets/<\/code>) on any static host, such as GitHub Pages, Netlify or itch.io (HTML5), and share the link.<\/li><\/ul><\/section>\n\n<section id=\"h-sharemaps\"><h2>Sharing your maps<\/h2>\n<p>Send a single level to a friend in one of two ways. Find both in the <b>Level<\/b> tab under <i>Share this level<\/i>, or in the Menu.<\/p>\n<ul><li><b>Share link:<\/b> the whole level is compressed into the link itself (the part after <code>#map=<\/code>), so no server or account is needed. On a phone, the share sheet opens (Messages, WhatsApp, Discord\u2026). On a computer, the link is copied. Opening the link loads the level and drops you straight into Playtest. Press <i>Back to editor<\/i> to look at how it was built, and it is added to your project as a new level.<\/li>\n<li><b>Export .retro file:<\/b> a small file holding the level plus any custom models (including uploaded .glb files). Use it when a level is too big for a link (about 7 KB). RetroEngine tells you when that happens. To open one, use Menu \u2192 <b>Import level (.retro)<\/b>, or drag the file onto the editor. On phones you pick it from Files, Drive or Downloads.<\/li><\/ul>\n<p><b>Safety:<\/b> level scripts from other people are <b>switched off<\/b> when you import. The Level tab shows a warning, and you can review the code in <i>Edit level script<\/i> and press Apply to turn it on. Imported files are checked for size, map dimensions and valid entities. A whole project .json also works with Import level.<\/p>\n<p><b>Tip:<\/b> links only work for others when RetroEngine is hosted (for example on GitHub Pages). A copy opened from a file on your own device makes links that only work there.<\/p><\/section>\n\n<section id=\"h-mobile\"><h2>Phones &amp; tablets<\/h2>\n<ul><li>Works in Chrome, Samsung Internet, Firefox, Safari (iPhone/iPad) and in-app browsers. Everything is touch-first: no mouse, keyboard or pointer lock needed.<\/li>\n<li><b>Editor:<\/b> one finger uses the tool, two fingers pan and pinch-zoom the map. The <i>Panel<\/i> button opens the side panel as a sheet.<\/li>\n<li><b>Game:<\/b> use the <b>Full screen<\/b> button (where the browser supports it) to hide the address bar. Turn the phone sideways for the best view. Sound starts on your first tap (a phone rule).<\/li>\n<li><b>Graphics quality: Auto<\/b> (the default) picks settings for your device and lowers the resolution on the fly to keep the game smooth. Choose Low/Medium/High in Settings to fix it.<\/li>\n<li>If a phone can't run 3D (no WebGL), Playtest explains why and the editor keeps working. Try another browser, or turn off battery saver.<\/li><\/ul><\/section>\n\n<section id=\"h-models\"><h2>Custom 3D models<\/h2>\n<p>Project \u2192 <b>Custom 3D models<\/b> lets you replace any enemy or prop with your own <code>.glb<\/code> file or URL. Models are auto-scaled and placed on the floor. Animated models use clips named Idle, Walk/Run, Shoot/Attack, HitReact and Death. Use only CC0 or CC-BY models, credit the authors, and keep files under about 2 MB because uploads are stored in the project.<\/p><\/section>\n\n<section id=\"h-trouble\"><h2>Troubleshooting<\/h2>\n<ul><li><b>Black screen or \"needs Three.js\":<\/b> the 3D engine loads from a CDN the first time, so connect to the internet once.<\/li>\n<li><b>Enemies look like simple robots and the music is synth:<\/b> the asset pack couldn't load. That happens when the page is opened straight from a file (file://) with no internet. Open it through a web server, or from the hosted link.<\/li>\n<li><b>Mouse look doesn't lock:<\/b> some in-app browsers block pointer lock. Drag to look instead.<\/li>\n<li><b>Slow on a phone:<\/b> keep Graphics quality on Auto, or choose Low. Close other apps, and turn off battery saver (it limits the frame rate).<\/li>\n<li><b>Share link does nothing:<\/b> some in-app browsers block the share sheet and clipboard. Select the link text in the box and copy it, or export a .retro file.<\/li>\n<li><b>\"3D not available\":<\/b> the browser has WebGL turned off or blocked. Open the page in a full browser (not an in-app one) and enable hardware acceleration.<\/li>\n<li><b>Storage full:<\/b> browser storage is about 5\u201310 MB. Remove uploaded models, or export a JSON backup and start a new project.<\/li><\/ul><\/section>\n";
 function openHelp(first) {
   const touch = matchMedia('(pointer: coarse)').matches;
   const quick = `<div class="help-steps">
@@ -3578,7 +3647,7 @@ function openHelp(first) {
     <kbd>Space + drag</kbd><span>pan · wheel = zoom · <kbd>0</kbd> fit</span><kbd>[ ]</kbd><span>previous / next texture</span><kbd>P</kbd><span>playtest</span><kbd>Esc</kbd><span>cancel</span></div>`;
   const manual = `<div class="help-doc">${HELP_HTML || '<p>Open help.html for the full manual.</p>'}</div>`;
   modal({ title: first ? 'Welcome to RetroEngine' : 'Help', wide: true,
-    body: `<div class="help-tabs"><button class="tb sm accent" data-ht="quick">Quick start</button><button class="tb sm" data-ht="manual">Full manual</button><a class="tb sm" href="help.html" target="_blank" rel="noopener">help.html ↗</a></div>
+    body: `<div class="help-tabs"><button class="tb sm accent" data-ht="quick">Quick start</button><button class="tb sm" data-ht="manual">Full manual</button><a class="tb sm" href="tutorial/" target="_blank" rel="noopener">Tutorial ↗</a><a class="tb sm" href="help.html" target="_blank" rel="noopener">help.html ↗</a></div>
       <div class="tut-cta"><div><b>New here?</b><span>Build and play your first level in about 5 minutes, step by step.</span></div><button class="tb primary" data-tut="1">Start tutorial</button></div>
       <div class="help-body">${quick}</div>`,
     buttons: [{ label: first ? 'Skip for now' : 'Close', value: 1 }],

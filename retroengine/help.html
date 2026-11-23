@@ -24,15 +24,19 @@ code, kbd { background: rgba(255,255,255,.08); border-radius: 5px; padding: 1px 
 </style>
 </head>
 <body>
-<header><div class="logo"><span>&#9670;</span> Retro<b>Engine</b> <small style="color:var(--dim);font-size:13px;letter-spacing:1px">HELP &amp; MANUAL</small></div><a class="btn" href="index.html">Open the editor</a></header>
+<header><div class="logo"><span>&#9670;</span> Retro<b>Engine</b> <small style="color:var(--dim);font-size:13px;letter-spacing:1px">HELP &amp; MANUAL</small></div><a class="btn" href="tutorial/" style="margin-left:auto">Tutorial</a><a class="btn" href="index.html" style="margin-left:10px">Open the editor</a></header>
 <div class="wrap">
 <nav id="toc"></nav>
 <main>
 <section id="h-start"><h2>Getting started</h2>
 <p>RetroEngine is a game maker for retro-style first-person shooters. You draw levels on a top-down grid, drop in enemies, weapons, keys and lights, then press <b>Play</b> to walk through them in 3D. When you're happy, <b>Export</b> turns your project into one HTML file anyone can play in a browser.</p>
-<ol><li><b>Take the tutorial.</b> Menu → <b>Tutorial: build your first level</b>. It takes about 5 minutes.</li>
+<ol><li><b>Take the first-level tutorial.</b> Menu → <b>Tutorial: build your first level</b>. It takes about 5 minutes.</li>
+<li><b>Or open the Tutorial.</b> Menu → <b>Tutorial</b> (also at <a href="tutorial/">tutorial/</a>) teaches adding maps, saving files, putting assets in code, changing engine knobs, and — in the advanced lessons — writing scripts and calling APIs.</li>
 <li><b>Or open a starter level.</b> The level picker in the top bar has three finished levels (E1M1–E1M3). Play them, then take them apart to see how they work.</li>
 <li><b>Save often.</b> Work autosaves in this browser. Use Menu → <b>Projects</b> for named saves, and <b>Export project file (.json)</b> for real backups.</li></ol></section>
+
+<section id="h-tutorial"><h2>Tutorial</h2>
+<p>Menu → <b>Tutorial</b> opens the Tinkerer tutorial: adding maps, saving and sharing files, loading assets in code, and changing engine knobs, with an advanced section on level scripts and APIs. You can also open <a href="tutorial/tutorial.html">tutorial/tutorial.html</a> (or just <a href="tutorial/">tutorial/</a>) directly. For a five-minute first level inside the editor, use Menu → <b>Tutorial: build your first level</b>.</p></section>
 
 <section id="h-ui"><h2>The editor screen</h2>
 <ul><li><b>Top bar:</b> level picker, undo/redo, <b>Play</b>, <b>Export</b> and the <b>Menu</b>.</li>
@@ -85,7 +89,7 @@ code, kbd { background: rgba(255,255,255,.08); border-radius: 5px; padding: 1px 
 <tr><td>Jump</td><td>Space</td><td>JUMP</td></tr>
 <tr><td>Weapons</td><td>1–6, Q or mouse wheel</td><td>SWAP</td></tr>
 <tr><td>Map · flashlight · pause</td><td>M · F · Esc</td><td>Buttons at the top</td></tr></table>
-<p><b>Weapons:</b> Wrench (melee), Pistol (12-round mag), Combat Shotgun (6 shells, spread), Assault Rifle (30 rounds, automatic), Plasma Caster (40 cells, splash) and Rocket Launcher (1 rocket, big splash). The HUD shows <i>loaded / reserve</i> ammo.</p></section>
+<p><b>Weapons:</b> Wrench (melee), Pulse Cannon (default starting gun, infinite ammo, automatic cyan pulses, tight spread), Combat Shotgun (6 shells, spread), Assault Rifle (30 rounds, automatic), Plasma Caster (40 cells, projectiles) and Rocket Launcher (1 rocket, big splash). The HUD shows <i>loaded / reserve</i> ammo, or ∞ when a gun does not use ammo. Touch aim assist is on by default; you can change its strength in Game settings.</p></section>
 
 <section id="h-levelprops"><h2>Level settings &amp; music</h2>
 <p>The <b>Level</b> tab sets the name, sky (Night City, Red Dusk, Overcast, Toxic Haze, Black Void), fog, ambient light, wall height, default textures, par time and music. <b>Music:</b> pick <i>Playlist</i> to shuffle the bundled tracks, a single track, or <i>Synth ambient</i>, the built-in generative music that works offline. During play, open Pause → <b>Music player</b> to switch tracks and see their credits. To add your own music, put MP3s in <code>assets/music/</code> and list them in <code>MUSIC_TRACKS</code> near the top of <code>app.js</code>. Only use music you have the rights to, and credit it.</p></section>

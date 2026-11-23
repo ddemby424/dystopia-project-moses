@@ -1,4 +1,4 @@
-# RetroEngine 1.0: make your own retro 3D shooter in the browser
+# RetroEngine 1.1: make your own retro 3D shooter in the browser
 
 RetroEngine is a free game maker for old-school first-person shooters in the style of Doom, Duke Nukem 3D and Quake. You draw a level on a grid, drop in enemies, weapons and doors, and press **Play** to run around in it straight away. It works on phones (including foldables), tablets and computers. No install and no account are needed.
 
@@ -9,6 +9,8 @@ RetroEngine is a free game maker for old-school first-person shooters in the sty
 | `index.html` | Open this to start RetroEngine (uses `styles.css` and `app.js`) |
 | `retroengine.html` | The same app as one single file, handy for sending or opening offline |
 | `help.html` | The full manual as a web page (it is also built into the app: Menu → Help) |
+| `tutorial/` | Tinkerer tutorial: adding maps, assets, and code (Menu → Tutorial) |
+| `maps/` | Trial map pack page and three official `.retro` maps |
 | `assets/models/` | The 3D enemies and guns (`.glb`, CC0) |
 | `assets/music/` | Five music tracks (`.mp3`, CC BY 4.0) |
 | `README.md`, `CHANGELOG.md`, `CREDITS.md` | This file, the version history, and who made what |
@@ -23,7 +25,7 @@ RetroEngine is a free game maker for old-school first-person shooters in the sty
   - They side-step while reloading, and some flank you.
   - They duck behind cover when hurt, then pop back out.
 - **Difficulty:** *Easy*, *Normal* and *Hard* change enemy health, speed, damage, reaction time, fire rate and how many flank.
-- **Six weapons:** wrench, pistol, shotgun, assault rifle, plasma caster and rocket launcher, each with its own magazine. Guns have reload animations, recoil, sway, bob and shell casings.
+- **Six weapons:** wrench, Pulse Cannon (default starting gun, infinite ammo), shotgun, assault rifle, plasma caster and rocket launcher. Guns have reload animations, recoil, sway, bob and shell casings.
 - **Pickups and props:** health, armour, ammo, keycards, secrets, explosive barrels and 14 kinds of props.
 - **Look:** 20 gritty textures with lighting, shadowed corners, fog, sky scenes, coloured lights and a flashlight.
 - **Music player:** 5 rap/trap and metal tracks. You can pick one per level or skip tracks in the pause menu.
@@ -31,7 +33,7 @@ RetroEngine is a free game maker for old-school first-person shooters in the sty
 - **Sharing:**
   - Send a level as a **link** or as a **.retro file** (see below).
   - Export your whole game as a **single playable .html file**.
-- **Built-in help:** a quick start, an interactive tutorial ("build your first level") and a full manual.
+- **Built-in help:** a quick start, an interactive first-level tutorial, a full manual, and the Tinkerer **Tutorial** (Menu → Tutorial) that teaches maps, assets, saving files, and changing code, including scripts and APIs.
 
 ## Controls
 

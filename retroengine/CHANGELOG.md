@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0 (2026-11-23): Tutorial & Tinkerer release
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+This is the tutorial and tinkerer release. It emphasizes code, simple coding techniques, and modding: how to add assets, make and pack maps, save and share files, change engine code, and — in the advanced lessons — write level scripts and call APIs.
+
+- New **Tutorial** (Menu → Tutorial, also linked from Help and the map pack page) at `tutorial/`. Fourteen lessons with copyable example code and where to put it, plus an advanced section on scripts and APIs.
+- Default starting firearm is the **Pulse Cannon**, a compact procedural port of the early DYSTOPIA Version 2 default gun (commit 16322b7; original mesh and synthesized pulse sound, CC0). Infinite ammo, automatic, tight cyan pulses. Pickup slots and map format are unchanged.
+- Light **aim assist** (shot magnetism in a tight cone) is on by default for touch. Strength is a slider in Game settings; an optional checkbox also enables it for mouse.
+- RetroEngine **movement and turning** were retuned to feel freer: higher default look sensitivity (1.25), slightly wider pitch, faster touch-drag turning, a small joystick deadzone, and snappier ground/air acceleration (less friction and stiffness, freer strafing). This is a tune of RetroEngine’s own controls, not a copy of DYSTOPIA’s control code.
+
+
 ## 1.0.2 (2026-11-23): trial map pack
 - Added three full-size escape-pad trial maps (Plant 4: Lockdown, Drainworks: Overflow, Nightwatch: Helipad). Each has multiple rooms, guards along the route, a Titan boss, pickups, and an exit pad.
 - New Map Pack page (`maps/`) so a visitor can tap a map and play it in RetroEngine. Maps also download as `.retro` files.
