@@ -59,8 +59,61 @@ Industrial / dystopian set: Concrete, Bunker Concrete, Grimy Brick, Weathered Br
 
 Clean / well-lit set (1.2.0): Lab Wall Panels, Office Wall, Med-Bay Wall, Polished Tile, Brushed Aluminium, and Bright Ceiling Lights. These skip the usual grime pass so labs and offices stay bright.
 
+## Environment props (1.2.0): Quaternius, CC0 1.0
+
+Low-poly sci-fi / industrial props by **Quaternius**, from the free Standard versions of the Sci-Fi Essentials Kit and the Modular Sci-Fi MegaKit. License: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/). Official pack pages and the OpenGameArt Standard zips we downloaded:
+
+- Sci-Fi Essentials Kit: https://quaternius.com/packs/scifiessentialskit.html · https://opengameart.org/content/sci-fi-essentials-kit
+- Modular Sci-Fi MegaKit: https://quaternius.com/packs/modularscifimegakit.html · https://opengameart.org/content/modular-sci-fi-megakit
+
+Textures were resized to 256px JPEG and normal / ORM maps were dropped so the added files stay under 3 MB. Geometry is the original mesh. Fifteen placeable props use these GLBs. Each keeps a procedural fallback if the file fails to load.
+
+| In-game prop | File | Source model | Pack |
+|---|---|---|---|
+| Supply Crate | `assets/models/prop_crate.glb` | Prop_Crate | Sci-Fi Essentials Kit (Standard) |
+| Crate Stack | `assets/models/prop_crate_tall.glb` | Prop_Crate_Large | Sci-Fi Essentials Kit (Standard) |
+| Explosive Barrel | `assets/models/prop_barrel.glb` | Prop_Barrel1 | Sci-Fi Essentials Kit (Standard) |
+| Desk | `assets/models/prop_desk.glb` | Prop_Desk_Medium | Sci-Fi Essentials Kit (Standard) |
+| Lab Bench | `assets/models/prop_lab_bench.glb` | Prop_Desk_L | Sci-Fi Essentials Kit (Standard) |
+| Lockers | `assets/models/prop_locker.glb` | Prop_Locker | Sci-Fi Essentials Kit (Standard) |
+| Server Rack | `assets/models/prop_server.glb` | Prop_Shelves_WideTall | Sci-Fi Essentials Kit (Standard) |
+| Metal Shelves | `assets/models/prop_shelves.glb` | Prop_Shelves_WideShort | Sci-Fi Essentials Kit (Standard) |
+| Steel Pillar | `assets/models/prop_pillar.glb` | Column_Simple | Modular Sci-Fi MegaKit (Standard) |
+| Pipe Cluster | `assets/models/prop_pipes.glb` | Column_Pipes | Modular Sci-Fi MegaKit (Standard) |
+| Terminal | `assets/models/prop_terminal.glb` | Prop_Computer | Modular Sci-Fi MegaKit (Standard) |
+| Control Console | `assets/models/prop_console.glb` | Prop_AccessPoint | Modular Sci-Fi MegaKit (Standard) |
+| Chem Vat | `assets/models/prop_vat.glb` | Prop_Barrel_Large | Modular Sci-Fi MegaKit (Standard) |
+| Industrial Fan | `assets/models/prop_fan.glb` | Prop_Fan_Small | Modular Sci-Fi MegaKit (Standard) |
+| Vent Grille | `assets/models/prop_vent.glb` | Prop_Vent_Big | Modular Sci-Fi MegaKit (Standard) |
+
+
+## Player models (1.2.0)
+
+Third-person / remote-player models. Each GLB is **lazy-loaded only when that model is used** (`RT.createRemotePlayer(modelId)` or the play handle). The in-game character picker does not prefetch them. A procedural fallback is used if a file fails to load. `setPose(x, y, z, yaw, anim)` plays Idle / Walk / Shoot / Hit / Death. Each model has a distinct team tint applied at runtime. Not ripped from Quake or any id Software game.
+
+### Quaternius Animated Mech Pack — CC0 1.0
+
+George, Leela, Mike and Stan. Official pack: https://quaternius.com/packs/animatedmech.html · OpenGameArt Standard zip: https://opengameart.org/content/animated-mech-pack (License.txt in the zip is CC0 1.0 Universal, https://creativecommons.org/publicdomain/zero/1.0/). Official albedo textures were attached, resized to 512px JPEG. Unused clips were dropped.
+
+### SWAT — CC0 1.0
+
+The same Quaternius SWAT already used as the enemy grunt, also offered as a player model. https://poly.pizza/m/Btfn3G5Xv4
+
+### Sci Fi Character — CC-BY (attribution required)
+
+By **Quaternius**, from Poly Pizza. License: Creative Commons Attribution (CC-BY). Please credit Quaternius when you use this model. Source: https://poly.pizza/m/4pUXv5V8kq · https://creativecommons.org/licenses/by/4.0/
+
+| Player id | File | Source | License | Team tint |
+|---|---|---|---|---|
+| george | `assets/models/player_george.glb` | Animated Mech Pack · George | CC0 1.0 | cyan |
+| leela | `assets/models/player_leela.glb` | Animated Mech Pack · Leela | CC0 1.0 | orange |
+| mike | `assets/models/player_mike.glb` | Animated Mech Pack · Mike | CC0 1.0 | red |
+| stan | `assets/models/player_stan.glb` | Animated Mech Pack · Stan | CC0 1.0 | lime |
+| swat | `assets/models/soldier_swat.glb` (shared with the enemy grunt) | SWAT, Poly Pizza | CC0 1.0 | violet |
+| scifi | `assets/models/player_scifi.glb` | Sci Fi Character, Poly Pizza | CC-BY | magenta |
+
 ## Props, pickups, turret, effects and sound: original
-Props are built by DMB Tech 1's code: crates, barrels, pillars, desks, terminals, server racks, pipes, generators, lockers, lamps, cones, debris, sandbags, plus (1.2.0) control consoles, lab benches, med cabinets, chem vats, industrial fans and extinguishers. All pickups and keycards, the Sentry Turret, the fallback enemy robots, particles and every sound effect are built or synthesized (WebAudio). No sound files are used except the music above.
+The **med cabinet**, **extinguisher**, **generator**, **floor lamp**, traffic cone, debris and sandbags, plus every pickup, keycard, the Sentry Turret, the fallback enemy robots, particles and every sound effect, are built or synthesized by DMB Tech 1 (WebAudio for sound). Those procedural prop meshes also stay on screen if a GLB above fails to load. No sound files are used except the music above.
 
 ## Code and fonts
 | Component | License | Source |

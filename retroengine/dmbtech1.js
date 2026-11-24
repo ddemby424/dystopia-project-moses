@@ -37,7 +37,7 @@ const SETTINGS_KEY = 'retroengine.settings.v1';
 // One-time migration: copy saves made under the old DOOMFORGE name to the new RetroEngine keys.
 try { [['doomforge.settings.v2', SETTINGS_KEY], ['doomforge.autosave.v2', 'retroengine.autosave.v1'], ['doomforge.slots.v2', 'retroengine.slots.v1'], ['doomforge.seenHelp.v2', 'retroengine.seenHelp.v1']]
   .forEach(([o, n]) => { const v = localStorage.getItem(o); if (v !== null && localStorage.getItem(n) === null) localStorage.setItem(n, v); }); } catch (e) { /* storage blocked */ }
-const DEFAULT_SETTINGS = { sens: 1.25, invertY: false, fov: 75, volume: 0.8, sfx: 0.9, music: 0.5, quality: 'auto', showFps: false, touchScale: 1.0, bob: true, difficulty: 'normal', haptics: true, aimAssist: 0.80, aimAssistMouse: false };
+const DEFAULT_SETTINGS = { sens: 1.25, invertY: false, fov: 75, volume: 0.8, sfx: 0.9, music: 0.5, quality: 'auto', showFps: false, touchScale: 1.0, bob: true, difficulty: 'normal', haptics: true, aimAssist: 0.80, aimAssistMouse: false, playerModel: 'george' };
 const S = Object.assign({}, DEFAULT_SETTINGS);
 try {
   const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
@@ -641,7 +641,7 @@ function getMaterial(id) {
   });
   m.normalScale.set(0.9, 0.9); m.onBeforeCompile = aoShader; m.customProgramCacheKey = () => 'ao' + (def.alpha ? 'A' : '');
   if (def.alpha) { m.alphaTest = 0.5; m.transparent = false; m.side = THREE.DoubleSide; m.depthWrite = true; }
-  if (cv.glow) { m.emissiveMap = canvasTex(cv.glow, true); m.emissive = new THREE.Color(0xffffff); m.emissiveIntensity = id === 'bright_panel' ? 1.05 : id === 'light_panel' ? 0.42 : 0.95; }
+  if (cv.glow) { m.emissiveMap = canvasTex(cv.glow, true); m.emissive = new THREE.Color(0xffffff); m.emissiveIntensity = id === 'bright_panel' ? 0.8 : id === 'light_panel' ? 0.42 : 0.95; }
   return (matCache[key] = m);
 }
 
@@ -703,7 +703,9 @@ const PROP_DEFS = {
   lab_bench: { name: 'Lab Bench',      solid: 0.38 },
   vat:       { name: 'Chem Vat',       solid: 0.36 },
   fan:       { name: 'Industrial Fan', solid: 0.3 },
-  extinguisher:{ name: 'Extinguisher', solid: 0.1 }
+  extinguisher:{ name: 'Extinguisher', solid: 0.1 },
+  vent:      { name: 'Vent Grille',    solid: 0.28 },
+  shelves:   { name: 'Metal Shelves',  solid: 0.36 }
 };
 const KEY_COLORS = { red: '#ff2d2d', blue: '#2d8bff', yellow: '#ffd21f' };
 
@@ -887,6 +889,19 @@ function buildPropMesh(sub) {
       box(g, 0.1, 0.04, 0.02, glowMat(0xffd21f), 0, 0.38, 0.085);
       break;
     }
+    case 'vent': {
+      box(g, 0.7, 0.45, 0.14, darkS, 0, 0.35, 0);
+      for (let i = 0; i < 5; i++) box(g, 0.62, 0.03, 0.04, steel, 0, 0.18 + i * 0.08, 0.06);
+      break;
+    }
+    case 'shelves': {
+      box(g, 0.8, 0.05, 0.36, steel, 0, 0.08, 0);
+      box(g, 0.8, 0.05, 0.36, steel, 0, 0.4, 0);
+      box(g, 0.8, 0.05, 0.36, steel, 0, 0.72, 0);
+      box(g, 0.06, 0.76, 0.36, darkS, -0.37, 0.38, 0);
+      box(g, 0.06, 0.76, 0.36, darkS, 0.37, 0.38, 0);
+      break;
+    }
     default: box(g, 0.4, 0.4, 0.4, steel, 0, 0.2, 0);
   }
   return g;
@@ -1005,14 +1020,18 @@ function loadGlb(src) {
   });
   return glbCache[src];
 }
-function normalizeModel(scene, height, centered) {
+function normalizeModel(scene, height, centered, spec) {
+  spec = spec || {};
   const holder = new THREE.Group(), model = cloneSkinned(scene); holder.add(model);
+  if (spec.rot) model.rotation.set(spec.rot[0] || 0, spec.rot[1] || 0, spec.rot[2] || 0);
   model.updateMatrixWorld(true);
   const b = new THREE.Box3().setFromObject(model); if (b.isEmpty()) return null;
   const size = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
-  const s = height / Math.max(size.y, 1e-4);
+  let s = (spec.h || height) / Math.max(size.y, 1e-4);
+  if (spec.maxW) s = Math.min(s, spec.maxW / Math.max(size.x, size.z, 1e-4));
+  if (spec.scale) s = spec.scale;
   model.scale.multiplyScalar(s);
-  model.position.set(-c.x * s, centered ? -c.y * s : -b.min.y * s, -c.z * s);
+  model.position.set(-c.x * s, centered ? -c.y * s : -b.min.y * s + (spec.lift || 0), -c.z * s);
   model.traverse(o => { if (o.isMesh) { o.frustumCulled = false; if (o.material && o.material.map) o.material.map.encoding = THREE.sRGBEncoding; } });
   return holder;
 }
@@ -1039,12 +1058,23 @@ const MUSIC_TRACKS = [
 ];
 const LIGHT_PRESETS = {
   gritty:     { name: 'Gritty',         ambient: '#8a93a8', ambientI: 0.55, fogColor: '#0a0d14', fog: 0.045 },
-  clean:      { name: 'Clean bright',   ambient: '#c8d2de', ambientI: 0.95, fogColor: '#5a6370', fog: 0.005 },
+  clean:      { name: 'Clean bright',   ambient: '#b4bec8', ambientI: 0.86, fogColor: '#3a424c', fog: 0.01 },
   emergency:  { name: 'Emergency red',  ambient: '#c04a3a', ambientI: 0.72, fogColor: '#1a0606', fog: 0.05 }
 };
 
 const HOSTED_BASE = 'https://ddemby424.github.io/dystopia-project-moses/retroengine/';
 const ENEMY_CLIPS = { idle: ['Idle_Gun', 'Idle'], move: ['Run', 'Walk'], shoot: ['Gun_Shoot', 'Idle_Gun_Shoot', 'Shoot', 'Attack'], hit: ['HitRecieve', 'HitReact', 'HitRecieve_1'], death: ['Death', 'Dead'] };
+const PLAYER_CLIPS = { idle: ['Idle_Gun', 'Idle_Gun_Pointing', 'Idle', 'Idle_Neutral'], move: ['Walk_Holding', 'Run_Holding', 'Walk', 'Run', 'Walk_Tall', 'Run_Tall'], shoot: ['Shoot', 'Gun_Shoot', 'Idle_Gun_Shoot', 'Punch'], hit: ['HitRecieve_1', 'HitRecieve', 'HitReact', 'HitRecieve_2'], death: ['Death', 'Dead'] };
+// Third-person roster. GLBs are lazy-loaded in createRemotePlayer (and the picker never prefetches them).
+const PLAYER_MODELS = {
+  george: { id: 'george', name: 'George', src: 'assets/models/player_george.glb', h: 1.38, tintColor: '#3ec8ff', license: 'CC0 1.0' },
+  leela:  { id: 'leela',  name: 'Leela',  src: 'assets/models/player_leela.glb',  h: 1.28, tintColor: '#ff8a28', license: 'CC0 1.0' },
+  mike:   { id: 'mike',   name: 'Mike',   src: 'assets/models/player_mike.glb',   h: 1.32, tintColor: '#ff3d55', license: 'CC0 1.0' },
+  stan:   { id: 'stan',   name: 'Stan',   src: 'assets/models/player_stan.glb',   h: 1.4,  tintColor: '#c8e222', license: 'CC0 1.0' },
+  swat:   { id: 'swat',   name: 'SWAT',   src: 'assets/models/soldier_swat.glb',  h: 1.22, tintColor: '#b57cff', license: 'CC0 1.0' },
+  scifi:  { id: 'scifi',  name: 'Sci Fi Character', src: 'assets/models/player_scifi.glb', h: 1.22, tintColor: '#ff4ad6', license: 'CC-BY' }
+};
+
 const ASSET_PACK = {
   enemy_grunt: { src: 'assets/models/soldier_swat.glb', h: 1.12, tint: 0.72 },
   enemy_drone: { src: 'assets/models/robot_flying_gun.glb', h: 0.46, tint: 0.7 },
@@ -1053,10 +1083,143 @@ const ASSET_PACK = {
   weapon_2: { src: 'assets/models/gun_shotgun.glb', len: 0.66 },
   weapon_3: { src: 'assets/models/gun_rifle.glb', len: 0.64 },
   weapon_4: { src: 'assets/models/gun_scifi_rifle.glb', len: 0.58 },
-  weapon_5: { src: 'assets/models/gun_rocket.glb', len: 0.5, flip: true, off: [0.06, -0.05, 0.02] }
+  weapon_5: { src: 'assets/models/gun_rocket.glb', len: 0.5, flip: true, off: [0.06, -0.05, 0.02] },
+  // Environment props: Quaternius Sci-Fi Essentials Kit + Modular Sci-Fi MegaKit (Standard), CC0.
+  // Procedural buildPropMesh stays visible until the GLB loads (and if it fails).
+  prop_crate: { src: 'assets/models/prop_crate.glb', tint: 1, h: 0.7, maxW: 0.85 },
+  prop_crate_tall: { src: 'assets/models/prop_crate_tall.glb', tint: 1, h: 1.05, maxW: 1.35 },
+  prop_barrel: { src: 'assets/models/prop_barrel.glb', tint: 1, h: 0.75, maxW: 0.55 },
+  prop_desk: { src: 'assets/models/prop_desk.glb', tint: 1, h: 0.75, maxW: 1.15 },
+  prop_lab_bench: { src: 'assets/models/prop_lab_bench.glb', tint: 1, h: 0.7, maxW: 1.15 },
+  prop_locker: { src: 'assets/models/prop_locker.glb', tint: 1, h: 1.4, maxW: 0.7 },
+  prop_server: { src: 'assets/models/prop_server.glb', tint: 1, h: 1.4, maxW: 0.95 },
+  prop_shelves: { src: 'assets/models/prop_shelves.glb', tint: 1, h: 0.95, maxW: 0.95 },
+  prop_pillar: { src: 'assets/models/prop_pillar.glb', tint: 1, h: 1.5, maxW: 0.45 },
+  prop_pipes: { src: 'assets/models/prop_pipes.glb', tint: 1, h: 1.5, maxW: 0.55 },
+  prop_terminal: { src: 'assets/models/prop_terminal.glb', tint: 1, h: 1.05, maxW: 0.6 },
+  prop_console: { src: 'assets/models/prop_console.glb', tint: 1, h: 1.15, maxW: 0.9 },
+  prop_vat: { src: 'assets/models/prop_vat.glb', tint: 1, h: 1.0, maxW: 0.65 },
+  prop_fan: { src: 'assets/models/prop_fan.glb', tint: 1, h: 0.85, maxW: 0.8 },
+  prop_vent: { src: 'assets/models/prop_vent.glb', tint: 1, h: 0.7, maxW: 1.0, rot: [Math.PI / 2, 0, 0] }
 };
 function cloneSkinned(o) { return (THREE.SkeletonUtils && THREE.SkeletonUtils.clone) ? THREE.SkeletonUtils.clone(o) : o.clone(true); }
 function findClip(anims, names) { for (const n of names) { const c = anims.find(a => a.name.split('|').pop().toLowerCase() === n.toLowerCase()); if (c) return c; } return null; }
+function playHolderAnim(holder, name) {
+  const ud = holder.userData, acts = ud.acts; if (!acts) return;
+  if (!acts[name]) name = name === 'death' ? '' : (acts.idle ? 'idle' : (acts.move ? 'move' : ''));
+  if (!name || ud.anim === name) return;
+  const next = acts[name], prev = acts[ud.anim];
+  next.reset(); next.setEffectiveWeight(1); next.setEffectiveTimeScale(name === 'move' ? 1.1 : 1); next.play();
+  if (prev) prev.crossFadeTo(next, name === 'death' ? 0.1 : 0.2, false);
+  ud.anim = name;
+}
+function applyTeamTint(root, hex) {
+  const team = new THREE.Color(hex || '#ffffff');
+  root.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    o.material = o.material.clone();
+    const m = o.material;
+    if (m.color) m.color.lerp(team, 0.32);
+    if (m.emissive) m.emissive.copy(team).multiplyScalar(0.08);
+    if (m.map) m.map.encoding = THREE.sRGBEncoding;
+    o.frustumCulled = false;
+  });
+}
+function buildPlayerFallback(def) {
+  const team = new THREE.Color((def && def.tintColor) || '#8899aa');
+  const hull = mat(team.clone().multiplyScalar(0.72).getHex(), { metal: 0.55, rough: 0.45, noMap: true, emissive: 0x0d0f14 });
+  const dark = mat(team.clone().multiplyScalar(0.22).getHex(), { metal: 0.65, rough: 0.5, noMap: true, emissive: 0x060709 });
+  const glow = glowMat(team.getHex());
+  const id = def && def.id;
+  let g;
+  if (id === 'swat' || id === 'scifi') {
+    g = new THREE.Group();
+    const h = (def && def.h) || 1.22;
+    box(g, 0.28, 0.38, 0.18, hull, 0, 0.85, 0);
+    box(g, 0.16, 0.16, 0.16, hull, 0, 1.12, 0.02);
+    box(g, 0.12, 0.04, 0.02, glow, 0, 1.13, 0.11);
+    box(g, 0.08, 0.32, 0.08, dark, -0.2, 0.82, 0);
+    box(g, 0.08, 0.32, 0.08, dark, 0.2, 0.82, 0);
+    const legs = [];
+    legs.push(box(g, 0.1, 0.4, 0.1, dark, -0.08, 0.22, 0));
+    legs.push(box(g, 0.1, 0.4, 0.1, dark, 0.08, 0.22, 0));
+    g.userData.legs = legs;
+  } else {
+    const heavy = id === 'george' || id === 'stan';
+    g = heavy ? buildTitan(hull, dark, glow) : buildScoutMech(hull, dark, glow, id === 'mike');
+  }
+  g.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g), size = b.getSize(new THREE.Vector3());
+  const sc = ((def && def.h) || 1.35) / Math.max(size.y, 1e-4);
+  g.scale.multiplyScalar(sc);
+  g.position.y = -b.min.y * sc;
+  return g;
+}
+let activeSession = null;
+function createRemotePlayer(modelId, opts) {
+  opts = opts || {};
+  const def = PLAYER_MODELS[modelId] || PLAYER_MODELS[S.playerModel] || PLAYER_MODELS.george;
+  const sess = opts.session || activeSession;
+  const world = opts.world || (sess && sess.world);
+  if (!world) throw new Error('DMB Tech 1: createRemotePlayer needs an active play session (or opts.world)');
+  const assetBase = opts.assetBase !== undefined ? opts.assetBase : ((sess && sess.assetBase) || '');
+  const remotes = (sess && sess.remotes) || null;
+  const root = new THREE.Group();
+  const fallback = buildPlayerFallback(def);
+  root.add(fallback);
+  root.userData.proc = fallback;
+  root.userData.modelId = def.id;
+  world.add(root);
+  const rp = {
+    id: def.id, name: def.name, mesh: root, x: 0, y: 0, z: 0, yaw: 0, anim: 'idle', ready: null, _phase: 0, _gone: false,
+    setPose(x, y, z, yaw, anim) {
+      this.x = x; this.y = y; if (z != null) this.z = z;
+      if (yaw != null) this.yaw = yaw;
+      root.position.set(this.x, this.z, this.y);
+      // Same convention as enemies: yaw 0 faces map +Y (model forward is +Z).
+      root.rotation.y = Math.atan2(Math.cos(this.yaw), Math.sin(this.yaw));
+      if (anim) { this.anim = anim; playHolderAnim(root, anim); }
+    },
+    update(dt) {
+      const ud = root.userData;
+      if (ud.mixer) ud.mixer.update(dt);
+      else if (ud.proc && ud.proc.userData.legs && this.anim === 'move') {
+        this._phase += dt * 8;
+        ud.proc.userData.legs.forEach((leg, i) => { leg.rotation.x = Math.sin(this._phase + i * Math.PI) * 0.5; });
+      }
+    },
+    dispose() {
+      if (this._gone) return;
+      this._gone = true;
+      if (root.parent) root.parent.remove(root);
+      if (remotes) { const i = remotes.indexOf(this); if (i >= 0) remotes.splice(i, 1); }
+      root.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    }
+  };
+  rp.setPose(opts.x || 0, opts.y || 0, opts.z || 0, opts.yaw || 0, opts.anim || 'idle');
+  const load = (opts.assets === false) ? Promise.resolve(null) : loadGlb(assetBase + def.src);
+  rp.ready = load.then(gltf => {
+    if (!gltf || (sess && sess.destroyed) || rp._gone) return rp;
+    const m = normalizeModel(gltf.scene, def.h || 1.35, false, def); if (!m) return rp;
+    applyTeamTint(m, def.tintColor);
+    fallback.visible = false;
+    root.add(m);
+    root.userData.glb = m;
+    if (gltf.animations && gltf.animations.length) {
+      const mixer = new THREE.AnimationMixer(m.children[0]), acts = {};
+      Object.keys(PLAYER_CLIPS).forEach(k => { const c = findClip(gltf.animations, PLAYER_CLIPS[k]); if (c) acts[k] = mixer.clipAction(c); });
+      if (!acts.idle && !acts.move) acts.move = mixer.clipAction(gltf.animations[0]);
+      ['shoot', 'hit', 'death'].forEach(k => { if (acts[k]) { acts[k].setLoop(THREE.LoopOnce, 1); acts[k].clampWhenFinished = true; } });
+      root.userData.mixer = mixer; root.userData.acts = acts; root.userData.anim = '';
+      playHolderAnim(root, rp.anim || (acts.idle ? 'idle' : 'move'));
+    }
+    rp.setPose(rp.x, rp.y, rp.z, rp.yaw, rp.anim);
+    return rp;
+  });
+  if (remotes) remotes.push(rp);
+  return rp;
+}
+
 // Gritty pass for bright low-poly assets: darker albedo, rougher/more metallic surfaces.
 function grittify(root, tint, metal) {
   const mats = [];
@@ -1135,6 +1298,17 @@ linear-gradient(45deg,transparent 46%,#ff5a3c 46%,#ff5a3c 54%,transparent 54%),l
 .dfg-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:9px 0;font-size:13px}
 .dfg-row input[type=range]{flex:1;max-width:55%;accent-color:#ff7a1a}
 .dfg-row select{background:#121722;color:#fff;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:6px;font:inherit}
+.dfg-panel.dfg-wide{width:min(640px,94vw)}
+.dfg-char-label{font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:.8;margin:10px 0 6px}
+.dfg-char-label span{text-transform:none;letter-spacing:0;opacity:.75;margin-left:6px}
+.dfg-chars{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 12px}
+.dfg-char{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#e8edf5;cursor:pointer;font:inherit;text-transform:none}
+.dfg-char:hover{background:rgba(255,255,255,.1)}
+.dfg-char.on{border-color:var(--tint,#ff8a3d);background:rgba(255,138,61,.16);box-shadow:0 0 0 1px var(--tint,#ff8a3d)}
+.dfg-char-sw{width:26px;height:26px;border-radius:50%;box-shadow:0 0 0 2px rgba(0,0,0,.4)}
+.dfg-char b{font-size:12px;letter-spacing:.03em;text-align:center}
+.dfg-char i{font-style:normal;font-size:10px;opacity:.65}
+
 .dfg-stats{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14px;margin:12px 0}
 .dfg-stats b{color:#ffb35c;text-align:right}
 .dfg-ctrl{font-size:12px;opacity:.8;display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:10px 0}
@@ -1333,6 +1507,9 @@ function play(container, project, opts) {
   function nextTrack(d) { if (!TP.audio || TP.failed) return; loadTrack(TP.i + d); TP.pick = TP.pick === 'synth' ? null : TP.pick !== null ? MUSIC_TRACKS[TP.i].id : null; const pr = TP.audio.play(); if (pr && pr.catch) pr.catch(() => {}); }
   function slotSrc(slot) { if (models[slot]) return { src: models[slot] }; const p = usePack && ASSET_PACK[slot]; return p ? Object.assign({}, p, { src: assetBase + p.src }) : null; }
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  const remotes = [];
+  const session = { get world() { return G && G.world; }, get scene() { return G && G.scene; }, get assetBase() { return assetBase; }, get destroyed() { return destroyed; }, remotes };
+  activeSession = session;
 
   /* ---------- DOM ---------- */
   const root = el('div', 'dfg-root' + (isTouch ? ' touch' : ''));
@@ -1421,14 +1598,14 @@ function play(container, project, opts) {
     setAoLevel(L);
     const amb = new THREE.Color(P.ambient).convertSRGBToLinear();   // editor colors are sRGB; lights work in linear
     const preset = P.lightPreset || '';
-    const hemiGround = preset === 'clean' ? 0.5 : 0.3;
-    const hemiI = Math.min(P.ambientI, preset === 'clean' ? 1.5 : 1.2) * 1.75;
+    const hemiGround = preset === 'clean' ? 0.42 : 0.3;
+    const hemiI = Math.min(P.ambientI, preset === 'clean' ? 1.25 : 1.2) * 1.75;
     const hemi = new THREE.HemisphereLight(amb, amb.clone().multiplyScalar(hemiGround), hemiI); scene.add(hemi);
-    const moonI = preset === 'clean' ? 0.35 : 0.25;
+    const moonI = preset === 'clean' ? 0.28 : 0.25;
     const moon = new THREE.DirectionalLight(new THREE.Color(SKIES[P.sky] ? SKIES[P.sky].glow : '#ffffff'), moonI); moon.position.set(-0.4, 1, 0.3); scene.add(moon);
     const pool = []; for (let i = 0; i < Q().lights; i++) { const pl = new THREE.PointLight(0xffffff, 0, 6, 2); scene.add(pl); pool.push(pl); }
-    const bodyCol = preset === 'emergency' ? 0xff4030 : (preset === 'clean' ? 0xe8f0ff : 0xc8d4ff);
-    const bodyI = preset === 'clean' ? 0.38 : (preset === 'emergency' ? 0.4 : 0.22);
+    const bodyCol = preset === 'emergency' ? 0xff4030 : (preset === 'clean' ? 0xd0d8e4 : 0xc8d4ff);
+    const bodyI = preset === 'clean' ? 0.28 : (preset === 'emergency' ? 0.4 : 0.22);
     const bodyLight = new THREE.PointLight(bodyCol, bodyI, preset === 'clean' ? 5 : 3, 2); scene.add(bodyLight);     // keeps your surroundings readable
     const muzzle = new THREE.PointLight(0xffb060, 0, 2.4, 2); scene.add(muzzle);
     const fxLight = new THREE.PointLight(0xff8a30, 0, 7, 2); scene.add(fxLight);
@@ -1495,6 +1672,7 @@ function play(container, project, opts) {
     music(state === 'playing');
   }
   function disposeLevel() {
+    remotes.slice().forEach(r => { try { r.dispose(); } catch (e) {} });
     G.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     G.projectiles.forEach(p => p.mesh && G.scene.remove(p.mesh));
     G = null;
@@ -1504,7 +1682,7 @@ function play(container, project, opts) {
     const spec = slotSrc(slot); if (!spec) return;
     loadGlb(spec.src).then(gltf => {
       if (!gltf || destroyed) return;
-      const m = normalizeModel(gltf.scene, spec.h || height || 1, centered); if (!m) return;
+      const m = normalizeModel(gltf.scene, spec.h || height || 1, centered, spec); if (!m) return;
       const mats = grittify(m, spec.tint || 1, 0.3);
       if (/^enemy_/.test(slot)) mats.forEach(mm => { if (mm.isMeshStandardMaterial || mm.isMeshPhysicalMaterial) addRim(mm, 0x9fc4ff, 0.42); });
       if (holder.userData.proc) holder.userData.proc.visible = false; else holder.children.forEach(c => { c.visible = false; });
@@ -1520,15 +1698,7 @@ function play(container, project, opts) {
     });
   }
   // Cross-fade to a named animation (idle / move / shoot / hit / death) if the model has it.
-  function playAnim(holder, name) {
-    const ud = holder.userData, acts = ud.acts; if (!acts) return;
-    if (!acts[name]) name = name === 'death' ? '' : name === 'move' || name === 'hit' || name === 'shoot' ? (acts.idle ? 'idle' : 'move') : (acts.idle ? 'idle' : 'move');
-    if (!name || ud.anim === name) return;
-    const next = acts[name], prev = acts[ud.anim];
-    next.reset(); next.setEffectiveWeight(1); next.setEffectiveTimeScale(name === 'move' ? 1.1 : 1); next.play();
-    if (prev) prev.crossFadeTo(next, name === 'death' ? 0.1 : 0.2, false);
-    ud.anim = name;
-  }
+  function playAnim(holder, name) { playHolderAnim(holder, name); }
 
   /* ---------- level scripting: tiny event API for custom logic ---------- */
   function runScript() {
@@ -2141,7 +2311,16 @@ function play(container, project, opts) {
   }
 
   /* ---------- menus ---------- */
+  function characterPickerHtml() {
+    const cur = PLAYER_MODELS[S.playerModel] ? S.playerModel : 'george';
+    return '<div class="dfg-char-label">Player model <span>how others see you · models load when used</span></div><div class="dfg-chars">' +
+      Object.keys(PLAYER_MODELS).map(id => {
+        const d = PLAYER_MODELS[id];
+        return `<button type="button" class="dfg-char${id === cur ? ' on' : ''}" style="--tint:${d.tintColor}" data-a="pickchar" data-id="${id}"><span class="dfg-char-sw" style="background:${d.tintColor}"></span><b>${esc(d.name)}</b><i>${esc(d.license || 'CC0 1.0')}</i></button>`;
+      }).join('') + '</div>';
+  }
   function showMenu(kind) {
+
     menu.style.display = kind ? 'flex' : 'none';
     if (!kind) return;
     const L = G.L; let h = '';
@@ -2151,9 +2330,9 @@ function play(container, project, opts) {
       h = `<h1>${esc(project.name || 'RetroEngine')}</h1><h2>${levels.length} level${levels.length > 1 ? 's' : ''} · made with RetroEngine</h2>
         <button class="dfg-btn pri" data-a="start0">Start campaign</button>
         ${levels.length > 1 ? `<div class="dfg-row"><span>Level</span><select data-s="lvl">${levels.map((l, i) => `<option value="${i}">${i + 1}. ${esc(l.name)}</option>`).join('')}</select></div><button class="dfg-btn" data-a="startSel">Play selected level</button>` : ''}
-        <button class="dfg-btn" data-a="settings">Settings</button>${ctrl}`;
+        ${characterPickerHtml()}<button class="dfg-btn" data-a="settings">Settings</button>${ctrl}`;
     } else if (kind === 'start') {
-      h = `<h1>${esc(L.name)}</h1><h2>Level ${G.index + 1} of ${levels.length}</h2>${ctrl}<button class="dfg-btn pri" data-a="go">${isTouch ? 'Tap' : 'Click'} to start</button>${opts.onQuit ? '<button class="dfg-btn" data-a="quit">Back to editor</button>' : ''}`;
+      h = `<h1>${esc(L.name)}</h1><h2>Level ${G.index + 1} of ${levels.length}</h2>${characterPickerHtml()}${ctrl}<button class="dfg-btn pri" data-a="go">${isTouch ? 'Tap' : 'Click'} to start</button>${opts.onQuit ? '<button class="dfg-btn" data-a="quit">Back to editor</button>' : ''}`;
     } else if (kind === 'pause') {
       h = `<h1>PAUSED</h1><h2>${esc(L.name)}</h2><button class="dfg-btn pri" data-a="resume">Resume</button><button class="dfg-btn" data-a="restart">Restart level</button><button class="dfg-btn" data-a="settings">Settings</button><button class="dfg-btn" data-a="musicui">Music player</button><button class="dfg-btn" data-a="quit">${opts.onQuit ? 'Back to editor' : 'Quit to title'}</button>`;
     } else if (kind === 'music') {
@@ -2169,7 +2348,8 @@ function play(container, project, opts) {
         <div class="dfg-row"><span>Graphics quality</span><select data-k="quality"><option value="auto">Auto (adapts to device)</option><option value="low">Low (fastest)</option><option value="medium">Medium</option><option value="high">High</option></select></div>
         <div class="dfg-row"><span>Difficulty</span><select data-k="difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select></div>
         ${c('invertY', 'Invert look up/down')}${c('bob', 'Head bob')}${c('showFps', 'Show FPS')}${isTouch && navigator.vibrate ? c('haptics', 'Vibrate on hits') : ''}
-        <p style="font-size:11px;opacity:.6">Quality changes to lights & textures apply on the next level load.</p><button class="dfg-btn pri" data-a="back">Back</button>`;
+        ${characterPickerHtml()}
+        <p style="font-size:11px;opacity:.6">Quality changes to lights & textures apply on the next level load. Player models load only when a third-person / remote player uses them.</p><button class="dfg-btn pri" data-a="back">Back</button>`;
     } else if (kind === 'dead') {
       h = `<h1 style="color:#ff3b30">YOU DIED</h1><h2>${esc(L.name)}</h2>${stats()}<button class="dfg-btn pri" data-a="restart">Try again</button><button class="dfg-btn" data-a="quit">${opts.onQuit ? 'Back to editor' : 'Quit to title'}</button>`;
     } else if (kind === 'won') {
@@ -2177,7 +2357,8 @@ function play(container, project, opts) {
       h = `<h1 style="color:#2dffb0">${lastOne ? 'CAMPAIGN COMPLETE' : 'LEVEL COMPLETE'}</h1><h2>${esc(L.name)}</h2>${stats()}${lastOne ? '' : '<button class="dfg-btn pri" data-a="next">Next level</button>'}<button class="dfg-btn${lastOne ? ' pri' : ''}" data-a="restart">Replay level</button><button class="dfg-btn" data-a="quit">${opts.onQuit ? 'Back to editor' : 'Quit to title'}</button>`;
     }
     if (isTouch && (kind === 'start' || kind === 'title' || kind === 'pause')) h += `<div class="dfg-rot">Tip: turn your phone sideways for the best view</div>${FS.ok() && !FS.el() ? '<button class="dfg-btn" data-a="fs">Full screen</button>' : ''}`;
-    menu.innerHTML = `<div class="dfg-panel dfg-glass">${h}</div>`; refreshPortraitTip();
+    const wide = (kind === 'start' || kind === 'title' || kind === 'settings');
+    menu.innerHTML = `<div class="dfg-panel dfg-glass${wide ? ' dfg-wide' : ''}">${h}</div>`; refreshPortraitTip();
     menu.dataset.kind = kind;
     const q = menu.querySelector('[data-k="quality"]'); if (q) q.value = S.quality;
   }
@@ -2331,7 +2512,7 @@ function play(container, project, opts) {
       updatePlayer(dt);
       if (state === 'playing') { updateDoors(dt); updateEnemies(dt, time); updateProjectiles(dt); fire('tick', dt); }
     } else if (G && state === 'dead') { updateEnemies(dt, time); updateProjectiles(dt); }
-    if (G) { updateParticles(dt); updateLights(dt, time); updateHud(dt); render(time, dt); }
+    if (G) { remotes.forEach(r => r.update(dt)); updateParticles(dt); updateLights(dt, time); updateHud(dt); render(time, dt); }
     if (S.quality === 'auto' && state === 'playing') {
       adT += (now - adLast) / 1000; adN++;
       if (adT >= 2) { const f = adN / adT, o = dynScale;
@@ -2352,8 +2533,9 @@ function play(container, project, opts) {
 
   const handle = {
     get game() { return G; }, get state() { return state; }, camera, renderer, begin, pause, loadLevel, selectWeapon, shoot: () => shoot(), startReload: () => startReload(), weaponMeshes, music: TP, get dynScale() { return dynScale; }, set dynScale(v) { dynScale = v; resize(); }, toggleFullscreen, damagePlayer, levelComplete,
+    createRemotePlayer(modelId, o) { return createRemotePlayer(modelId, Object.assign({}, o, { session })); },
     destroy() {
-      destroyed = true; cancelAnimationFrame(raf); Sound.music(false); if (TP.audio) { TP.audio.pause(); TP.audio.removeAttribute('src'); }
+      destroyed = true; if (activeSession === session) activeSession = null; remotes.slice().forEach(r => { try { r.dispose(); } catch (e) {} }); cancelAnimationFrame(raf); Sound.music(false); if (TP.audio) { TP.audio.pause(); TP.audio.removeAttribute('src'); }
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp);
       window.removeEventListener('resize', resize); window.removeEventListener('orientationchange', onOrient); if (window.visualViewport) window.visualViewport.removeEventListener('resize', onOrient); if (FS.el()) FS.exit(); document.removeEventListener('pointerlockchange', onLockChange); document.removeEventListener('visibilitychange', onVis);
       if (ro) ro.disconnect(); if (document.pointerLockElement) document.exitPointerLock();
@@ -2439,7 +2621,7 @@ function registerEnemy(def) {
 }
 
 return {
-  VERSION, HOSTED_BASE, MUSIC_TRACKS, LIGHT_PRESETS, ASSET_PACK, play, boot, Sound, S, saveSettings,
+  VERSION, HOSTED_BASE, MUSIC_TRACKS, LIGHT_PRESETS, ASSET_PACK, PLAYER_MODELS, PLAYER_CLIPS, createRemotePlayer, play, boot, Sound, S, saveSettings,
   TEX_DEFS, WALL_TEXTURES, FLOOR_TEXTURES, CEIL_TEXTURES, SKIES, ENEMY_DEFS, WEAPON_DEFS, PICKUP_DEFS, PROP_DEFS, KEY_COLORS, THREE,
   getThumb, newLevel, normalizeLevel, validateLevel, defaultProps, STEP_H,
   packLevel, unpackLevel, registerWeapon, registerEnemy, RETRO_FORMAT, GRID_KEYS, rle, unrle
@@ -2466,7 +2648,7 @@ export function createEngine(target, options) {
   options = options || {};
   const runtime = createRuntime();
   if (options.settings) Object.assign(runtime.S, options.settings);
-  ['sens', 'aimAssist', 'aimAssistMouse', 'volume', 'fov', 'invertY', 'difficulty', 'quality', 'showFps'].forEach(k => {
+  ['sens', 'aimAssist', 'aimAssistMouse', 'volume', 'fov', 'invertY', 'difficulty', 'quality', 'showFps', 'playerModel'].forEach(k => {
     if (options[k] !== undefined) runtime.S[k] = options[k];
   });
   const container = resolveTarget(target);
@@ -2556,6 +2738,8 @@ export function createEngine(target, options) {
     },
     registerWeapon(def) { return runtime.registerWeapon(def); },
     registerEnemy(def) { return runtime.registerEnemy(def); },
+    createRemotePlayer(modelId, opts) { return runtime.createRemotePlayer(modelId, opts); },
+    get PLAYER_MODELS() { return runtime.PLAYER_MODELS; },
     shoot() { if (handle && handle.shoot) handle.shoot(); },
     packLevel(level, models) { return runtime.packLevel(level, models); },
     unpackLevel(obj) { return runtime.unpackLevel(obj); }
