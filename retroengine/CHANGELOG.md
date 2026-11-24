@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.0 (2026-11-24): editor IDE layout, properties, assets and lighting
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.2.0**), powered by DMB Tech 1 **1.1.0**.
+
+- **Status readout:** the bottom status bar (and a floating readout on phones) shows the grid coordinates under the cursor or finger plus what is on that cell: wall or floor texture, ceiling, height, door type, thing name (Soldier, Exit pad, and so on), light level and the current map layer.
+- **Property dropdowns:** a Properties inspector at the top of the right panel edits wall, floor, ceiling, height, door type and light level. A Select-tool rectangle applies the same change to every cell in the selection.
+- **IDE-style layout** on PC and tablets: left Explorer (project, levels, models, scripts), centre map, right inspector and tabs, bottom status bar, dark gritty chrome. On phones (including a Galaxy Z Fold folded or unfolded) the explorer and panel still collapse to sheets.
+- **More textures and props**, all original procedural work in DMB Tech 1, in a retro sci-fi / industrial FPS style: riveted bulkheads, vent grilles, stained concrete, hazard chevrons, plus a **clean well-lit set** (lab wall panels, office wall, med-bay wall, polished tile, brushed aluminium, bright ceiling lights). New props: control console, lab bench, med cabinet, chem vat, industrial fan, extinguisher.
+- **Lighting presets** on the Level tab: Gritty, Clean bright, and Emergency red. Stamp **Clean Lab** or **Med Bay** from the Rooms tab for a ready well-lit room.
+- **Five more music tracks** (Kevin MacLeod, CC BY 4.0): Hitman, Volatile Reaction, Industrial Revolution, Crypto, Danger Storm. Re-encoded to 40 kbps mono to keep the download small. Never uses Darcy's own songs.
+
+
 ## 1.1.3 (2026-11-23): Pulse Cannon projectile spawn
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

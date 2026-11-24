@@ -7,7 +7,7 @@
    ===================================================================== */
 import { createRuntime } from './dmbtech1.js';
 
-const VERSION = '1.1.3';
+const VERSION = '1.2.0';
 function DFRuntime() { return createRuntime(); }
 
 /* =====================================================================
@@ -29,11 +29,13 @@ const ENTITY_CHARS = {
   'c': ['pickup', 'ammo_cells'], 'k': ['pickup', 'ammo_rockets'], 'R': ['pickup', 'key_red'], 'B': ['pickup', 'key_blue'], 'Y': ['pickup', 'key_yellow'],
   'w': ['pickup', 'w_shotgun'], 'q': ['pickup', 'w_rifle'], 'p': ['pickup', 'w_plasma'], 'z': ['pickup', 'w_rocket'], '$': ['pickup', 'chip'],
   'o': ['prop', 'barrel'], 'x': ['prop', 'crate'], 'K': ['prop', 'crate_tall'], 'P': ['prop', 'pillar'], 'e': ['prop', 'desk'], 'n': ['prop', 'terminal'], 'N': ['prop', 'server'],
-  'i': ['prop', 'pipes'], 'G': ['prop', 'generator'], 'l': ['prop', 'locker'], 'f': ['prop', 'lamp'], 'v': ['prop', 'cone'], 'j': ['prop', 'debris'], 'Z': ['prop', 'sandbags']
+  'i': ['prop', 'pipes'], 'G': ['prop', 'generator'], 'l': ['prop', 'locker'], 'f': ['prop', 'lamp'], 'v': ['prop', 'cone'], 'j': ['prop', 'debris'], 'Z': ['prop', 'sandbags'],
+  'Q': ['prop', 'console'], 'M': ['prop', 'med_cabinet'], 'E': ['prop', 'lab_bench'], 'W': ['light', '#eef6ff', 8, 2.2, false],
+  'U': ['prop', 'vat'], 'J': ['prop', 'fan'], 'O': ['prop', 'extinguisher']
 };
 const DOOR_CHARS = { 'D': 'door', 'r': 'red', 'b': 'blue', 'y': 'yellow' };
 const HEIGHT_CHARS = { '1': 0.15, '2': 0.3, '3': 0.45, '4': 0.6, '5': 0.75 };
-const TEMPLATE_LEGEND_HELP = 'Walls: # % & S · Floors: . , ~(sky) ; : · Doors: D, r/b/y = keycard doors · Heights 1-4 = stairs/catwalk, 5 = cover block · @ start · X exit · L F C V lights · g d H t T enemies · h m a A u s c k pickups · R B Y keys · w q p z weapons · $ secret · o x K P e n N i G l f v j Z props';
+const TEMPLATE_LEGEND_HELP = 'Walls: # % & S · Floors: . , ~(sky) ; : · Doors: D, r/b/y = keycard doors · Heights 1-4 = stairs/catwalk, 5 = cover block · @ start · X exit · L F C V W lights (W = bright white) · g d H t T enemies · h m a A u s c k pickups · R B Y keys · w q p z weapons · $ secret · o x K P e n N i G l f v j Z Q M E U J O props';
 
 const TEMPLATES = [
   { id: 'small_room', name: 'Small Room', cat: 'Rooms', desc: '5x5 room, one door', rows: [
@@ -83,6 +85,11 @@ const TEMPLATES = [
     '%%D%%', '%f.u%', '%...%', '%h.g%', '%%%%%'] },
   { id: 'start_room', name: 'Start Room', cat: 'Set pieces', desc: 'Player start + supplies', rows: [
     '#######', '#L...L#', '#.u.h.#', '#..@..#', '#.....#', '#.....#', '###D###'] }
+,
+  { id: 'clean_lab', name: 'Clean Lab', cat: 'Clean rooms', desc: 'White lab panels, polished floor, bright lights', legend: { '#': { wall: 'lab_panel' }, '.': { floor: 'polished_tile', ceil: 'bright_panel' }, '%': { wall: 'clean_metal' } }, rows: [
+    '###########', '#W...Q...W#', '#.E.....E.#', '#.........#', '#....h....#', 'D.........D', '#.M.....n.#', '#W.......W#', '###########'] },
+  { id: 'med_bay', name: 'Med Bay', cat: 'Clean rooms', desc: 'Clean infirmary with cabinets and benches', legend: { '#': { wall: 'med_wall' }, '.': { floor: 'polished_tile', ceil: 'bright_panel' } }, rows: [
+    '#########', '#W..M..W#', '#.E...E.#', '#...m...#', 'D.......D', '#.h...M.#', '#W.....W#', '#########'] }
 ];
 
 /* Turn text rows into a list of cell changes and entities.
@@ -879,12 +886,63 @@ $('#stamp-bar').addEventListener('click', e => { const b = e.target.closest('[da
 /* ---------- pointer events ---------- */
 const pointers = new Map(); let drag = null, pinch = null, spaceHeld = false;
 function evPos(e) { const r = cvs.getBoundingClientRect(); return { sx: e.clientX - r.left, sy: e.clientY - r.top }; }
+function texLabel(id) { return id === 'sky' ? 'Sky (open air)' : ((RT.TEX_DEFS[id] || {}).name || id || 'Default'); }
+function thingName(e) {
+  if (!e) return '';
+  if (e.t === 'exit') return 'Exit pad';
+  if (e.t === 'light') return 'Light';
+  if (e.t === 'enemy') return (RT.ENEMY_DEFS[e.s] || {}).name || e.s || 'Enemy';
+  if (e.t === 'pickup') return (RT.PICKUP_DEFS[e.s] || {}).name || e.s || 'Pickup';
+  if (e.t === 'prop') return (RT.PROP_DEFS[e.s] || {}).name || e.s || 'Prop';
+  return e.t;
+}
+function lightLevelOf(e) {
+  if (!e || e.t !== 'light') return '';
+  if (e.flicker || (e.color && /#ff[0-4]/.test(e.color))) return 'alarm';
+  const i = +e.intensity || 1.4;
+  if (i >= 2) return 'bright';
+  if (i <= 0.85) return 'dim';
+  return 'normal';
+}
+function describeCell(x, y) {
+  if (!inb(x, y)) return null;
+  const lv = L(), i = idx(x, y), parts = [];
+  if (lv.kind[i]) {
+    const dn = { door: 'Door', red: 'Red key door', blue: 'Blue key door', yellow: 'Yellow key door' }[lv.kind[i]] || (lv.kind[i] + ' door');
+    parts.push(dn);
+    if (lv.wall[i] && RT.TEX_DEFS[lv.wall[i]] && !RT.TEX_DEFS[lv.wall[i]].door) parts.push('Frame: ' + texLabel(lv.wall[i]));
+  } else if (lv.wall[i]) {
+    parts.push('Wall: ' + texLabel(lv.wall[i]));
+  } else {
+    parts.push('Floor: ' + texLabel(lv.floor[i] || lv.props.floorTex));
+    parts.push('Ceil: ' + texLabel(lv.ceil[i] || lv.props.ceilTex));
+    if (lv.fh[i]) parts.push('Height ' + Number(lv.fh[i]).toFixed(2));
+  }
+  if (isSpawnCell(x, y)) parts.push('Player start');
+  thingsAt(x, y).forEach(e => parts.push(thingName(e)));
+  const lights = thingsAt(x, y).filter(e => e.t === 'light');
+  if (lights.length) parts.push('Light: ' + (lightLevelOf(lights[0]) || 'on'));
+  parts.push(ED.layers.ceil ? 'Layer: ceiling' : 'Layer: floor');
+  return { x, y, parts, text: parts.join(' · ') };
+}
+let lastReadout = '';
+function updateCellReadout(x, y) {
+  if (x === undefined || y === undefined) {
+    if (ED.hover) { x = ED.hover.x; y = ED.hover.y; }
+    else { x = y = -1; }
+  }
+  const d = describeCell(x, y);
+  const html = d ? `Cell <b>${d.x}, ${d.y}</b> · ${esc(d.text)}` : 'Cell -';
+  const st = $('#st-cell'); if (st) st.innerHTML = html;
+  const mr = $('#map-readout'); if (mr) mr.innerHTML = html;
+  if (html !== lastReadout) { lastReadout = html; refreshPropsDock(); }
+}
 function hoverFrom(sx, sy) {
   const c = toCell(sx, sy);
   if (ED.stamp) ED.hover = { x: Math.round(c.fx - ED.stamp.data.w / 2), y: Math.round(c.fy - ED.stamp.data.h / 2) };
   else ED.hover = { x: Math.floor(c.fx), y: Math.floor(c.fy) };
   const x = Math.floor(c.fx), y = Math.floor(c.fy);
-  $('#st-cell').innerHTML = inb(x, y) ? `Cell <b>${x}, ${y}</b>` : 'Cell -';
+  updateCellReadout(x, y);
 }
 cvs.addEventListener('pointerdown', e => {
   cvs.setPointerCapture(e.pointerId);
@@ -960,7 +1018,7 @@ function endPointer(e) {
   requestDraw();
 }
 cvs.addEventListener('pointerup', endPointer); cvs.addEventListener('pointercancel', endPointer);
-cvs.addEventListener('pointerleave', () => { if (!drag && !ED.stamp) { ED.hover = null; requestDraw(); } });
+cvs.addEventListener('pointerleave', () => { if (!drag && !ED.stamp) { ED.hover = null; updateCellReadout(-1, -1); requestDraw(); } });
 cvs.addEventListener('contextmenu', e => e.preventDefault());
 cvs.addEventListener('wheel', e => { e.preventDefault(); const p = evPos(e); if (e.ctrlKey || Math.abs(e.deltaY) > Math.abs(e.deltaX)) setZoom(ED.view.cs * Math.exp(-e.deltaY * 0.0015), p.sx, p.sy); else { ED.view.ox -= e.deltaX; requestDraw(); } }, { passive: false });
 
@@ -1050,8 +1108,10 @@ function renderPanel() {
         <div class="row"><label>Size</label><input type="number" id="lv-w" min="8" max="128" value="${lv.w}"> × <input type="number" id="lv-h" min="8" max="128" value="${lv.h}"><button class="tb sm" data-act="resize">Apply</button></div>
         <div class="row"><label>Par time (s)</label><input type="number" data-p="par" min="0" value="${P.par || 0}"></div></div>
       <div class="sec"><h4>Atmosphere</h4>
+        <div class="row"><label>Lighting preset</label><select data-act-preset="1">${['', 'gritty', 'clean', 'emergency'].map(id => { const n = id ? RT.LIGHT_PRESETS[id].name : 'Custom'; const cur = P.lightPreset || ''; return `<option value="${id}" ${id === cur ? 'selected' : ''}>${esc(n)}</option>`; }).join('')}</select></div>
+        <p class="note">Gritty keeps the dark industrial look. Clean bright is for labs and offices. Emergency red is an alarm wash. You can still tweak the sliders after picking a preset.</p>
         <div class="row"><label>Sky</label><select data-p="sky">${opt(Object.keys(RT.SKIES), P.sky, k => RT.SKIES[k].name)}</select></div>
-        <div class="row"><label>Ambient light</label><input type="color" data-p="ambient" value="${P.ambient}"><input type="range" min="0.05" max="1.5" step="0.05" data-p="ambientI" value="${P.ambientI}"><output>${P.ambientI}</output></div>
+        <div class="row"><label>Ambient light</label><input type="color" data-p="ambient" value="${P.ambient}"><input type="range" min="0.05" max="1.8" step="0.05" data-p="ambientI" value="${P.ambientI}"><output>${P.ambientI}</output></div>
         <div class="row"><label>Fog</label><input type="color" data-p="fogColor" value="${P.fogColor}"><input type="range" min="0" max="0.15" step="0.005" data-p="fog" value="${P.fog}"><output>${P.fog}</output></div>
         <div class="row"><label>Wall height</label><input type="range" min="1.2" max="3" step="0.1" data-p="wallH" value="${P.wallH}"><output>${P.wallH}</output></div>
         <div class="row"><label>Default floor</label><select data-p="floorTex">${opt(RT.FLOOR_TEXTURES, P.floorTex, texName)}</select></div>
@@ -1101,6 +1161,7 @@ let inspUndo = false;
 body.addEventListener('pointerdown', () => { inspUndo = false; });
 body.addEventListener('input', ev => {
   const t = ev.target;
+  if (t.dataset.actPreset !== undefined || t.hasAttribute('data-act-preset')) { applyLightPreset(t.value); return; }
   if (t.dataset.ep) {      // inspector field
     const e = L().ents.find(o => ED.sel.has(o.id)); if (!e) return;
     if (!inspUndo) { pushUndo(); inspUndo = true; }
@@ -1120,8 +1181,10 @@ body.addEventListener('input', ev => {
     const k = t.dataset.p, P = L().props;
     P[k] = t.type === 'checkbox' ? t.checked : (t.type === 'range' || t.type === 'number') ? +t.value : t.value;
     if (t.nextElementSibling && t.nextElementSibling.tagName === 'OUTPUT') t.nextElementSibling.textContent = t.value;
+    if (['ambient', 'ambientI', 'fog', 'fogColor'].includes(k)) P.lightPreset = '';
     requestDraw(); markDirty();
   }
+  if (t.dataset.cp) { applyCellProp(t.dataset.cp, t.value); return; }
 });
 body.addEventListener('click', async ev => {
   const b = ev.target.closest('button, [data-lvl], [data-deltpl]'); if (!b) return;
@@ -1160,14 +1223,125 @@ async function runAct(a) {
     if (pick !== null && pick !== undefined) { ED.project.levels.push(levelFromAscii(DF_STARTER_LEVELS[pick], RT)); switchLevel(ED.project.levels.length - 1); }
   }
 }
+function applyLightPreset(id) {
+  const P = L().props;
+  if (!id) { P.lightPreset = ''; markDirty(); return; }
+  const pr = RT.LIGHT_PRESETS[id]; if (!pr) return;
+  P.lightPreset = id; P.ambient = pr.ambient; P.ambientI = pr.ambientI; P.fogColor = pr.fogColor; P.fog = pr.fog;
+  markDirty(); renderPanel(); toast('Lighting: ' + pr.name, 'ok');
+}
+function propTargetCells() {
+  if (ED.region) { const r = (function (a, b, c, d) { return { x1: Math.min(a, c), y1: Math.min(b, d), x2: Math.max(a, c), y2: Math.max(b, d) }; })(ED.region.x1, ED.region.y1, ED.region.x2, ED.region.y2); const out = []; for (let y = r.y1; y <= r.y2; y++) for (let x = r.x1; x <= r.x2; x++) if (inb(x, y)) out.push({ x, y }); return out; }
+  if (ED.hover && inb(ED.hover.x, ED.hover.y)) return [{ x: ED.hover.x, y: ED.hover.y }];
+  return [];
+}
+function uniqueOr(vals, empty) {
+  const u = [...new Set(vals.map(v => v === undefined || v === null ? '' : String(v)))];
+  return u.length === 1 ? u[0] : empty;
+}
+function applyCellProp(key, value) {
+  const cells = propTargetCells(); if (!cells.length) { toast('Hover or select cells first'); return; }
+  pushUndo();
+  const lv = L();
+  cells.forEach(({ x, y }) => {
+    const i = idx(x, y);
+    if (key === 'wall') {
+      if (value === '') { if (lv.wall[i] && !lv.kind[i]) { lv.wall[i] = ''; lv.kind[i] = ''; } }
+      else setWall(x, y, value);
+    } else if (key === 'floor') {
+      if (lv.wall[i] && !lv.kind[i]) return;
+      lv.floor[i] = value === lv.props.floorTex ? '' : value;
+    } else if (key === 'ceil') {
+      if (lv.wall[i] && !lv.kind[i]) return;
+      lv.ceil[i] = value === lv.props.ceilTex ? '' : value;
+    } else if (key === 'fh') {
+      if (!lv.wall[i] || lv.kind[i]) lv.fh[i] = +value;
+    } else if (key === 'door') {
+      if (value === '') { if (lv.kind[i]) { lv.kind[i] = ''; lv.wall[i] = ''; } }
+      else if (!isSpawnCell(x, y)) { lv.wall[i] = 'door'; lv.kind[i] = value; lv.fh[i] = 0; removeThingsAt(x, y, true); }
+    } else if (key === 'light') {
+      const existing = thingsAt(x, y).filter(e => e.t === 'light');
+      if (value === '' || value === 'none') {
+        lv.ents = lv.ents.filter(e => !(e.t === 'light' && Math.floor(e.x) === x && Math.floor(e.y) === y));
+      } else {
+        const preset = { dim: { color: '#c8b090', radius: 5, intensity: 0.7, flicker: false }, normal: { color: '#ffd9a0', radius: 6, intensity: 1.4, flicker: false }, bright: { color: '#eef6ff', radius: 8, intensity: 2.2, flicker: false }, alarm: { color: '#ff3030', radius: 6, intensity: 1.6, flicker: true } }[value];
+        if (!preset) return;
+        if (existing[0]) Object.assign(existing[0], preset);
+        else lv.ents.push(Object.assign({ id: uid(), t: 'light', x: x + 0.5, y: y + 0.5 }, preset));
+      }
+    }
+  });
+  afterChange();
+}
+function renderPropsDock() {
+  const box = $('#props-dock'); if (!box) return;
+  if (box.contains(document.activeElement) && document.activeElement.matches && document.activeElement.matches('select, input')) return;
+  refreshPropsDock(true);
+}
+function refreshPropsDock(force) {
+  const box = $('#props-dock'); if (!box) return;
+  if (!force && box.contains(document.activeElement) && /^(SELECT|INPUT)$/.test(document.activeElement.tagName)) return;
+  const cells = propTargetCells();
+  const opt = (list, cur, names, emptyLabel, emptyVal) => {
+    const mix = cur === '__multi__';
+    return (emptyLabel !== undefined ? `<option value="${emptyVal === undefined ? '' : emptyVal}" ${cur === (emptyVal === undefined ? '' : emptyVal) && !mix ? 'selected' : ''}>${esc(emptyLabel)}</option>` : '') +
+      (mix ? `<option value="__multi__" selected disabled>Multiple</option>` : '') +
+      list.map(([id, label]) => `<option value="${id}" ${!mix && String(cur) === String(id) ? 'selected' : ''}>${esc(label)}</option>`).join('');
+  };
+  if (!cells.length) {
+    box.innerHTML = `<div class="sec props-sec"><h4>Properties</h4><p class="note">Hover a cell or drag a selection to edit its floor, wall, ceiling, height, door and light.</p></div>`;
+    return;
+  }
+  const lv = L();
+  const walls = cells.map(({ x, y }) => { const i = idx(x, y); return lv.kind[i] ? '' : (lv.wall[i] || ''); });
+  const floors = cells.map(({ x, y }) => { const i = idx(x, y); return lv.floor[i] || lv.props.floorTex; });
+  const ceils = cells.map(({ x, y }) => { const i = idx(x, y); return lv.ceil[i] || lv.props.ceilTex; });
+  const fhs = cells.map(({ x, y }) => String(lv.fh[idx(x, y)] || 0));
+  const doors = cells.map(({ x, y }) => lv.kind[idx(x, y)] || '');
+  const lights = cells.map(({ x, y }) => { const Lts = thingsAt(x, y).filter(e => e.t === 'light'); return Lts[0] ? lightLevelOf(Lts[0]) : 'none'; });
+  const u = (arr) => { const s = [...new Set(arr)]; return s.length === 1 ? s[0] : '__multi__'; };
+  const wallOpts = RT.WALL_TEXTURES.map(id => [id, texLabel(id)]);
+  const floorOpts = RT.FLOOR_TEXTURES.map(id => [id, texLabel(id)]);
+  const ceilOpts = RT.CEIL_TEXTURES.map(id => [id, texLabel(id)]);
+  const title = cells.length > 1 ? `Properties · ${cells.length} cells` : `Properties · ${cells[0].x}, ${cells[0].y}`;
+  box.innerHTML = `<div class="sec props-sec"><h4>${esc(title)}</h4>
+    <div class="row"><label>Wall</label><select data-cp="wall">${opt(wallOpts, u(walls), null, '(Open floor)', '')}</select></div>
+    <div class="row"><label>Floor</label><select data-cp="floor">${opt(floorOpts, u(floors))}</select></div>
+    <div class="row"><label>Ceiling</label><select data-cp="ceil">${opt(ceilOpts, u(ceils))}</select></div>
+    <div class="row"><label>Height</label><select data-cp="fh">${opt([[0, '0'], [0.15, '0.15 stair'], [0.3, '0.30'], [0.45, '0.45'], [0.6, '0.60 catwalk'], [0.75, '0.75 cover']], u(fhs))}</select></div>
+    <div class="row"><label>Door</label><select data-cp="door">${opt([['door', 'Door'], ['red', 'Red key'], ['blue', 'Blue key'], ['yellow', 'Yellow key']], u(doors), null, '(None)', '')}</select></div>
+    <div class="row"><label>Light level</label><select data-cp="light">${opt([['none', 'None'], ['dim', 'Dim'], ['normal', 'Normal'], ['bright', 'Bright'], ['alarm', 'Emergency red']], u(lights))}</select></div>
+    <p class="note">Changes apply to the hovered cell, or to every cell in a Select-tool rectangle.</p>
+  </div>`;
+}
+function renderExplorer() {
+  const box = $('#explorer-body'); if (!box) return;
+  if (!ED.project) { box.innerHTML = ''; return; }
+  const p = ED.project;
+  const modelCount = Object.keys(p.models || {}).length;
+  const scripts = p.levels.map((l, i) => {
+    const sc = (l.props && l.props.script) ? 'has script' : 'no script';
+    const pend = l.props && l.props.scriptPending ? ' (off)' : '';
+    return `<button class="ex-item" data-ex-script="${i}"><span>${esc(l.name)}</span><small>${sc}${pend}</small></button>`;
+  }).join('');
+  box.innerHTML = `
+    <div class="ex-sec"><h4>Project</h4><div class="ex-name">${esc(p.name)}</div></div>
+    <div class="ex-sec"><h4>Levels</h4>${p.levels.map((l, i) => `<button class="ex-item ${i === ED.li ? 'on' : ''}" data-ex-lvl="${i}"><span>${i + 1}. ${esc(l.name)}</span><small>${l.w}×${l.h}</small></button>`).join('')}</div>
+    <div class="ex-sec"><h4>Models</h4><div class="note">${modelCount ? modelCount + ' custom model' + (modelCount === 1 ? '' : 's') : 'Default DMB Tech 1 pack'}</div>
+      <button class="tb sm" data-ex-act="models" style="margin-top:6px">Open model slots</button></div>
+    <div class="ex-sec"><h4>Scripts</h4>${scripts}</div>`;
+}
+
 function switchLevel(i) { ED.li = clamp(i, 0, ED.project.levels.length - 1); ED.sel.clear(); ED.region = null; cancelStamp(); fitView(); afterChange(true); }
 function refreshLevelSelect() { $('#level-select').innerHTML = ED.project.levels.map((l, i) => `<option value="${i}" ${i === ED.li ? 'selected' : ''}>${i + 1}. ${esc(l.name)}</option>`).join(''); }
 $('#level-select').addEventListener('change', e => switchLevel(+e.target.value));
 function updateProjectBtn() { $('#btn-project').textContent = ED.project.name; }
 function updateStatus() {
   const def = TOOLS.find(x => x !== '-' && x[0] === ED.tool);
-  $('#st-tool').innerHTML = `Tool <b>${def ? def[1] : ''}</b>`;
-  const lv = L(); $('#st-count').textContent = `${lv.ents.filter(e => e.t === 'enemy').length} enemies · ${lv.ents.filter(e => e.t === 'pickup').length} pickups · ${lv.ents.filter(e => e.t === 'light').length} lights`;
+  const stTool = $('#st-tool'); if (stTool) stTool.innerHTML = `Tool <b>${def ? def[1] : ''}</b>`;
+  const lv = L(); const stCount = $('#st-count'); if (stCount) stCount.textContent = `${lv.ents.filter(e => e.t === 'enemy').length} enemies · ${lv.ents.filter(e => e.t === 'pickup').length} pickups · ${lv.ents.filter(e => e.t === 'light').length} lights`;
+  updateCellReadout();
+  renderExplorer();
 }
 
 /* ---------- custom GLB model slots ---------- */
@@ -1487,9 +1661,9 @@ function openAbout() {
     <h4>3D models: Quaternius (CC0 1.0, public domain)</h4><p class="note">Rigged, animated characters and weapons by <b>Quaternius</b> (quaternius.com), downloaded from Poly Pizza. CC0 means no attribution is required. We credit them anyway.</p>
     <ul class="cred">${MODEL_CREDITS.map(c => `<li><b>${esc(c[0])}</b> <span>${c[1]} · CC0 1.0 · ${link(c[2])}</span></li>`).join('')}</ul>
     <h4>Music (CC BY 4.0)</h4><ul class="cred">${RT.MUSIC_TRACKS.map(t => `<li><b>"${esc(t.title)}"</b> <span>${esc(t.artist)} · ${esc(t.genre)} · ${t.license} · ${link(t.url)}</span></li>`).join('')}</ul>
-    <p class="note">Kevin MacLeod (incompetech.com) and Shane Ivers (silvermansound.com). Licensed under Creative Commons: By Attribution 4.0 — ${link('https://creativecommons.org/licenses/by/4.0/')}. Tracks were re-encoded to 112 kbps for size; nothing else was changed.</p>
+    <p class="note">Kevin MacLeod (incompetech.com) and Shane Ivers (silvermansound.com). Licensed under Creative Commons: By Attribution 4.0 — ${link('https://creativecommons.org/licenses/by/4.0/')}. The original five tracks were re-encoded to 112 kbps stereo. The five tracks added in 1.2.0 were re-encoded to 40 kbps mono to keep the download small. Nothing else was changed.</p>
     <h4>Code &amp; fonts</h4><ul class="cred"><li><b>Three.js r128</b> <span>MIT License · ${link('https://threejs.org')}</span></li><li><b>GLTFLoader, SkeletonUtils</b> <span>Three.js examples · MIT</span></li><li><b>Chakra Petch</b> <span>SIL Open Font License · Google Fonts</span></li></ul>
-    <h4>Made by RetroEngine</h4><p class="note">Textures (20 procedural PBR materials), the props, pickups, turret, sound effects and synth music are all generated by code in this app. The editor, engine and starter levels are original work. Custom uploads are your responsibility: use CC0 or CC-BY assets and credit their authors. The full list is in CREDITS.md.</p></div>`,
+    <h4>Made by RetroEngine</h4><p class="note">Textures (procedural PBR materials, including a clean lab / office / med-bay set and industrial bulkheads, vents, stains and chevrons), the props (crates, barrels, consoles, lab benches, med cabinets, vats, fans and more), pickups, turret, sound effects and synth music are all generated by code in this app. The editor, engine and starter levels are original work. Custom uploads are your responsibility: use CC0 or CC-BY assets and credit their authors. The full list is in CREDITS.md.</p></div>`,
     buttons: [{ label: 'Close', value: 1 }] });
 }
 async function openValidate() {
@@ -1537,7 +1711,7 @@ function openCode(which) {
 
 /* ---------- help / onboarding ---------- */
 // The manual text is shared with help.html (the build injects help_content.html here).
-const HELP_HTML = "<section id=\"h-start\"><h2>Getting started<\/h2>\n<p>RetroEngine is a game maker for retro-style first-person shooters. You draw levels on a top-down grid, drop in enemies, weapons, keys and lights, then press <b>Play<\/b> to walk through them in 3D. When you're happy, <b>Export<\/b> turns your project into one HTML file anyone can play in a browser.<\/p>\n<ol><li><b>Take the first-level tutorial.<\/b> Menu \u2192 <b>Tutorial: build your first level<\/b>. It takes about 5 minutes.<\/li>\n<li><b>Or open the Tutorial.<\/b> Menu \u2192 <b>Tutorial<\/b> (also at <a href=\"tutorial/\">tutorial/<\/a>) teaches adding maps, saving files, putting assets in code, changing engine knobs, and \u2014 in the advanced lessons \u2014 writing scripts and calling APIs.<\/li>\n<li><b>Or open a starter level.<\/b> The level picker in the top bar has three finished levels (E1M1\u2013E1M3). Play them, then take them apart to see how they work.<\/li>\n<li><b>Save often.<\/b> Work autosaves in this browser. Use Menu \u2192 <b>Projects<\/b> for named saves, and <b>Export project file (.json)<\/b> for real backups.<\/li><\/ol><\/section>\n\n<section id=\"h-tutorial\"><h2>Tutorial<\/h2>\n<p>Menu \u2192 <b>Tutorial<\/b> opens the Tinkerer tutorial: adding maps, saving and sharing files, loading assets in code, and changing engine knobs, with an advanced section on level scripts and APIs. You can also open <a href=\"tutorial/tutorial.html\">tutorial/tutorial.html<\/a> (or just <a href=\"tutorial/\">tutorial/<\/a>) directly. For a five-minute first level inside the editor, use Menu \u2192 <b>Tutorial: build your first level<\/b>.<\/p><\/section>\n\n<section id=\"h-ui\"><h2>The editor screen<\/h2>\n<ul><li><b>Top bar:<\/b> level picker, undo/redo, <b>Play<\/b>, <b>Export<\/b> and the <b>Menu<\/b>.<\/li>\n<li><b>Tool bar<\/b> (left on tablets and desktop, bottom on phones): the drawing tools.<\/li>\n<li><b>Panel<\/b> (right; a slide-up sheet on folded phones, opened with the panel button): <b>Build<\/b> (textures, door types, heights), <b>Things<\/b> (enemies, items, props, lights), <b>Rooms<\/b> (template library), <b>Level<\/b> (sky, fog, lighting, music, script) and <b>Project<\/b> (levels, models, map layers).<\/li>\n<li><b>Map:<\/b> one finger or the mouse uses the current tool. Two fingers pan and pinch-zoom; on desktop use Space+drag and the mouse wheel. <b>Fit<\/b> frames the whole level.<\/li><\/ul><\/section>\n\n<section id=\"h-tools\"><h2>Tools<\/h2>\n<table><tr><th>Tool<\/th><th>Key<\/th><th>What it does<\/th><\/tr>\n<tr><td>Select<\/td><td>V<\/td><td>Tap a thing to select and inspect it, drag to move it. Drag on empty space to select an area, then Copy / Cut / Delete / Save as template.<\/td><\/tr>\n<tr><td>Pan<\/td><td>H<\/td><td>Drag to move the view.<\/td><\/tr>\n<tr><td>Wall<\/td><td>B<\/td><td>Paint solid walls with the chosen texture.<\/td><\/tr>\n<tr><td>Floor<\/td><td>F<\/td><td>Paint floor texture. Painting floor also removes walls.<\/td><\/tr>\n<tr><td>Ceiling<\/td><td>C<\/td><td>Paint ceiling texture. Choose <b>Sky<\/b> for outdoor areas.<\/td><\/tr>\n<tr><td>Height<\/td><td>U<\/td><td>Raise floors: 0.15 per step makes stairs, 0.6 a catwalk, 0.75 a cover block the player can't climb.<\/td><\/tr>\n<tr><td>Rect<\/td><td>R<\/td><td>Drag a rectangle: a room with walls, a solid block, a carved floor or an outline.<\/td><\/tr>\n<tr><td>Fill<\/td><td>G<\/td><td>Flood-fill a connected area that has the same texture.<\/td><\/tr>\n<tr><td>Erase<\/td><td>E<\/td><td>Removes things first, then walls, then floor details.<\/td><\/tr>\n<tr><td>Door<\/td><td>D<\/td><td>Place doors in wall gaps. Red, blue and yellow doors need the matching keycard.<\/td><\/tr>\n<tr><td>Thing<\/td><td>T<\/td><td>Place whatever is chosen in the Things tab.<\/td><\/tr>\n<tr><td>Start<\/td><td>S<\/td><td>Set the player start. Tap it again to turn it 90\u00b0.<\/td><\/tr>\n<tr><td>Picker<\/td><td>I<\/td><td>Copy a cell's textures into your brushes.<\/td><\/tr><\/table>\n<p>Shortcuts: <kbd>Ctrl+Z<\/kbd>/<kbd>Ctrl+Y<\/kbd> undo/redo \u00b7 <kbd>Ctrl+C<\/kbd>/<kbd>X<\/kbd>/<kbd>V<\/kbd> copy/cut/paste an area \u00b7 <kbd>Del<\/kbd> delete \u00b7 <kbd>[<\/kbd> <kbd>]<\/kbd> cycle textures \u00b7 <kbd>0<\/kbd> fit \u00b7 <kbd>P<\/kbd> playtest \u00b7 <kbd>?<\/kbd> help \u00b7 <kbd>Esc<\/kbd> cancel.<\/p><\/section>\n\n<section id=\"h-build\"><h2>Building good levels<\/h2>\n<ul><li><b>Start with rooms.<\/b> The <b>Rooms<\/b> tab has 22 rotatable templates: rooms, corridors, stairs and buildings such as Bunker, Guard Tower, Mezzanine, Courtyard, Hangar and Server Room. Tap one, tap the map, and press <kbd>R<\/kbd> or \u27f3 to rotate.<\/li>\n<li><b>Connect rooms with doors.<\/b> Use a plain door for flow and keycard doors to gate progress. Put the key somewhere the player must fight through.<\/li>\n<li><b>Use height.<\/b> Catwalks and raised platforms give enemies firing positions, and stairs let the player reach them.<\/li>\n<li><b>Light it.<\/b> Coloured light fixtures (Things \u2192 Light) set the mood. Flickering lights make horror corners. Keep the level's ambient light low for a gritty look.<\/li>\n<li><b>Give cover.<\/b> Crates, sandbags and barrels block bullets. The smarter enemies hide behind them, and barrels explode.<\/li>\n<li><b>Check it.<\/b> Menu \u2192 <b>Check level<\/b> confirms the exit can be reached and that keys come before their doors.<\/li><\/ul><\/section>\n\n<section id=\"h-things\"><h2>Enemies, items and props<\/h2>\n<table><tr><th>Enemy<\/th><th>Behaviour<\/th><\/tr>\n<tr><td>Soldier<\/td><td>Fast rifleman. Strafes while reloading, flanks, and calls in nearby allies.<\/td><\/tr>\n<tr><td>Gun Drone<\/td><td>Hovering, fast and fragile. Hard to hit.<\/td><\/tr>\n<tr><td>Heavy Walker<\/td><td>Slow armoured walker that fires 3-shot bursts.<\/td><\/tr>\n<tr><td>Sentry Turret<\/td><td>Never moves. Rapid fire with long sight lines.<\/td><\/tr>\n<tr><td>Titan (Boss)<\/td><td>Huge HP and twin rockets. Explodes when it dies.<\/td><\/tr><\/table>\n<p><b>How enemies think:<\/b> they stand idle until they <b>see<\/b> you (line of sight, roughly in front of them) or <b>hear<\/b> you (gunfire carries far; running footsteps carry a short way). An alerted enemy radios nearby allies. In a fight they strafe between shots, some swing wide to flank, and badly hurt ones run to cover and pop back out. They path around walls and open plain doors themselves. Difficulty (Easy / Normal / Hard, in game Settings) changes their health, damage, fire rate, speed and reaction time.<\/p>\n<p><b>Pickups:<\/b> health, medkit, armor, ammo (bullets, shells, cells, rockets), weapon pickups (shotgun, rifle, plasma, rockets; you start with the wrench and pistol), the three keycards, and data chips (secrets). <b>Props:<\/b> crates, barrels (explosive), lockers, server racks, terminals, desks, pillars, generators, sandbags, lamps, cones and debris.<\/p><\/section>\n\n<section id=\"h-play\"><h2>Playing<\/h2>\n<table><tr><th><\/th><th>Keyboard &amp; mouse<\/th><th>Touch<\/th><\/tr>\n<tr><td>Move<\/td><td>WASD \u00b7 Shift to run<\/td><td>Drag anywhere on the left half<\/td><\/tr>\n<tr><td>Look<\/td><td>Mouse (click the game to lock the pointer, or drag if your browser blocks that)<\/td><td>Drag on the right half<\/td><\/tr>\n<tr><td>Shoot<\/td><td>Left click<\/td><td>Hold FIRE (drag it to aim)<\/td><\/tr>\n<tr><td>Reload<\/td><td>R (reloads automatically when empty)<\/td><td>RLD<\/td><\/tr>\n<tr><td>Use / open<\/td><td>E<\/td><td>USE<\/td><\/tr>\n<tr><td>Jump<\/td><td>Space<\/td><td>JUMP<\/td><\/tr>\n<tr><td>Weapons<\/td><td>1\u20136, Q or mouse wheel<\/td><td>SWAP<\/td><\/tr>\n<tr><td>Map \u00b7 flashlight \u00b7 pause<\/td><td>M \u00b7 F \u00b7 Esc<\/td><td>Buttons at the top<\/td><\/tr><\/table>\n<p><b>Weapons:<\/b> Wrench (melee), Pulse Cannon (default starting gun, infinite ammo, automatic cyan pulses, tight spread), Combat Shotgun (6 shells, spread), Assault Rifle (30 rounds, automatic), Plasma Caster (40 cells, projectiles) and Rocket Launcher (1 rocket, big splash). The HUD shows <i>loaded / reserve<\/i> ammo, or \u221e when a gun does not use ammo. Touch aim assist is on by default; you can change its strength in Game settings.<\/p><\/section>\n\n<section id=\"h-levelprops\"><h2>Level settings &amp; music<\/h2>\n<p>The <b>Level<\/b> tab sets the name, sky (Night City, Red Dusk, Overcast, Toxic Haze, Black Void), fog, ambient light, wall height, default textures, par time and music. <b>Music:<\/b> pick <i>Playlist<\/i> to shuffle the bundled tracks, a single track, or <i>Synth ambient<\/i>, the built-in generative music that works offline. During play, open Pause \u2192 <b>Music player<\/b> to switch tracks and see their credits. To add your own music, put MP3s in <code>assets/music/<\/code> and list them in <code>MUSIC_TRACKS<\/code> near the top of <code>app.js<\/code>. Only use music you have the rights to, and credit it.<\/p><\/section>\n\n<section id=\"h-script\"><h2>Level scripting<\/h2>\n<p>Menu \u2192 Code editor \u2192 <b>script.js<\/b>. Scripts react to events: <code>start<\/code>, <code>tick<\/code>(dt), <code>kill<\/code>(type), <code>pickup<\/code>(type), <code>door<\/code>, <code>use<\/code>({x,y}) and <code>exit<\/code>.<\/p>\n<pre>api.on('start', () =&gt; api.message('Find the red keycard.'));\napi.on('kill', () =&gt; { if (api.enemiesLeft() === 0) { api.message('Vault unlocked'); api.openDoor(20, 8); } });\napi.on('use', c =&gt; { if (c.x === 5 &amp;&amp; c.y === 9) api.giveAmmo('rockets', 2); });<\/pre>\n<p>API: <code>message(t)<\/code>, <code>heal(n)<\/code>, <code>giveArmor(n)<\/code>, <code>giveAmmo(type, n)<\/code>, <code>openDoor(x, y)<\/code>, <code>enemiesLeft()<\/code>, <code>kills()<\/code>, <code>time()<\/code>, <code>win()<\/code>, <code>sound(name)<\/code> and <code>player<\/code> {x, y, hp, armor, keys}.<\/p><\/section>\n\n<section id=\"h-share\"><h2>Saving, exporting &amp; publishing<\/h2>\n<ul><li><b>Projects:<\/b> Menu \u2192 Projects keeps named save slots in this browser.<\/li>\n<li><b>Backups:<\/b> Export project file (.json) and Import project file. Old DOOMFORGE projects and saves are imported automatically.<\/li>\n<li><b>Export game:<\/b> makes one .html file with your levels. The 3D models and music load from where RetroEngine is hosted. Offline, the game falls back to built-in models and synth music, so it always works.<\/li>\n<li><b>Publish:<\/b> put the whole <code>retroengine/<\/code> folder (with <code>assets/<\/code>) on any static host, such as GitHub Pages, Netlify or itch.io (HTML5), and share the link.<\/li><\/ul><\/section>\n\n<section id=\"h-sharemaps\"><h2>Sharing your maps<\/h2>\n<p>Send a single level to a friend in one of two ways. Find both in the <b>Level<\/b> tab under <i>Share this level<\/i>, or in the Menu.<\/p>\n<ul><li><b>Share link:<\/b> the whole level is compressed into the link itself (the part after <code>#map=<\/code>), so no server or account is needed. On a phone, the share sheet opens (Messages, WhatsApp, Discord\u2026). On a computer, the link is copied. Opening the link loads the level and drops you straight into Playtest. Press <i>Back to editor<\/i> to look at how it was built, and it is added to your project as a new level.<\/li>\n<li><b>Export .retro file:<\/b> a small file holding the level plus any custom models (including uploaded .glb files). Use it when a level is too big for a link (about 7 KB). RetroEngine tells you when that happens. To open one, use Menu \u2192 <b>Import level (.retro)<\/b>, or drag the file onto the editor. On phones you pick it from Files, Drive or Downloads.<\/li><\/ul>\n<p><b>Safety:<\/b> level scripts from other people are <b>switched off<\/b> when you import. The Level tab shows a warning, and you can review the code in <i>Edit level script<\/i> and press Apply to turn it on. Imported files are checked for size, map dimensions and valid entities. A whole project .json also works with Import level.<\/p>\n<p><b>Tip:<\/b> links only work for others when RetroEngine is hosted (for example on GitHub Pages). A copy opened from a file on your own device makes links that only work there.<\/p><\/section>\n\n<section id=\"h-mobile\"><h2>Phones &amp; tablets<\/h2>\n<ul><li>Works in Chrome, Samsung Internet, Firefox, Safari (iPhone/iPad) and in-app browsers. Everything is touch-first: no mouse, keyboard or pointer lock needed.<\/li>\n<li><b>Editor:<\/b> one finger uses the tool, two fingers pan and pinch-zoom the map. The <i>Panel<\/i> button opens the side panel as a sheet.<\/li>\n<li><b>Game:<\/b> use the <b>Full screen<\/b> button (where the browser supports it) to hide the address bar. Turn the phone sideways for the best view. Sound starts on your first tap (a phone rule).<\/li>\n<li><b>Graphics quality: Auto<\/b> (the default) picks settings for your device and lowers the resolution on the fly to keep the game smooth. Choose Low/Medium/High in Settings to fix it.<\/li>\n<li>If a phone can't run 3D (no WebGL), Playtest explains why and the editor keeps working. Try another browser, or turn off battery saver.<\/li><\/ul><\/section>\n\n<section id=\"h-models\"><h2>Custom 3D models<\/h2>\n<p>Project \u2192 <b>Custom 3D models<\/b> lets you replace any enemy or prop with your own <code>.glb<\/code> file or URL. Models are auto-scaled and placed on the floor. Animated models use clips named Idle, Walk/Run, Shoot/Attack, HitReact and Death. Use only CC0 or CC-BY models, credit the authors, and keep files under about 2 MB because uploads are stored in the project.<\/p><\/section>\n\n<section id=\"h-trouble\"><h2>Troubleshooting<\/h2>\n<ul><li><b>Black screen or \"needs Three.js\":<\/b> the 3D engine loads from a CDN the first time, so connect to the internet once.<\/li>\n<li><b>Enemies look like simple robots and the music is synth:<\/b> the asset pack couldn't load. That happens when the page is opened straight from a file (file://) with no internet. Open it through a web server, or from the hosted link.<\/li>\n<li><b>Mouse look doesn't lock:<\/b> some in-app browsers block pointer lock. Drag to look instead.<\/li>\n<li><b>Slow on a phone:<\/b> keep Graphics quality on Auto, or choose Low. Close other apps, and turn off battery saver (it limits the frame rate).<\/li>\n<li><b>Share link does nothing:<\/b> some in-app browsers block the share sheet and clipboard. Select the link text in the box and copy it, or export a .retro file.<\/li>\n<li><b>\"3D not available\":<\/b> the browser has WebGL turned off or blocked. Open the page in a full browser (not an in-app one) and enable hardware acceleration.<\/li>\n<li><b>Storage full:<\/b> browser storage is about 5\u201310 MB. Remove uploaded models, or export a JSON backup and start a new project.<\/li><\/ul><\/section>\n";
+const HELP_HTML = "<section id=\"h-start\"><h2>Getting started<\/h2>\n<p>RetroEngine is a game maker for retro-style first-person shooters. You draw levels on a top-down grid, drop in enemies, weapons, keys and lights, then press <b>Play<\/b> to walk through them in 3D. When you're happy, <b>Export<\/b> turns your project into one HTML file anyone can play in a browser.<\/p>\n<ol><li><b>Take the first-level tutorial.<\/b> Menu \u2192 <b>Tutorial: build your first level<\/b>. It takes about 5 minutes.<\/li>\n<li><b>Or open the Tutorial.<\/b> Menu \u2192 <b>Tutorial<\/b> (also at <a href=\"tutorial/\">tutorial/<\/a>) teaches adding maps, saving files, putting assets in code, changing engine knobs, and \u2014 in the advanced lessons \u2014 writing scripts and calling APIs.<\/li>\n<li><b>Or open a starter level.<\/b> The level picker in the top bar has three finished levels (E1M1\u2013E1M3). Play them, then take them apart to see how they work.<\/li>\n<li><b>Save often.<\/b> Work autosaves in this browser. Use Menu \u2192 <b>Projects<\/b> for named saves, and <b>Export project file (.json)<\/b> for real backups.<\/li><\/ol><\/section>\n\n<section id=\"h-tutorial\"><h2>Tutorial<\/h2>\n<p>Menu \u2192 <b>Tutorial<\/b> opens the Tinkerer tutorial: adding maps, saving and sharing files, loading assets in code, and changing engine knobs, with an advanced section on level scripts and APIs. You can also open <a href=\"tutorial/tutorial.html\">tutorial/tutorial.html<\/a> (or just <a href=\"tutorial/\">tutorial/<\/a>) directly. For a five-minute first level inside the editor, use Menu \u2192 <b>Tutorial: build your first level<\/b>.<\/p><\/section>\n\n<section id=\"h-ui\"><h2>The editor screen<\/h2>\n<ul><li><b>Top bar:<\/b> project name, level picker, undo/redo, <b>Play<\/b>, <b>Export<\/b> and the <b>Menu<\/b>.<\/li>\n<li><b>Explorer<\/b> (left on tablets and desktop; a slide-out sheet on phones, opened with the folder button): the project name, the levels list, custom models, and level scripts.<\/li>\n<li><b>Tool bar<\/b> (left on tablets and desktop, bottom on phones): the drawing tools.<\/li>\n<li><b>Map:<\/b> one finger or the mouse uses the current tool. Two fingers pan and pinch-zoom; on desktop use Space+drag and the mouse wheel. <b>Fit<\/b> frames the whole level.<\/li>\n<li><b>Properties / inspector<\/b> (top of the right panel): dropdowns for the wall, floor, ceiling, height, door type and light level of the hovered cell. If you drag a rectangle with the Select tool, the same dropdowns apply to every cell in that selection.<\/li>\n<li><b>Panel tabs<\/b> (right; a slide-up sheet on folded phones, opened with the panel button): <b>Build<\/b> (texture swatches, door types, heights), <b>Things<\/b> (enemies, items, props, lights), <b>Rooms<\/b> (template library), <b>Level<\/b> (sky, fog, lighting presets, music, script) and <b>Project<\/b> (levels, models, map layers).<\/li>\n<li><b>Status bar<\/b> (bottom on desktop and tablets; a floating readout on phones): the grid coordinates under the cursor or finger, plus a readable description of what is on that cell \u2014 wall or floor texture, height, door type, thing name (for example Soldier or Exit pad), light level and the current map layer.<\/li><\/ul><\/section>\n\n<section id=\"h-tools\"><h2>Tools<\/h2>\n<table><tr><th>Tool<\/th><th>Key<\/th><th>What it does<\/th><\/tr>\n<tr><td>Select<\/td><td>V<\/td><td>Tap a thing to select and inspect it, drag to move it. Drag on empty space to select an area, then Copy / Cut / Delete / Save as template.<\/td><\/tr>\n<tr><td>Pan<\/td><td>H<\/td><td>Drag to move the view.<\/td><\/tr>\n<tr><td>Wall<\/td><td>B<\/td><td>Paint solid walls with the chosen texture.<\/td><\/tr>\n<tr><td>Floor<\/td><td>F<\/td><td>Paint floor texture. Painting floor also removes walls.<\/td><\/tr>\n<tr><td>Ceiling<\/td><td>C<\/td><td>Paint ceiling texture. Choose <b>Sky<\/b> for outdoor areas.<\/td><\/tr>\n<tr><td>Height<\/td><td>U<\/td><td>Raise floors: 0.15 per step makes stairs, 0.6 a catwalk, 0.75 a cover block the player can't climb.<\/td><\/tr>\n<tr><td>Rect<\/td><td>R<\/td><td>Drag a rectangle: a room with walls, a solid block, a carved floor or an outline.<\/td><\/tr>\n<tr><td>Fill<\/td><td>G<\/td><td>Flood-fill a connected area that has the same texture.<\/td><\/tr>\n<tr><td>Erase<\/td><td>E<\/td><td>Removes things first, then walls, then floor details.<\/td><\/tr>\n<tr><td>Door<\/td><td>D<\/td><td>Place doors in wall gaps. Red, blue and yellow doors need the matching keycard.<\/td><\/tr>\n<tr><td>Thing<\/td><td>T<\/td><td>Place whatever is chosen in the Things tab.<\/td><\/tr>\n<tr><td>Start<\/td><td>S<\/td><td>Set the player start. Tap it again to turn it 90\u00b0.<\/td><\/tr>\n<tr><td>Picker<\/td><td>I<\/td><td>Copy a cell's textures into your brushes.<\/td><\/tr><\/table>\n<p>Shortcuts: <kbd>Ctrl+Z<\/kbd>/<kbd>Ctrl+Y<\/kbd> undo/redo \u00b7 <kbd>Ctrl+C<\/kbd>/<kbd>X<\/kbd>/<kbd>V<\/kbd> copy/cut/paste an area \u00b7 <kbd>Del<\/kbd> delete \u00b7 <kbd>[<\/kbd> <kbd>]<\/kbd> cycle textures \u00b7 <kbd>0<\/kbd> fit \u00b7 <kbd>P<\/kbd> playtest \u00b7 <kbd>?<\/kbd> help \u00b7 <kbd>Esc<\/kbd> cancel.<\/p><\/section>\n\n<section id=\"h-build\"><h2>Building good levels<\/h2>\n<ul><li><b>Start with rooms.<\/b> The <b>Rooms<\/b> tab has 24 rotatable templates: rooms, corridors, stairs and buildings such as Bunker, Guard Tower, Mezzanine, Courtyard, Hangar and Server Room, plus <b>Clean Lab<\/b> and <b>Med Bay<\/b> for well-lit white rooms. Tap one, tap the map, and press <kbd>R<\/kbd> or \u27f3 to rotate.<\/li>\n<li><b>Connect rooms with doors.<\/b> Use a plain door for flow and keycard doors to gate progress. Put the key somewhere the player must fight through.<\/li>\n<li><b>Use height.<\/b> Catwalks and raised platforms give enemies firing positions, and stairs let the player reach them.<\/li>\n<li><b>Light it.<\/b> Coloured light fixtures (Things \u2192 Light) set the mood. Flickering lights make horror corners. The <b>Level<\/b> tab has a lighting preset: <b>Gritty<\/b> for dark industrial maps, <b>Clean bright<\/b> for labs and offices, and <b>Emergency red<\/b> for an alarm wash. For a clean well-lit room, stamp Clean Lab or Med Bay, pick the Clean bright preset, and use Lab Wall Panels, Polished Tile and Bright Ceiling Lights from the Properties dropdowns.<\/li>\n<li><b>Give cover.<\/b> Crates, sandbags and barrels block bullets. The smarter enemies hide behind them, and barrels explode.<\/li>\n<li><b>Check it.<\/b> Menu \u2192 <b>Check level<\/b> confirms the exit can be reached and that keys come before their doors.<\/li><\/ul><\/section>\n\n<section id=\"h-things\"><h2>Enemies, items and props<\/h2>\n<table><tr><th>Enemy<\/th><th>Behaviour<\/th><\/tr>\n<tr><td>Soldier<\/td><td>Fast rifleman. Strafes while reloading, flanks, and calls in nearby allies.<\/td><\/tr>\n<tr><td>Gun Drone<\/td><td>Hovering, fast and fragile. Hard to hit.<\/td><\/tr>\n<tr><td>Heavy Walker<\/td><td>Slow armoured walker that fires 3-shot bursts.<\/td><\/tr>\n<tr><td>Sentry Turret<\/td><td>Never moves. Rapid fire with long sight lines.<\/td><\/tr>\n<tr><td>Titan (Boss)<\/td><td>Huge HP and twin rockets. Explodes when it dies.<\/td><\/tr><\/table>\n<p><b>How enemies think:<\/b> they stand idle until they <b>see<\/b> you (line of sight, roughly in front of them) or <b>hear<\/b> you (gunfire carries far; running footsteps carry a short way). An alerted enemy radios nearby allies. In a fight they strafe between shots, some swing wide to flank, and badly hurt ones run to cover and pop back out. They path around walls and open plain doors themselves. Difficulty (Easy / Normal / Hard, in game Settings) changes their health, damage, fire rate, speed and reaction time.<\/p>\n<p><b>Pickups:<\/b> health, medkit, armor, ammo (bullets, shells, cells, rockets), weapon pickups (shotgun, rifle, plasma, rockets; you start with the wrench and pistol), the three keycards, and data chips (secrets). <b>Props:<\/b> crates, barrels (explosive), lockers, server racks, terminals, desks, pillars, generators, sandbags, lamps, cones, debris, plus control consoles, lab benches, med cabinets, chem vats, industrial fans and extinguishers. All of these are built by the engine to fit a retro sci-fi / industrial FPS look.<\/p><\/section>\n\n<section id=\"h-play\"><h2>Playing<\/h2>\n<table><tr><th><\/th><th>Keyboard &amp; mouse<\/th><th>Touch<\/th><\/tr>\n<tr><td>Move<\/td><td>WASD \u00b7 Shift to run<\/td><td>Drag anywhere on the left half<\/td><\/tr>\n<tr><td>Look<\/td><td>Mouse (click the game to lock the pointer, or drag if your browser blocks that)<\/td><td>Drag on the right half<\/td><\/tr>\n<tr><td>Shoot<\/td><td>Left click<\/td><td>Hold FIRE (drag it to aim)<\/td><\/tr>\n<tr><td>Reload<\/td><td>R (reloads automatically when empty)<\/td><td>RLD<\/td><\/tr>\n<tr><td>Use / open<\/td><td>E<\/td><td>USE<\/td><\/tr>\n<tr><td>Jump<\/td><td>Space<\/td><td>JUMP<\/td><\/tr>\n<tr><td>Weapons<\/td><td>1\u20136, Q or mouse wheel<\/td><td>SWAP<\/td><\/tr>\n<tr><td>Map \u00b7 flashlight \u00b7 pause<\/td><td>M \u00b7 F \u00b7 Esc<\/td><td>Buttons at the top<\/td><\/tr><\/table>\n<p><b>Weapons:<\/b> Wrench (melee), Pulse Cannon (default starting gun, infinite ammo, automatic cyan pulses, tight spread), Combat Shotgun (6 shells, spread), Assault Rifle (30 rounds, automatic), Plasma Caster (40 cells, projectiles) and Rocket Launcher (1 rocket, big splash). The HUD shows <i>loaded / reserve<\/i> ammo, or \u221e when a gun does not use ammo. Touch aim assist is on by default; you can change its strength in Game settings.<\/p><\/section>\n\n<section id=\"h-levelprops\"><h2>Level settings &amp; music<\/h2>\n<p>The <b>Level<\/b> tab sets the name, sky (Night City, Red Dusk, Overcast, Toxic Haze, Black Void), fog, ambient light, wall height, default textures, par time and music. Use the <b>Lighting preset<\/b> dropdown for a one-tap mood: Gritty, Clean bright, or Emergency red. You can still tweak ambient light and fog after picking a preset.<\/p>\n<p>To paint floors faster, use the <b>Properties<\/b> dropdowns at the top of the right panel (wall, floor, ceiling, height, door, light level). They edit the hovered cell, or every cell in a Select-tool rectangle.<\/p>\n<p><b>Music:<\/b> pick <i>Playlist<\/i> to shuffle the bundled tracks, a single track, or <i>Synth ambient<\/i>, the built-in generative music that works offline. Ten CC BY 4.0 tracks ship with the editor (metal, industrial, dark synth, trap, hip-hop). During play, open Pause \u2192 <b>Music player<\/b> to switch tracks and see their credits. To add your own music, put MP3s in <code>assets/music/<\/code> and list them in <code>MUSIC_TRACKS<\/code> in <code>dmbtech1.js<\/code>. Only use music you have the rights to (CC0 or CC BY), never someone else's songs without a license, and credit it.<\/p><\/section>\n\n<section id=\"h-script\"><h2>Level scripting<\/h2>\n<p>Menu \u2192 Code editor \u2192 <b>script.js<\/b>. Scripts react to events: <code>start<\/code>, <code>tick<\/code>(dt), <code>kill<\/code>(type), <code>pickup<\/code>(type), <code>door<\/code>, <code>use<\/code>({x,y}) and <code>exit<\/code>.<\/p>\n<pre>api.on('start', () =&gt; api.message('Find the red keycard.'));\napi.on('kill', () =&gt; { if (api.enemiesLeft() === 0) { api.message('Vault unlocked'); api.openDoor(20, 8); } });\napi.on('use', c =&gt; { if (c.x === 5 &amp;&amp; c.y === 9) api.giveAmmo('rockets', 2); });<\/pre>\n<p>API: <code>message(t)<\/code>, <code>heal(n)<\/code>, <code>giveArmor(n)<\/code>, <code>giveAmmo(type, n)<\/code>, <code>openDoor(x, y)<\/code>, <code>enemiesLeft()<\/code>, <code>kills()<\/code>, <code>time()<\/code>, <code>win()<\/code>, <code>sound(name)<\/code> and <code>player<\/code> {x, y, hp, armor, keys}.<\/p><\/section>\n\n<section id=\"h-share\"><h2>Saving, exporting &amp; publishing<\/h2>\n<ul><li><b>Projects:<\/b> Menu \u2192 Projects keeps named save slots in this browser.<\/li>\n<li><b>Backups:<\/b> Export project file (.json) and Import project file. Old DOOMFORGE projects and saves are imported automatically.<\/li>\n<li><b>Export game:<\/b> makes one .html file with your levels. The 3D models and music load from where RetroEngine is hosted. Offline, the game falls back to built-in models and synth music, so it always works.<\/li>\n<li><b>Publish:<\/b> put the whole <code>retroengine/<\/code> folder (with <code>assets/<\/code>) on any static host, such as GitHub Pages, Netlify or itch.io (HTML5), and share the link.<\/li><\/ul><\/section>\n\n<section id=\"h-sharemaps\"><h2>Sharing your maps<\/h2>\n<p>Send a single level to a friend in one of two ways. Find both in the <b>Level<\/b> tab under <i>Share this level<\/i>, or in the Menu.<\/p>\n<ul><li><b>Share link:<\/b> the whole level is compressed into the link itself (the part after <code>#map=<\/code>), so no server or account is needed. On a phone, the share sheet opens (Messages, WhatsApp, Discord\u2026). On a computer, the link is copied. Opening the link loads the level and drops you straight into Playtest. Press <i>Back to editor<\/i> to look at how it was built, and it is added to your project as a new level.<\/li>\n<li><b>Export .retro file:<\/b> a small file holding the level plus any custom models (including uploaded .glb files). Use it when a level is too big for a link (about 7 KB). RetroEngine tells you when that happens. To open one, use Menu \u2192 <b>Import level (.retro)<\/b>, or drag the file onto the editor. On phones you pick it from Files, Drive or Downloads.<\/li><\/ul>\n<p><b>Safety:<\/b> level scripts from other people are <b>switched off<\/b> when you import. The Level tab shows a warning, and you can review the code in <i>Edit level script<\/i> and press Apply to turn it on. Imported files are checked for size, map dimensions and valid entities. A whole project .json also works with Import level.<\/p>\n<p><b>Tip:<\/b> links only work for others when RetroEngine is hosted (for example on GitHub Pages). A copy opened from a file on your own device makes links that only work there.<\/p><\/section>\n\n<section id=\"h-mobile\"><h2>Phones &amp; tablets<\/h2>\n<ul><li>Works in Chrome, Samsung Internet, Firefox, Safari (iPhone/iPad) and in-app browsers. Everything is touch-first: no mouse, keyboard or pointer lock needed.<\/li>\n<li><b>Editor:<\/b> one finger uses the tool, two fingers pan and pinch-zoom the map. The <i>Panel<\/i> button opens the side panel as a sheet.<\/li>\n<li><b>Game:<\/b> use the <b>Full screen<\/b> button (where the browser supports it) to hide the address bar. Turn the phone sideways for the best view. Sound starts on your first tap (a phone rule).<\/li>\n<li><b>Graphics quality: Auto<\/b> (the default) picks settings for your device and lowers the resolution on the fly to keep the game smooth. Choose Low/Medium/High in Settings to fix it.<\/li>\n<li>If a phone can't run 3D (no WebGL), Playtest explains why and the editor keeps working. Try another browser, or turn off battery saver.<\/li><\/ul><\/section>\n\n<section id=\"h-models\"><h2>Custom 3D models<\/h2>\n<p>Project \u2192 <b>Custom 3D models<\/b> lets you replace any enemy or prop with your own <code>.glb<\/code> file or URL. Models are auto-scaled and placed on the floor. Animated models use clips named Idle, Walk/Run, Shoot/Attack, HitReact and Death. Use only CC0 or CC-BY models, credit the authors, and keep files under about 2 MB because uploads are stored in the project.<\/p><\/section>\n\n<section id=\"h-trouble\"><h2>Troubleshooting<\/h2>\n<ul><li><b>Black screen or \"needs Three.js\":<\/b> the 3D engine loads from a CDN the first time, so connect to the internet once.<\/li>\n<li><b>Enemies look like simple robots and the music is synth:<\/b> the asset pack couldn't load. That happens when the page is opened straight from a file (file://) with no internet. Open it through a web server, or from the hosted link.<\/li>\n<li><b>Mouse look doesn't lock:<\/b> some in-app browsers block pointer lock. Drag to look instead.<\/li>\n<li><b>Slow on a phone:<\/b> keep Graphics quality on Auto, or choose Low. Close other apps, and turn off battery saver (it limits the frame rate).<\/li>\n<li><b>Share link does nothing:<\/b> some in-app browsers block the share sheet and clipboard. Select the link text in the box and copy it, or export a .retro file.<\/li>\n<li><b>\"3D not available\":<\/b> the browser has WebGL turned off or blocked. Open the page in a full browser (not an in-app one) and enable hardware acceleration.<\/li>\n<li><b>Storage full:<\/b> browser storage is about 5\u201310 MB. Remove uploaded models, or export a JSON backup and start a new project.<\/li><\/ul><\/section>\n\n<section id=\"h-credits\"><h2>Credits<\/h2><p>3D models by Quaternius (CC0). Music by Kevin MacLeod and Shane Ivers (CC BY 4.0), including the 1.2.0 tracks Hitman, Volatile Reaction, Industrial Revolution, Crypto and Danger Storm (Kevin MacLeod). Textures and props are original procedural work. Three.js (MIT). See <a href=\"CREDITS.md\">CREDITS.md<\/a> for every asset, its license and its source URL.<\/p><\/section>\n";
 function openHelp(first) {
   const touch = matchMedia('(pointer: coarse)').matches;
   const quick = `<div class="help-steps">
@@ -1683,17 +1857,30 @@ $('#topbar').addEventListener('click', e => {
 });
 $('#zoom-dock').addEventListener('click', e => { const b = e.target.closest('[data-cmd]'); if (b) runCmd(b.dataset.cmd); });
 $('#btn-project').addEventListener('click', openProjects);
+document.addEventListener('input', ev => {
+  const t = ev.target;
+  if (!t) return;
+  if (t.closest && t.closest('#props-dock') && t.dataset.cp) { applyCellProp(t.dataset.cp, t.value); }
+});
+document.addEventListener('click', ev => {
+  const b = ev.target.closest && ev.target.closest('[data-ex-lvl], [data-ex-script], [data-ex-act]');
+  if (!b) return;
+  if (b.dataset.exLvl !== undefined) { switchLevel(+b.dataset.exLvl); document.body.classList.remove('exsheet'); }
+  else if (b.dataset.exScript !== undefined) { switchLevel(+b.dataset.exScript); openTab('level'); runAct('script'); document.body.classList.remove('exsheet'); }
+  else if (b.dataset.exAct === 'models') { openTab('level'); document.body.classList.remove('exsheet'); if (innerWidth <= 720) document.body.classList.add('sheet'); }
+});
 function runCmd(c) {
   if (c === 'undo') undo(); else if (c === 'redo') redo(); else if (c === 'play') playtest(); else if (c === 'export') openExport(); else if (c === 'menu') openMenu();
   else if (c === 'zoomIn') setZoom(ED.view.cs * 1.25); else if (c === 'zoomOut') setZoom(ED.view.cs / 1.25); else if (c === 'fit') fitView();
-  else if (c === 'sheet') document.body.classList.toggle('sheet');
+  else if (c === 'sheet') { document.body.classList.toggle('sheet'); document.body.classList.remove('exsheet'); }
+  else if (c === 'explorer') { document.body.classList.toggle('exsheet'); document.body.classList.remove('sheet'); }
 }
 
 /* ---------- start the editor ---------- */
 function boot() {
   try { const s = localStorage.getItem(AUTOSAVE_KEY); ED.project = s ? normalizeProject(JSON.parse(s)) : starterProject(); }
   catch (e) { console.warn('RetroEngine: autosave unreadable, loading starter project', e); ED.project = starterProject(); }
-  buildToolbar(); setTool('select'); updateProjectBtn(); refreshLevelSelect(); renderPanel(); updateUndoBtns();
+  buildToolbar(); setTool('select'); updateProjectBtn(); refreshLevelSelect(); renderPanel(); renderExplorer(); refreshPropsDock(true); updateUndoBtns();
   resizeCanvas(); fitView(); updateStatus();
   const sp = document.getElementById('splash'); if (sp) { sp.style.opacity = '0'; setTimeout(() => sp.remove(), 450); }
   window.addEventListener('resize', () => { resizeCanvas(); });
@@ -1705,7 +1892,7 @@ function boot() {
   let seen = false; try { seen = !!localStorage.getItem(SEEN_KEY); } catch (e) {}
   if (/^#map=/.test(location.hash)) openFromHash(); else if (/^#pack=/.test(location.hash)) openFromPack(); else if (!seen) openHelp(true);
   // Debug / test hook (used by the automated tests)
-  window.RETROENGINE = window.DOOMFORGE_IDE = { VERSION, packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave };
+  window.RETROENGINE = window.DOOMFORGE_IDE = { VERSION, packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave, describeCell, applyCellProp, applyLightPreset, updateCellReadout, renderExplorer, refreshPropsDock };
 }
 boot();
 })();

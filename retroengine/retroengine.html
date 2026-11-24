@@ -118,12 +118,13 @@
   <div id="splash" style="position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#07090d;color:#e8edf5;font:600 15px 'Chakra Petch',system-ui,sans-serif;transition:opacity .4s"><div style="font-size:34px;letter-spacing:3px"><span style="color:#ff8a3d">&#9670;</span> Retro<b style="color:#ff8a3d">Engine</b></div><div style="opacity:.6;font-size:12px;letter-spacing:2px">FPS GAME MAKER · LOADING…</div></div>
   <!-- Top bar: project, level picker, undo/redo, play & export -->
   <header id="topbar">
-    <div class="brand"><span class="logo">&#9670;</span><span class="txt">Retro<b>Engine</b></span></div>
+    <div class="brand"><span class="logo">&#9670;</span><span class="txt">Retro<b>Engine</b></span><span class="ver">1.2.0</span></div>
     <button class="tb chip" id="btn-project" title="Projects: save / open"></button>
     <select id="level-select" title="Current level"></select>
     <div class="spacer"></div>
     <button class="tb" data-cmd="undo" title="Undo (Ctrl+Z)"><svg class="i"><use href="#i-undo"/></svg></button>
     <button class="tb" data-cmd="redo" title="Redo (Ctrl+Y)"><svg class="i"><use href="#i-redo"/></svg></button>
+    <button class="tb sheet-only" data-cmd="explorer" title="Show explorer"><svg class="i"><use href="#i-folder"/></svg></button>
     <button class="tb sheet-only" data-cmd="sheet" title="Show panel"><svg class="i"><use href="#i-panel"/></svg></button>
     <button class="tb primary" data-cmd="play" title="Playtest (P)"><svg class="i"><use href="#i-play"/></svg><span class="lbl">Play</span></button>
     <button class="tb accent" data-cmd="export" title="Export standalone game"><svg class="i"><use href="#i-export"/></svg><span class="lbl lbl-md">Export</span></button>
@@ -131,6 +132,11 @@
   </header>
 
   <div id="main">
+    <!-- Left explorer (project, levels, models, scripts). A sheet on phones. -->
+    <aside id="explorer">
+      <div class="ex-head">Explorer <button class="tb sm sheet-only" data-cmd="explorer" title="Close">✕</button></div>
+      <div id="explorer-body"></div>
+    </aside>
     <!-- Tool rail (filled by app.js) -->
     <nav id="toolbar"></nav>
     <!-- The 2D map -->
@@ -138,6 +144,7 @@
       <canvas id="grid"></canvas>
       <div id="sel-bar" class="float hidden"></div>
       <div id="stamp-bar" class="float hidden"></div>
+      <div id="map-readout" class="float">Cell -</div>
       <div id="hint" class="float"></div>
       <div id="zoom-dock" class="float">
         <button class="tb sm" data-cmd="zoomOut" title="Zoom out (-)"><svg class="i"><use href="#i-minus"/></svg></button>
@@ -148,6 +155,7 @@
     </section>
     <!-- Side panel / bottom sheet (filled by app.js) -->
     <aside id="panel">
+      <div id="props-dock"></div>
       <div id="tabs">
         <button class="tab on" data-tab="build">Build</button>
         <button class="tab" data-tab="things">Things</button>
@@ -175,6 +183,7 @@
       <symbol id="i-export" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></symbol>
       <symbol id="i-menu" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></symbol>
       <symbol id="i-panel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 14h18"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h6l2 2h10v10H3z"/><path d="M3 7V5h6l2 2"/></symbol>
       <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
       <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></symbol>
       <symbol id="i-fit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>

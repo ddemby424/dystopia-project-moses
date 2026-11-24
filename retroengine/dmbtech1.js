@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.0.2 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.1.0 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.0.2';
+export const VERSION = '1.1.0';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.0.2';
+const VERSION = '1.1.0';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 const STEP_H = 0.36;         // max height you can walk up without jumping
@@ -253,11 +253,21 @@ const TEX_DEFS = {
   curb:            { name: 'Curb',              rough: 0.9,  metal: 0.0,  bump: 2.8 },
   fence:           { name: 'Chain-Link Fence',  rough: 0.55, metal: 0.7,  bump: 1.6, alpha: true },
   brick_weathered: { name: 'Weathered Brick',   rough: 0.92, metal: 0.0,  bump: 3.4 },
-  asphalt_lines:   { name: 'Asphalt (Lines)',   rough: 0.95, metal: 0.0,  bump: 2.4 }
+  asphalt_lines:   { name: 'Asphalt (Lines)',   rough: 0.95, metal: 0.0,  bump: 2.4 },
+  riveted:         { name: 'Riveted Bulkhead',  rough: 0.7,  metal: 0.55, bump: 3.0 },
+  vent:            { name: 'Vent Grille',       rough: 0.62, metal: 0.65, bump: 3.2 },
+  stained:         { name: 'Stained Concrete',  rough: 0.96, metal: 0.0,  bump: 2.6 },
+  chevron:         { name: 'Hazard Chevrons',   rough: 0.7,  metal: 0.25, bump: 1.8 },
+  lab_panel:       { name: 'Lab Wall Panels',   rough: 0.42, metal: 0.08, bump: 1.2, clean: true },
+  office_wall:     { name: 'Office Wall',       rough: 0.55, metal: 0.0,  bump: 1.0, clean: true },
+  med_wall:        { name: 'Med-Bay Wall',      rough: 0.45, metal: 0.05, bump: 1.3, clean: true },
+  polished_tile:   { name: 'Polished Tile',     rough: 0.22, metal: 0.05, bump: 1.4, clean: true },
+  clean_metal:     { name: 'Brushed Aluminium', rough: 0.35, metal: 0.7,  bump: 1.6, clean: true },
+  bright_panel:    { name: 'Bright Ceiling Lights', rough: 0.35, metal: 0.08, bump: 0.8, glow: true, clean: true }
 };
-const WALL_TEXTURES = ['concrete', 'concrete_dark', 'brick', 'brick_weathered', 'metal_panel', 'tech', 'rust', 'hazard', 'tile', 'tile_dark', 'wood', 'server', 'grate', 'plate', 'fence', 'sidewalk', 'curb'];
-const FLOOR_TEXTURES = ['concrete', 'tile', 'tile_dark', 'plate', 'grate', 'asphalt', 'asphalt_lines', 'sidewalk', 'curb', 'wood', 'rust', 'metal_panel', 'hazard', 'concrete_dark', 'brick', 'brick_weathered'];
-const CEIL_TEXTURES = ['ceiling', 'light_panel', 'concrete', 'metal_panel', 'grate', 'rust', 'concrete_dark', 'sky'];
+const WALL_TEXTURES = ['concrete', 'concrete_dark', 'brick', 'brick_weathered', 'metal_panel', 'tech', 'rust', 'hazard', 'tile', 'tile_dark', 'wood', 'server', 'grate', 'plate', 'fence', 'sidewalk', 'curb', 'riveted', 'vent', 'stained', 'lab_panel', 'office_wall', 'med_wall', 'clean_metal'];
+const FLOOR_TEXTURES = ['concrete', 'tile', 'tile_dark', 'plate', 'grate', 'asphalt', 'asphalt_lines', 'sidewalk', 'curb', 'wood', 'rust', 'metal_panel', 'hazard', 'concrete_dark', 'brick', 'brick_weathered', 'stained', 'chevron', 'polished_tile', 'clean_metal', 'lab_panel'];
+const CEIL_TEXTURES = ['ceiling', 'light_panel', 'bright_panel', 'concrete', 'metal_panel', 'grate', 'rust', 'concrete_dark', 'clean_metal', 'lab_panel', 'sky'];
 
 // Paints one texture. Returns { color: canvas, glow: canvas|null }.
 function paintTexture(id, S) {
@@ -275,12 +285,15 @@ function paintTexture(id, S) {
     rust: [112, 62, 34], grate: [52, 55, 58], hazard: [70, 70, 70], tile: [150, 152, 146], tile_dark: [70, 84, 80], plate: [112, 116, 122],
     asphalt: [46, 46, 48], asphalt_lines: [46, 46, 48], sidewalk: [126, 124, 116], curb: [132, 128, 118],
     fence: [70, 74, 76], brick_weathered: [118, 48, 36], wood: [112, 78, 46], ceiling: [128, 128, 122], light_panel: [100, 102, 104], server: [26, 28, 32],
-    door: [84, 88, 92], door_red: [84, 80, 80], door_blue: [78, 84, 92], door_yellow: [88, 86, 76]
+    door: [84, 88, 92], door_red: [84, 80, 80], door_blue: [78, 84, 92], door_yellow: [88, 86, 76],
+    riveted: [86, 90, 96], vent: [58, 62, 66], stained: [86, 80, 70], chevron: [64, 64, 62],
+    lab_panel: [214, 218, 222], office_wall: [208, 206, 200], med_wall: [214, 222, 228],
+    polished_tile: [200, 206, 212], clean_metal: [168, 174, 180], bright_panel: [230, 234, 238]
   }[id] || [100, 100, 100];
   for (let i = 0; i < S * S; i++) {
     let k = 0.75 + (n1[i] - 0.5) * 0.7 + (n2[i] - 0.5) * 0.35;
     if (id === 'rust') { const r2 = n2[i] > 0.62 ? 0.55 : 1; k *= r2; }
-    if (id === 'asphalt' || id === 'asphalt_lines' || id === 'concrete' || id === 'concrete_dark' || id === 'sidewalk' || id === 'curb') { if (Math.random() < 0.06) k *= 0.75 + Math.random() * 0.5; }
+    if (id === 'asphalt' || id === 'asphalt_lines' || id === 'concrete' || id === 'concrete_dark' || id === 'sidewalk' || id === 'curb' || id === 'stained') { if (Math.random() < 0.06) k *= 0.75 + Math.random() * 0.5; }
     d[i * 4] = clamp(base[0] * k, 0, 255); d[i * 4 + 1] = clamp(base[1] * k, 0, 255); d[i * 4 + 2] = clamp(base[2] * k, 0, 255); d[i * 4 + 3] = (id === 'fence') ? 0 : 255;
     if (id === 'rust' && n1[i] < 0.38) { d[i * 4] = 70 * k; d[i * 4 + 1] = 74 * k; d[i * 4 + 2] = 80 * k; } // bare steel showing through
   }
@@ -449,8 +462,92 @@ function paintTexture(id, S) {
       for (let i = 0; i < 18; i++) rect(R() * 64, R() * 64, 2 + R() * 6, 1 + R(), 'rgba(20,20,18,.35)'); // chips in the paint
       for (let i = 0; i < 4; i++) { let x = R() * 64, y = R() * 64; c.strokeStyle = 'rgba(15,15,15,.5)'; c.lineWidth = u * .6; c.beginPath(); c.moveTo(x * u, y * u); for (let j = 0; j < 6; j++) { x += rand(-8, 8); y += rand(2, 8); c.lineTo(x * u, y * u); } c.stroke(); }
       break;
+    case 'riveted':
+      // Heavy steel bulkhead plates with rows of rivets — industrial corridor walls.
+      for (let row = 0; row < 4; row++) for (let col = 0; col < 2; col++) {
+        const x = col * 32, y = row * 16;
+        rect(x + 1, y + 1, 30, 14, 'rgba(0,0,0,.22)');
+        line(x, y, x + 32, y, 'rgba(0,0,0,.7)', 1.4);
+        line(x, y, x, y + 16, 'rgba(0,0,0,.7)', 1.4);
+        line(x + 1, y + 1, x + 31, y + 1, 'rgba(255,255,255,.16)', 0.7);
+        [[4, 4], [16, 4], [28, 4], [4, 12], [16, 12], [28, 12]].forEach(p => rivet(x + p[0], y + p[1]));
+      }
+      break;
+    case 'vent':
+      rect(0, 0, 64, 64, 'rgba(0,0,0,.35)');
+      line(0, 0, 64, 0, 'rgba(160,164,168,.55)', 2);
+      line(0, 63, 64, 63, 'rgba(20,20,22,.8)', 2);
+      for (let i = 0; i < 10; i++) {
+        rect(3, 4 + i * 6, 58, 3.2, 'rgba(90,96,102,.9)');
+        line(3, 4 + i * 6, 61, 4 + i * 6, 'rgba(200,205,210,.28)', 0.7);
+        line(3, 7.2 + i * 6, 61, 7.2 + i * 6, 'rgba(0,0,0,.55)', 0.8);
+      }
+      rivet(3, 3); rivet(61, 3); rivet(3, 61); rivet(61, 61);
+      break;
+    case 'stained':
+      line(0, 32, 64, 32, 'rgba(0,0,0,.3)', 0.8); line(32, 0, 32, 64, 'rgba(0,0,0,.22)', 0.6);
+      for (let i = 0; i < 7; i++) { let x = R() * 64, y = R() * 64; c.strokeStyle = 'rgba(20,16,12,.45)'; c.lineWidth = u * .7; c.beginPath(); c.moveTo(x * u, y * u); for (let j = 0; j < 7; j++) { x += rand(-6, 6); y += rand(2, 8); c.lineTo(x * u, y * u); } c.stroke(); }
+      for (let i = 0; i < 5; i++) rect(R() * 50, R() * 50, 8 + R() * 16, 6 + R() * 14, 'rgba(30, 22, 10, .28)'); // oil
+      for (let i = 0; i < 8; i++) rect(R() * 64, 0, 1 + R() * 2.5, 64, 'rgba(20,16,10,.16)'); // streaks
+      break;
+    case 'chevron':
+      for (let i = -2; i < 10; i++) {
+        const y = i * 10;
+        c.fillStyle = i % 2 ? 'rgba(220, 190, 30, .85)' : 'rgba(18, 18, 16, .88)';
+        c.beginPath(); c.moveTo(0, y * u); c.lineTo(64 * u, (y + 20) * u); c.lineTo(64 * u, (y + 30) * u); c.lineTo(0, (y + 10) * u); c.closePath(); c.fill();
+      }
+      rect(0, 0, 64, 2, 'rgba(0,0,0,.35)');
+      break;
+    case 'lab_panel':
+      for (let row = 0; row < 4; row++) for (let col = 0; col < 2; col++) {
+        const x = col * 32, y = row * 16;
+        rect(x + 1, y + 1, 30, 14, 'rgba(255,255,255,.28)');
+        line(x, y, x + 32, y, 'rgba(140,148,156,.55)', 0.9);
+        line(x, y, x, y + 16, 'rgba(140,148,156,.55)', 0.9);
+        line(x + 1, y + 1, x + 31, y + 1, 'rgba(255,255,255,.55)', 0.6);
+        rivet(x + 3, y + 3); rivet(x + 29, y + 3); rivet(x + 3, y + 13); rivet(x + 29, y + 13);
+      }
+      break;
+    case 'office_wall':
+      // Clean painted wall with a subtle dado rail and faint vertical joins.
+      line(0, 44, 64, 44, 'rgba(150,148,142,.45)', 1.2);
+      rect(0, 45, 64, 19, 'rgba(20,18,16,.06)');
+      for (let i = 1; i < 4; i++) line(i * 16, 0, i * 16, 64, 'rgba(130,128,122,.2)', 0.6);
+      break;
+    case 'med_wall':
+      // Pale clinical wall: large clean tiles above a darker wipe-down dado.
+      for (let row = 0; row < 5; row++) {
+        const off = (row % 2) * 10;
+        line(0, row * 9, 64, row * 9, 'rgba(150,166,176,.45)', 0.8);
+        for (let b = 0; b < 5; b++) line((b * 20 + off) % 64, row * 9, (b * 20 + off) % 64, row * 9 + 9, 'rgba(150,166,176,.4)', 0.8);
+      }
+      rect(0, 46, 64, 18, 'rgba(180, 198, 210, .35)');
+      line(0, 46, 64, 46, 'rgba(120,140,155,.5)', 1.2);
+      break;
+    case 'polished_tile':
+      for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) {
+        const x = col * 16, y = row * 16;
+        line(x, y, x + 16, y, 'rgba(90,100,110,.35)', 0.7);
+        line(x, y, x, y + 16, 'rgba(90,100,110,.35)', 0.7);
+        // soft highlight in the upper-left of each tile so the floor reads as polished
+        rect(x + 1, y + 1, 7, 5, 'rgba(255,255,255,.22)');
+        rect(x + 2, y + 2, 4, 2.5, 'rgba(255,255,255,.12)');
+      }
+      break;
+    case 'clean_metal':
+      for (let i = 0; i < 32; i++) rect(0, i * 2, 64, 1, i % 2 ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)'); // brushed grain
+      for (let i = 0; i <= 2; i++) { line(i * 32, 0, i * 32, 64, 'rgba(80,88,96,.4)', 1.0); line(0, i * 32, 64, i * 32, 'rgba(80,88,96,.35)', 0.8); }
+      rivet(4, 4); rivet(32, 4); rivet(60, 4); rivet(4, 60); rivet(32, 60); rivet(60, 60);
+      break;
+    case 'bright_panel':
+      for (let i = 0; i <= 2; i++) { rect(i * 32 - 1, 0, 2, 64, 'rgba(70,76,84,.75)'); rect(0, i * 32 - 1, 64, 2, 'rgba(70,76,84,.75)'); }
+      glowRect(5, 5, 22, 22, '#ffffff'); glowRect(37, 5, 22, 22, '#ffffff');
+      glowRect(5, 37, 22, 22, '#f4f8ff'); glowRect(37, 37, 22, 22, '#ffffff');
+      break;
   }
   // 3) final grime pass: darken with large-scale noise so nothing looks clean & plastic
+  // Clean lab / office / med-bay materials skip this so well-lit rooms stay bright.
+  if (!def.clean) {
   const im2 = c.getImageData(0, 0, S, S), e = im2.data;
   for (let i = 0; i < S * S; i++) {
     if (e[i * 4 + 3] < 8) continue;
@@ -458,6 +555,7 @@ function paintTexture(id, S) {
     e[i * 4] *= k; e[i * 4 + 1] *= k; e[i * 4 + 2] *= k;
   }
   c.putImageData(im2, 0, 0);
+  }
   return { color: cv, glow };
 }
 
@@ -543,7 +641,7 @@ function getMaterial(id) {
   });
   m.normalScale.set(0.9, 0.9); m.onBeforeCompile = aoShader; m.customProgramCacheKey = () => 'ao' + (def.alpha ? 'A' : '');
   if (def.alpha) { m.alphaTest = 0.5; m.transparent = false; m.side = THREE.DoubleSide; m.depthWrite = true; }
-  if (cv.glow) { m.emissiveMap = canvasTex(cv.glow, true); m.emissive = new THREE.Color(0xffffff); m.emissiveIntensity = id === 'light_panel' ? 0.42 : 0.95; }
+  if (cv.glow) { m.emissiveMap = canvasTex(cv.glow, true); m.emissive = new THREE.Color(0xffffff); m.emissiveIntensity = id === 'bright_panel' ? 1.05 : id === 'light_panel' ? 0.42 : 0.95; }
   return (matCache[key] = m);
 }
 
@@ -599,7 +697,13 @@ const PROP_DEFS = {
   lamp:      { name: 'Floor Lamp',     solid: 0.12 },
   cone:      { name: 'Traffic Cone',   solid: 0 },
   debris:    { name: 'Debris',         solid: 0 },
-  sandbags:  { name: 'Sandbags',       solid: 0.42 }
+  sandbags:  { name: 'Sandbags',       solid: 0.42 },
+  console:   { name: 'Control Console', solid: 0.4 },
+  med_cabinet:{ name: 'Med Cabinet',    solid: 0.28 },
+  lab_bench: { name: 'Lab Bench',      solid: 0.38 },
+  vat:       { name: 'Chem Vat',       solid: 0.36 },
+  fan:       { name: 'Industrial Fan', solid: 0.3 },
+  extinguisher:{ name: 'Extinguisher', solid: 0.1 }
 };
 const KEY_COLORS = { red: '#ff2d2d', blue: '#2d8bff', yellow: '#ffd21f' };
 
@@ -724,6 +828,65 @@ function buildPropMesh(sub) {
     case 'cone': { const o = mat(0xff6a00, { metal: 0, rough: 0.6 }); cyl(g, 0.02, 0.12, 0.34, 10, o, 0, 0.19, 0); box(g, 0.28, 0.03, 0.28, o, 0, 0.015, 0); cyl(g, 0.07, 0.085, 0.05, 10, glowMat(0xffffff), 0, 0.22, 0); break; }
     case 'debris': for (let i = 0; i < 6; i++) { const b = box(g, rand(0.08, 0.22), rand(0.04, 0.1), rand(0.08, 0.2), i % 2 ? mat(0x6b6b66, { metal: 0 }) : darkS, rand(-0.3, 0.3), 0.04, rand(-0.3, 0.3)); b.rotation.set(rand(-0.4, 0.4), rand(0, 3), rand(-0.4, 0.4)); } break;
     case 'sandbags': { const s = mat(0x6e6448, { metal: 0, rough: 0.95 }); for (let r = 0; r < 3; r++) for (let i = 0; i < 3; i++) { const b = box(g, 0.32, 0.14, 0.22, s, -0.32 + i * 0.32 + (r % 2) * 0.08, 0.07 + r * 0.14, 0); b.scale.set(1, 1, 1); } break; }
+    case 'console': {
+      const body = mat(0x2a3038, { metal: 0.55, rough: 0.45 }), pale = mat(0x4a5560, { metal: 0.5, rough: 0.4 });
+      box(g, 0.95, 0.08, 0.55, pale, 0, 0.72, 0);
+      box(g, 0.9, 0.64, 0.5, body, 0, 0.36, 0);
+      box(g, 0.42, 0.28, 0.04, darkS, -0.22, 0.98, -0.08).rotation.x = -0.35;
+      box(g, 0.38, 0.24, 0.01, glowMat(0x3ad0ff), -0.22, 0.98, -0.055).rotation.x = -0.35;
+      box(g, 0.32, 0.22, 0.04, darkS, 0.24, 0.94, -0.06).rotation.x = -0.3;
+      box(g, 0.28, 0.18, 0.01, glowMat(0x7cff6a), 0.24, 0.94, -0.04).rotation.x = -0.3;
+      for (let i = 0; i < 6; i++) box(g, 0.05, 0.02, 0.05, i % 2 ? glowMat(0xffb020) : pale, -0.35 + i * 0.12, 0.78, 0.16);
+      break;
+    }
+    case 'med_cabinet': {
+      const white = mat(0xd8dee4, { metal: 0.15, rough: 0.35, noMap: true });
+      box(g, 0.5, 1.15, 0.32, white, 0, 0.58, 0);
+      box(g, 0.44, 0.5, 0.02, mat(0xb8c4cc, { metal: 0.2, rough: 0.25, noMap: true }), 0, 0.82, 0.16);
+      box(g, 0.08, 0.02, 0.01, darkS, 0.14, 0.72, 0.17);
+      box(g, 0.16, 0.03, 0.02, glowMat(0xff3b3b), 0, 1.08, 0.165); // red cross bar
+      box(g, 0.03, 0.16, 0.02, glowMat(0xff3b3b), 0, 1.08, 0.165);
+      box(g, 0.44, 0.4, 0.28, mat(0xc8d0d6, { metal: 0.2, rough: 0.4, noMap: true }), 0, 0.28, 0);
+      break;
+    }
+    case 'lab_bench': {
+      const top = mat(0xc8c2b6, { metal: 0.05, rough: 0.4, noMap: true }), leg = mat(0x3a4048, { metal: 0.6, rough: 0.4 });
+      box(g, 1.05, 0.06, 0.5, mat(0x4a5560, { metal: 0.25, rough: 0.45, noMap: true }), 0, 0.62, 0);
+      [[-0.46, -0.2], [0.46, -0.2], [-0.46, 0.2], [0.46, 0.2]].forEach(p => box(g, 0.05, 0.62, 0.05, leg, p[0], 0.31, p[1]));
+      box(g, 0.22, 0.18, 0.18, mat(0x8aa0aa, { metal: 0.3, rough: 0.35, noMap: true }), -0.3, 0.76, 0); // sample box
+      cyl(g, 0.04, 0.04, 0.16, 8, glowMat(0x7ec8ff), 0.1, 0.76, 0.05); // vial
+      box(g, 0.2, 0.14, 0.02, glowMat(0x3ad0ff), 0.34, 0.76, -0.08).rotation.x = -0.2;
+      break;
+    }
+    case 'vat': {
+      const tank = mat(0x4a5850, { metal: 0.55, rough: 0.45 }), band = mat(0xc8a020, { metal: 0.3, rough: 0.5 });
+      cyl(g, 0.32, 0.32, 0.95, 12, tank, 0, 0.5, 0);
+      cyl(g, 0.33, 0.33, 0.08, 12, band, 0, 0.35, 0);
+      cyl(g, 0.33, 0.33, 0.08, 12, band, 0, 0.72, 0);
+      cyl(g, 0.12, 0.12, 0.08, 8, steel, 0, 1.02, 0);
+      cyl(g, 0.04, 0.04, 0.3, 8, steel, 0.28, 1.0, 0).rotation.z = 0.6;
+      box(g, 0.08, 0.1, 0.01, glowMat(0x9dff3a), 0, 0.55, 0.33);
+      break;
+    }
+    case 'fan': {
+      const cage = mat(0x3e4650, { metal: 0.65, rough: 0.4 });
+      box(g, 0.16, 0.7, 0.16, darkS, 0, 0.35, 0);
+      cyl(g, 0.34, 0.34, 0.08, 12, cage, 0, 0.85, 0).rotation.x = Math.PI / 2;
+      cyl(g, 0.06, 0.06, 0.1, 8, steel, 0, 0.85, 0.02).rotation.x = Math.PI / 2;
+      for (let i = 0; i < 4; i++) {
+        const b = box(g, 0.08, 0.28, 0.02, steel, 0, 0.85, 0.04);
+        b.rotation.z = i * Math.PI / 2; b.position.set(Math.cos(i * Math.PI / 2) * 0.12, 0.85, 0.04);
+      }
+      break;
+    }
+    case 'extinguisher': {
+      const red = mat(0x9a1c18, { metal: 0.35, rough: 0.45 });
+      cyl(g, 0.08, 0.09, 0.48, 10, red, 0, 0.3, 0);
+      cyl(g, 0.03, 0.03, 0.12, 8, steel, 0.06, 0.58, 0).rotation.z = 0.7;
+      box(g, 0.04, 0.06, 0.04, darkS, 0, 0.56, 0);
+      box(g, 0.1, 0.04, 0.02, glowMat(0xffd21f), 0, 0.38, 0.085);
+      break;
+    }
     default: box(g, 0.4, 0.4, 0.4, steel, 0, 0.2, 0);
   }
   return g;
@@ -867,8 +1030,19 @@ const MUSIC_TRACKS = [
   { id: 'seismic', file: 'assets/music/seismic.mp3', title: 'Seismic', artist: 'Shane Ivers', genre: 'Trap', license: 'CC BY 4.0', url: 'https://www.silvermansound.com/free-music/seismic' },
   { id: 'aggressor', file: 'assets/music/aggressor.mp3', title: 'Aggressor', artist: 'Kevin MacLeod', genre: 'Orchestral metal', license: 'CC BY 4.0', url: 'https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1700051' },
   { id: 'lewis_and_dekalb', file: 'assets/music/lewis_and_dekalb.mp3', title: 'Lewis and Dekalb', artist: 'Kevin MacLeod', genre: 'Trap', license: 'CC BY 4.0', url: 'https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1600027' },
-  { id: 'griphop', file: 'assets/music/griphop.mp3', title: 'Griphop', artist: 'Kevin MacLeod', genre: 'Hip-hop', license: 'CC BY 4.0', url: 'https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100413' }
+  { id: 'griphop', file: 'assets/music/griphop.mp3', title: 'Griphop', artist: 'Kevin MacLeod', genre: 'Hip-hop', license: 'CC BY 4.0', url: 'https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100413' },
+  { id: 'hitman', file: 'assets/music/hitman.mp3', title: 'Hitman', artist: 'Kevin MacLeod', genre: 'Industrial', license: 'CC BY 4.0', url: 'https://incompetech.com/music/royalty-free/index.html?Search=Hitman' },
+  { id: 'volatile_reaction', file: 'assets/music/volatile_reaction.mp3', title: 'Volatile Reaction', artist: 'Kevin MacLeod', genre: 'Industrial rock', license: 'CC BY 4.0', url: 'https://incompetech.com/music/royalty-free/index.html?Search=Volatile+Reaction' },
+  { id: 'industrial_revolution', file: 'assets/music/industrial_revolution.mp3', title: 'Industrial Revolution', artist: 'Kevin MacLeod', genre: 'Industrial', license: 'CC BY 4.0', url: 'https://incompetech.com/music/royalty-free/index.html?Search=Industrial+Revolution' },
+  { id: 'crypto', file: 'assets/music/crypto.mp3', title: 'Crypto', artist: 'Kevin MacLeod', genre: 'Dark synth', license: 'CC BY 4.0', url: 'https://incompetech.com/music/royalty-free/index.html?Search=Crypto' },
+  { id: 'danger_storm', file: 'assets/music/danger_storm.mp3', title: 'Danger Storm', artist: 'Kevin MacLeod', genre: 'Action industrial', license: 'CC BY 4.0', url: 'https://incompetech.com/music/royalty-free/index.html?Search=Danger+Storm' }
 ];
+const LIGHT_PRESETS = {
+  gritty:     { name: 'Gritty',         ambient: '#8a93a8', ambientI: 0.55, fogColor: '#0a0d14', fog: 0.045 },
+  clean:      { name: 'Clean bright',   ambient: '#c8d2de', ambientI: 0.95, fogColor: '#5a6370', fog: 0.005 },
+  emergency:  { name: 'Emergency red',  ambient: '#c04a3a', ambientI: 0.72, fogColor: '#1a0606', fog: 0.05 }
+};
+
 const HOSTED_BASE = 'https://ddemby424.github.io/dystopia-project-moses/retroengine/';
 const ENEMY_CLIPS = { idle: ['Idle_Gun', 'Idle'], move: ['Run', 'Walk'], shoot: ['Gun_Shoot', 'Idle_Gun_Shoot', 'Shoot', 'Attack'], hit: ['HitRecieve', 'HitReact', 'HitRecieve_1'], death: ['Death', 'Dead'] };
 const ASSET_PACK = {
@@ -1246,10 +1420,16 @@ function play(container, project, opts) {
     // Lights: soft "ambient" sky/ground light + a pool of point lights moved to the lights nearest you.
     setAoLevel(L);
     const amb = new THREE.Color(P.ambient).convertSRGBToLinear();   // editor colors are sRGB; lights work in linear
-    const hemi = new THREE.HemisphereLight(amb, amb.clone().multiplyScalar(0.3), Math.min(P.ambientI, 1.2) * 1.75); scene.add(hemi);
-    const moon = new THREE.DirectionalLight(new THREE.Color(SKIES[P.sky] ? SKIES[P.sky].glow : '#ffffff'), 0.25); moon.position.set(-0.4, 1, 0.3); scene.add(moon);
+    const preset = P.lightPreset || '';
+    const hemiGround = preset === 'clean' ? 0.5 : 0.3;
+    const hemiI = Math.min(P.ambientI, preset === 'clean' ? 1.5 : 1.2) * 1.75;
+    const hemi = new THREE.HemisphereLight(amb, amb.clone().multiplyScalar(hemiGround), hemiI); scene.add(hemi);
+    const moonI = preset === 'clean' ? 0.35 : 0.25;
+    const moon = new THREE.DirectionalLight(new THREE.Color(SKIES[P.sky] ? SKIES[P.sky].glow : '#ffffff'), moonI); moon.position.set(-0.4, 1, 0.3); scene.add(moon);
     const pool = []; for (let i = 0; i < Q().lights; i++) { const pl = new THREE.PointLight(0xffffff, 0, 6, 2); scene.add(pl); pool.push(pl); }
-    const bodyLight = new THREE.PointLight(0xc8d4ff, 0.22, 3, 2); scene.add(bodyLight);     // keeps your surroundings readable
+    const bodyCol = preset === 'emergency' ? 0xff4030 : (preset === 'clean' ? 0xe8f0ff : 0xc8d4ff);
+    const bodyI = preset === 'clean' ? 0.38 : (preset === 'emergency' ? 0.4 : 0.22);
+    const bodyLight = new THREE.PointLight(bodyCol, bodyI, preset === 'clean' ? 5 : 3, 2); scene.add(bodyLight);     // keeps your surroundings readable
     const muzzle = new THREE.PointLight(0xffb060, 0, 2.4, 2); scene.add(muzzle);
     const fxLight = new THREE.PointLight(0xff8a30, 0, 7, 2); scene.add(fxLight);
     const flash = new THREE.SpotLight(0xfff1d6, 0, 14, 0.42, 0.45, 1.4); scene.add(flash); scene.add(flash.target);
@@ -2259,8 +2439,8 @@ function registerEnemy(def) {
 }
 
 return {
-  VERSION, HOSTED_BASE, MUSIC_TRACKS, ASSET_PACK, play, boot, Sound, S, saveSettings,
-  TEX_DEFS, WALL_TEXTURES, FLOOR_TEXTURES, CEIL_TEXTURES, SKIES, ENEMY_DEFS, WEAPON_DEFS, PICKUP_DEFS, PROP_DEFS, KEY_COLORS,
+  VERSION, HOSTED_BASE, MUSIC_TRACKS, LIGHT_PRESETS, ASSET_PACK, play, boot, Sound, S, saveSettings,
+  TEX_DEFS, WALL_TEXTURES, FLOOR_TEXTURES, CEIL_TEXTURES, SKIES, ENEMY_DEFS, WEAPON_DEFS, PICKUP_DEFS, PROP_DEFS, KEY_COLORS, THREE,
   getThumb, newLevel, normalizeLevel, validateLevel, defaultProps, STEP_H,
   packLevel, unpackLevel, registerWeapon, registerEnemy, RETRO_FORMAT, GRID_KEYS, rle, unrle
 };
