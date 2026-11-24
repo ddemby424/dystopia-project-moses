@@ -8,7 +8,7 @@
 import { createRuntime } from './dmbtech1.js';
 import { installMultiplayer } from './mp/mp-app.js';
 
-const VERSION = '1.2.4';
+const VERSION = '1.2.5';
 function DFRuntime() { return createRuntime(); }
 
 /* =====================================================================

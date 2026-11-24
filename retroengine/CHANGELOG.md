@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.5 (2026-11-24): see if everyone is in before the match
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.2.5**), powered by DMB Tech 1 **1.1.0**.
+
+- **No automatic start.** After joining a room you get a **Waiting for players** panel: everyone in the room with their character, **Ready** or **Not ready**, and a count like "1/2 ready". If someone leaves, the list updates.
+- **Big Ready button** (phone-sized; **Y** on a keyboard). The host (★, the room creator; if they leave, the next player in) also gets **Start now** (**G**), which works once at least 2 players are in.
+- When every player (2 or more) is Ready, or the host presses Start, the host sends the 10-second countdown and the usual **FIGHT!** flow runs. No PvP damage while waiting or counting down.
+- Late joiners during the countdown join it; after FIGHT they just spawn in.
+- Ready rides on the relay's existing shot message (weapon "ready"), like the countdown, so the server is unchanged. Leaving a match now tells the room right away instead of after the relay's ~2 s timeout.
+
 ## 1.2.4 (2026-11-24): multiplayer shared start, countdown, true remote positions
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

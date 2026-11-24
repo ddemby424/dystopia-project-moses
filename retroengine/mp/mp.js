@@ -50,6 +50,8 @@ const SNAP_DIST = 1.5;            // cells
 // the match countdown rides on a 'shot' with weapon 'match' and the seconds
 // left in yaw. Receivers never treat it as a real shot.
 const MATCH_TAG = 'match';
+// Pre-match Ready rides the same way: weapon 'ready', yaw 1 = ready, 0 = not.
+const READY_TAG = 'ready';
 
 function nowMs() {
   // performance.now() is steadier than Date.now() in a browser (doesn't jump
@@ -108,6 +110,9 @@ export function connect(url, room, profile, options) {
   let watchingLobby = options.lobby === true || currentRoom == null;
   let cachedRooms = [];        // last room list the server sent us
   let lastMatch = null;        // { remaining (s), at (ms) } from the room host
+  const readyById = new Map(); // peer id -> true/false (pre-match Ready button)
+  let myReady = false;
+  let joinOrder = [];          // ids in the order they entered the room (host first)
   let lineClear = null;        // optional (x1,y1,x2,y2) => true when no wall is in between
 
   const WSImpl = options.WebSocket || (typeof WebSocket !== 'undefined' ? WebSocket : null);
@@ -215,8 +220,11 @@ export function connect(url, room, profile, options) {
       // room membership may have changed).
       peers.clear();
       lastMatch = null;
+      readyById.clear();
+      myReady = false;
       emit('welcome', msg);
       const list = msg.peers || [];
+      joinOrder = list.map(function (q) { return q.id; }).concat([msg.id]);
       for (let i = 0; i < list.length; i++) {
         const p = upsertPeer(list[i]);
         if (list[i].x || list[i].y) p.live = true;
@@ -230,6 +238,9 @@ export function connect(url, room, profile, options) {
     }
 
     if (msg.type === 'join') {
+      if (msg.id && msg.id !== myId && joinOrder.indexOf(msg.id) < 0) joinOrder.push(msg.id);
+      // Tell the newcomer whether we already pressed Ready.
+      if (myReady) sendReady(true);
       const p = upsertPeer(msg);
       pushSnapshot(p, msg, nowMs());
       emit('join', p);
@@ -238,6 +249,8 @@ export function connect(url, room, profile, options) {
 
     if (msg.type === 'leave') {
       peers.delete(msg.id);
+      readyById.delete(msg.id);
+      joinOrder = joinOrder.filter(function (id) { return id !== msg.id; });
       emit('leave', { id: msg.id, reason: msg.reason || 'disconnect' });
       return;
     }
@@ -274,6 +287,11 @@ export function connect(url, room, profile, options) {
     }
 
     if (msg.type === 'shot') {
+      if (msg.weapon === READY_TAG) {
+        readyById.set(msg.id, !!msg.yaw);
+        emit('ready', { id: msg.id, ready: !!msg.yaw });
+        return;
+      }
       if (msg.weapon === MATCH_TAG) {
         lastMatch = { remaining: Number(msg.yaw) || 0, at: nowMs(), from: msg.id };
         emit('match', lastMatch);
@@ -470,6 +488,12 @@ export function connect(url, room, profile, options) {
     return sendRaw({ type: 'shot', x: 0, y: 0, z: 0, yaw: Math.max(0, Number(remainingSec) || 0), weapon: MATCH_TAG });
   }
 
+  // Pre-match Ready toggle (remembered so late joiners get it too).
+  function sendReady(ready) {
+    myReady = !!ready;
+    return sendRaw({ type: 'shot', x: 0, y: 0, z: 0, yaw: myReady ? 1 : 0, weapon: READY_TAG });
+  }
+
   function sendHit(hit) {
     hit = hit || {};
     if (!hit.targetId) return false;
@@ -525,6 +549,9 @@ export function connect(url, room, profile, options) {
     manualClose = true;
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     if (sendTimer) { clearInterval(sendTimer); sendTimer = null; }
+    // Say goodbye first so the room roster updates right away (the relay
+    // otherwise notices a closed socket about 2 s later).
+    if (currentRoom) sendRaw({ type: 'leave' });
     if (ws) {
       try { ws.close(1000, 'bye'); } catch (e) { /* ignore */ }
       ws = null;
@@ -545,6 +572,9 @@ export function connect(url, room, profile, options) {
     sendShot: sendShot,
     sendHit: sendHit,
     sendMatch: sendMatch,
+    sendReady: sendReady,
+    isReady: function (id) { return (id == null || id === myId) ? myReady : !!readyById.get(id); },
+    get joinOrder() { return joinOrder.slice(); },
     setLineClear: function (fn) { lineClear = (typeof fn === 'function') ? fn : null; },
     get match() { return lastMatch; },
     tick: tick,

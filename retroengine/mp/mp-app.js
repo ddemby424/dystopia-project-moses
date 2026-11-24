@@ -223,10 +223,12 @@ export function installMultiplayer(api) {
   let mpTickFn = null;
   // Pre-match countdown (performance.now ms when damage turns on).
   let fightAt = 0, fightShownUntil = 0, isHost = false, cdEl = null, lastCdText = '';
+  // Match phase: 'waiting' (pre-match roster + Ready) → 'countdown' → 'fight'.
+  let phase = 'waiting', hostId = null, waitEl = null, waitKey = '', curMp = null, offKeys = null;
 
   function now() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
   function countdownLeft() { return Math.max(0, (fightAt - now()) / 1000); }
-  function canDamage() { return countdownLeft() <= 0; }
+  function canDamage() { return phase !== 'waiting' && countdownLeft() <= 0; }
   function setCountdown(sec) {
     const was = countdownLeft() > 0;
     fightAt = now() + Math.max(0, sec) * 1000;
@@ -253,6 +255,79 @@ export function installMultiplayer(api) {
   function removeCountdown() {
     if (cdEl && cdEl.parentNode) cdEl.parentNode.removeChild(cdEl);
     cdEl = null; lastCdText = ''; fightAt = 0; fightShownUntil = 0;
+    if (waitEl && waitEl.parentNode) waitEl.parentNode.removeChild(waitEl);
+    waitEl = null; waitKey = ''; phase = 'waiting'; hostId = null; curMp = null;
+    if (offKeys) { offKeys(); offKeys = null; }
+  }
+
+  /* ---------- pre-match: "Waiting for players" roster ---------- */
+  function roster(mp) {
+    const models = (api.RT && api.RT.PLAYER_MODELS) || {};
+    const charName = function (id) { return (models[id] && models[id].name) || id || ''; };
+    const me = { id: mp.id, name: playerName(), modelId: playerModel(), ready: mp.isReady(), me: true };
+    const others = (mp.getPeers ? mp.getPeers() : []).map(function (p) {
+      return { id: p.id, name: p.name || 'Player', modelId: p.modelId, ready: mp.isReady(p.id) };
+    });
+    const order = mp.joinOrder || [];
+    const list = [me].concat(others).sort(function (a, b) {
+      const ia = order.indexOf(a.id), ib = order.indexOf(b.id);
+      return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+    });
+    list.forEach(function (r) { r.char = charName(r.modelId); r.host = r.id === hostId; });
+    return list;
+  }
+  function readyCount(list) { return list.filter(function (r) { return r.ready; }).length; }
+  function toggleReady() { if (curMp && phase === 'waiting') { curMp.sendReady(!curMp.isReady()); waitKey = ''; } }
+  function hostStart() {
+    if (!curMp || !isHost || phase !== 'waiting') return false;
+    if (roster(curMp).length < 2) return false;
+    startCountdown();
+    return true;
+  }
+  function startCountdown() {
+    phase = 'countdown';
+    setCountdown(mpSettings.countdownSec || 10);
+    if (curMp && curMp.sendMatch) curMp.sendMatch(countdownLeft());
+  }
+  function showWaiting() {
+    if (phase !== 'waiting' || !curMp) {
+      if (waitEl) waitEl.style.display = 'none';
+      return;
+    }
+    const list = roster(curMp), n = list.length, rc = readyCount(list);
+    const key = JSON.stringify([list, isHost]);
+    if (key === waitKey && waitEl) return;
+    waitKey = key;
+    if (!waitEl) {
+      waitEl = document.createElement('div');
+      waitEl.id = 'mp-waiting';
+      waitEl.style.cssText = 'position:fixed;left:50%;top:8%;transform:translateX(-50%);width:min(92vw,420px);z-index:9999;'
+        + 'background:rgba(8,10,14,.88);border:1px solid #3a4250;border-radius:10px;padding:14px;color:#dfe6ee;'
+        + 'font:15px/1.35 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.6);';
+      document.body.appendChild(waitEl);
+      waitEl.addEventListener('click', function (ev) {
+        const b = ev.target && ev.target.closest && ev.target.closest('button[data-mp]');
+        if (!b) return;
+        ev.preventDefault(); ev.stopPropagation();
+        if (b.dataset.mp === 'ready') toggleReady();
+        if (b.dataset.mp === 'start') hostStart();
+      });
+      try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* ignore */ }
+    }
+    const esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    const big = 'display:block;width:100%;min-height:56px;margin-top:10px;font:700 20px system-ui,sans-serif;border-radius:8px;border:0;cursor:pointer;touch-action:manipulation;';
+    const meReady = curMp.isReady();
+    waitEl.style.display = 'block';
+    waitEl.innerHTML = '<div style="font:700 20px system-ui,sans-serif;color:#ffd24a">Waiting for players</div>'
+      + '<div data-mp-count style="margin:4px 0 8px;color:#9fb0c2">' + rc + '/' + n + ' ready' + (n < 2 ? ' \u00b7 need 2 players' : '') + '</div>'
+      + list.map(function (r) {
+        return '<div data-mp-row style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid #222a35">'
+          + '<span>' + esc(r.name) + (r.me ? ' (you)' : '') + (r.host ? ' \u2605' : '') + ' <span style="color:#8a97a8">' + esc(r.char) + '</span></span>'
+          + '<b style="color:' + (r.ready ? '#5be37a' : '#ff6a5a') + '">' + (r.ready ? 'Ready' : 'Not ready') + '</b></div>';
+      }).join('')
+      + '<button data-mp="ready" style="' + big + 'background:' + (meReady ? '#3a4250' : '#2fae5a') + ';color:#fff">' + (meReady ? 'Not ready' : 'Ready') + ' <small style="opacity:.6">(Y)</small></button>'
+      + (isHost ? '<button data-mp="start" ' + (n < 2 ? 'disabled ' : '') + 'style="' + big + 'background:' + (n < 2 ? '#2a2f38;color:#667' : '#d9822b;color:#fff') + '">Start now <small style="opacity:.6">(G)</small></button>' : '')
+      + '<div style="margin-top:8px;color:#7d8a9a;font-size:13px">Starts when everyone is Ready' + (isHost ? ', or press Start.' : ' or the host presses Start.') + ' No damage until FIGHT!</div>';
   }
 
   function playerName() {
@@ -341,6 +416,7 @@ export function installMultiplayer(api) {
       onMatch: function (m) {
         // Only the room host's clock counts; it already subtracted elapsed time.
         if (isHost || !m) return;
+        phase = m.remaining > 0 ? 'countdown' : 'fight';
         setCountdown(m.remaining);
       },
       onHit: function (hit) {
@@ -352,29 +428,55 @@ export function installMultiplayer(api) {
       }
     });
     mpSession = session;
-    // Start the countdown. The host owns the clock: it starts at 10 and tells
-    // the room, and repeats the time left whenever someone joins (late joiners
-    // land in the same countdown, or get 0 if the fight already started).
-    // Everyone else runs a local 10 until the host's number arrives.
-    const total = mpSettings.countdownSec || 10;
+    // 1.2.5: no automatic start. Everyone waits on a roster with a Ready
+    // button. The host (room creator; if they leave, the next oldest player)
+    // starts the 10 s countdown when all players (2+) are Ready, or on Start.
+    // A late joiner gets the host's time left (countdown) or 0 (fight already
+    // on, so they just spawn in). Everyone else waits for the host's number.
     if (session && session.enabled && mp) {
+      curMp = mp;
+      phase = 'waiting';
       const known = !isHost && mp.match;
-      if (known) setCountdown(known.remaining - (now() - known.at) / 1000);
-      else setCountdown(total);
-      if (isHost && mp.sendMatch) {
-        mp.sendMatch(countdownLeft());
-        if (mp.on) mp.on('join', function () { mp.sendMatch(countdownLeft()); });
+      if (known) {
+        const left = known.remaining - (now() - known.at) / 1000;
+        phase = left > 0 ? 'countdown' : 'fight';
+        if (left > 0) setCountdown(left); else fightAt = now() - 5000;    // late joiner after FIGHT: no banner
       }
-      // Host also repeats the time left every 2 s during the countdown, so a
+      if (mp.on) {
+        mp.on('join', function () { if (isHost && phase !== 'waiting') mp.sendMatch(countdownLeft()); waitKey = ''; });
+        mp.on('leave', function (ev) {
+          if (ev && ev.id === hostId) {          // host left: next oldest player takes over
+            const order = mp.joinOrder || [];
+            hostId = order[0] || mp.id;
+            isHost = hostId === mp.id;
+          }
+          waitKey = '';
+        });
+        mp.on('ready', function () { waitKey = ''; });
+      }
+      const onKey = function (ev) {
+        if (phase !== 'waiting' || (ev.target && /INPUT|SELECT|TEXTAREA/.test(ev.target.tagName))) return;
+        if (ev.code === 'KeyY') toggleReady();
+        if (ev.code === 'KeyG') hostStart();
+      };
+      window.addEventListener('keydown', onKey);
+      offKeys = function () { window.removeEventListener('keydown', onKey); };
+      // Host repeats the time left every 2 s during the countdown, so a
       // phone that was busy loading the map re-syncs to the host's clock.
-      let resendAt = now() + 2000;
+      let resendAt = 0;
       const innerTick = mpTickFn;
       mpTickFn = function (dt) {
         if (innerTick) innerTick(dt);
-        if (isHost && mp.sendMatch && fightAt && now() >= resendAt && now() < fightAt + 2000) {
+        if (isHost && phase === 'waiting') {
+          const list = roster(mp);
+          if (list.length >= 2 && readyCount(list) === list.length) startCountdown();
+        }
+        if (isHost && phase !== 'waiting' && mp.sendMatch && fightAt && now() >= resendAt && now() < fightAt + 2000) {
           resendAt = now() + 2000;
           mp.sendMatch(countdownLeft());
         }
+        if (phase === 'countdown' && countdownLeft() <= 0) phase = 'fight';
+        showWaiting();
         showCountdown();
       };
     }
@@ -414,6 +516,7 @@ export function installMultiplayer(api) {
     const level = override || (project && project.levels && project.levels[idx]) || null;
     const slot = (welcome && welcome.peers && welcome.peers.length) || 0;
     isHost = slot === 0;
+    hostId = isHost ? (socket && socket.id) : (welcome.peers[0] && welcome.peers[0].id);
     const spawnIndex = pickSpawnIndex(welcome, level, mpSettings.spawnMode);
     const spawnPoint = mpSettings.spawnMode === 'shared' ? sharedSpawnPoint(level, slot) : null;
     const loadedId = (resolved && resolved.id) || (welcome && welcome.level) || null;
@@ -515,6 +618,11 @@ export function installMultiplayer(api) {
     // Test hook: enter a room with an already-open socket (the lobby does this on Join).
     startGameForRoom: startGameForRoom,
     get countdownLeft() { return countdownLeft(); },
+    get phase() { return phase; },
+    get isHost() { return isHost; },
+    roster: function () { return curMp ? roster(curMp) : []; },
+    toggleReady: toggleReady,
+    hostStart: hostStart,
     canDamage: canDamage,
     spawnList: spawnList,
     mpSettings: mpSettings,
