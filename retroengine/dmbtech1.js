@@ -1624,6 +1624,17 @@ function play(container, project, opts) {
       playerModel: S.playerModel || 'george'
     };
     G = g;
+    if (opts.spawnIndex != null) {
+      const pads = (L.spawns && L.spawns.length) ? L.spawns : (L.spawn ? [L.spawn] : []);
+      if (pads.length) {
+        const s = pads[((opts.spawnIndex % pads.length) + pads.length) % pads.length];
+        if (s) {
+          g.px = s.x; g.py = s.y; g.yaw = s.r || 0;
+          g.pz = (L.fh && L.fh[(Math.floor(s.y) * W) + Math.floor(s.x)]) || 0;
+          g.vx = 0; g.vy = 0; g.vz = 0; g.onGround = true;
+        }
+      }
+    }
     if (keepInventory && carry.mag) g.mag = carry.mag.slice();
     if (keepInventory) { g.hp = carry.hp; g.armor = carry.armor; g.ammo = Object.assign({}, carry.ammo); g.owned = carry.owned.slice(); g.cur = carry.cur; }
     // Doors: separate meshes so they can slide up into the ceiling.

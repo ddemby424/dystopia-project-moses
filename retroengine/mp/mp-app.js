@@ -16,6 +16,27 @@ import { attachMultiplayer } from './mp-dmbtech1.js';
 
 const NAME_KEY = 'retroengine.playerName';
 
+// Multiplayer spawn. 'fixed' = join order (player 1 at spawn 1, player 2 at
+// spawn 2, wrapping if the room is bigger than the pad list). Flip
+// mpSettings.spawnMode to 'random' later to pick a pad at random on each join.
+export const mpSettings = { spawnMode: 'fixed' };
+
+export function spawnList(level) {
+  if (!level) return [];
+  if (level.spawns && level.spawns.length) return level.spawns;
+  if (level.spawn) return [level.spawn];
+  return [];
+}
+
+export function pickSpawnIndex(welcome, level, mode) {
+  const list = spawnList(level);
+  const n = list.length || 1;
+  const joinIndex = (welcome && welcome.peers && welcome.peers.length) || 0;
+  const use = mode || mpSettings.spawnMode || 'fixed';
+  if (use === 'random') return Math.floor(Math.random() * n);
+  return ((joinIndex % n) + n) % n;
+}
+
 export function defaultMpUrl() {
   try {
     const q = new URLSearchParams(location.search).get('mp');
@@ -175,7 +196,8 @@ export function installMultiplayer(api) {
     } else {
       idx = parseLevelIndex(project, levelId, welcome && welcome.levelName);
     }
-    const spawnIndex = (welcome && welcome.peers && welcome.peers.length) || 0;
+    const level = override || (project && project.levels && project.levels[idx]) || null;
+    const spawnIndex = pickSpawnIndex(welcome, level, mpSettings.spawnMode);
     // Wait two frames so the lobby click (mousedown/mouseup) finishes
     // before the play canvas is shown. Otherwise that same click can
     // hold-fire and drag-look, kicking the camera into the ceiling.
@@ -257,8 +279,13 @@ export function installMultiplayer(api) {
     teardown: teardown,
     defaultMpUrl: defaultMpUrl,
     tick: function (dt) { if (mpTickFn) mpTickFn(dt); },
-    get session() { return mpSession; }
+    get session() { return mpSession; },
+    get spawnMode() { return mpSettings.spawnMode; },
+    set spawnMode(v) { if (v === 'fixed' || v === 'random') mpSettings.spawnMode = v; },
+    pickSpawnIndex: pickSpawnIndex,
+    spawnList: spawnList,
+    mpSettings: mpSettings
   };
 }
 
-export default { installMultiplayer, defaultMpUrl };
+export default { installMultiplayer, defaultMpUrl, mpSettings, pickSpawnIndex, spawnList };

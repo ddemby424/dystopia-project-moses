@@ -1407,6 +1407,7 @@ function playtest(levelIndex, extra) {
     level: idx,
     autoPlay: !!extra.autoPlay,
     skipEnemies: !!extra.skipEnemies,
+    spawnIndex: extra.spawnIndex,
     onQuit: stopPlaytest,
     onEvent: (ev, arg) => { if (MP && ev === 'tick') MP.tick(arg); },
     onMultiplayer: () => { if (MP) MP.openLobby(); }
