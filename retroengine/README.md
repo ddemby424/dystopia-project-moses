@@ -10,6 +10,7 @@ Version **1.2.0** is powered by the standalone [DMB Tech 1](../dmbtech1/) librar
 |---|---|
 | `index.html` | Open this to start RetroEngine (uses `styles.css`, `app.js`, and `dmbtech1.js`) |
 | `dmbtech1.js` | The standalone **DMB Tech 1** engine that powers play mode |
+| `mp/` | Optional multiplayer lobby and WebSocket client (Menu → Multiplayer) |
 | `retroengine.html` | A module launcher (same as `index.html`); keep `dmbtech1.js` next to it |
 | `help.html` | The full manual as a web page (it is also built into the app: Menu → Help) |
 | `tutorial/` | Tinkerer tutorial: adding maps, assets, and code (Menu → Tutorial) |
@@ -30,6 +31,7 @@ Version **1.2.0** is powered by the standalone [DMB Tech 1](../dmbtech1/) librar
 - **Difficulty:** *Easy*, *Normal* and *Hard* change enemy health, speed, damage, reaction time, fire rate and how many flank.
 - **Six weapons:** wrench, Pulse Cannon (default starting gun, infinite ammo), shotgun, assault rifle, plasma caster and rocket launcher. Guns have reload animations, recoil, sway, bob and shell casings.
 - **Pickups and props:** health, armour, ammo, keycards, secrets, explosive barrels and over twenty kinds of props, most of them CC0 Quaternius models with a procedural fallback.
+- **Multiplayer:** Menu → Multiplayer opens a lobby to create or join a room. All six player models are in the character list. If the server is offline, the lobby says so and single-player still works.
 - **Look:** 20 gritty textures with lighting, shadowed corners, fog, sky scenes, coloured lights and a flashlight.
 - **Music player:** 5 rap/trap and metal tracks. You can pick one per level or skip tracks in the pause menu.
 - **Level scripts (optional):** short scripts for messages, triggers and rewards, for example "open this door when all enemies are dead".
@@ -93,7 +95,7 @@ Tested in Chromium (Chrome, Samsung Internet and Android webview engine), WebKit
 ## Known limits
 - **Internet on first launch:** the 3D engine (Three.js) and the font load from the internet, so the very first launch needs a connection.
 - **One floor per spot:** you can have stairs, catwalks and raised platforms, but no room directly above another room.
-- **No multiplayer, no real-time shadows** (corners are darkened instead), and enemies don't open keycard doors.
+- **No real-time shadows** (corners are darkened instead), and enemies don't open keycard doors. Multiplayer is an optional relay (open Menu → Multiplayer); it is not an authoritative simulation, and rooms live in the server's memory.
 - **Browser storage** is about 5–10 MB per site. Uploaded models fill it quickly, so export backups.
 - **Share links** are limited to about 7 KB (larger levels use .retro files). Links made from a copy on your own device only open there.
 - **iPhone fullscreen:** iPhones don't allow web pages to go full screen, so use landscape for more room. Some in-app browsers (Instagram, Facebook…) block the share sheet and downloads. RetroEngine then shows the link to copy by hand.

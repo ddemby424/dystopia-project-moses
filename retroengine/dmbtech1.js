@@ -1617,7 +1617,8 @@ function play(container, project, opts) {
       hp: 100, armor: 0, ammo: { bullets: 50, shells: 0, cells: 0, rockets: 0 }, owned: [true, true, false, false, false, false], cur: 1, cd: 0, switchT: 0, recoil: 0, mag: MAG_SIZE.slice(), reloadT: 0, reloadMax: 1,
       keys: {}, doors: new Map(), enemies: [], pickups: [], props: [], lights: [], exits: [], projectiles: [], particles: null, fireballs: [],
       kills: 0, totalEnemies: 0, secrets: 0, totalSecrets: 0, items: 0, totalItems: 0, time: 0, flow: null, flowCell: -1, flowT: 0,
-      dmgFlash: 0, pickFlash: 0, hitT: 0, msgs: [], scriptH: {}, lightT: 0, noise: null
+      dmgFlash: 0, pickFlash: 0, hitT: 0, msgs: [], scriptH: {}, lightT: 0, noise: null,
+      playerModel: S.playerModel || 'george'
     };
     G = g;
     if (keepInventory && carry.mag) g.mag = carry.mag.slice();
@@ -2330,9 +2331,9 @@ function play(container, project, opts) {
       h = `<h1>${esc(project.name || 'RetroEngine')}</h1><h2>${levels.length} level${levels.length > 1 ? 's' : ''} · made with RetroEngine</h2>
         <button class="dfg-btn pri" data-a="start0">Start campaign</button>
         ${levels.length > 1 ? `<div class="dfg-row"><span>Level</span><select data-s="lvl">${levels.map((l, i) => `<option value="${i}">${i + 1}. ${esc(l.name)}</option>`).join('')}</select></div><button class="dfg-btn" data-a="startSel">Play selected level</button>` : ''}
-        ${characterPickerHtml()}<button class="dfg-btn" data-a="settings">Settings</button>${ctrl}`;
+        ${characterPickerHtml()}${opts.onMultiplayer ? '<button class="dfg-btn" data-a="multiplayer">Multiplayer</button>' : ''}<button class="dfg-btn" data-a="settings">Settings</button>${ctrl}`;
     } else if (kind === 'start') {
-      h = `<h1>${esc(L.name)}</h1><h2>Level ${G.index + 1} of ${levels.length}</h2>${characterPickerHtml()}${ctrl}<button class="dfg-btn pri" data-a="go">${isTouch ? 'Tap' : 'Click'} to start</button>${opts.onQuit ? '<button class="dfg-btn" data-a="quit">Back to editor</button>' : ''}`;
+      h = `<h1>${esc(L.name)}</h1><h2>Level ${G.index + 1} of ${levels.length}</h2>${characterPickerHtml()}${ctrl}<button class="dfg-btn pri" data-a="go">${isTouch ? 'Tap' : 'Click'} to start</button>${opts.onMultiplayer ? '<button class="dfg-btn" data-a="multiplayer">Multiplayer</button>' : ''}${opts.onQuit ? '<button class="dfg-btn" data-a="quit">Back to editor</button>' : ''}`;
     } else if (kind === 'pause') {
       h = `<h1>PAUSED</h1><h2>${esc(L.name)}</h2><button class="dfg-btn pri" data-a="resume">Resume</button><button class="dfg-btn" data-a="restart">Restart level</button><button class="dfg-btn" data-a="settings">Settings</button><button class="dfg-btn" data-a="musicui">Music player</button><button class="dfg-btn" data-a="quit">${opts.onQuit ? 'Back to editor' : 'Quit to title'}</button>`;
     } else if (kind === 'music') {
@@ -2378,6 +2379,12 @@ function play(container, project, opts) {
     else if (a === 'back') { music(false); showMenu(menuBack); }
     else if (a === 'musicui') { menuBack = menu.dataset.kind; showMenu('music'); }
     else if (a === 'track') { const i = +b.dataset.i; TP.pick = i < 0 ? 'synth' : MUSIC_TRACKS[i].id; Sound.init(); if (i >= 0 && TP.audio) TP.cur = null; music(true); showMenu('music'); }
+    else if (a === 'multiplayer') { if (opts.onMultiplayer) opts.onMultiplayer(); }
+    else if (a === 'pickchar') {
+      const id = b.dataset.id;
+      if (PLAYER_MODELS[id]) { S.playerModel = id; saveSettings(); if (G) G.playerModel = id; }
+      menu.querySelectorAll('.dfg-char').forEach(el => el.classList.toggle('on', el === b));
+    }
     else if (a === 'quit') { if (opts.onQuit) opts.onQuit(); else { state = 'menu'; music(false); showMenu('title'); } }
   });
   menu.addEventListener('input', ev => {

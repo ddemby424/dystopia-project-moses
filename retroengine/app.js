@@ -6,6 +6,7 @@
               3) Editor     — 2D map editor UI
    ===================================================================== */
 import { createRuntime } from './dmbtech1.js';
+import { installMultiplayer } from './mp/mp-app.js';
 
 const VERSION = '1.2.0';
 function DFRuntime() { return createRuntime(); }
@@ -1375,15 +1376,28 @@ $('#file-glb').addEventListener('change', e => {
    PLAYTEST · EXPORT · PROJECT FILES · CODE EDITOR · HELP
    ===================================================================== */
 let playHandle = null;
-function playtest(levelIndex) {
+let MP = null;
+function playtest(levelIndex, extra) {
   if (playHandle) return;
   const v = RT.validateLevel(L()).issues.filter(i => i.level === 'error' && /start/i.test(i.msg));
   if (v.length) { toast(v[0].msg, 'bad'); return; }
   const host = $('#play-host'); host.classList.add('on'); document.body.classList.remove('sheet');
   const proj = JSON.parse(JSON.stringify(ED.project));
-  playHandle = RT.play(host, proj, { level: levelIndex === undefined ? ED.li : levelIndex, onQuit: stopPlaytest });
+  extra = extra || {};
+  playHandle = RT.play(host, proj, {
+    level: levelIndex === undefined ? ED.li : levelIndex,
+    autoPlay: !!extra.autoPlay,
+    onQuit: stopPlaytest,
+    onEvent: (ev, arg) => { if (MP && ev === 'tick') MP.tick(arg); },
+    onMultiplayer: () => { if (MP) MP.openLobby(); }
+  });
 }
-function stopPlaytest() { if (!playHandle) return; playHandle.destroy(); playHandle = null; $('#play-host').classList.remove('on'); resizeCanvas(); }
+function stopPlaytest() {
+  if (MP) MP.teardown();
+  if (!playHandle) return;
+  playHandle.destroy(); playHandle = null;
+  $('#play-host').classList.remove('on'); resizeCanvas();
+}
 
 /* ---------- standalone HTML export: engine source + your project in one file ---------- */
 function buildStandaloneHtml() {
@@ -1637,10 +1651,10 @@ window.addEventListener('hashchange', () => { if (playHandle) return; if (/^#map
 
 /* ---------- main menu ---------- */
 async function openMenu() {
-  const items = [['projects', 'Projects (save / open)'], ['import', 'Import project file (.json)'], ['exportJson', 'Export project file (.json)'], ['export', 'Export playable game (.html)'], ['exportLevel', 'Export this level (.retro)'], ['importLevel', 'Import level (.retro)'], ['shareLink', 'Share level link'], ['code', 'Code editor (level.json / script)'], ['validate', 'Check level for problems'], ['playFirst', 'Play campaign from level 1'], ['tutorial', 'Tutorial: build your first level'], ['docsTutorial', 'Tutorial'], ['mapPack', 'Trial map pack'], ['help', 'Help & manual'], ['settings', 'Game settings'], ['about', 'About & credits']];
+  const items = [['projects', 'Projects (save / open)'], ['import', 'Import project file (.json)'], ['exportJson', 'Export project file (.json)'], ['export', 'Export playable game (.html)'], ['exportLevel', 'Export this level (.retro)'], ['importLevel', 'Import level (.retro)'], ['shareLink', 'Share level link'], ['code', 'Code editor (level.json / script)'], ['validate', 'Check level for problems'], ['playFirst', 'Play campaign from level 1'], ['multiplayer', 'Multiplayer'], ['tutorial', 'Tutorial: build your first level'], ['docsTutorial', 'Tutorial'], ['mapPack', 'Trial map pack'], ['help', 'Help & manual'], ['settings', 'Game settings'], ['about', 'About & credits']];
   const v = await modal({ title: 'Menu', body: `<div class="menu-list">${items.map(i => `<button class="tb" data-m="${i[0]}">${esc(i[1])}</button>`).join('')}</div>`, onOpen: (bk, close) => bk.addEventListener('click', e => { const t = e.target.closest('[data-m]'); if (t) close(t.dataset.m); }) });
   if (v === 'projects') openProjects(); else if (v === 'import') $('#file-json').click(); else if (v === 'exportJson') exportJson(); else if (v === 'export') openExport(); else if (v === 'exportLevel') exportLevelFile(); else if (v === 'importLevel') $('#file-retro').click(); else if (v === 'shareLink') shareLink();
-  else if (v === 'code') openCode('level'); else if (v === 'validate') openValidate(); else if (v === 'playFirst') playtest(0); else if (v === 'help') openHelp(); else if (v === 'tutorial') startTutorial(); else if (v === 'docsTutorial') { location.href = new URL('tutorial/', location.href).href; } else if (v === 'mapPack') { location.href = new URL('maps/', location.href).href; } else if (v === 'about') openAbout(); else if (v === 'settings') openGameSettings();
+  else if (v === 'code') openCode('level'); else if (v === 'validate') openValidate(); else if (v === 'playFirst') playtest(0); else if (v === 'multiplayer') { if (MP) MP.openLobby(); } else if (v === 'help') openHelp(); else if (v === 'tutorial') startTutorial(); else if (v === 'docsTutorial') { location.href = new URL('tutorial/', location.href).href; } else if (v === 'mapPack') { location.href = new URL('maps/', location.href).href; } else if (v === 'about') openAbout(); else if (v === 'settings') openGameSettings();
 }
 function openGameSettings() {
   const S = RT.S, r = (k, lab, a, b, st) => `<div class="row"><label>${lab}</label><input type="range" min="${a}" max="${b}" step="${st}" data-gs="${k}" value="${S[k]}"><output>${S[k]}</output></div>`;
@@ -1918,8 +1932,14 @@ function boot() {
   ['gesturestart', 'gesturechange'].forEach(e => document.addEventListener(e, ev => ev.preventDefault(), { passive: false }));
   let seen = false; try { seen = !!localStorage.getItem(SEEN_KEY); } catch (e) {}
   if (/^#map=/.test(location.hash)) openFromHash(); else if (/^#pack=/.test(location.hash)) openFromPack(); else if (!seen) openHelp(true);
+  MP = installMultiplayer({
+    RT, toast,
+    getProject: () => ED.project,
+    playtest, stopPlaytest,
+    getPlayHandle: () => playHandle
+  });
   // Debug / test hook (used by the automated tests)
-  window.RETROENGINE = window.DOOMFORGE_IDE = { VERSION, packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave, describeCell, applyCellProp, applyLightPreset, updateCellReadout, renderExplorer, refreshPropsDock };
+  window.RETROENGINE = window.DOOMFORGE_IDE = { VERSION, packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave, describeCell, applyCellProp, applyLightPreset, updateCellReadout, renderExplorer, refreshPropsDock, openMultiplayer: () => MP && MP.openLobby(), get mp() { return MP; } };
 }
 boot();
 })();

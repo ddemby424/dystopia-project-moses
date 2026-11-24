@@ -13,6 +13,8 @@ Editor (RetroEngine **1.2.0**), powered by DMB Tech 1 **1.1.0**.
 - **Lighting presets** on the Level tab: Gritty, Clean bright, and Emergency red. Clean bright is tuned so labs stay well-lit without washing out. Stamp **Clean Lab** or **Med Bay** from the Rooms tab for a ready well-lit room.
 - **Five more music tracks** (Kevin MacLeod, CC BY 4.0): Hitman, Volatile Reaction, Industrial Revolution, Crypto, Danger Storm. Re-encoded to 40 kbps mono to keep the download small. Never uses Darcy's own songs.
 - **Remote player models** for third-person multiplayer, with an in-game / settings character picker of six models: George, Leela, Mike, Stan (Animated Mech Pack, CC0), SWAT (CC0), and Sci Fi Character (CC-BY, credit Quaternius). Each has a distinct team tint. GLBs lazy-load only when that model is used. `RT.createRemotePlayer(modelId)` (also on the play handle) returns `setPose(x, y, z, yaw, anim)` and plays Idle / Walk / Shoot / Hit / Death. A procedural fallback is used if a GLB fails to load.
+- **Multiplayer lobby** (local / optional relay): Menu → Multiplayer opens a room browser. Character dropdown lists all six player models (shared with the Settings picker). Level picker lists the project's levels. Joining a room loads that level and attaches the WebSocket layer (`mp/`). If the relay is unreachable, the lobby shows **Server offline** and single-player is unchanged. Default server: `wss://dembysoftwaresystems.com/ws` on https, `ws://localhost:8080/ws` on localhost, overridable with `?mp=URL`. Not published until you say go.
+
 
 
 ## 1.1.3 (2026-11-23): Pulse Cannon projectile spawn

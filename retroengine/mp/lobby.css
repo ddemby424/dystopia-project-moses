@@ -1,0 +1,314 @@
+/* Lobby UI — same gritty dark "glass" look as RetroEngine.
+   Colors and type are copied from the editor's :root so a phone
+   user going from the editor to the lobby doesn't feel a theme change. */
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap');
+
+:root {
+  --bg: #07090e;
+  --bg2: #0d1119;
+  --glass: rgba(18, 23, 34, .78);
+  --glass2: rgba(28, 35, 50, .72);
+  --line: rgba(255, 255, 255, .08);
+  --line2: rgba(255, 255, 255, .16);
+  --text: #e6ebf3;
+  --dim: #8b95a8;
+  --acc: #ff7a1a;
+  --acc2: #2de2ff;
+  --ok: #2dffb0;
+  --bad: #ff4d4d;
+  --warn: #ffc21a;
+  --r: 12px;
+  --font: 'Chakra Petch', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --tap: 44px; /* minimum finger-friendly height */
+}
+
+.mp-lobby, .mp-lobby * { box-sizing: border-box; }
+.mp-lobby {
+  min-height: 100%;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  background:
+    radial-gradient(900px 480px at 70% -10%, #1a1f2e 0%, transparent 60%),
+    var(--bg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mp-lobby button, .mp-lobby select, .mp-lobby input {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+.mp-lobby button { cursor: pointer; }
+
+/* ---- top bar ---- */
+.mpl-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  background: rgba(9, 12, 18, .92);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.mpl-brand {
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.mpl-brand .mpl-mark {
+  width: 22px; height: 22px; flex: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #ff9a3d, #c2410c);
+  box-shadow: 0 0 14px rgba(255, 122, 26, .45);
+  color: #1a0800;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px;
+}
+.mpl-brand b { color: var(--acc); }
+.mpl-brand small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--dim);
+  font-weight: 600;
+}
+.mpl-status {
+  margin-left: auto;
+  font-size: 11px;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--dim);
+  white-space: nowrap;
+}
+.mpl-status.is-ok { color: #b8ffde; border-color: rgba(45, 255, 176, .4); background: rgba(45, 255, 176, .1); }
+.mpl-status.is-wait { color: #ffd3b0; border-color: rgba(255, 122, 26, .45); background: rgba(255, 122, 26, .12); }
+.mpl-status.is-bad { color: #ffc0c0; border-color: rgba(255, 77, 77, .45); background: rgba(255, 77, 77, .12); }
+
+/* ---- page body ---- */
+.mpl-body {
+  padding: 14px 14px 28px;
+  padding-bottom: max(28px, env(safe-area-inset-bottom));
+  max-width: 1100px;
+  margin: 0 auto;
+}
+@media (min-width: 880px) {
+  .mpl-body {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 22px;
+    align-items: start;
+    padding: 22px 24px 40px;
+  }
+}
+
+.mpl-you, .mpl-create, .mpl-rooms {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.mpl-h {
+  margin: 0 0 10px;
+  font-size: 10.5px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--dim);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mpl-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mpl-field { flex: 1; min-width: 120px; display: flex; flex-direction: column; gap: 4px; }
+.mpl-field label {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--dim);
+  font-weight: 600;
+}
+.mpl-field input, .mpl-field select,
+.mp-lobby input[type="text"], .mp-lobby select {
+  height: var(--tap);
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--glass2);
+  padding: 0 11px;
+  outline: none;
+}
+.mpl-field input:focus, .mpl-field select:focus {
+  border-color: rgba(255, 122, 26, .55);
+}
+
+.mpl-btn {
+  height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--glass2);
+  font-weight: 700;
+  letter-spacing: .4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background .12s, border-color .12s, transform .08s;
+}
+.mpl-btn:hover { background: rgba(255, 255, 255, .1); border-color: var(--line2); }
+.mpl-btn:active { transform: scale(.98); }
+.mpl-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.mpl-btn.primary {
+  background: linear-gradient(180deg, #ff8a3d, #e0561a);
+  border-color: #ff9d5c;
+  color: #1a0800;
+}
+.mpl-btn.primary:hover { filter: brightness(1.06); }
+.mpl-btn.block { width: 100%; margin-top: 8px; }
+.mpl-btn.full {
+  background: rgba(255, 77, 77, .12);
+  border-color: rgba(255, 77, 77, .35);
+  color: #ffb0b0;
+  cursor: default;
+}
+
+.mpl-inroom[hidden] { display: none !important; }
+.mpl-card-right { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 8px; }
+.mpl-inroom {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(45, 226, 255, .35);
+  background: rgba(45, 226, 255, .08);
+  color: #bff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+}
+
+/* ---- room cards ---- */
+.mpl-list { display: flex; flex-direction: column; gap: 8px; }
+.mpl-empty {
+  color: var(--dim);
+  text-align: center;
+  padding: 28px 10px;
+  font-weight: 600;
+}
+.mpl-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: rgba(8, 10, 16, .55);
+}
+.mpl-card.is-full { opacity: .85; }
+.mpl-card-title {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: .3px;
+  min-width: 0;
+}
+.mpl-card-meta {
+  color: var(--dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+.mpl-card-meta b { color: var(--text); font-weight: 700; }
+.mpl-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--acc2);
+  letter-spacing: .4px;
+}
+.mpl-card.is-full .mpl-count { color: var(--bad); }
+.mpl-names {
+  grid-column: 1 / -1;
+  color: var(--dim);
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.mpl-card .mpl-btn { min-width: 88px; justify-self: end; align-self: center; }
+
+.mpl-error {
+  color: var(--bad);
+  font-weight: 600;
+  font-size: 12px;
+  margin: 8px 0 0;
+  min-height: 1em;
+}
+
+html, body, #root { margin: 0; height: 100%; background: #07090e; }
+body { min-height: 100dvh; }
+
+/* Folded-phone layout: room list scrolls, You + Create stay on screen. */
+@media (max-width: 879px) {
+  .mp-lobby {
+    height: 100%;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+  .mpl-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  .mpl-main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .mpl-rooms {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 8px;
+  }
+  .mpl-list { overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+  .mpl-side { flex: none; }
+  .mpl-you { margin-bottom: 8px; }
+  .mpl-create {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    align-items: end;
+    margin-bottom: 0;
+  }
+  .mpl-create .mpl-h { grid-column: 1 / -1; margin: 0; }
+  .mpl-create .mpl-btn.block { grid-column: 1 / -1; margin-top: 0; }
+  .mpl-create .mpl-error { grid-column: 1 / -1; margin: 0; min-height: 0; }
+  .mpl-card { padding: 10px; }
+  .mpl-card-title { font-size: 15px; }
+}

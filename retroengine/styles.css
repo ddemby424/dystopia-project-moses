@@ -264,3 +264,7 @@ html, body { height: 100%; height: 100dvh; overscroll-behavior: none; }
 }
 
 #tut [hidden] { display: none !important; }
+
+#mp-lobby-host { position: fixed; inset: 0; z-index: 200; display: none; background: #07090e; }
+#mp-lobby-host.on { display: block; overflow: auto; }
+#mp-lobby-host .mp-lobby { min-height: 100%; }
