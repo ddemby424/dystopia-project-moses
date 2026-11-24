@@ -8,7 +8,7 @@
 import { createRuntime } from './dmbtech1.js';
 import { installMultiplayer } from './mp/mp-app.js';
 
-const VERSION = '1.2.0';
+const VERSION = '1.2.1';
 function DFRuntime() { return createRuntime(); }
 
 /* =====================================================================
@@ -1406,6 +1406,7 @@ function playtest(levelIndex, extra) {
   playHandle = RT.play(host, proj, {
     level: idx,
     autoPlay: !!extra.autoPlay,
+    skipEnemies: !!extra.skipEnemies,
     onQuit: stopPlaytest,
     onEvent: (ev, arg) => { if (MP && ev === 'tick') MP.tick(arg); },
     onMultiplayer: () => { if (MP) MP.openLobby(); }

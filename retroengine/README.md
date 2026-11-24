@@ -2,7 +2,7 @@
 
 RetroEngine is a free game maker for old-school first-person shooters in the style of Doom, Duke Nukem 3D and Quake. You draw a level on a grid, drop in enemies, weapons and doors, and press **Play** to run around in it straight away. It works on phones (including foldables), tablets and computers. No install and no account are needed.
 
-Version **1.2.0** is powered by the standalone [DMB Tech 1](../dmbtech1/) library (1.1.0). Other developers can use that engine without this editor.
+Version **1.2.1** is powered by the standalone [DMB Tech 1](../dmbtech1/) library (1.1.0). Other developers can use that engine without this editor.
 
 ## What's in this folder
 

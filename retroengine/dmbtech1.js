@@ -1640,6 +1640,7 @@ function play(container, project, opts) {
     L.ents.forEach(e => {
       const fh = L.fh[Math.floor(e.y) * W + Math.floor(e.x)] || 0;
       if (e.t === 'enemy') {
+        if (opts.skipEnemies) return;  // local AI is not networked; MP rooms omit bots so clients stay in sync
         const def = ENEMY_DEFS[e.s] || ENEMY_DEFS.grunt, mesh = buildEnemyMesh(e.s);
         mesh.position.set(e.x, fh + (def.hover || 0), e.y); world.add(mesh);
         const en = { sub: e.s in ENEMY_DEFS ? e.s : 'grunt', def, x: e.x, y: e.y, z: fh, hp: def.hp * diff().hp, state: 'idle', t: 0, cd: rand(0.5, 1.5), ang: e.r || 0, mesh, moving: false, deadT: 0, flashT: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rand(0.8, 2), flank: def.speed > 0 && e.s !== 'titan' && Math.random() < diff().flank ? (Math.random() < 0.5 ? 1 : -1) : 0, coverT: 0, hurtT: 0 };

@@ -30,7 +30,7 @@ The script (this is the real behavior, not a guess):
 
 When the release is real, update every place the version is stated:
 
-1. `const VERSION = '1.2.0';` at the top of `app.js` (this is what About and exports show). The engine library has its own `VERSION = '1.1.0'` in `dmbtech1.js`.
+1. `const VERSION = '1.2.1';` at the top of `app.js` (this is what About and exports show). The engine library has its own `VERSION = '1.1.0'` in `dmbtech1.js`.
 2. A new `## 1.1.x (date):` section at the **top** of `CHANGELOG.md`.
 3. `README.md` if the title still says an old major version.
 4. `maps/manifest.json` `"version"` if the pack changed.
@@ -49,7 +49,7 @@ After `build.py`, the contents of `../retroengine/` are what should be committed
 
 1. Commit the built files plus the source changes and the changelog.
 2. Push to GitHub.
-3. Create an annotated tag, for example `retroengine-v1.2.0` (and `dmbtech1-v1.1.0` when the engine library ships on its own), and a GitHub Release with notes (see `CHANGELOG.md`).
+3. Create an annotated tag, for example `retroengine-v1.2.1` (and `dmbtech1-v1.1.0` when the engine library ships on its own), and a GitHub Release with notes (see `CHANGELOG.md`).
 4. Open the live URLs in a phone browser (not only the preview) and tap a `#pack=` link.
 
 GitHub Pages can take a short time to update. Hard-refresh if you still see the old version in Menu → About & credits.

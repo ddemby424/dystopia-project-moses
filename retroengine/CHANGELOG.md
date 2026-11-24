@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1 (2026-11-24): Site 12 stock enemy bots
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.2.1**), powered by DMB Tech 1 **1.1.0**.
+
+- **Site 12: Dataworks now has a single-player fight.** The 128×128 compound keeps its eight multiplayer spawns and exit pad, and is stocked with the engine's existing CC0 Quaternius enemies (no new downloads): Heavy Walkers and Gun Drones featured throughout, plus Soldiers, Sentry Turrets, and a Titan guarding the clean lab annex. Hostiles are spread in groups through the yard, data halls, factory, warehouse, catwalks and lab, kept off the eight spawns. Extra rifle, rocket and ammo/health pickups support the fight. The HUD Hostiles counter and the south-yard exit pad are the win condition, same as the other trial maps.
+- **Enemies stay single-player.** Bots are simulated locally and are not sent over the multiplayer relay, so they would desync in a shared room. Multiplayer rooms skip enemy spawns (`skipEnemies` on `RT.play` / `playtest`); everyone still loads the same map, spawns and pickups. Single-player Play and `#pack=` links are unchanged.
+
 ## 1.2.0 (2026-11-24): editor IDE layout, properties, assets and lighting
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

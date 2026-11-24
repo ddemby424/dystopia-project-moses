@@ -182,7 +182,10 @@ export function installMultiplayer(api) {
     function go() {
       try {
         try { window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); } catch (e) { /* ignore */ }
-        const extra = { autoPlay: true, spawnIndex: spawnIndex };
+        // Enemies are simulated locally and are not sent over the relay, so a
+        // room full of clients would each see a different fight. Skip them in
+        // multiplayer rooms; single-player playtest is unchanged.
+        const extra = { autoPlay: true, spawnIndex: spawnIndex, skipEnemies: true };
         if (override) extra.levelOverride = override;
         let handle = api.getPlayHandle && api.getPlayHandle();
         if (!handle) {
