@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.4 (2026-11-24): multiplayer shared start, countdown, true remote positions
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.2.4**), powered by DMB Tech 1 **1.1.0**.
+
+- **Everyone starts together.** In a multiplayer room every player now spawns on the host's pad (Site 12: 20.5, 8.5; one-start maps use that start), nudged a step apart so nobody stacks. The old join-order pads (which put a friend 40+ cells away) stay in code as `spawnMode: 'fixed'`; `'random'` is kept for later and will pick an unoccupied pad, Doom deathmatch style.
+- **10-second countdown.** "Deathmatch begins in 10…" shows on screen; you can move and spread out, but PvP hits are ignored until **FIGHT!**. The room host owns the clock and re-sends the time left whenever someone joins, so late joiners land in the same countdown. It rides on the relay's existing shot message, so the server is unchanged.
+- **Remote players sit where the player really is.** Other players are drawn at real player size (body height matched to the first-person eye height; they were twice too big, so they poked through walls). A remote never slides across a wall between updates: if two updates are far apart or a wall is between them, the model snaps, like Doom. Remotes stay hidden until their first real position arrives (the join message said 0,0, the corner wall).
+
 ## 1.2.1 (2026-11-24): Site 12 stock enemy bots
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

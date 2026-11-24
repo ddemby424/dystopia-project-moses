@@ -16,10 +16,45 @@ import { attachMultiplayer } from './mp-dmbtech1.js';
 
 const NAME_KEY = 'retroengine.playerName';
 
-// Multiplayer spawn. 'fixed' = join order (player 1 at spawn 1, player 2 at
-// spawn 2, wrapping if the room is bigger than the pad list). Flip
-// mpSettings.spawnMode to 'random' later to pick a pad at random on each join.
-export const mpSettings = { spawnMode: 'fixed' };
+// Multiplayer spawn.
+//   'shared' (default for testing): everyone starts on the host's pad (pad 1,
+//            or the map's single start), nudged apart so nobody stacks, then a
+//            10-second countdown lets you spread out before damage turns on.
+//   'fixed'  = join order (player 1 at pad 1, player 2 at pad 2, wrapping).
+//   'random' = a random pad. LATER (not built yet): do it the Doom deathmatch
+//            way: pick a random deathmatch start and skip any pad another
+//            player is standing on (Doom's G_CheckSpot), so nobody telefrags.
+export const mpSettings = { spawnMode: 'shared', countdownSec: 10 };
+
+// Small offsets around the shared pad (cells). Slot 0 is the pad itself.
+const SHARED_OFFSETS = [[0, 0], [0.8, 0], [-0.8, 0], [0, 0.8], [0, -0.8], [0.8, 0.8], [-0.8, 0.8], [0.8, -0.8], [-0.8, -0.8], [1.6, 0], [-1.6, 0], [0, 1.6], [0, -1.6]];
+
+function cellOpen(level, x, y) {
+  const cx = Math.floor(x), cy = Math.floor(y), w = level.w | 0, h = level.h | 0;
+  if (!w || !h) return true;
+  if (cx < 0 || cy < 0 || cx >= w || cy >= h) return false;
+  const i = cy * w + cx;
+  const wall = level.wall && level.wall[i], kind = level.kind && level.kind[i];
+  return !wall || !!kind;
+}
+
+// Shared start for join slot N: the first pad plus a small open offset.
+export function sharedSpawnPoint(level, slot) {
+  const pad = spawnList(level)[0];
+  if (!pad) return null;
+  const n = SHARED_OFFSETS.length;
+  const start = ((slot | 0) % n + n) % n;
+  for (let k = 0; k < n; k++) {
+    const o = SHARED_OFFSETS[(start + k) % n];
+    const x = pad.x + o[0], y = pad.y + o[1];
+    // Check the spot and a player-radius box around it for walls.
+    if (cellOpen(level, x, y) && cellOpen(level, x - 0.25, y - 0.25) && cellOpen(level, x + 0.25, y - 0.25)
+      && cellOpen(level, x - 0.25, y + 0.25) && cellOpen(level, x + 0.25, y + 0.25)) {
+      return { x: x, y: y, r: pad.r || 0 };
+    }
+  }
+  return { x: pad.x, y: pad.y, r: pad.r || 0 };
+}
 
 export function spawnList(level) {
   if (!level) return [];
@@ -33,6 +68,7 @@ export function pickSpawnIndex(welcome, level, mode) {
   const n = list.length || 1;
   const joinIndex = (welcome && welcome.peers && welcome.peers.length) || 0;
   const use = mode || mpSettings.spawnMode || 'fixed';
+  if (use === 'shared') return 0;
   if (use === 'random') return Math.floor(Math.random() * n);
   return ((joinIndex % n) + n) % n;
 }
@@ -185,6 +221,39 @@ export function installMultiplayer(api) {
   let mpSession = null;
   let entering = false;     // true while we start play after a join
   let mpTickFn = null;
+  // Pre-match countdown (performance.now ms when damage turns on).
+  let fightAt = 0, fightShownUntil = 0, isHost = false, cdEl = null, lastCdText = '';
+
+  function now() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
+  function countdownLeft() { return Math.max(0, (fightAt - now()) / 1000); }
+  function canDamage() { return countdownLeft() <= 0; }
+  function setCountdown(sec) {
+    const was = countdownLeft() > 0;
+    fightAt = now() + Math.max(0, sec) * 1000;
+    if (was && sec <= 0) fightShownUntil = now() + 1500;
+  }
+  function showCountdown() {
+    const left = countdownLeft();
+    let text = '';
+    if (left > 0) text = 'Deathmatch begins in ' + Math.ceil(left) + '\u2026';
+    else if (fightAt && now() < fightAt + 1500) text = 'FIGHT!';
+    else if (now() < fightShownUntil) text = 'FIGHT!';
+    if (text === lastCdText) return;
+    lastCdText = text;
+    if (!cdEl) {
+      cdEl = document.createElement('div');
+      cdEl.id = 'mp-countdown';
+      cdEl.style.cssText = 'position:fixed;left:0;right:0;top:22%;text-align:center;z-index:9999;pointer-events:none;'
+        + 'font:700 clamp(22px,6vw,48px)/1.2 system-ui,sans-serif;color:#ffd24a;text-shadow:0 2px 0 #000,0 0 12px #000;letter-spacing:1px;';
+      document.body.appendChild(cdEl);
+    }
+    cdEl.textContent = text;
+    cdEl.style.display = text ? 'block' : 'none';
+  }
+  function removeCountdown() {
+    if (cdEl && cdEl.parentNode) cdEl.parentNode.removeChild(cdEl);
+    cdEl = null; lastCdText = ''; fightAt = 0; fightShownUntil = 0;
+  }
 
   function playerName() {
     try { return localStorage.getItem(NAME_KEY) || 'Player'; } catch (e) { return 'Player'; }
@@ -228,6 +297,7 @@ export function installMultiplayer(api) {
 
   function teardown() {
     mpTickFn = null;
+    removeCountdown();
     if (mpSession) {
       try { mpSession.disconnect(); } catch (e) { /* ignore */ }
       mpSession = null;
@@ -263,14 +333,51 @@ export function installMultiplayer(api) {
         const h = api.getPlayHandle && api.getPlayHandle();
         if (h && h.playRemoteShot) h.playRemoteShot(shot);
       },
+      canDamage: canDamage,
+      lineClear: function (x1, y1, x2, y2) {
+        const h = api.getPlayHandle && api.getPlayHandle();
+        return !(h && h.lineClear) || h.lineClear(x1, y1, x2, y2);
+      },
+      onMatch: function (m) {
+        // Only the room host's clock counts; it already subtracted elapsed time.
+        if (isHost || !m) return;
+        setCountdown(m.remaining);
+      },
       onHit: function (hit) {
         const h = api.getPlayHandle && api.getPlayHandle();
         const my = mp && mp.id;
         if (!h || !hit || !my || hit.targetId !== my) return;
+        if (!canDamage()) return;          // countdown: no PvP damage yet
         if (h.damagePlayer) h.damagePlayer(hit.dmg || 10, hit.x, hit.y);
       }
     });
     mpSession = session;
+    // Start the countdown. The host owns the clock: it starts at 10 and tells
+    // the room, and repeats the time left whenever someone joins (late joiners
+    // land in the same countdown, or get 0 if the fight already started).
+    // Everyone else runs a local 10 until the host's number arrives.
+    const total = mpSettings.countdownSec || 10;
+    if (session && session.enabled && mp) {
+      const known = !isHost && mp.match;
+      if (known) setCountdown(known.remaining - (now() - known.at) / 1000);
+      else setCountdown(total);
+      if (isHost && mp.sendMatch) {
+        mp.sendMatch(countdownLeft());
+        if (mp.on) mp.on('join', function () { mp.sendMatch(countdownLeft()); });
+      }
+      // Host also repeats the time left every 2 s during the countdown, so a
+      // phone that was busy loading the map re-syncs to the host's clock.
+      let resendAt = now() + 2000;
+      const innerTick = mpTickFn;
+      mpTickFn = function (dt) {
+        if (innerTick) innerTick(dt);
+        if (isHost && mp.sendMatch && fightAt && now() >= resendAt && now() < fightAt + 2000) {
+          resendAt = now() + 2000;
+          mp.sendMatch(countdownLeft());
+        }
+        showCountdown();
+      };
+    }
     try { window.RETROENGINE_MP = session; } catch (e) { /* ignore */ }
     return session;
   }
@@ -305,7 +412,10 @@ export function installMultiplayer(api) {
       idx = (resolved && resolved.idx != null) ? resolved.idx : parseLevelIndex(project, welcome && welcome.level, welcome && welcome.levelName);
     }
     const level = override || (project && project.levels && project.levels[idx]) || null;
+    const slot = (welcome && welcome.peers && welcome.peers.length) || 0;
+    isHost = slot === 0;
     const spawnIndex = pickSpawnIndex(welcome, level, mpSettings.spawnMode);
+    const spawnPoint = mpSettings.spawnMode === 'shared' ? sharedSpawnPoint(level, slot) : null;
     const loadedId = (resolved && resolved.id) || (welcome && welcome.level) || null;
     const loadedName = (level && level.name) || (resolved && resolved.name) || (welcome && welcome.levelName) || null;
     // Wait two frames so the lobby click (mousedown/mouseup) finishes
@@ -318,6 +428,7 @@ export function installMultiplayer(api) {
         // room full of clients would each see a different fight. Skip them in
         // multiplayer rooms; single-player playtest is unchanged.
         const extra = { autoPlay: true, spawnIndex: spawnIndex, skipEnemies: true };
+        if (spawnPoint) extra.spawnPoint = spawnPoint;
         if (override) extra.levelOverride = override;
         let handle = api.getPlayHandle && api.getPlayHandle();
         if (!handle) {
@@ -326,7 +437,8 @@ export function installMultiplayer(api) {
         } else {
           try { handle.loadLevel(idx, false); } catch (e) { /* ignore */ }
           try { handle.begin(); } catch (e) { /* ignore */ }
-          if (api.applySpawnIndex) api.applySpawnIndex(handle, spawnIndex);
+          if (spawnPoint && api.applySpawnPoint) api.applySpawnPoint(handle, spawnPoint);
+          else if (api.applySpawnIndex) api.applySpawnIndex(handle, spawnIndex);
         }
         attachToHandle(handle, socket);
         const info = {
@@ -397,8 +509,13 @@ export function installMultiplayer(api) {
     tick: function (dt) { if (mpTickFn) mpTickFn(dt); },
     get session() { return mpSession; },
     get spawnMode() { return mpSettings.spawnMode; },
-    set spawnMode(v) { if (v === 'fixed' || v === 'random') mpSettings.spawnMode = v; },
+    set spawnMode(v) { if (v === 'shared' || v === 'fixed' || v === 'random') mpSettings.spawnMode = v; },
     pickSpawnIndex: pickSpawnIndex,
+    sharedSpawnPoint: sharedSpawnPoint,
+    // Test hook: enter a room with an already-open socket (the lobby does this on Join).
+    startGameForRoom: startGameForRoom,
+    get countdownLeft() { return countdownLeft(); },
+    canDamage: canDamage,
     spawnList: spawnList,
     mpSettings: mpSettings,
     canonicalLevelId: canonicalLevelId,
@@ -407,4 +524,4 @@ export function installMultiplayer(api) {
   };
 }
 
-export default { installMultiplayer, defaultMpUrl, mpSettings, pickSpawnIndex, spawnList, canonicalLevelId, resolveRoomLevel, starterLevelSlug };
+export default { installMultiplayer, defaultMpUrl, mpSettings, pickSpawnIndex, sharedSpawnPoint, spawnList, canonicalLevelId, resolveRoomLevel, starterLevelSlug };

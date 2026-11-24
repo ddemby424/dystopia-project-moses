@@ -8,7 +8,7 @@
 import { createRuntime } from './dmbtech1.js';
 import { installMultiplayer } from './mp/mp-app.js';
 
-const VERSION = '1.2.1';
+const VERSION = '1.2.4';
 function DFRuntime() { return createRuntime(); }
 
 /* =====================================================================
@@ -1403,6 +1403,14 @@ function applySpawnIndex(handle, index) {
   G.pz = (lv.fh && lv.fh[i]) || 0;
   G.vx = 0; G.vy = 0; G.vz = 0; G.onGround = true;
 }
+function applySpawnPoint(handle, p) {
+  const G = handle && handle.game, lv = G && G.L;
+  if (!G || !lv || !p || !isFinite(p.x) || !isFinite(p.y)) return;
+  G.px = +p.x; G.py = +p.y; G.yaw = +p.r || 0;
+  const i = (Math.floor(p.y) * lv.w) + Math.floor(p.x);
+  G.pz = (lv.fh && lv.fh[i]) || 0;
+  G.vx = 0; G.vy = 0; G.vz = 0; G.onGround = true;
+}
 function playtest(levelIndex, extra) {
   if (playHandle) return;
   extra = extra || {};
@@ -1421,11 +1429,13 @@ function playtest(levelIndex, extra) {
     autoPlay: !!extra.autoPlay,
     skipEnemies: !!extra.skipEnemies,
     spawnIndex: extra.spawnIndex,
+    spawnPoint: extra.spawnPoint,
     onQuit: stopPlaytest,
     onEvent: (ev, arg) => { if (MP && ev === 'tick') MP.tick(arg); },
     onMultiplayer: () => { if (MP) MP.openLobby(); }
   });
-  if (playHandle && extra.spawnIndex != null) applySpawnIndex(playHandle, extra.spawnIndex);
+  if (playHandle && extra.spawnPoint) applySpawnPoint(playHandle, extra.spawnPoint);
+  else if (playHandle && extra.spawnIndex != null) applySpawnIndex(playHandle, extra.spawnIndex);
 }
 function stopPlaytest() {
   if (MP) MP.teardown();
@@ -2011,11 +2021,11 @@ function boot() {
     getProject: () => ED.project,
     playtest, stopPlaytest,
     getPlayHandle: () => playHandle,
-    getPackLevels, loadPackLevel, applySpawnIndex,
+    getPackLevels, loadPackLevel, applySpawnIndex, applySpawnPoint,
     getStarterLevels: listStarterLevels, loadStarterLevel
   });
   // Debug / test hook (used by the automated tests)
-  window.RETROENGINE = window.DOOMFORGE_IDE = { VERSION, packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave, describeCell, applyCellProp, applyLightPreset, updateCellReadout, renderExplorer, refreshPropsDock, openMultiplayer: () => MP && MP.openLobby(), get mp() { return MP; }, loadPackCatalog, loadPackLevel, getPackLevels, applySpawnIndex, listStarterLevels, loadStarterLevel, starterLevelSlug, get packMaps() { return PACK_MAPS; } };
+  window.RETROENGINE = window.DOOMFORGE_IDE = { VERSION, packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave, describeCell, applyCellProp, applyLightPreset, updateCellReadout, renderExplorer, refreshPropsDock, openMultiplayer: () => MP && MP.openLobby(), get mp() { return MP; }, loadPackCatalog, loadPackLevel, getPackLevels, applySpawnIndex, applySpawnPoint, listStarterLevels, loadStarterLevel, starterLevelSlug, get packMaps() { return PACK_MAPS; } };
 }
 boot();
 })();

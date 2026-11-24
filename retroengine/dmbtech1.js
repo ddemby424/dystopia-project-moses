@@ -18,6 +18,9 @@ export function createRuntime() {
 const VERSION = '1.1.0';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
+// Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
+// (the old 1.28-1.4 m models were twice a player's real size, so a friend near a wall poked through it).
+const REMOTE_BODY_H = 0.86;
 const STEP_H = 0.36;         // max height you can walk up without jumping
 const GRAV = 11;             // gravity (units / s^2)
 
@@ -1125,7 +1128,7 @@ function applyTeamTint(root, hex) {
     o.frustumCulled = false;
   });
 }
-function buildPlayerFallback(def) {
+function buildPlayerFallback(def, bodyH) {
   const team = new THREE.Color((def && def.tintColor) || '#8899aa');
   const hull = mat(team.clone().multiplyScalar(0.72).getHex(), { metal: 0.55, rough: 0.45, noMap: true, emissive: 0x0d0f14 });
   const dark = mat(team.clone().multiplyScalar(0.22).getHex(), { metal: 0.65, rough: 0.5, noMap: true, emissive: 0x060709 });
@@ -1150,7 +1153,7 @@ function buildPlayerFallback(def) {
   }
   g.updateMatrixWorld(true);
   const b = new THREE.Box3().setFromObject(g), size = b.getSize(new THREE.Vector3());
-  const sc = ((def && def.h) || 1.35) / Math.max(size.y, 1e-4);
+  const sc = (bodyH || (def && def.h) || 1.35) / Math.max(size.y, 1e-4);
   g.scale.multiplyScalar(sc);
   g.position.y = -b.min.y * sc;
   return g;
@@ -1165,7 +1168,7 @@ function createRemotePlayer(modelId, opts) {
   const assetBase = opts.assetBase !== undefined ? opts.assetBase : ((sess && sess.assetBase) || '');
   const remotes = (sess && sess.remotes) || null;
   const root = new THREE.Group();
-  const fallback = buildPlayerFallback(def);
+  const fallback = buildPlayerFallback(def, REMOTE_BODY_H);
   root.add(fallback);
   root.userData.proc = fallback;
   root.userData.modelId = def.id;
@@ -1176,7 +1179,7 @@ function createRemotePlayer(modelId, opts) {
       this.x = x; this.y = y; if (z != null) this.z = z;
       if (yaw != null) this.yaw = yaw;
       root.position.set(this.x, this.z, this.y);
-      // Same convention as enemies: yaw 0 faces map +Y (model forward is +Z).
+      // Model forward is +Z. Player forward on the map is (cos yaw, sin yaw), so rotation.y = atan2(cos, sin).
       root.rotation.y = Math.atan2(Math.cos(this.yaw), Math.sin(this.yaw));
       if (anim) { this.anim = anim; playHolderAnim(root, anim); }
     },
@@ -1200,7 +1203,7 @@ function createRemotePlayer(modelId, opts) {
   const load = (opts.assets === false) ? Promise.resolve(null) : loadGlb(assetBase + def.src);
   rp.ready = load.then(gltf => {
     if (!gltf || (sess && sess.destroyed) || rp._gone) return rp;
-    const m = normalizeModel(gltf.scene, def.h || 1.35, false, def); if (!m) return rp;
+    const m = normalizeModel(gltf.scene, REMOTE_BODY_H, false, { h: REMOTE_BODY_H }); if (!m) return rp;
     applyTeamTint(m, def.tintColor);
     fallback.visible = false;
     root.add(m);
@@ -1624,7 +1627,12 @@ function play(container, project, opts) {
       playerModel: S.playerModel || 'george'
     };
     G = g;
-    if (opts.spawnIndex != null) {
+    if (opts.spawnPoint && isFinite(opts.spawnPoint.x) && isFinite(opts.spawnPoint.y)) {
+      const s = opts.spawnPoint;
+      g.px = +s.x; g.py = +s.y; g.yaw = +s.r || 0;
+      g.pz = (L.fh && L.fh[(Math.floor(s.y) * W) + Math.floor(s.x)]) || 0;
+      g.vx = 0; g.vy = 0; g.vz = 0; g.onGround = true;
+    } else if (opts.spawnIndex != null) {
       const pads = (L.spawns && L.spawns.length) ? L.spawns : (L.spawn ? [L.spawn] : []);
       if (pads.length) {
         const s = pads[((opts.spawnIndex % pads.length) + pads.length) % pads.length];
@@ -2593,6 +2601,7 @@ function play(container, project, opts) {
     get game() { return G; }, get state() { return state; }, camera, renderer, begin, pause, loadLevel, selectWeapon, shoot: () => shoot(), startReload: () => startReload(), weaponMeshes, music: TP, get dynScale() { return dynScale; }, set dynScale(v) { dynScale = v; resize(); }, toggleFullscreen, damagePlayer, levelComplete,
     createRemotePlayer(modelId, o) { return createRemotePlayer(modelId, Object.assign({}, o, { session })); },
     playRemoteShot(shot) { return playRemoteShot(shot); },
+    lineClear(x1, y1, x2, y2) { return !!G && los(x1, y1, x2, y2); },
     destroy() {
       destroyed = true; if (activeSession === session) activeSession = null; remotes.slice().forEach(r => { try { r.dispose(); } catch (e) {} }); cancelAnimationFrame(raf); Sound.music(false); if (TP.audio) { TP.audio.pause(); TP.audio.removeAttribute('src'); }
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp);

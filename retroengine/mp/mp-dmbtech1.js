@@ -116,6 +116,10 @@ export function attachMultiplayer(engine, opts) {
   (mp.getPeers ? mp.getPeers() : []).forEach(function (peer) { ensureRemote(peer); });
   mp.on('shot', function (shot) { if (typeof opts.onShot === 'function') opts.onShot(shot); });
   mp.on('hit',  function (hit)  { if (typeof opts.onHit  === 'function') opts.onHit(hit); });
+  mp.on('match', function (m)   { if (typeof opts.onMatch === 'function') opts.onMatch(m); });
+  // Same wall test the engine uses for line of sight, so remote players never
+  // slide through a wall between two updates (they snap instead, like Doom).
+  if (mp.setLineClear && typeof opts.lineClear === 'function') mp.setLineClear(opts.lineClear);
 
   let prevCd = 0;    // previous weapon cooldown, used to spot a new shot
 
@@ -156,7 +160,9 @@ export function attachMultiplayer(engine, opts) {
           if (Math.abs(dz) > 1.6) continue;
           bd = along; best = p;
         }
-        if (best) mp.sendHit({ targetId: best.id, dmg: dmg });
+        // No PvP damage during the pre-match countdown.
+        const canHurt = (typeof opts.canDamage !== 'function') || opts.canDamage();
+        if (best && canHurt) mp.sendHit({ targetId: best.id, dmg: dmg });
       }
       prevCd = G.cd || 0;
 
@@ -172,6 +178,9 @@ export function attachMultiplayer(engine, opts) {
     remotes.forEach(function (rp, id) {
       const p = mp.getPeer(id);
       if (p && rp && typeof rp.setPose === 'function') {
+        // Hide a remote until its first real pose arrives (the join message
+        // says 0,0, which is inside the map's corner wall).
+        if (rp.mesh) rp.mesh.visible = p.live !== false;
         rp.setPose(p.x, p.y, p.z, p.yaw, p.anim);
       }
     });

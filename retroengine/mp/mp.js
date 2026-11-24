@@ -26,7 +26,7 @@
  *   mp.createRoom({ name: 'Night Shift', level: 'e1m1' });
  *   mp.joinRoom('r1');                     // or a code from the list
  *   // every animation frame (once you're in a game):
- *   mp.setState({ x, y, z, yaw, anim, modelId });  // sent ~15 Hz, and only if it changed
+ *   mp.setState({ x, y, z, yaw, anim, modelId });  // sent ~20 Hz, and only if it changed
  *   mp.tick();                                     // interpolate remotes (~100 ms buffer)
  *   for (const p of mp.getPeers()) draw(p);        // p.x/y/z/yaw are smoothed
  *   mp.disconnect();
@@ -35,12 +35,21 @@
  * because Node has no built-in WebSocket until very recent versions.
  */
 
-const DEFAULT_SEND_HZ = 15;       // how often we may send our pose
+const DEFAULT_SEND_HZ = 20;       // how often we may send our pose (was 15)
 const DEFAULT_INTERP_MS = 100;    // draw remotes this far in the past (smooth)
 const POS_EPS = 0.001;            // ignore tiny position jitters
 const ANG_EPS = 0.001;            // ignore tiny yaw jitters
 const MAX_BACKOFF_MS = 10000;     // cap on reconnect wait
 const START_BACKOFF_MS = 500;
+// Doom-style remotes: a remote player is a real thing on the map, not a
+// free-floating model. If two updates are far apart (a respawn, a long gap
+// while they stood still) or the straight line between them crosses a wall,
+// we snap to the newer spot instead of sliding through the wall.
+const SNAP_DIST = 1.5;            // cells
+// The public relay only forwards known message types (state/shot/hit), so
+// the match countdown rides on a 'shot' with weapon 'match' and the seconds
+// left in yaw. Receivers never treat it as a real shot.
+const MATCH_TAG = 'match';
 
 function nowMs() {
   // performance.now() is steadier than Date.now() in a browser (doesn't jump
@@ -98,6 +107,8 @@ export function connect(url, room, profile, options) {
   let currentRoom = (room == null || room === '') ? null : String(room);
   let watchingLobby = options.lobby === true || currentRoom == null;
   let cachedRooms = [];        // last room list the server sent us
+  let lastMatch = null;        // { remaining (s), at (ms) } from the room host
+  let lineClear = null;        // optional (x1,y1,x2,y2) => true when no wall is in between
 
   const WSImpl = options.WebSocket || (typeof WebSocket !== 'undefined' ? WebSocket : null);
   if (!WSImpl) throw new Error('mp.connect: no WebSocket implementation (pass options.WebSocket in Node)');
@@ -149,6 +160,7 @@ export function connect(url, room, profile, options) {
         modelId: info.modelId || 'default',
         x: info.x || 0, y: info.y || 0, z: info.z || 0,
         yaw: info.yaw || 0, anim: info.anim || 'idle',
+        live: false,        // true once we have a real pose (join messages carry 0,0)
         buf: []
       };
       peers.set(info.id, p);
@@ -160,6 +172,14 @@ export function connect(url, room, profile, options) {
   }
 
   function pushSnapshot(p, info, recvT) {
+    // Poses are only sent while they change. After a pause (they stood
+    // still), hold the old pose until one send-tick before this update, so
+    // the blend starts now instead of half-jumping across the gap.
+    const prev = p.buf.length ? p.buf[p.buf.length - 1] : null;
+    const tickMs = 1000 / sendHz;
+    if (prev && recvT - prev.t > tickMs * 4) {
+      p.buf.push(Object.assign({}, prev, { t: recvT - tickMs }));
+    }
     p.buf.push({
       t: recvT,
       x: Number(info.x) || 0,
@@ -194,10 +214,12 @@ export function connect(url, room, profile, options) {
       // Drop stale remotes from a previous life (after a reconnect the
       // room membership may have changed).
       peers.clear();
+      lastMatch = null;
       emit('welcome', msg);
       const list = msg.peers || [];
       for (let i = 0; i < list.length; i++) {
         const p = upsertPeer(list[i]);
+        if (list[i].x || list[i].y) p.live = true;
         pushSnapshot(p, list[i], nowMs());
         emit('join', p);
       }
@@ -223,6 +245,8 @@ export function connect(url, room, profile, options) {
     if (msg.type === 'state') {
       if (!msg.id || msg.id === myId) return;
       const p = upsertPeer(msg);
+      if (!p.live) p.buf.length = 0;   // drop the 0,0 placeholder from 'join'
+      p.live = true;
       pushSnapshot(p, msg, nowMs());
       emit('state', msg);
       return;
@@ -249,7 +273,15 @@ export function connect(url, room, profile, options) {
       return;
     }
 
-    if (msg.type === 'shot') { emit('shot', msg); return; }
+    if (msg.type === 'shot') {
+      if (msg.weapon === MATCH_TAG) {
+        lastMatch = { remaining: Number(msg.yaw) || 0, at: nowMs(), from: msg.id };
+        emit('match', lastMatch);
+        return;
+      }
+      emit('shot', msg);
+      return;
+    }
     if (msg.type === 'hit')  { emit('hit', msg);  return; }
     if (msg.type === 'error') { emit('error', msg); return; }
     if (msg.type === 'pong')  { emit('pong', msg); return; }
@@ -408,7 +440,7 @@ export function connect(url, room, profile, options) {
     return sendRaw({ type: 'leave' });
   }
 
-  // Record our latest pose. A 15 Hz timer will send it if it changed.
+  // Record our latest pose. A 20 Hz timer will send it if it changed.
   function setState(pose) {
     pending = {
       x: Number(pose.x) || 0,
@@ -431,6 +463,11 @@ export function connect(url, room, profile, options) {
       yaw: Number(shot.yaw) || 0,
       weapon: shot.weapon
     });
+  }
+
+  // Room host: tell everyone how many seconds are left before damage is on.
+  function sendMatch(remainingSec) {
+    return sendRaw({ type: 'shot', x: 0, y: 0, z: 0, yaw: Math.max(0, Number(remainingSec) || 0), weapon: MATCH_TAG });
   }
 
   function sendHit(hit) {
@@ -463,6 +500,8 @@ export function connect(url, room, profile, options) {
         if (buf[k].t <= renderAt && buf[k + 1].t >= renderAt) { i = k; break; }
       }
       const a = buf[i], b = buf[i + 1];
+      const far = Math.hypot(b.x - a.x, b.y - a.y) > SNAP_DIST;
+      if (far || (lineClear && !lineClear(a.x, a.y, b.x, b.y))) { applySnap(p, b); return; }
       const t = (renderAt - a.t) / Math.max(1, b.t - a.t);
       p.x = lerp(a.x, b.x, t);
       p.y = lerp(a.y, b.y, t);
@@ -494,7 +533,7 @@ export function connect(url, room, profile, options) {
     myId = null;
   }
 
-  // Send-loop: ~15 times a second, ship the pose if it changed.
+  // Send-loop: ~20 times a second, ship the pose if it changed.
   sendTimer = setInterval(flush, Math.round(1000 / sendHz));
 
   open();
@@ -505,6 +544,9 @@ export function connect(url, room, profile, options) {
     flush: flush,             // send now if dirty (useful in tests)
     sendShot: sendShot,
     sendHit: sendHit,
+    sendMatch: sendMatch,
+    setLineClear: function (fn) { lineClear = (typeof fn === 'function') ? fn : null; },
+    get match() { return lastMatch; },
     tick: tick,
     getPeer: getPeer,
     getPeers: getPeers,
