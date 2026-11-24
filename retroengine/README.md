@@ -14,7 +14,7 @@ Version **1.2.0** is powered by the standalone [DMB Tech 1](../dmbtech1/) librar
 | `retroengine.html` | A module launcher (same as `index.html`); keep `dmbtech1.js` next to it |
 | `help.html` | The full manual as a web page (it is also built into the app: Menu → Help) |
 | `tutorial/` | Tinkerer tutorial: adding maps, assets, and code (Menu → Tutorial) |
-| `maps/` | Trial map pack page and four official `.retro` maps |
+| `maps/` | Trial map pack page and five official `.retro` maps |
 | `assets/models/` | The 3D enemies and guns (`.glb`, CC0) |
 | `assets/music/` | Ten music tracks (`.mp3`, CC BY 4.0) |
 | `README.md`, `CHANGELOG.md`, `CREDITS.md` | This file, the version history, and who made what |
@@ -76,7 +76,7 @@ Your work **autosaves** in the browser. Use **Menu → Projects** for named save
 - **Safety:** level scripts from other people are switched **off** when you import them. You can read the script in the Level tab and turn it on only if you trust it.
 
 ## Trial map pack
-Three full-size escape-pad maps are in the `maps/` folder, with a phone-friendly list at `maps/index.html`. Tap **Play** to load a map in RetroEngine, or download the `.retro` file and import it. These are meant for early trial users. Each map has guards, a Titan boss, and an exit pad.
+Five official maps are in the `maps/` folder, with a phone-friendly list at `maps/index.html`. Tap **Play** to load a map in RetroEngine, or download the `.retro` file and import it. The first four are escape-pad trials (guards, a Titan, and an exit pad). **Site 12: Dataworks** is a 128×128 multiplayer compound with eight spread-out spawns, an outdoor yard, indoor halls, catwalks, and a clean bright lab wing.
 
 - Links only work for other people when RetroEngine is hosted online. A copy opened from your own device makes links that only open on that device.
 

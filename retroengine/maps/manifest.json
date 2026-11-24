@@ -1,6 +1,6 @@
 {
   "pack": "RetroEngine Trial Map Pack 1",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "created": "2026-11-23",
   "credit": "Darcy D. Demby, Chief Software Architect \u2014 DembySoftwareSystems \u2014 Making cool tools with AI...",
   "maps": [
@@ -177,6 +177,63 @@
       "errors": [],
       "warns": [],
       "hero": null
+    },
+    {
+      "slug": "site12-dataworks",
+      "name": "Site 12: Dataworks",
+      "file": "site12-dataworks.retro",
+      "blurb": "A 128\u00d7128 factory and data-center compound for multiplayer. Cross the outdoor yard, push through indoor halls, climb the catwalks, and clear the clean bright lab wing. Eight spread-out spawns fill a full room of eight.",
+      "w": 128,
+      "h": 128,
+      "par": 240,
+      "sky": "overcast",
+      "track": "industrial_revolution",
+      "ents": {
+        "light": 83,
+        "prop": 119,
+        "pickup:ammo_shells": 3,
+        "pickup:health": 9,
+        "pickup:armor": 2,
+        "pickup:ammo_bullets": 1,
+        "exit": 1,
+        "pickup:armor_heavy": 1,
+        "pickup:medkit": 3,
+        "pickup:w_shotgun": 1
+      },
+      "enemies": 0,
+      "pickups": 20,
+      "exits": 1,
+      "reachable": 13428,
+      "bytes": 63110,
+      "errors": [],
+      "warns": [],
+      "hero": null,
+      "spawns": 8,
+      "props": 119,
+      "lights": 83,
+      "propTypes": [
+        "barrel",
+        "cone",
+        "console",
+        "crate",
+        "crate_tall",
+        "desk",
+        "extinguisher",
+        "fan",
+        "generator",
+        "lab_bench",
+        "locker",
+        "med_cabinet",
+        "pillar",
+        "pipes",
+        "sandbags",
+        "server",
+        "shelves",
+        "terminal",
+        "vat",
+        "vent"
+      ],
+      "path": "/workspace/dystopia-pages/retroengine/maps/site12-dataworks.retro"
     }
   ]
 }

@@ -1329,6 +1329,7 @@ function renderExplorer() {
   box.innerHTML = `
     <div class="ex-sec"><h4>Project</h4><div class="ex-name">${esc(p.name)}</div></div>
     <div class="ex-sec"><h4>Levels</h4>${p.levels.map((l, i) => `<button class="ex-item ${i === ED.li ? 'on' : ''}" data-ex-lvl="${i}"><span>${i + 1}. ${esc(l.name)}</span><small>${l.w}×${l.h}</small></button>`).join('')}</div>
+    ${PACK_MAPS.length ? `<div class="ex-sec"><h4>Trial pack</h4>${PACK_MAPS.map(m => `<button class="ex-item" data-ex-pack="${esc(m.slug)}"><span>${esc(m.name)}</span><small>${m.w}×${m.h}</small></button>`).join('')}</div>` : ''}
     <div class="ex-sec"><h4>Models</h4><div class="note">${modelCount ? modelCount + ' custom model' + (modelCount === 1 ? '' : 's') : 'Default DMB Tech 1 pack'}</div>
       <button class="tb sm" data-ex-act="models" style="margin-top:6px">Open model slots</button></div>
     <div class="ex-sec"><h4>Scripts</h4>${scripts}</div>`;
@@ -1377,20 +1378,39 @@ $('#file-glb').addEventListener('change', e => {
    ===================================================================== */
 let playHandle = null;
 let MP = null;
+function applySpawnIndex(handle, index) {
+  const G = handle && handle.game, lv = G && G.L;
+  if (!G || !lv) return;
+  const list = (lv.spawns && lv.spawns.length) ? lv.spawns : (lv.spawn ? [lv.spawn] : []);
+  if (!list.length) return;
+  const s = list[((index % list.length) + list.length) % list.length];
+  if (!s) return;
+  G.px = s.x; G.py = s.y; G.yaw = s.r || 0;
+  const i = (Math.floor(s.y) * lv.w) + Math.floor(s.x);
+  G.pz = (lv.fh && lv.fh[i]) || 0;
+  G.vx = 0; G.vy = 0; G.vz = 0; G.onGround = true;
+}
 function playtest(levelIndex, extra) {
   if (playHandle) return;
-  const v = RT.validateLevel(L()).issues.filter(i => i.level === 'error' && /start/i.test(i.msg));
+  extra = extra || {};
+  const proj = JSON.parse(JSON.stringify(ED.project));
+  let idx = levelIndex === undefined ? ED.li : levelIndex;
+  if (extra.levelOverride) {
+    proj.levels = [RT.normalizeLevel(extra.levelOverride)];
+    idx = 0;
+  }
+  const lv = proj.levels[idx] || L();
+  const v = RT.validateLevel(lv).issues.filter(i => i.level === 'error' && /start/i.test(i.msg));
   if (v.length) { toast(v[0].msg, 'bad'); return; }
   const host = $('#play-host'); host.classList.add('on'); document.body.classList.remove('sheet');
-  const proj = JSON.parse(JSON.stringify(ED.project));
-  extra = extra || {};
   playHandle = RT.play(host, proj, {
-    level: levelIndex === undefined ? ED.li : levelIndex,
+    level: idx,
     autoPlay: !!extra.autoPlay,
     onQuit: stopPlaytest,
     onEvent: (ev, arg) => { if (MP && ev === 'tick') MP.tick(arg); },
     onMultiplayer: () => { if (MP) MP.openLobby(); }
   });
+  if (playHandle && extra.spawnIndex != null) applySpawnIndex(playHandle, extra.spawnIndex);
 }
 function stopPlaytest() {
   if (MP) MP.teardown();
@@ -1618,10 +1638,44 @@ async function openFromHash() {
 }
 // Official trial maps hosted next to this app: #pack=maps/name.retro (same origin only).
 const PACK_PATH = /^(?:maps|packs)\/[A-Za-z0-9][A-Za-z0-9._-]*\.retro$/;
-async function openFromPack() {
-  const raw = /^#pack=([^#]+)/.exec(location.hash); if (!raw) return false;
-  const path = decodeURIComponent(raw[1]);
-  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
+let PACK_MAPS = [];
+let packMapsReady = null;
+function loadPackCatalog() {
+  if (packMapsReady) return packMapsReady;
+  packMapsReady = (async () => {
+    try {
+      const res = await fetch(new URL('maps/manifest.json', location.href));
+      if (!res.ok) return [];
+      const man = await res.json();
+      PACK_MAPS = Array.isArray(man.maps) ? man.maps : [];
+      renderExplorer();
+      return PACK_MAPS;
+    } catch (e) { PACK_MAPS = []; return PACK_MAPS; }
+  })();
+  return packMapsReady;
+}
+async function loadPackLevel(slug) {
+  const path = 'maps/' + String(slug || '').replace(/[^A-Za-z0-9._-]/g, '') + '.retro';
+  if (!PACK_PATH.test(path)) throw new Error('That map pack link is not valid');
+  const url = new URL(path, location.href);
+  if (url.origin !== location.origin) throw new Error('pack must be on this site');
+  const res = await fetch(url.href);
+  if (!res.ok) throw new Error('could not load ' + path + ' (' + res.status + ')');
+  const text = await res.text();
+  if (text.length > 30e6) throw new Error('file too large');
+  return unpackLevel(JSON.parse(text)).level;
+}
+async function getPackLevels() {
+  const maps = await loadPackCatalog();
+  return maps.map(m => ({ id: 'pack-' + m.slug, name: m.name, file: 'maps/' + (m.file || (m.slug + '.retro')) }));
+}
+async function openFromPack(pathArg) {
+  let path = pathArg;
+  if (!path) {
+    const raw = /^#pack=([^#]+)/.exec(location.hash); if (!raw) return false;
+    path = decodeURIComponent(raw[1]);
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
+  }
   if (!PACK_PATH.test(path)) { toast('That map pack link is not valid', 'bad'); return false; }
   try {
     const url = new URL(path, location.href);
@@ -1904,9 +1958,13 @@ document.addEventListener('input', ev => {
   if (t.closest && t.closest('#props-dock') && t.dataset.cp) { applyCellProp(t.dataset.cp, t.value); }
 });
 document.addEventListener('click', ev => {
-  const b = ev.target.closest && ev.target.closest('[data-ex-lvl], [data-ex-script], [data-ex-act]');
+  const b = ev.target.closest && ev.target.closest('[data-ex-lvl], [data-ex-script], [data-ex-act], [data-ex-pack]');
   if (!b) return;
   if (b.dataset.exLvl !== undefined) { switchLevel(+b.dataset.exLvl); document.body.classList.remove('exsheet'); }
+  else if (b.dataset.exPack !== undefined) {
+    document.body.classList.remove('exsheet');
+    loadPackLevel(b.dataset.exPack).then(lv => { playtest(0, { levelOverride: lv }); }).catch(e => toast('Could not load that trial map: ' + e.message, 'bad'));
+  }
   else if (b.dataset.exScript !== undefined) { switchLevel(+b.dataset.exScript); openTab('level'); runAct('script'); document.body.classList.remove('exsheet'); }
   else if (b.dataset.exAct === 'models') { openTab('level'); document.body.classList.remove('exsheet'); if (innerWidth <= 720) document.body.classList.add('sheet'); }
 });
@@ -1932,14 +1990,16 @@ function boot() {
   ['gesturestart', 'gesturechange'].forEach(e => document.addEventListener(e, ev => ev.preventDefault(), { passive: false }));
   let seen = false; try { seen = !!localStorage.getItem(SEEN_KEY); } catch (e) {}
   if (/^#map=/.test(location.hash)) openFromHash(); else if (/^#pack=/.test(location.hash)) openFromPack(); else if (!seen) openHelp(true);
+  loadPackCatalog();
   MP = installMultiplayer({
     RT, toast,
     getProject: () => ED.project,
     playtest, stopPlaytest,
-    getPlayHandle: () => playHandle
+    getPlayHandle: () => playHandle,
+    getPackLevels, loadPackLevel, applySpawnIndex
   });
   // Debug / test hook (used by the automated tests)
-  window.RETROENGINE = window.DOOMFORGE_IDE = { VERSION, packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave, describeCell, applyCellProp, applyLightPreset, updateCellReadout, renderExplorer, refreshPropsDock, openMultiplayer: () => MP && MP.openLobby(), get mp() { return MP; } };
+  window.RETROENGINE = window.DOOMFORGE_IDE = { VERSION, packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave, describeCell, applyCellProp, applyLightPreset, updateCellReadout, renderExplorer, refreshPropsDock, openMultiplayer: () => MP && MP.openLobby(), get mp() { return MP; }, loadPackCatalog, loadPackLevel, getPackLevels, applySpawnIndex, get packMaps() { return PACK_MAPS; } };
 }
 boot();
 })();

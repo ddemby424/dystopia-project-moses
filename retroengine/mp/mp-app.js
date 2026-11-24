@@ -146,11 +146,9 @@ export function installMultiplayer(api) {
     return session;
   }
 
-  function startGameForRoom(welcome, profile, mp) {
+  async function startGameForRoom(welcome, profile, mp) {
     if (entering || mpSession) return;
     entering = true;
-    const project = api.getProject();
-    const idx = parseLevelIndex(project, welcome && welcome.level, welcome && welcome.levelName);
     if (profile && profile.modelId) setPlayerModel(profile.modelId);
     if (profile && profile.name) setPlayerName(profile.name);
     const socket = mp;
@@ -161,19 +159,39 @@ export function installMultiplayer(api) {
       host.classList.remove('on');
       host.innerHTML = '';
     }
+    const project = api.getProject();
+    let override = null;
+    let idx = 0;
+    const levelId = welcome && welcome.level;
+    if (typeof levelId === 'string' && levelId.indexOf('pack-') === 0 && api.loadPackLevel) {
+      try {
+        override = await api.loadPackLevel(levelId.slice(5));
+      } catch (e) {
+        if (api.toast) api.toast('Could not load that trial map: ' + (e && e.message ? e.message : e), 'bad');
+        entering = false;
+        return;
+      }
+      idx = 0;
+    } else {
+      idx = parseLevelIndex(project, levelId, welcome && welcome.levelName);
+    }
+    const spawnIndex = (welcome && welcome.peers && welcome.peers.length) || 0;
     // Wait two frames so the lobby click (mousedown/mouseup) finishes
     // before the play canvas is shown. Otherwise that same click can
     // hold-fire and drag-look, kicking the camera into the ceiling.
     function go() {
       try {
         try { window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); } catch (e) { /* ignore */ }
+        const extra = { autoPlay: true, spawnIndex: spawnIndex };
+        if (override) extra.levelOverride = override;
         let handle = api.getPlayHandle && api.getPlayHandle();
         if (!handle) {
-          api.playtest(idx, { autoPlay: true });
+          api.playtest(idx, extra);
           handle = api.getPlayHandle && api.getPlayHandle();
         } else {
           try { handle.loadLevel(idx, false); } catch (e) { /* ignore */ }
           try { handle.begin(); } catch (e) { /* ignore */ }
+          if (api.applySpawnIndex) api.applySpawnIndex(handle, spawnIndex);
         }
         attachToHandle(handle, socket);
       } finally {
@@ -194,10 +212,12 @@ export function installMultiplayer(api) {
 
     const RT = api.RT;
     const project = api.getProject();
-    const levels = levelList(project);
     const characters = characterList(RT);
-    host.classList.add('on');
-    lobbyUi = mountLobby(host, {
+    const levelsP = api.getPackLevels ? api.getPackLevels() : Promise.resolve([]);
+    Promise.resolve(levelsP).then(function (pack) {
+      const levels = levelList(project).concat(pack || []);
+      host.classList.add('on');
+      lobbyUi = mountLobby(host, {
       url: defaultMpUrl(),
       playerName: playerName(),
       playerModel: playerModel(),
@@ -209,6 +229,23 @@ export function installMultiplayer(api) {
       onJoin: function (welcome, profile) {
         startGameForRoom(welcome, profile, lobbyUi && lobbyUi.mp);
       }
+    });
+    }).catch(function () {
+      const levels = levelList(project);
+      host.classList.add('on');
+      lobbyUi = mountLobby(host, {
+        url: defaultMpUrl(),
+        playerName: playerName(),
+        playerModel: playerModel(),
+        levels: levels,
+        characters: characters,
+        onCharacterChange: setPlayerModel,
+        onNameChange: setPlayerName,
+        onClose: function () { closeLobby(false); },
+        onJoin: function (welcome, profile) {
+          startGameForRoom(welcome, profile, lobbyUi && lobbyUi.mp);
+        }
+      });
     });
   }
 

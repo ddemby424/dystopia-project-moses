@@ -1372,6 +1372,9 @@ function normalizeLevel(L) {
   const arr = (a, def) => { const o = new Array(n); for (let i = 0; i < n; i++) o[i] = (a && a[i] !== undefined && a[i] !== null) ? a[i] : def; return o; };
   const out = { name: L.name || 'Level', w, h, wall: arr(L.wall, ''), kind: arr(L.kind, ''), floor: arr(L.floor, ''), ceil: arr(L.ceil, ''), fh: arr(L.fh, 0).map(v => clamp(+v || 0, 0, 1)), ents: Array.isArray(L.ents) ? L.ents.filter(e => e && isFinite(e.x) && isFinite(e.y)) : [], spawn: Object.assign({ x: 2.5, y: 2.5, r: 0 }, L.spawn || {}), props: Object.assign(defaultProps(), L.props || {}) };
   out.ents.forEach((e, i) => { if (!e.id) e.id = 'e' + Date.now().toString(36) + i; });
+  if (Array.isArray(L.spawns) && L.spawns.length) {
+    out.spawns = L.spawns.filter(s => s && isFinite(s.x) && isFinite(s.y)).slice(0, 16).map(s => ({ x: +s.x, y: +s.y, r: +s.r || 0 }));
+  }
   return out;
 }
 function cellIsSolidStatic(L, x, y) { if (x < 0 || y < 0 || x >= L.w || y >= L.h) return true; const i = y * L.w + x; return !!L.wall[i] && !L.kind[i]; }
