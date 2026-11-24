@@ -134,7 +134,29 @@ export function attachMultiplayer(engine, opts) {
       // room. (We can't wrap engine.shoot(), because the game loop also
       // fires from mouse / keyboard inside DMB Tech 1 itself.)
       if (G.cd > prevCd + 0.01) {
-        mp.sendShot({ x: G.px, y: G.py, z: G.pz, yaw: G.yaw, weapon: G.cur });
+        const shot = { x: G.px, y: G.py, z: G.pz, yaw: G.yaw, weapon: G.cur };
+        mp.sendShot(shot);
+        // Shooter-authoritative PvP: if a remote stands in our aim corridor
+        // and within range, tell them they were hit. The relay just forwards.
+        const meleeR = (typeof opts.weaponMeleeRange === 'function') ? opts.weaponMeleeRange(G.cur) : 0;
+        const range = meleeR > 0 ? meleeR : 40;
+        const dmg = (typeof opts.weaponDamage === 'function') ? opts.weaponDamage(G.cur) : 10;
+        const yaw = G.yaw || 0, dx = Math.cos(yaw), dy = Math.sin(yaw);
+        const peers = mp.getPeers ? mp.getPeers() : [];
+        let best = null, bd = range;
+        for (let i = 0; i < peers.length; i++) {
+          const p = peers[i];
+          if (!p || !p.id) continue;
+          const rx = (p.x || 0) - G.px, ry = (p.y || 0) - G.py;
+          const along = rx * dx + ry * dy;
+          if (along <= 0.2 || along >= bd) continue;
+          const perp = Math.abs(rx * dy - ry * dx);
+          if (perp > 0.45) continue;
+          const dz = ((p.z || 0) - (G.pz || 0));
+          if (Math.abs(dz) > 1.6) continue;
+          bd = along; best = p;
+        }
+        if (best) mp.sendHit({ targetId: best.id, dmg: dmg });
       }
       prevCd = G.cd || 0;
 

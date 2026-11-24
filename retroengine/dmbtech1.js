@@ -1958,6 +1958,42 @@ function play(container, project, opts) {
     }
     if (anyHit) { G.hitT = 0.12; Sound.play('hit'); }
   }
+  // Visual + audio only: another client's shot, already simulated on their side.
+  // Does not spend our ammo or damage local enemies.
+  function playRemoteShot(shot) {
+    if (!G || !shot) return;
+    const x = Number(shot.x) || 0, y = Number(shot.y) || 0;
+    const z = shot.z != null ? Number(shot.z) : 0;
+    const yaw = Number(shot.yaw) || 0;
+    const w = WEAPON_DEFS[shot.weapon] || WEAPON_DEFS[1];
+    Sound.play(w.snd || 'pulse', distVol(x, y));
+    let best = null, bd = 1.25;
+    remotes.forEach(r => {
+      if (!r || r._gone) return;
+      const d = Math.hypot((r.x || 0) - x, (r.y || 0) - y);
+      if (d < bd) { bd = d; best = r; }
+    });
+    if (best && typeof best.setPose === 'function') best.setPose(best.x, best.y, best.z, yaw, 'shoot');
+    const eyeZ = z + EYE, dx = Math.cos(yaw), dy = Math.sin(yaw);
+    const mx = x + dx * 0.55, my = y + dy * 0.55, mz = eyeZ;
+    if (G.fxLight) { G.fxLight.position.set(mx, mz, my); G.fxLight.intensity = Math.max(G.fxLight.intensity || 0, 2.4); }
+    if (G.muzzle) { G.muzzle.position.set(mx, mz, my); G.muzzle.intensity = Math.max(G.muzzle.intensity || 0, 0.8); }
+    const reach = w.melee ? (w.range || 1.15) : 40;
+    const wd = rayDist(x, y, dx, dy, reach);
+    if (w.melee) {
+      sparks(x + dx * wd, eyeZ - 0.1, y + dy * wd, 8, 0xffd080);
+    } else {
+      const tint = w.proj ? 0x88ddff : 0xffe080;
+      for (let s = 0.5; s < Math.min(wd, 10); s += 1.1) sparks(x + dx * s, eyeZ, y + dy * s, 1, tint);
+      sparks(x + dx * wd, clamp(eyeZ, 0.02, (G.L.props && G.L.props.wallH) || 1.5), y + dy * wd, 6, 0xffd080);
+      smoke(x + dx * wd, eyeZ, y + dy * wd, 2);
+    }
+    G.lastRemoteShot = { x, y, z, yaw, weapon: shot.weapon, t: G.time };
+    try {
+      window.__mpRemoteShots = window.__mpRemoteShots || [];
+      window.__mpRemoteShots.push({ x, y, z, yaw, weapon: shot.weapon, id: shot.id });
+    } catch (e) { /* ignore */ }
+  }
   function makeNoise(r) { G.enemies.forEach(e => { if (e.state === 'idle') { const d = Math.hypot(e.x - G.px, e.y - G.py); if (d < r * 0.6 || (d < r && los(e.x, e.y, G.px, G.py))) alert(e); } }); }
   function alert(e) {
     if (e.state !== 'idle') return; e.state = 'chase'; e.cd = rand(0.4, 1.0) * diff().react; Sound.play('alert', distVol(e.x, e.y) * 0.8);
@@ -2556,6 +2592,7 @@ function play(container, project, opts) {
   const handle = {
     get game() { return G; }, get state() { return state; }, camera, renderer, begin, pause, loadLevel, selectWeapon, shoot: () => shoot(), startReload: () => startReload(), weaponMeshes, music: TP, get dynScale() { return dynScale; }, set dynScale(v) { dynScale = v; resize(); }, toggleFullscreen, damagePlayer, levelComplete,
     createRemotePlayer(modelId, o) { return createRemotePlayer(modelId, Object.assign({}, o, { session })); },
+    playRemoteShot(shot) { return playRemoteShot(shot); },
     destroy() {
       destroyed = true; if (activeSession === session) activeSession = null; remotes.slice().forEach(r => { try { r.dispose(); } catch (e) {} }); cancelAnimationFrame(raf); Sound.music(false); if (TP.audio) { TP.audio.pause(); TP.audio.removeAttribute('src'); }
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp);

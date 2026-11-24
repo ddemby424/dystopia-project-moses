@@ -48,11 +48,50 @@ export function defaultMpUrl() {
   return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
 }
 
-function levelList(project) {
+export function starterLevelSlug(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+}
+
+// Prefer a stable id the joiner can resolve on a fresh editor (pack-… or
+// starter-…), not l0/l1 which only mean "slot N of *this* client's project".
+export function canonicalLevelId(selectedId, level, pack, starters) {
+  if (typeof selectedId === 'string' && (selectedId.indexOf('pack-') === 0 || selectedId.indexOf('starter-') === 0)) {
+    return selectedId;
+  }
+  const name = level && level.name;
+  const packs = pack || [];
+  if (name) {
+    for (let i = 0; i < packs.length; i++) {
+      if (packs[i] && packs[i].name === name && packs[i].id) return packs[i].id;
+    }
+  }
+  const list = starters || [];
+  if (name) {
+    const want = 'starter-' + starterLevelSlug(name);
+    for (let i = 0; i < list.length; i++) {
+      if (list[i] && (list[i].name === name || list[i].id === want)) return list[i].id || want;
+    }
+    if (!packs.length && !list.length) return want;
+  }
+  return selectedId || 'l0';
+}
+
+function levelList(project, pack, starters) {
+  const packs = pack || [];
+  const starts = starters || [];
+  const seen = {};
+  const out = [];
+  function add(id, name) {
+    if (!id || seen[id]) return;
+    seen[id] = true;
+    out.push({ id: id, name: name || id });
+  }
   const levels = (project && project.levels) || [];
-  return levels.map(function (lv, i) {
-    return { id: 'l' + i, name: lv.name || ('Level ' + (i + 1)) };
+  levels.forEach(function (lv, i) {
+    add(canonicalLevelId('l' + i, lv, packs, starts), lv.name || ('Level ' + (i + 1)));
   });
+  packs.forEach(function (p) { if (p) add(p.id, p.name); });
+  return out;
 }
 
 function characterList(RT) {
@@ -76,6 +115,57 @@ function parseLevelIndex(project, levelId, levelName) {
   const asNum = Number(levelId);
   if (Number.isInteger(asNum) && asNum >= 0 && asNum < levels.length) return asNum;
   return 0;
+}
+
+export async function resolveRoomLevel(welcome, api, rooms) {
+  api = api || {};
+  welcome = welcome || {};
+  let id = welcome.level;
+  let name = welcome.levelName;
+  const list = rooms || [];
+  if ((!name || !id) && list.length && welcome.room) {
+    for (let i = 0; i < list.length; i++) {
+      if (list[i] && list[i].id === welcome.room) {
+        if (!name) name = list[i].levelName;
+        if (!id) id = list[i].level;
+        break;
+      }
+    }
+  }
+  const packOf = function (token) {
+    if (typeof token === 'string' && token.indexOf('pack-') === 0) return token.slice(5);
+    return null;
+  };
+  try {
+    const slug = packOf(id);
+    if (slug && api.loadPackLevel) {
+      return { id: id, name: name, override: await api.loadPackLevel(slug), source: 'pack' };
+    }
+    if (typeof id === 'string' && id.indexOf('starter-') === 0 && api.loadStarterLevel) {
+      return { id: id, name: name, override: api.loadStarterLevel(id), source: 'starter' };
+    }
+    if (name && api.getPackLevels) {
+      const pack = await api.getPackLevels();
+      for (let i = 0; i < (pack || []).length; i++) {
+        if (pack[i] && pack[i].name === name && pack[i].id) {
+          const s = packOf(pack[i].id);
+          if (s && api.loadPackLevel) {
+            return { id: pack[i].id, name: name, override: await api.loadPackLevel(s), source: 'pack-name' };
+          }
+        }
+      }
+    }
+    if (name && api.loadStarterLevel) {
+      try {
+        const lv = api.loadStarterLevel(name);
+        if (lv) return { id: 'starter-' + starterLevelSlug(name), name: name, override: lv, source: 'starter-name' };
+      } catch (e) { /* not a starter */ }
+    }
+  } catch (e) {
+    return { error: e };
+  }
+  const idx = parseLevelIndex(api.getProject && api.getProject(), id, name);
+  return { id: id, name: name, idx: idx, source: 'project' };
 }
 
 /**
@@ -160,7 +250,25 @@ export function installMultiplayer(api) {
     if (G) G.playerModel = playerModel();
     const session = attachMultiplayer(engine, {
       mp: mp,
-      profile: { name: playerName(), modelId: playerModel() }
+      profile: { name: playerName(), modelId: playerModel() },
+      weaponDamage: function (i) {
+        const w = api.RT && api.RT.WEAPON_DEFS && api.RT.WEAPON_DEFS[i];
+        return (w && w.dmg) || 10;
+      },
+      weaponMeleeRange: function (i) {
+        const w = api.RT && api.RT.WEAPON_DEFS && api.RT.WEAPON_DEFS[i];
+        return (w && w.melee) ? (w.range || 1.15) : 0;
+      },
+      onShot: function (shot) {
+        const h = api.getPlayHandle && api.getPlayHandle();
+        if (h && h.playRemoteShot) h.playRemoteShot(shot);
+      },
+      onHit: function (hit) {
+        const h = api.getPlayHandle && api.getPlayHandle();
+        const my = mp && mp.id;
+        if (!h || !hit || !my || hit.targetId !== my) return;
+        if (h.damagePlayer) h.damagePlayer(hit.dmg || 10, hit.x, hit.y);
+      }
     });
     mpSession = session;
     try { window.RETROENGINE_MP = session; } catch (e) { /* ignore */ }
@@ -183,21 +291,23 @@ export function installMultiplayer(api) {
     const project = api.getProject();
     let override = null;
     let idx = 0;
-    const levelId = welcome && welcome.level;
-    if (typeof levelId === 'string' && levelId.indexOf('pack-') === 0 && api.loadPackLevel) {
-      try {
-        override = await api.loadPackLevel(levelId.slice(5));
-      } catch (e) {
-        if (api.toast) api.toast('Could not load that trial map: ' + (e && e.message ? e.message : e), 'bad');
-        entering = false;
-        return;
-      }
+    const rooms = (socket && socket.rooms) || (api.getRooms && api.getRooms()) || [];
+    const resolved = await resolveRoomLevel(welcome, api, rooms);
+    if (resolved && resolved.error) {
+      if (api.toast) api.toast('Could not load that map: ' + (resolved.error && resolved.error.message ? resolved.error.message : resolved.error), 'bad');
+      entering = false;
+      return;
+    }
+    if (resolved && resolved.override) {
+      override = resolved.override;
       idx = 0;
     } else {
-      idx = parseLevelIndex(project, levelId, welcome && welcome.levelName);
+      idx = (resolved && resolved.idx != null) ? resolved.idx : parseLevelIndex(project, welcome && welcome.level, welcome && welcome.levelName);
     }
     const level = override || (project && project.levels && project.levels[idx]) || null;
     const spawnIndex = pickSpawnIndex(welcome, level, mpSettings.spawnMode);
+    const loadedId = (resolved && resolved.id) || (welcome && welcome.level) || null;
+    const loadedName = (level && level.name) || (resolved && resolved.name) || (welcome && welcome.levelName) || null;
     // Wait two frames so the lobby click (mousedown/mouseup) finishes
     // before the play canvas is shown. Otherwise that same click can
     // hold-fire and drag-look, kicking the camera into the ceiling.
@@ -219,6 +329,11 @@ export function installMultiplayer(api) {
           if (api.applySpawnIndex) api.applySpawnIndex(handle, spawnIndex);
         }
         attachToHandle(handle, socket);
+        const info = {
+          id: loadedId,
+          name: (handle && handle.game && handle.game.L && handle.game.L.name) || loadedName
+        };
+        try { if (mpSession) mpSession.level = info; window.RETROENGINE_MP_LEVEL = info; } catch (e) { /* ignore */ }
       } finally {
         entering = false;
       }
@@ -239,8 +354,9 @@ export function installMultiplayer(api) {
     const project = api.getProject();
     const characters = characterList(RT);
     const levelsP = api.getPackLevels ? api.getPackLevels() : Promise.resolve([]);
+    const starters = api.getStarterLevels ? api.getStarterLevels() : [];
     Promise.resolve(levelsP).then(function (pack) {
-      const levels = levelList(project).concat(pack || []);
+      const levels = levelList(project, pack || [], starters);
       host.classList.add('on');
       lobbyUi = mountLobby(host, {
       url: defaultMpUrl(),
@@ -256,7 +372,7 @@ export function installMultiplayer(api) {
       }
     });
     }).catch(function () {
-      const levels = levelList(project);
+      const levels = levelList(project, [], starters);
       host.classList.add('on');
       lobbyUi = mountLobby(host, {
         url: defaultMpUrl(),
@@ -284,8 +400,11 @@ export function installMultiplayer(api) {
     set spawnMode(v) { if (v === 'fixed' || v === 'random') mpSettings.spawnMode = v; },
     pickSpawnIndex: pickSpawnIndex,
     spawnList: spawnList,
-    mpSettings: mpSettings
+    mpSettings: mpSettings,
+    canonicalLevelId: canonicalLevelId,
+    resolveRoomLevel: resolveRoomLevel,
+    starterLevelSlug: starterLevelSlug
   };
 }
 
-export default { installMultiplayer, defaultMpUrl, mpSettings, pickSpawnIndex, spawnList };
+export default { installMultiplayer, defaultMpUrl, mpSettings, pickSpawnIndex, spawnList, canonicalLevelId, resolveRoomLevel, starterLevelSlug };

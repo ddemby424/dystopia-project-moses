@@ -494,6 +494,19 @@ function promptBox(title, label, value) {
 function starterProject() {
   return { format: 'retroengine-project', version: 2, name: 'Operation Forge', levels: DF_STARTER_LEVELS.map(d => levelFromAscii(d, RT)), models: {}, customTemplates: [] };
 }
+function starterLevelSlug(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+}
+function listStarterLevels() {
+  return DF_STARTER_LEVELS.map((d, i) => ({ id: 'starter-' + starterLevelSlug(d.name), name: d.name, index: i }));
+}
+function loadStarterLevel(idOrName) {
+  const id = String(idOrName || '');
+  const list = listStarterLevels();
+  const hit = list.find(s => s.id === id || s.name === id || s.id === 'starter-' + starterLevelSlug(id));
+  if (!hit) throw new Error('unknown starter level');
+  return RT.normalizeLevel(levelFromAscii(DF_STARTER_LEVELS[hit.index], RT));
+}
 function blankLevel(name, w, h) {
   const lv = RT.newLevel(name, w || 40, h || 32);
   for (let x = 0; x < lv.w; x++) { lv.wall[x] = 'concrete'; lv.wall[(lv.h - 1) * lv.w + x] = 'concrete'; }
@@ -1998,10 +2011,11 @@ function boot() {
     getProject: () => ED.project,
     playtest, stopPlaytest,
     getPlayHandle: () => playHandle,
-    getPackLevels, loadPackLevel, applySpawnIndex
+    getPackLevels, loadPackLevel, applySpawnIndex,
+    getStarterLevels: listStarterLevels, loadStarterLevel
   });
   // Debug / test hook (used by the automated tests)
-  window.RETROENGINE = window.DOOMFORGE_IDE = { VERSION, packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave, describeCell, applyCellProp, applyLightPreset, updateCellReadout, renderExplorer, refreshPropsDock, openMultiplayer: () => MP && MP.openLobby(), get mp() { return MP; }, loadPackCatalog, loadPackLevel, getPackLevels, applySpawnIndex, get packMaps() { return PACK_MAPS; } };
+  window.RETROENGINE = window.DOOMFORGE_IDE = { VERSION, packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave, describeCell, applyCellProp, applyLightPreset, updateCellReadout, renderExplorer, refreshPropsDock, openMultiplayer: () => MP && MP.openLobby(), get mp() { return MP; }, loadPackCatalog, loadPackLevel, getPackLevels, applySpawnIndex, listStarterLevels, loadStarterLevel, starterLevelSlug, get packMaps() { return PACK_MAPS; } };
 }
 boot();
 })();
