@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.1 (2026-11-25): Marble Shrine white-lab lighting
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.4.1**), powered by DMB Tech 1 **1.2.1**.
+
+- **The Marble Shrine is brighter**, in a clean white-lab look: pale marble (no grime pass), high ambient light, a new **White Lab** sky (no night city), light far-away fog, and extra fill lights at the top of the stair. Gold trim and the glowing sigils stay readable. Other maps are unchanged — these are per-level settings (`lightPreset: lab`, `sky: lab`) plus marble textures that only this map uses.
+- Editor: **White lab** lighting preset and **White Lab** sky in the Level tab. Optional level keys `exposure`, `hemiI`, `sunI`, and `hemiGround` if you want to fine-tune one map.
+
+
 ## 1.4.0 (2026-11-25): The Marble Shrine, minotaur boss, warp and palm shot
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.2.0 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.2.1 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.2.0';
+export const VERSION = '1.2.1';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.2.0';
+const VERSION = '1.2.1';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 // Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
@@ -267,10 +267,10 @@ const TEX_DEFS = {
   polished_tile:   { name: 'Polished Tile',     rough: 0.22, metal: 0.05, bump: 1.4, clean: true },
   clean_metal:     { name: 'Brushed Aluminium', rough: 0.35, metal: 0.7,  bump: 1.6, clean: true },
   bright_panel:    { name: 'Bright Ceiling Lights', rough: 0.35, metal: 0.08, bump: 0.8, glow: true, clean: true },
-  marble:          { name: 'White Marble',      rough: 0.38, metal: 0.04, bump: 2.2 },
-  marble_veined:   { name: 'Veined Marble',     rough: 0.42, metal: 0.04, bump: 2.6 },
-  marble_stained:  { name: 'Stained Marble',    rough: 0.55, metal: 0.03, bump: 2.8 },
-  marble_dark:     { name: 'Dark Marble',       rough: 0.5,  metal: 0.05, bump: 2.4 },
+  marble:          { name: 'White Marble',      rough: 0.34, metal: 0.04, bump: 2.0, clean: true },
+  marble_veined:   { name: 'Veined Marble',     rough: 0.38, metal: 0.04, bump: 2.4, clean: true },
+  marble_stained:  { name: 'Stained Marble',    rough: 0.48, metal: 0.03, bump: 2.6, clean: true },
+  marble_dark:     { name: 'Dark Marble',       rough: 0.46, metal: 0.05, bump: 2.2, clean: true },
   water:           { name: 'Shrine Water',      rough: 0.08, metal: 0.15, bump: 0.6, clean: true }
 };
 const WALL_TEXTURES = ['concrete', 'concrete_dark', 'brick', 'brick_weathered', 'metal_panel', 'tech', 'rust', 'hazard', 'tile', 'tile_dark', 'wood', 'server', 'grate', 'plate', 'fence', 'sidewalk', 'curb', 'riveted', 'vent', 'stained', 'lab_panel', 'office_wall', 'med_wall', 'clean_metal', 'marble', 'marble_veined', 'marble_stained', 'marble_dark'];
@@ -297,7 +297,7 @@ function paintTexture(id, S) {
     riveted: [86, 90, 96], vent: [58, 62, 66], stained: [86, 80, 70], chevron: [64, 64, 62],
     lab_panel: [214, 218, 222], office_wall: [208, 206, 200], med_wall: [214, 222, 228],
     polished_tile: [200, 206, 212], clean_metal: [168, 174, 180], bright_panel: [230, 234, 238],
-    marble: [210, 204, 196], marble_veined: [200, 194, 186], marble_stained: [176, 166, 154], marble_dark: [92, 88, 84], water: [28, 48, 46]
+    marble: [238, 236, 232], marble_veined: [228, 226, 222], marble_stained: [214, 208, 200], marble_dark: [168, 164, 158], water: [36, 56, 58]
   }[id] || [100, 100, 100];
   for (let i = 0; i < S * S; i++) {
     let k = 0.75 + (n1[i] - 0.5) * 0.7 + (n2[i] - 0.5) * 0.35;
@@ -1206,6 +1206,7 @@ const MUSIC_TRACKS = [
 const LIGHT_PRESETS = {
   gritty:     { name: 'Gritty',         ambient: '#8a93a8', ambientI: 0.55, fogColor: '#0a0d14', fog: 0.045 },
   clean:      { name: 'Clean bright',   ambient: '#b4bec8', ambientI: 0.86, fogColor: '#3a424c', fog: 0.01 },
+  lab:        { name: 'White lab',      ambient: '#f0f3f6', ambientI: 1.35, fogColor: '#d5dbe2', fog: 0.002 },
   emergency:  { name: 'Emergency red',  ambient: '#c04a3a', ambientI: 0.72, fogColor: '#1a0606', fog: 0.05 }
 };
 
@@ -1830,7 +1831,8 @@ const SKIES = {
   dusk:     { name: 'Red Dusk',     top: '#140a14', mid: '#3b1620', hor: '#b2492a', glow: '#ff9a40', stars: false },
   overcast: { name: 'Overcast',     top: '#2b3036', mid: '#4a5058', hor: '#6e737a', glow: '#8a8f96', stars: false },
   toxic:    { name: 'Toxic Haze',   top: '#06120a', mid: '#14301a', hor: '#4d6b1e', glow: '#a6ff3a', stars: false },
-  void:     { name: 'Black Void',   top: '#000000', mid: '#020203', hor: '#08080a', glow: '#101014', stars: true }
+  void:     { name: 'Black Void',   top: '#000000', mid: '#020203', hor: '#08080a', glow: '#101014', stars: true },
+  lab:      { name: 'White Lab',    top: '#e8eef6', mid: '#d4dde8', hor: '#b8c4d0', glow: '#ffffff', stars: false, city: false, ground: '#cfd6de' }
 };
 function defaultProps() {
   return { ambient: '#8a93a8', ambientI: 0.55, sky: 'night', fogColor: '#0a0d14', fog: 0.045, wallH: 1.5, floorTex: 'concrete', ceilTex: 'ceiling', music: true, script: '', par: 180 };
@@ -1889,6 +1891,12 @@ function validateLevel(L) {
 function makeSky(key) {
   const s = SKIES[key] || SKIES.night, cv = document.createElement('canvas'); cv.width = 1024; cv.height = 256;
   const c = cv.getContext('2d'), g = c.createLinearGradient(0, 0, 0, 256);
+  if (s.city === false) {
+    // Bright lab / daylight dome: pale all the way down, no night city.
+    g.addColorStop(0, s.top); g.addColorStop(0.42, s.mid); g.addColorStop(0.52, s.hor);
+    g.addColorStop(0.72, s.ground || s.hor); g.addColorStop(1, s.ground || s.hor);
+    c.fillStyle = g; c.fillRect(0, 0, 1024, 256);
+  } else {
   g.addColorStop(0, s.top); g.addColorStop(0.42, s.mid); g.addColorStop(0.5, s.hor); g.addColorStop(0.56, '#050505'); g.addColorStop(1, '#020202');
   c.fillStyle = g; c.fillRect(0, 0, 1024, 256);
   if (s.stars) { const r = seeded(5); for (let i = 0; i < 500; i++) { c.fillStyle = `rgba(255,255,255,${0.15 + r() * 0.6})`; c.fillRect(r() * 1024, r() * 110, 1, 1); } }
@@ -1896,6 +1904,7 @@ function makeSky(key) {
   const r2 = seeded(11); let x = 0;
   while (x < 1024) { const bw = 8 + r2() * 26, bh = 6 + r2() * 30; c.fillStyle = '#07080b'; c.fillRect(x, 128 - bh, bw, bh + 6); for (let k = 0; k < bw * bh / 30; k++) if (r2() < 0.35) { c.fillStyle = r2() < 0.5 ? s.glow : '#ffe2a0'; c.globalAlpha = 0.25 + r2() * 0.5; c.fillRect(x + 1 + r2() * (bw - 3), 128 - bh + 1 + r2() * (bh - 2), 1.5, 1); c.globalAlpha = 1; } x += bw + r2() * 4; }
   const hg = c.createLinearGradient(0, 100, 0, 135); hg.addColorStop(0, 'rgba(0,0,0,0)'); hg.addColorStop(1, s.glow + '33'); c.fillStyle = hg; c.fillRect(0, 100, 1024, 35);
+  }
   const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
   const m = new THREE.Mesh(new THREE.SphereGeometry(45, 32, 16), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false }));
   m.renderOrder = -10;
@@ -2074,15 +2083,19 @@ function play(container, project, opts) {
     setAoLevel(L);
     const amb = new THREE.Color(P.ambient).convertSRGBToLinear();   // editor colors are sRGB; lights work in linear
     const preset = P.lightPreset || '';
-    const hemiGround = preset === 'clean' ? 0.42 : 0.3;
-    const hemiI = Math.min(P.ambientI, preset === 'clean' ? 1.25 : 1.2) * 1.75;
+    const lab = preset === 'lab' || P.sky === 'lab';
+    const hemiGround = P.hemiGround != null ? +P.hemiGround : (lab ? 0.78 : preset === 'clean' ? 0.42 : 0.3);
+    const hemiCap = lab ? 2.2 : preset === 'clean' ? 1.25 : 1.2;
+    const hemiI = P.hemiI != null ? +P.hemiI : Math.min(P.ambientI, hemiCap) * (lab ? 1.85 : 1.75);
     const hemi = new THREE.HemisphereLight(amb, amb.clone().multiplyScalar(hemiGround), hemiI); scene.add(hemi);
-    const moonI = preset === 'clean' ? 0.28 : 0.25;
-    const moon = new THREE.DirectionalLight(new THREE.Color(SKIES[P.sky] ? SKIES[P.sky].glow : '#ffffff'), moonI); moon.position.set(-0.4, 1, 0.3); scene.add(moon);
+    const moonI = P.sunI != null ? +P.sunI : (lab ? 0.95 : preset === 'clean' ? 0.28 : 0.25);
+    const moon = new THREE.DirectionalLight(new THREE.Color(SKIES[P.sky] ? SKIES[P.sky].glow : '#ffffff'), moonI);
+    moon.position.set(lab ? 0.15 : -0.4, lab ? 1.2 : 1, lab ? -0.55 : 0.3); scene.add(moon);
     const pool = []; for (let i = 0; i < Q().lights; i++) { const pl = new THREE.PointLight(0xffffff, 0, 6, 2); scene.add(pl); pool.push(pl); }
-    const bodyCol = preset === 'emergency' ? 0xff4030 : (preset === 'clean' ? 0xd0d8e4 : 0xc8d4ff);
-    const bodyI = preset === 'clean' ? 0.28 : (preset === 'emergency' ? 0.4 : 0.22);
-    const bodyLight = new THREE.PointLight(bodyCol, bodyI, preset === 'clean' ? 5 : 3, 2); scene.add(bodyLight);     // keeps your surroundings readable
+    const bodyCol = preset === 'emergency' ? 0xff4030 : (lab ? 0xf4f6fa : (preset === 'clean' ? 0xd0d8e4 : 0xc8d4ff));
+    const bodyI = lab ? 0.55 : (preset === 'clean' ? 0.28 : (preset === 'emergency' ? 0.4 : 0.22));
+    const bodyLight = new THREE.PointLight(bodyCol, bodyI, lab ? 8 : (preset === 'clean' ? 5 : 3), 2); scene.add(bodyLight);     // keeps your surroundings readable
+    renderer.toneMappingExposure = P.exposure != null ? +P.exposure : 1.0;
     const muzzle = new THREE.PointLight(0xffb060, 0, 2.4, 2); scene.add(muzzle);
     const fxLight = new THREE.PointLight(0xff8a30, 0, 7, 2); scene.add(fxLight);
     const flash = new THREE.SpotLight(0xfff1d6, 0, 14, 0.42, 0.45, 1.4); scene.add(flash); scene.add(flash.target);
@@ -2175,6 +2188,7 @@ function play(container, project, opts) {
     music(state === 'playing');
   }
   function disposeLevel() {
+    renderer.toneMappingExposure = 1.0;
     remotes.slice().forEach(r => { try { r.dispose(); } catch (e) {} });
     G.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     G.projectiles.forEach(p => p.mesh && G.scene.remove(p.mesh));

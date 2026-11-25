@@ -8,7 +8,7 @@
 import { createRuntime } from './dmbtech1.js';
 import { installMultiplayer } from './mp/mp-app.js';
 
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 function DFRuntime() { return createRuntime(); }
 
 /* =====================================================================
@@ -1123,8 +1123,8 @@ function renderPanel() {
         <div class="row"><label>Size</label><input type="number" id="lv-w" min="8" max="128" value="${lv.w}"> × <input type="number" id="lv-h" min="8" max="128" value="${lv.h}"><button class="tb sm" data-act="resize">Apply</button></div>
         <div class="row"><label>Par time (s)</label><input type="number" data-p="par" min="0" value="${P.par || 0}"></div></div>
       <div class="sec"><h4>Atmosphere</h4>
-        <div class="row"><label>Lighting preset</label><select data-act-preset="1">${['', 'gritty', 'clean', 'emergency'].map(id => { const n = id ? RT.LIGHT_PRESETS[id].name : 'Custom'; const cur = P.lightPreset || ''; return `<option value="${id}" ${id === cur ? 'selected' : ''}>${esc(n)}</option>`; }).join('')}</select></div>
-        <p class="note">Gritty keeps the dark industrial look. Clean bright is for labs and offices. Emergency red is an alarm wash. You can still tweak the sliders after picking a preset.</p>
+        <div class="row"><label>Lighting preset</label><select data-act-preset="1">${['', 'gritty', 'clean', 'lab', 'emergency'].map(id => { const n = id ? RT.LIGHT_PRESETS[id].name : 'Custom'; const cur = P.lightPreset || ''; return `<option value="${id}" ${id === cur ? 'selected' : ''}>${esc(n)}</option>`; }).join('')}</select></div>
+        <p class="note">Gritty keeps the dark industrial look. Clean bright is for labs and offices. White lab is a bright marble / clinic look (used on The Marble Shrine). Emergency red is an alarm wash. You can still tweak the sliders after picking a preset.</p>
         <div class="row"><label>Sky</label><select data-p="sky">${opt(Object.keys(RT.SKIES), P.sky, k => RT.SKIES[k].name)}</select></div>
         <div class="row"><label>Ambient light</label><input type="color" data-p="ambient" value="${P.ambient}"><input type="range" min="0.05" max="1.8" step="0.05" data-p="ambientI" value="${P.ambientI}"><output>${P.ambientI}</output></div>
         <div class="row"><label>Fog</label><input type="color" data-p="fogColor" value="${P.fogColor}"><input type="range" min="0" max="0.15" step="0.005" data-p="fog" value="${P.fog}"><output>${P.fog}</output></div>
