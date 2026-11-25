@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.2.1 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.2.2 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.2.1';
+export const VERSION = '1.2.2';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.2.1';
+const VERSION = '1.2.2';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 // Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
@@ -2344,7 +2344,14 @@ function play(container, project, opts) {
     if (input.use) { input.use = false; useFront(); }
     // pickups & exits
     for (const p of G.pickups) if (!p.taken && Math.abs(p.x - G.px) < 0.45 && Math.abs(p.y - G.py) < 0.45 && Math.abs(p.z - G.pz) < 0.6) tryPickup(p);
-    for (const e of G.exits) if (Math.hypot(e.x - G.px, e.y - G.py) < 0.42) { levelComplete(); return; }
+    // A living boss (seated, rising, or in combat) keeps the exit sealed. Maps with no boss are unchanged.
+    for (const e of G.exits) if (Math.hypot(e.x - G.px, e.y - G.py) < 0.42) {
+      if (bossAlive()) {
+        if (!G.exitLockT || G.time - G.exitLockT > 3) { G.exitLockT = G.time; msg('THE EXIT IS SEALED — the minotaur still lives'); }
+        continue;
+      }
+      levelComplete(); return;
+    }
     // weapons
     G.cd -= dt; G.switchT = Math.max(0, G.switchT - dt); G.recoil = Math.max(0, G.recoil - dt * 6);
     const w = WEAPON_DEFS[G.cur];
@@ -3181,7 +3188,7 @@ function play(container, project, opts) {
     G.flash.target.position.copy(camera.position).add(fwd);
     // spinning pickups, exit beam
     G.pickups.forEach(p => { if (!p.taken) { p.mesh.userData.spin.rotation.y = time * 1.8; p.mesh.userData.spin.position.y = 0.24 + Math.sin(time * 2.5 + p.x) * 0.04; } });
-    G.exits.forEach(e => { e.mesh.userData.beam.material.opacity = 0.1 + Math.sin(time * 3) * 0.05; });
+    G.exits.forEach(e => { const beam = e.mesh && e.mesh.userData.beam; if (beam) beam.material.opacity = bossAlive() ? 0.03 : (0.1 + Math.sin(time * 3) * 0.05); });
     // first-person weapon: bob, recoil, raise/lower when switching
     weaponMeshes.forEach((m, i) => { m.visible = i === G.cur && state !== 'dead'; });
     const wm = weaponMeshes[G.cur];
@@ -3364,6 +3371,7 @@ function play(container, project, opts) {
   }
   function pause() { if (state !== 'playing') return; state = 'paused'; showMenu('pause'); input.fire = input.mouseFire = false; input.fireTap = 0; music(false); if (document.pointerLockElement) document.exitPointerLock(); }
   function playerDie() { state = 'dead'; music(false); input.fire = input.mouseFire = false; setTimeout(() => { if (state === 'dead' && !destroyed) { showMenu('dead'); if (document.pointerLockElement) document.exitPointerLock(); } }, 1200); }
+  function bossAlive() { return !!(G && G.enemies.some(e => e.def && e.def.boss && e.state !== 'dead')); }
   function levelComplete() {
     if (state !== 'playing') return; state = 'won'; Sound.play('win'); music(false); fire('exit');
     input.fire = input.mouseFire = false; if (document.pointerLockElement) document.exitPointerLock();
@@ -3524,7 +3532,7 @@ function play(container, project, opts) {
   // test hook: step the AI deterministically (the game itself never calls this)
   window.RETROENGINE_DEBUG = { handle, THREE, input, los: (a, b, c, d) => los(a, b, c, d), findCover: e => findCover(e), damageEnemy: (e, d) => damageEnemy(e, d), diff: () => diff(),
     step(dt, n) { for (let i = 0; i < (n || 1); i++) { G.time += dt; updateEnemies(dt, G.time); updateProjectiles(dt); updateDoors(dt); } },
-    findBoss: () => G && G.enemies.find(e => e.def && e.def.boss),
+    findBoss: () => G && G.enemies.find(e => e.def && e.def.boss), bossAlive: () => bossAlive(), exitUnlocked: () => !bossAlive(),
     killMinions() { if (!G) return 0; let n = 0; G.enemies.forEach(e => { if ((!e.def || !e.def.boss) && e.state !== 'dead') { damageEnemy(e, 9999); n++; } }); return n; },
     awakenBoss() { if (G) G.combat = true; const b = G && G.enemies.find(e => e.def && e.def.boss); if (b && b.state === 'seated') { b.state = 'rising'; b.t = 0; msg('THE MINOTAUR AWAKENS'); } return b; },
     setPlayer(x, y, z, yaw) { if (!G) return; G.px = x; G.py = y; if (z != null) G.pz = z; if (yaw != null) G.yaw = yaw; },

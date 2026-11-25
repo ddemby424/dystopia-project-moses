@@ -76,7 +76,7 @@ Your work **autosaves** in the browser. Use **Menu → Projects** for named save
 - **Safety:** level scripts from other people are switched **off** when you import them. You can read the script in the Level tab and turn it on only if you trust it.
 
 ## Trial map pack
-Five official maps are in the `maps/` folder, with a phone-friendly list at `maps/index.html`. Tap **Play** to load a map in RetroEngine, or download the `.retro` file and import it. The first four are escape-pad trials (guards, a Titan, and an exit pad). **Site 12: Dataworks** is a 128×128 multiplayer compound with eight spread-out spawns, an outdoor yard, indoor halls, catwalks, and a clean bright lab wing.
+Five official maps are in the `maps/` folder, with a phone-friendly list at `maps/index.html`. Tap **Play** to load a map in RetroEngine, or download the `.retro` file and import it. The first four are escape-pad trials (guards, a Titan, and an exit pad). **Site 12: Dataworks** is a 128×128 multiplayer compound with eight spread-out spawns, an outdoor yard, indoor halls, catwalks, and a clean bright lab wing. **The Marble Shrine** is a white-marble temple with a minotaur boss; the exit pad behind the throne unlocks only after that boss is defeated.
 
 - Links only work for other people when RetroEngine is hosted online. A copy opened from your own device makes links that only open on that device.
 

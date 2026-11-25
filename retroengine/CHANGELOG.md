@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.2 (2026-11-25): Shrine exit stays sealed until the minotaur falls
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.4.2**), powered by DMB Tech 1 **1.2.2**.
+
+- **The Marble Shrine exit pad stays locked** until the minotaur boss is dead. A seated or rising boss still counts as alive, so clearing the minions (or loading a multiplayer room, where minion bots are skipped) no longer opens the portal. Stepping on the pad early shows "THE EXIT IS SEALED — the minotaur still lives." The beam stays dim until the boss falls, then you can walk out. Maps with no boss are unchanged.
+
+
 ## 1.4.1 (2026-11-25): Marble Shrine white-lab lighting
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
