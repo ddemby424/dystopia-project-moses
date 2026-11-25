@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Shrine concept - DembySoftwareSystems</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden; background: #050403;
+    font-family: Palatino, "Palatino Linotype", "Book Antiqua", "Times New Roman", serif;
+    color: #cbb89a; touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  #c { display: block; width: 100%; height: 100%; }
+  #ui {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  #topbar {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 10px 12px;
+  }
+  #topbar button {
+    pointer-events: auto;
+    background: rgba(12, 8, 6, 0.78);
+    border: 1px solid #5a4a32;
+    color: #d8c7a4;
+    font: 600 13px/1 Palatino, "Times New Roman", serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    min-height: 44px;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  #topbar button.active {
+    background: rgba(90, 50, 20, 0.7);
+    border-color: #b8894a;
+    color: #f0e0c0;
+  }
+  #caption {
+    text-align: center;
+    padding: 12px 16px 18px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.72) 55%);
+  }
+  #caption h1 {
+    font-size: 15px; font-weight: 400; letter-spacing: 0.18em;
+    text-transform: uppercase; color: #e6d3b0;
+    text-shadow: 0 1px 8px #000;
+  }
+  #hint {
+    margin-top: 4px; font-size: 11px; letter-spacing: 0.06em;
+    color: #8a7a62; text-shadow: 0 1px 6px #000;
+  }
+  #joy {
+    pointer-events: auto;
+    position: absolute; left: 18px; bottom: 72px;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: rgba(20,14,10,0.45);
+    border: 1px solid rgba(180,150,100,0.35);
+    display: none;
+    touch-action: none;
+  }
+  #joy.shown { display: block; }
+  #joy-knob {
+    position: absolute; left: 50%; top: 50%;
+    width: 48px; height: 48px; margin: -24px 0 0 -24px;
+    border-radius: 50%;
+    background: rgba(200,170,120,0.45);
+    border: 1px solid rgba(230,210,170,0.5);
+  }
+  #boot {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #0c0a08;
+    color: #e6d3b0;
+    z-index: 30;
+    text-align: center;
+    padding: 28px 22px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-size: 15px;
+    text-shadow: 0 1px 8px #000;
+  }
+  #boot.hidden { display: none; }
+  #boot .sub {
+    margin-top: 10px;
+    letter-spacing: 0.06em;
+    text-transform: none;
+    font-size: 13px;
+    color: #8a7a62;
+    max-width: 28em;
+    line-height: 1.45;
+  }
+  #boot.fail {
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: #f0d0a8;
+  }
+  #boot.fail .sub { color: #c9a070; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="boot">Loading shrine&hellip;<div class="sub">Needs an internet connection for the 3D library.</div></div>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="topbar">
+    <button id="btn-orbit" class="active" type="button">Orbit</button>
+    <button id="btn-walk" type="button">Walk</button>
+    <button id="btn-reset" type="button">Reset</button>
+  </div>
+  <div id="caption">
+    <h1>Shrine concept — DembySoftwareSystems</h1>
+    <div id="hint">Drag to look · Pinch to zoom</div>
+  </div>
+</div>
+<div id="joy"><div id="joy-knob"></div></div>
+<script>
+(function () {
+  var boot = document.getElementById('boot');
+  var failed = false;
+  function shrineFail(err) {
+    if (failed || window.__SHRINE_READY) return;
+    failed = true;
+    var msg = (err && err.message) ? err.message : String(err || 'Unknown error');
+    if (boot) {
+      boot.classList.add('fail');
+      boot.innerHTML = 'Could not load the shrine.<div class="sub">' +
+        'This page needs an internet connection to load the 3D library. ' +
+        'If you opened a downloaded file and see this, use the web link instead. ' +
+        '(' + msg.replace(/[<>&]/g, function (c) { return ({'<':'&lt;','>':'&gt;','&':'&amp;'})[c]; }) + ')</div>';
+    }
+    window.__SHRINE_ERROR = msg;
+  }
+  window.__shrineFail = shrineFail;
+  window.onerror = function (msg) { shrineFail(msg); };
+  window.addEventListener('unhandledrejection', function (e) { shrineFail(e.reason); });
+  window.addEventListener('error', function (e) {
+    var t = e.target;
+    if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
+      shrineFail('Failed to load ' + (t.src || t.href || 'a script'));
+    }
+  }, true);
+  setTimeout(function () {
+    if (!window.__SHRINE_READY) {
+      shrineFail('Timed out waiting for the 3D library. Check your connection, or open the hosted web link.');
+    }
+  }, 15000);
+})();
+</script>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js';
+
+try {
+
+const canvas = document.getElementById('c');
+const hint = document.getElementById('hint');
+const joyEl = document.getElementById('joy');
+const joyKnob = document.getElementById('joy-knob');
+
+/* ---------- layout (meters) ---------- */
+const PLATFORM_Y = 12;
+const PLINTH_HALF_W = 16;
+const PLINTH_Z0 = 8;
+const PLINTH_Z1 = 44;
+const STAIR_Z0 = -12;
+const STAIR_Z1 = 8;
+const STAIR_HALF_W = 5.6;
+const STEP_COUNT = 28;
+const RAIL_W = 1.6;
+
+const PIT_CX = 0, PIT_CZ = 28;
+const PIT_OUTER = 9.2;      // descent starts
+const PIT_WALK_OUT = 6.6;   // walkway outer
+const PIT_WALK_IN = 5.0;    // pool edge / walkway inner
+const WALKWAY_Y = 8.7;
+const POOL_FLOOR_Y = 8.48;
+const WATER_Y = 8.66;
+const DESCENT_STEPS = 8;
+
+const renderer = new THREE.WebGLRenderer({
+  canvas, antialias: true, alpha: false, powerPreference: 'high-performance'
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.setSize(window.innerWidth, window.innerHeight, false);
+renderer.setClearColor(0x0c0a08, 1);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.6;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0c0a08);
+scene.fog = new THREE.FogExp2(0x0c0a08, 0.006);
+
+const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.12, 220);
+const views = {
+  wide:   { pos: [15.8, 6.2, -21.2], look: [0, 7.6, 9] },
+  stairs: { pos: [0.4, 1.7, -15.6], look: [0, 9.8, 6] },
+  pool:   { pos: [12.6, 18.2, 17.4], look: [0, 8.5, 28.4] },
+};
+function applyView(name) {
+  const v = views[name] || views.wide;
+  camera.position.set(...v.pos);
+  camera.lookAt(...v.look);
+  if (orbit) {
+    orbit.target.set(...v.look);
+    orbit.update();
+  }
+}
+const orbit = new OrbitControls(camera, canvas);
+orbit.enableDamping = true;
+orbit.dampingFactor = 0.07;
+orbit.target.set(0, 8.2, 10);
+orbit.minDistance = 2.5;
+orbit.maxDistance = 70;
+orbit.maxPolarAngle = Math.PI * 0.49;
+orbit.minPolarAngle = 0.08;
+orbit.enablePan = true;
+applyView('wide');
+
+/* ---------- rng / textures ---------- */
+function mulberry32(a) {
+  return function () {
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function noise2(rng, w, h, scale, octaves) {
+  const grid = [];
+  const gw = Math.ceil(w / scale) + 2;
+  const gh = Math.ceil(h / scale) + 2;
+  for (let y = 0; y < gh; y++) {
+    grid[y] = [];
+    for (let x = 0; x < gw; x++) grid[y][x] = rng();
+  }
+  const out = new Float32Array(w * h);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const fade = t => t * t * (3 - 2 * t);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let val = 0, amp = 1, sum = 0, sc = scale;
+      for (let o = 0; o < octaves; o++) {
+        const fx = x / sc, fy = y / sc;
+        const x0 = Math.floor(fx), y0 = Math.floor(fy);
+        const tx = fade(fx - x0), ty = fade(fy - y0);
+        const g = grid;
+        // wrap into generated coarse grid by using first octave grid only for simplicity
+        const xa = Math.min(x0, gw - 2), ya = Math.min(y0, gh - 2);
+        const n = lerp(lerp(g[ya][xa], g[ya][xa + 1], tx), lerp(g[ya + 1][xa], g[ya + 1][xa + 1], tx), ty);
+        val += n * amp; sum += amp; amp *= 0.5; sc *= 0.5;
+      }
+      out[y * w + x] = val / sum;
+    }
+  }
+  return out;
+}
+
+function makeCanvas(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  return { c, ctx: c.getContext('2d') };
+}
+function canvasTex(c, repeatX = 1, repeatY = 1) {
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeatX, repeatY);
+  t.anisotropy = 4;
+  t.needsUpdate = true;
+  return t;
+}
+
+function paintStone(size, seed, opts = {}) {
+  const { c, ctx } = makeCanvas(size);
+  const rng = mulberry32(seed);
+  const n = noise2(rng, size, size, 32, 4);
+  const base = opts.base || [42, 36, 30];
+  const varA = opts.varA || [58, 50, 40];
+  const varB = opts.varB || [28, 24, 20];
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  for (let i = 0; i < size * size; i++) {
+    const v = n[i];
+    const r = (v > 0.55);
+    const col = r ? varA : varB;
+    const k = v * 0.85 + 0.15;
+    const stain = (opts.stain && v < 0.32) ? 0.75 : 1;
+    d[i * 4]     = Math.max(0, Math.min(255, (base[0] * 0.45 + col[0] * 0.55) * k * stain));
+    d[i * 4 + 1] = Math.max(0, Math.min(255, (base[1] * 0.45 + col[1] * 0.55) * k * stain * (opts.moss && v < 0.28 ? 1.15 : 1)));
+    d[i * 4 + 2] = Math.max(0, Math.min(255, (base[2] * 0.45 + col[2] * 0.55) * k * stain * (opts.moss && v < 0.28 ? 0.7 : 1)));
+    d[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  // mortar / blocks
+  if (opts.blocks) {
+    const bw = opts.bw || 64, bh = opts.bh || 32;
+    ctx.strokeStyle = 'rgba(10,8,6,0.55)';
+    ctx.lineWidth = 2;
+    for (let y = 0, row = 0; y < size; y += bh, row++) {
+      const ox = (row % 2) * (bw * 0.5);
+      ctx.beginPath();
+      ctx.moveTo(0, y + 0.5); ctx.lineTo(size, y + 0.5);
+      ctx.stroke();
+      for (let x = -bw; x < size + bw; x += bw) {
+        ctx.beginPath();
+        ctx.moveTo(x + ox + 0.5, y);
+        ctx.lineTo(x + ox + 0.5, y + bh);
+        ctx.stroke();
+      }
+    }
+    // chips
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    for (let i = 0; i < 80; i++) {
+      ctx.fillRect(rng() * size, rng() * size, 1 + rng() * 3, 1 + rng() * 2);
+    }
+  }
+  // cracks
+  ctx.strokeStyle = 'rgba(8,6,5,0.45)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < (opts.cracks || 10); i++) {
+    ctx.beginPath();
+    let x = rng() * size, y = rng() * size;
+    ctx.moveTo(x, y);
+    for (let k = 0; k < 8; k++) {
+      x += (rng() - 0.5) * 18;
+      y += (rng() - 0.35) * 16;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  // dark stains
+  if (opts.grime) {
+    for (let i = 0; i < 14; i++) {
+      const x = rng() * size, y = rng() * size, r = 20 + rng() * 50;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(8,6,4,${0.18 + rng() * 0.22})`);
+      g.addColorStop(1, 'rgba(8,6,4,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+  }
+  return c;
+}
+
+function paintOccult(size, kind) {
+  const { c, ctx } = makeCanvas(size);
+  ctx.clearRect(0, 0, size, size);
+  const cx = size / 2, cy = size / 2;
+  const ink = 'rgba(210, 160, 70, 0.95)';
+  const dim = 'rgba(140, 90, 40, 0.7)';
+  ctx.lineCap = 'square';
+  ctx.lineJoin = 'miter';
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
+
+  function ring(r, w) {
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  function pentagram(r) {
+    ctx.beginPath();
+    for (let i = 0; i <= 5; i++) {
+      const a = -Math.PI / 2 + i * 4 * Math.PI / 5;
+      const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+  function runeRing(r, count) {
+    ctx.lineWidth = Math.max(2, size / 180);
+    ctx.strokeStyle = dim;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 - Math.PI / 2;
+      const dx = Math.cos(a), dy = Math.sin(a);
+      const x = cx + dx * r, y = cy + dy * r;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(a + Math.PI / 2);
+      drawRune(ctx, i, size * 0.028);
+      ctx.restore();
+    }
+    ctx.strokeStyle = ink;
+  }
+  function drawRune(ctx, i, s) {
+    ctx.beginPath();
+    const k = i % 8;
+    if (k === 0) { ctx.moveTo(-s, s); ctx.lineTo(0, -s); ctx.lineTo(s, s); }
+    else if (k === 1) { ctx.moveTo(0, -s); ctx.lineTo(0, s); ctx.moveTo(-s, 0); ctx.lineTo(s, 0); }
+    else if (k === 2) { ctx.moveTo(-s, -s); ctx.lineTo(-s, s); ctx.lineTo(s, s); }
+    else if (k === 3) { ctx.moveTo(-s, -s); ctx.lineTo(s, -s); ctx.lineTo(0, s); }
+    else if (k === 4) { ctx.moveTo(-s, s); ctx.lineTo(-s, -s); ctx.lineTo(s, 0); ctx.lineTo(-s, s); }
+    else if (k === 5) { ctx.moveTo(0, -s); ctx.lineTo(0, s); ctx.moveTo(-s, -s * 0.2); ctx.lineTo(s, -s * 0.2); ctx.moveTo(-s * 0.6, s * 0.5); ctx.lineTo(s * 0.6, s * 0.5); }
+    else if (k === 6) { ctx.moveTo(-s, -s); ctx.lineTo(s, s); ctx.moveTo(s, -s); ctx.lineTo(-s, s); }
+    else { ctx.moveTo(-s, 0); ctx.lineTo(s, 0); ctx.moveTo(0, -s); ctx.lineTo(s * 0.2, 0); ctx.lineTo(0, s); }
+    ctx.stroke();
+  }
+
+  if (kind === 'pentagram') {
+    ctx.fillStyle = 'rgba(20, 8, 6, 0.55)';
+    ctx.beginPath(); ctx.arc(cx, cy, size * 0.48, 0, Math.PI * 2); ctx.fill();
+    ring(size * 0.45, 5);
+    ring(size * 0.40, 2);
+    ring(size * 0.22, 2);
+    ctx.lineWidth = 3.5;
+    pentagram(size * 0.36);
+    runeRing(size * 0.455, 16);
+    // inner hex
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i <= 6; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 3;
+      const x = cx + Math.cos(a) * size * 0.14, y = cy + Math.sin(a) * size * 0.14;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  } else if (kind === 'circle') {
+    ctx.fillStyle = 'rgba(16, 10, 6, 0.4)';
+    ctx.beginPath(); ctx.arc(cx, cy, size * 0.48, 0, Math.PI * 2); ctx.fill();
+    ring(size * 0.44, 4);
+    ring(size * 0.36, 2);
+    ring(size * 0.18, 2);
+    ctx.lineWidth = 2.5;
+    // vesica / crossed arcs
+    ctx.beginPath(); ctx.arc(cx - size * 0.1, cy, size * 0.22, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx + size * 0.1, cy, size * 0.22, 0, Math.PI * 2); ctx.stroke();
+    runeRing(size * 0.40, 12);
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 2;
+    pentagram(size * 0.16);
+  } else if (kind === 'sigil') {
+    ring(size * 0.42, 3);
+    ring(size * 0.30, 2);
+    ctx.lineWidth = 3;
+    // horned mark
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + size * 0.22);
+    ctx.lineTo(cx, cy - size * 0.05);
+    ctx.moveTo(cx, cy - size * 0.02);
+    ctx.quadraticCurveTo(cx - size * 0.22, cy - size * 0.05, cx - size * 0.28, cy - size * 0.28);
+    ctx.moveTo(cx, cy - size * 0.02);
+    ctx.quadraticCurveTo(cx + size * 0.22, cy - size * 0.05, cx + size * 0.28, cy - size * 0.28);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy + size * 0.08, size * 0.08, 0, Math.PI * 2);
+    ctx.stroke();
+    runeRing(size * 0.36, 8);
+  } else if (kind === 'runeband') {
+    ctx.clearRect(0, 0, size, size);
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 3;
+    const cells = 8;
+    const cw = size / cells;
+    for (let i = 0; i < cells; i++) {
+      ctx.save();
+      ctx.translate((i + 0.5) * cw, size / 2);
+      drawRune(ctx, i + 2, cw * 0.28);
+      ctx.restore();
+      ctx.strokeStyle = dim;
+      ctx.beginPath();
+      ctx.moveTo((i + 1) * cw, size * 0.15);
+      ctx.lineTo((i + 1) * cw, size * 0.85);
+      ctx.stroke();
+      ctx.strokeStyle = ink;
+    }
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, size * 0.12); ctx.lineTo(size, size * 0.12);
+    ctx.moveTo(0, size * 0.88); ctx.lineTo(size, size * 0.88);
+    ctx.stroke();
+  }
+  return c;
+}
+
+function paintRipple(size) {
+  const { c, ctx } = makeCanvas(size);
+  const rng = mulberry32(99);
+  const n = noise2(rng, size, size, 24, 4);
+  const img = ctx.createImageData(size, size);
+  for (let i = 0; i < size * size; i++) {
+    const v = n[i];
+    const g = Math.floor(v * 255);
+    img.data[i * 4] = g;
+    img.data[i * 4 + 1] = g;
+    img.data[i * 4 + 2] = g;
+    img.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+function paintFlame(size) {
+  const { c, ctx } = makeCanvas(size);
+  const g = ctx.createRadialGradient(size * 0.5, size * 0.62, 2, size * 0.5, size * 0.55, size * 0.48);
+  g.addColorStop(0, 'rgba(255,240,180,0.95)');
+  g.addColorStop(0.25, 'rgba(255,150,40,0.85)');
+  g.addColorStop(0.6, 'rgba(180,40,10,0.35)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  return c;
+}
+
+const texFloor = canvasTex(paintStone(512, 1, { blocks: true, bw: 128, bh: 64, grime: true, stains: true, moss: true, cracks: 16 }), 8, 10);
+const texWall  = canvasTex(paintStone(512, 2, { blocks: true, bw: 80, bh: 48, grime: true, moss: true, cracks: 14, base: [38, 32, 28] }), 4, 3);
+const texRough = canvasTex(paintStone(256, 3, { blocks: false, grime: true, cracks: 20, moss: true, base: [36, 30, 26] }), 2, 2);
+const texStatue= canvasTex(paintStone(256, 7, { blocks: false, grime: true, cracks: 18, base: [48, 44, 40], varA: [70, 66, 58], varB: [30, 28, 26] }), 1, 1);
+const texPent  = canvasTex(paintOccult(512, 'pentagram'));
+texPent.wrapS = texPent.wrapT = THREE.ClampToEdgeWrapping;
+texPent.repeat.set(1, 1);
+const texCircle = canvasTex(paintOccult(512, 'circle'));
+texCircle.wrapS = texCircle.wrapT = THREE.ClampToEdgeWrapping;
+texCircle.repeat.set(1, 1);
+const texSigil = canvasTex(paintOccult(256, 'sigil'));
+texSigil.wrapS = texSigil.wrapT = THREE.ClampToEdgeWrapping;
+texSigil.repeat.set(1, 1);
+const texBand = canvasTex(paintOccult(512, 'runeband'), 4, 1);
+const texRipple = canvasTex(paintRipple(256), 2, 2);
+texRipple.colorSpace = THREE.NoColorSpace;
+const texFlame = canvasTex(paintFlame(128));
+texFlame.wrapS = texFlame.wrapT = THREE.ClampToEdgeWrapping;
+texFlame.repeat.set(1, 1);
+
+const matFloor = new THREE.MeshStandardMaterial({
+  map: texFloor, color: 0xc4b49a, roughness: 0.9, metalness: 0.04,
+});
+const matWall = new THREE.MeshStandardMaterial({
+  map: texWall, color: 0xb8a894, roughness: 0.93, metalness: 0.03,
+});
+const matStep = new THREE.MeshStandardMaterial({
+  map: texRough, color: 0xc8b8a4, roughness: 0.86, metalness: 0.05,
+});
+const matDark = new THREE.MeshStandardMaterial({
+  map: texRough, color: 0x6a5c50, roughness: 0.95, metalness: 0.02,
+});
+const matStatue = new THREE.MeshStandardMaterial({
+  map: texStatue, color: 0xc8c0b0, roughness: 0.82, metalness: 0.08,
+});
+const matHorn = new THREE.MeshStandardMaterial({
+  map: texStatue, color: 0xe0d0b0, roughness: 0.68, metalness: 0.12,
+});
+const matMetal = new THREE.MeshStandardMaterial({
+  color: 0x3a3228, roughness: 0.45, metalness: 0.72,
+});
+const matEye = new THREE.MeshStandardMaterial({
+  color: 0x1a0502, emissive: 0xaa2208, emissiveIntensity: 1.4, roughness: 0.4, metalness: 0.1,
+});
+const matEmber = new THREE.MeshStandardMaterial({
+  color: 0x1a0a02, emissive: 0xff5510, emissiveIntensity: 1.6, roughness: 1, metalness: 0,
+});
+const matGlyph = new THREE.MeshBasicMaterial({
+  map: texPent, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 1.0, color: 0xffe0a8,
+});
+const matGlyphCircle = new THREE.MeshBasicMaterial({
+  map: texCircle, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.9, color: 0xffd080,
+});
+const matGlyphSigil = new THREE.MeshBasicMaterial({
+  map: texSigil, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.9, color: 0xffc060,
+});
+const matBand = new THREE.MeshBasicMaterial({
+  map: texBand, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.65, color: 0xd4a056,
+});
+const matFlame = new THREE.MeshBasicMaterial({
+  map: texFlame, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+});
+
+function box(mat, w, h, d, x, y, z, rx = 0, ry = 0, rz = 0) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  m.rotation.set(rx, ry, rz);
+  m.castShadow = false;
+  m.receiveShadow = false;
+  return m;
+}
+function cyl(mat, rTop, rBot, h, x, y, z, segs = 8, rx = 0, rz = 0) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, h, segs), mat);
+  m.position.set(x, y, z);
+  m.rotation.x = rx; m.rotation.z = rz;
+  return m;
+}
+
+/* ---------- minotaur statue (procedural primitives) ---------- */
+function makeHorn(sign, mat) {
+  const g = new THREE.Group();
+  const pts = [
+    new THREE.Vector3(sign * 0.02, 0.00, 0.02),
+    new THREE.Vector3(sign * 0.22, 0.22, -0.02),
+    new THREE.Vector3(sign * 0.42, 0.55, -0.08),
+    new THREE.Vector3(sign * 0.48, 0.95, -0.18),
+    new THREE.Vector3(sign * 0.34, 1.22, -0.32),
+  ];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const mid = a.clone().add(b).multiplyScalar(0.5);
+    const len = a.distanceTo(b);
+    const r = 0.09 * (1 - i / pts.length * 0.78);
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.72, r, len, 6), mat);
+    mesh.position.copy(mid);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+    g.add(mesh);
+  }
+  const tip = pts[pts.length - 1];
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.16, 5), mat);
+  cone.position.copy(tip);
+  const prev = pts[pts.length - 2];
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tip.clone().sub(prev).normalize());
+  g.add(cone);
+  return g;
+}
+
+function createMinotaur(scale = 1, pose = 'guard') {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+
+  // legs / hooves
+  function leg(sx) {
+    const lg = new THREE.Group();
+    const thigh = cyl(matStatue, 0.20, 0.17, 0.72, sx * 0.28, 1.18, 0.02, 7, 0.18, sx * -0.05);
+    const shin = cyl(matStatue, 0.13, 0.11, 0.62, sx * 0.32, 0.58, 0.12, 6, -0.12, 0);
+    const hoof = box(matDark, 0.22, 0.14, 0.28, sx * 0.32, 0.10, 0.16);
+    const cleft = box(matDark, 0.04, 0.12, 0.26, sx * 0.32, 0.09, 0.17);
+    cleft.material = matStatue;
+    lg.add(thigh, shin, hoof);
+    return lg;
+  }
+  body.add(leg(-1), leg(1));
+
+  // torso
+  body.add(box(matStatue, 0.95, 0.85, 0.55, 0, 1.95, 0));
+  body.add(box(matStatue, 1.18, 0.48, 0.62, 0, 2.42, 0.02)); // shoulders
+  body.add(cyl(matStatue, 0.22, 0.26, 0.32, 0, 2.78, 0.06, 7, 0.25, 0)); // neck
+
+  // loincloth
+  body.add(box(matDark, 0.7, 0.45, 0.2, 0, 1.48, 0.22));
+  body.add(box(matDark, 0.55, 0.5, 0.12, 0, 1.35, -0.28));
+
+  // arms + labrys
+  function arm(sx, raised) {
+    const ag = new THREE.Group();
+    const shoulderAng = pose === 'idol' ? sx * 0.35 : sx * 0.15;
+    const ua = cyl(matStatue, 0.16, 0.14, 0.7, sx * 0.72, 2.22, 0.05, 6, 0.15, shoulderAng + sx * 0.4);
+    const faY = pose === 'axe' ? 1.65 : 1.72;
+    const faZ = pose === 'axe' && sx > 0 ? 0.25 : 0.05;
+    const fa = cyl(matStatue, 0.13, 0.12, 0.62, sx * 0.92, faY, faZ, 6, 0.1, sx * 0.15);
+    const fist = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), matStatue);
+    fist.position.set(sx * 1.02, faY - 0.34, faZ + 0.02);
+    ag.add(ua, fa, fist);
+    return { ag, fist };
+  }
+  const L = arm(-1, false);
+  const R = arm(1, true);
+  body.add(L.ag, R.ag);
+
+  // double axe (labrys) in right hand, or both for idol held across
+  const axe = new THREE.Group();
+  const haft = cyl(matDark, 0.035, 0.04, 2.15, 0, 0, 0, 6);
+  axe.add(haft);
+  function blade(side) {
+    const b = new THREE.Group();
+    b.add(box(matMetal, 0.12, 0.55, 0.55, side * 0.28, 0.85, 0));
+    const wedge = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.28, 0.42, 3), matMetal);
+    wedge.rotation.z = side * Math.PI / 2;
+    wedge.rotation.x = Math.PI / 2;
+    wedge.position.set(side * 0.52, 0.85, 0);
+    b.add(wedge);
+    return b;
+  }
+  axe.add(blade(-1), blade(1));
+  axe.add(box(matMetal, 0.18, 0.12, 0.18, 0, 0.85, 0));
+  if (pose === 'idol') {
+    axe.position.set(0, 1.7, 0.55);
+    axe.rotation.z = Math.PI / 2;
+    axe.rotation.x = 0.15;
+  } else {
+    // planted by the right side, hand on haft
+    axe.position.set(1.05, 1.15, 0.15);
+    axe.rotation.z = -0.08;
+    axe.rotation.x = 0.05;
+  }
+  body.add(axe);
+
+  // head
+  const head = new THREE.Group();
+  head.position.set(0, 3.05, 0.12);
+  head.add(box(matStatue, 0.52, 0.48, 0.48, 0, 0, 0));
+  head.add(box(matStatue, 0.36, 0.28, 0.42, 0, -0.08, 0.32)); // snout
+  head.add(box(matStatue, 0.22, 0.12, 0.16, 0, -0.02, 0.54)); // muzzle
+  head.add(box(matDark, 0.18, 0.06, 0.08, 0, 0.04, 0.58)); // nostrils
+  // brow
+  head.add(box(matStatue, 0.54, 0.12, 0.18, 0, 0.18, 0.18));
+  // ears
+  const earG = new THREE.ConeGeometry(0.09, 0.22, 5);
+  const earL = new THREE.Mesh(earG, matStatue);
+  earL.position.set(-0.32, 0.1, 0); earL.rotation.z = 0.9; earL.rotation.y = -0.3;
+  const earR = new THREE.Mesh(earG, matStatue);
+  earR.position.set(0.32, 0.1, 0); earR.rotation.z = -0.9; earR.rotation.y = 0.3;
+  head.add(earL, earR);
+  // eyes
+  head.add(cyl(matEye, 0.045, 0.045, 0.06, -0.13, 0.06, 0.22, 6, Math.PI / 2, 0));
+  head.add(cyl(matEye, 0.045, 0.045, 0.06,  0.13, 0.06, 0.22, 6, Math.PI / 2, 0));
+  // nose ring
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.012, 6, 10), matMetal);
+  ring.position.set(0, -0.08, 0.62);
+  ring.rotation.x = Math.PI / 2;
+  head.add(ring);
+  // horns
+  const hL = makeHorn(-1, matHorn); hL.position.set(-0.2, 0.2, -0.02);
+  const hR = makeHorn(1, matHorn);  hR.position.set(0.2, 0.2, -0.02);
+  head.add(hL, hR);
+  if (pose === 'guard') head.rotation.x = 0.08;
+  if (pose === 'idol') head.rotation.x = -0.04;
+  body.add(head);
+
+  // tail
+  const tail = cyl(matStatue, 0.03, 0.07, 0.8, 0, 1.5, -0.42, 5, 0.7, 0);
+  body.add(tail);
+
+  // stone pedestal
+  const ped = new THREE.Group();
+  ped.add(box(matWall, 1.35, 0.28, 1.1, 0, 0.14, 0.05));
+  ped.add(box(matStep, 1.15, 0.12, 0.9, 0, 0.32, 0.05));
+  root.add(ped);
+  body.position.y = 0.28;
+  root.add(body);
+  root.scale.setScalar(scale);
+  return root;
+}
+
+/* ---------- architecture ---------- */
+const world = new THREE.Group();
+scene.add(world);
+
+// approach ground
+world.add(box(matFloor, 80, 0.4, 80, 0, -0.2, 8));
+
+// massive plinth body (sides and front around the stair mouth)
+// left / right flanks of plinth
+const plinthDepth = PLINTH_Z1 - PLINTH_Z0;
+const plinthMidZ = (PLINTH_Z0 + PLINTH_Z1) / 2;
+// left mass
+world.add(box(matWall, PLINTH_HALF_W - STAIR_HALF_W, PLATFORM_Y, plinthDepth,
+  -(STAIR_HALF_W + (PLINTH_HALF_W - STAIR_HALF_W) / 2), PLATFORM_Y / 2, plinthMidZ));
+// right mass
+world.add(box(matWall, PLINTH_HALF_W - STAIR_HALF_W, PLATFORM_Y, plinthDepth,
+  (STAIR_HALF_W + (PLINTH_HALF_W - STAIR_HALF_W) / 2), PLATFORM_Y / 2, plinthMidZ));
+// rear mass behind stairs (full width already covered by flanks? flanks start at z=8.
+// The flanks are the full plinth depth. Front face at z=8 is flush except stair cut.
+// Need a back wall volume already included.
+// Extra: slightly battered front shoulders beside stairs
+world.add(box(matWall, 3.2, PLATFORM_Y + 1.2, 2.4, -(STAIR_HALF_W + 1.4), (PLATFORM_Y + 1.2) / 2, PLINTH_Z0 + 0.4));
+world.add(box(matWall, 3.2, PLATFORM_Y + 1.2, 2.4,  (STAIR_HALF_W + 1.4), (PLATFORM_Y + 1.2) / 2, PLINTH_Z0 + 0.4));
+
+// grand stairs: each tread is a solid stone block down to the ground
+const stepRun = (STAIR_Z1 - STAIR_Z0) / STEP_COUNT;
+const stepRise = PLATFORM_Y / STEP_COUNT;
+const stairGroup = new THREE.Group();
+for (let i = 0; i < STEP_COUNT; i++) {
+  const yTop = stepRise * (i + 1);
+  const z = STAIR_Z0 + stepRun * (i + 0.5);
+  const tread = box(matStep, STAIR_HALF_W * 2, yTop, stepRun + 0.02, 0, yTop / 2, z);
+  stairGroup.add(tread);
+}
+// side rails / walls along stairs
+for (const side of [-1, 1]) {
+  const rail = new THREE.Group();
+  for (let i = 0; i < STEP_COUNT; i++) {
+    const yTop = stepRise * (i + 1) + 0.85;
+    const z = STAIR_Z0 + stepRun * (i + 0.5);
+    const h = yTop;
+    rail.add(box(matWall, RAIL_W, h, stepRun + 0.04, side * (STAIR_HALF_W + RAIL_W * 0.5), h / 2, z));
+  }
+  stairGroup.add(rail);
+  // cap along rail
+  const capLen = STAIR_Z1 - STAIR_Z0;
+  const cap = box(matStep, RAIL_W + 0.1, 0.18, capLen + 0.4,
+    side * (STAIR_HALF_W + RAIL_W * 0.5), 0, (STAIR_Z0 + STAIR_Z1) / 2);
+  // slant the cap: use a box rotated
+  const slant = Math.atan2(PLATFORM_Y, capLen);
+  const cap2 = box(matStep, RAIL_W + 0.16, 0.22, Math.hypot(capLen, PLATFORM_Y) + 0.5,
+    side * (STAIR_HALF_W + RAIL_W * 0.5), PLATFORM_Y / 2 + 0.9, (STAIR_Z0 + STAIR_Z1) / 2,
+    -slant, 0, 0);
+  stairGroup.add(cap2);
+}
+world.add(stairGroup);
+
+// rune band on stair rails (inner faces)
+for (const side of [-1, 1]) {
+  const bandLen = Math.hypot(STAIR_Z1 - STAIR_Z0, PLATFORM_Y);
+  const slant = Math.atan2(PLATFORM_Y, STAIR_Z1 - STAIR_Z0);
+  const geo = new THREE.PlaneGeometry(0.55, bandLen);
+  const mesh = new THREE.Mesh(geo, matBand);
+  mesh.position.set(side * (STAIR_HALF_W - 0.02), PLATFORM_Y / 2 + 0.35, (STAIR_Z0 + STAIR_Z1) / 2);
+  mesh.rotation.y = side * Math.PI / 2;
+  mesh.rotation.x = -slant;
+  world.add(mesh);
+}
+
+// plaza slab (will be cut visually by the pit we place on top / into)
+const plaza = box(matFloor, PLINTH_HALF_W * 2, 0.5, PLINTH_Z1 - PLINTH_Z0, 0, PLATFORM_Y + 0.25, plinthMidZ);
+world.add(plaza);
+
+// parapet around plaza except stair mouth
+function parapet(w, d, x, z) {
+  world.add(box(matWall, w, 1.15, d, x, PLATFORM_Y + 0.5 + 0.57, z));
+  world.add(box(matStep, w + 0.08, 0.14, d + 0.08, x, PLATFORM_Y + 1.22, z));
+}
+parapet(PLINTH_HALF_W * 2 + 0.4, 0.55, 0, PLINTH_Z1 + 0.1); // back
+parapet(0.55, PLINTH_Z1 - PLINTH_Z0 + 0.4, -PLINTH_HALF_W - 0.1, plinthMidZ);
+parapet(0.55, PLINTH_Z1 - PLINTH_Z0 + 0.4,  PLINTH_HALF_W + 0.1, plinthMidZ);
+// front parapet left and right of stairs
+const frontParaW = PLINTH_HALF_W - STAIR_HALF_W - 0.2;
+parapet(frontParaW, 0.55, -(STAIR_HALF_W + 0.3 + frontParaW / 2), PLINTH_Z0 - 0.1);
+parapet(frontParaW, 0.55,  (STAIR_HALF_W + 0.3 + frontParaW / 2), PLINTH_Z0 - 0.1);
+
+// pylon gate at base of stairs
+for (const side of [-1, 1]) {
+  const px = side * (STAIR_HALF_W + 2.1);
+  world.add(box(matWall, 1.8, 5.2, 1.8, px, 2.6, STAIR_Z0 - 1.1));
+  world.add(box(matStep, 2.0, 0.3, 2.0, px, 5.35, STAIR_Z0 - 1.1));
+  world.add(box(matWall, 1.3, 1.4, 1.3, px, 6.15, STAIR_Z0 - 1.1));
+}
+
+// back facade wall rising above parapet
+world.add(box(matWall, PLINTH_HALF_W * 2 - 1, 8.5, 1.8, 0, PLATFORM_Y + 4.25, PLINTH_Z1 + 0.7));
+// niche recess
+world.add(box(matDark, 5.2, 7.2, 1.2, 0, PLATFORM_Y + 3.4, PLINTH_Z1 + 0.15));
+
+/* ----- sunken octagonal pit ----- */
+function octagonShape(r) {
+  // r is the apothem (center-to-flat) so the octagon meets a square of half-size r
+  const vr = r / Math.cos(Math.PI / 8);
+  const sh = new THREE.Shape();
+  for (let i = 0; i < 8; i++) {
+    const a = Math.PI / 8 + i * Math.PI / 4;
+    const x = Math.cos(a) * vr, y = Math.sin(a) * vr;
+    if (i === 0) sh.moveTo(x, y); else sh.lineTo(x, y);
+  }
+  sh.closePath();
+  return sh;
+}
+function octRing(rOuter, rInner, thickness, y, mat) {
+  const s = octagonShape(rOuter);
+  s.holes.push(octagonShape(rInner));
+  const geo = new THREE.ExtrudeGeometry(s, { depth: thickness, bevelEnabled: false, steps: 1 });
+  geo.rotateX(-Math.PI / 2);
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(PIT_CX, y, PIT_CZ);
+  return m;
+}
+
+// We punch a visual pit by building stepped rings downward from the plaza
+// Cover a square hole: first a dark well under the rings
+const wellDepth = PLATFORM_Y + 0.5 - (POOL_FLOOR_Y - 0.2);
+const wellR = (PIT_OUTER + 0.15) / Math.cos(Math.PI / 8);
+const wellR2 = (PIT_OUTER + 0.4) / Math.cos(Math.PI / 8);
+const well = new THREE.Mesh(
+  new THREE.CylinderGeometry(wellR, wellR2, wellDepth, 8, 1, true),
+  matDark
+);
+well.rotation.y = Math.PI / 8;
+well.position.set(PIT_CX, PLATFORM_Y + 0.5 - wellDepth / 2, PIT_CZ);
+world.add(well);
+
+// hide the plaza over the pit with a matching floor ring? The plaza is a solid box,
+// so the pit would be filled. Cut by overlaying nothing — better replace plaza
+// with a ring around the pit.
+plaza.visible = false;
+// plaza as extruded ring (rect with octagon hole is hard). Use 4 slabs around the pit.
+function plazaSlab(w, d, x, z) {
+  world.add(box(matFloor, w, 0.5, d, x, PLATFORM_Y + 0.25, z));
+}
+const po = PIT_OUTER + 0.05;
+const pz0 = PLINTH_Z0, pz1 = PLINTH_Z1, pw = PLINTH_HALF_W;
+// front strip (stairs to pit)
+plazaSlab(pw * 2, (PIT_CZ - po) - pz0, 0, (pz0 + (PIT_CZ - po)) / 2);
+// back strip
+plazaSlab(pw * 2, pz1 - (PIT_CZ + po), 0, ((PIT_CZ + po) + pz1) / 2);
+// left / right strips (between front and back of pit)
+plazaSlab(pw - po, po * 2, -(po + (pw - po) / 2), PIT_CZ);
+plazaSlab(pw - po, po * 2,  (po + (pw - po) / 2), PIT_CZ);
+
+// descent steps: concentric octagonal rings
+const descentH = PLATFORM_Y - WALKWAY_Y;
+const dStepH = descentH / DESCENT_STEPS;
+const dStepR = (PIT_OUTER - PIT_WALK_OUT) / DESCENT_STEPS;
+for (let i = 0; i < DESCENT_STEPS; i++) {
+  const r1 = PIT_OUTER - dStepR * i;
+  const r0 = PIT_OUTER - dStepR * (i + 1);
+  const y = PLATFORM_Y - dStepH * (i + 1);
+  world.add(octRing(r1 + 0.02, r0 - 0.01, dStepH, y, matStep));
+}
+
+// walkway ring
+world.add(octRing(PIT_WALK_OUT + 0.02, PIT_WALK_IN, 0.28, WALKWAY_Y - 0.28, matFloor));
+// curb around pool
+world.add(octRing(PIT_WALK_IN + 0.12, PIT_WALK_IN - 0.02, 0.18, WALKWAY_Y - 0.02, matStep));
+
+// pool floor
+const poolFloorGeo = new THREE.ExtrudeGeometry(octagonShape(PIT_WALK_IN - 0.02), { depth: 0.16, bevelEnabled: false });
+poolFloorGeo.rotateX(-Math.PI / 2);
+const poolFloor = new THREE.Mesh(poolFloorGeo, matDark);
+poolFloor.position.set(PIT_CX, POOL_FLOOR_Y - 0.16, PIT_CZ);
+world.add(poolFloor);
+
+// pentagram inlay on pool floor
+const pent = new THREE.Mesh(new THREE.PlaneGeometry(PIT_WALK_IN * 1.85, PIT_WALK_IN * 1.85), matGlyph);
+pent.rotation.x = -Math.PI / 2;
+pent.position.set(PIT_CX, POOL_FLOOR_Y + 0.03, PIT_CZ);
+world.add(pent);
+const pentGlow = new THREE.Mesh(new THREE.PlaneGeometry(PIT_WALK_IN * 1.85, PIT_WALK_IN * 1.85), matGlyph);
+pentGlow.rotation.x = -Math.PI / 2;
+pentGlow.position.set(PIT_CX, WATER_Y - 0.03, PIT_CZ);
+world.add(pentGlow);
+
+// ritual circle on the plaza, in front of the pit (after the stairs)
+const circle = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 7.5), matGlyphCircle);
+circle.rotation.x = -Math.PI / 2;
+circle.position.set(0, PLATFORM_Y + 0.52, 14.2);
+world.add(circle);
+
+// wall sigils on back facade and side parapets
+function wallSigil(x, y, z, rotY, size = 3.2) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), matGlyphSigil);
+  m.position.set(x, y, z);
+  m.rotation.y = rotY;
+  world.add(m);
+}
+wallSigil(0, PLATFORM_Y + 7.3, PLINTH_Z1 + 1.62, Math.PI, 4.2);
+wallSigil(-PLINTH_HALF_W + 0.3, PLATFORM_Y + 3.6, 22, Math.PI / 2, 2.6);
+wallSigil( PLINTH_HALF_W - 0.3, PLATFORM_Y + 3.6, 22, -Math.PI / 2, 2.6);
+wallSigil(-PLINTH_HALF_W + 0.3, PLATFORM_Y + 3.6, 34, Math.PI / 2, 2.6);
+wallSigil( PLINTH_HALF_W - 0.3, PLATFORM_Y + 3.6, 34, -Math.PI / 2, 2.6);
+// on stair pylons
+wallSigil(-(STAIR_HALF_W + 2.1), 3.2, STAIR_Z0 - 2.02, Math.PI, 1.6);
+wallSigil( (STAIR_HALF_W + 2.1), 3.2, STAIR_Z0 - 2.02, Math.PI, 1.6);
+
+/* ----- water ----- */
+const waterUniforms = {
+  uTime: { value: 0 },
+  uRipple: { value: texRipple },
+  uColorDeep: { value: new THREE.Color(0x0c1a16) },
+  uColorShallow: { value: new THREE.Color(0x2a4a40) },
+  uGlow: { value: new THREE.Color(0xc04028) },
+};
+const waterMat = new THREE.ShaderMaterial({
+  uniforms: waterUniforms,
+  transparent: true,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+  vertexShader: /* glsl */`
+    varying vec2 vUv;
+    varying vec3 vWorld;
+    uniform float uTime;
+    uniform sampler2D uRipple;
+    void main() {
+      vUv = uv;
+      vec3 p = position;
+      float n = texture2D(uRipple, uv * 1.4 + vec2(uTime * 0.03, uTime * 0.02)).r;
+      float n2 = texture2D(uRipple, uv * 2.1 - vec2(uTime * 0.025, -uTime * 0.017)).r;
+      p.y += (n + n2 - 1.0) * 0.05;
+      vec4 wp = modelMatrix * vec4(p, 1.0);
+      vWorld = wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }
+  `,
+  fragmentShader: /* glsl */`
+    varying vec2 vUv;
+    varying vec3 vWorld;
+    uniform float uTime;
+    uniform sampler2D uRipple;
+    uniform vec3 uColorDeep;
+    uniform vec3 uColorShallow;
+    uniform vec3 uGlow;
+    void main() {
+      float n = texture2D(uRipple, vUv * 1.4 + vec2(uTime * 0.03, uTime * 0.02)).r;
+      float n2 = texture2D(uRipple, vUv * 2.2 - vec2(uTime * 0.02, -uTime * 0.016)).r;
+      float rip = (n * 0.6 + n2 * 0.4);
+      vec3 col = mix(uColorDeep, uColorShallow, rip);
+      float cd = length(vUv - 0.5);
+      col += uGlow * (0.55 * (1.0 - smoothstep(0.05, 0.5, cd))) * (0.75 + 0.25 * sin(uTime * 1.5));
+      vec3 V = normalize(cameraPosition - vWorld);
+      float fres = pow(1.0 - clamp(V.y, 0.0, 1.0), 2.2);
+      col += vec3(0.45, 0.48, 0.42) * fres * 0.7;
+      float spec = pow(max(rip, 0.0), 5.0) * 0.4;
+      col += vec3(0.7, 0.62, 0.48) * spec;
+      float alpha = 0.46 + fres * 0.22;
+      gl_FragColor = vec4(col, alpha);
+    }
+  `,
+});
+const waterGeo = new THREE.CircleGeometry(PIT_WALK_IN - 0.08, 8);
+// CircleGeometry is in XY; we want an octagon-ish circle. 8 segs matches the pit.
+waterGeo.rotateX(-Math.PI / 2);
+// bump to more verts for waves: use a plane and mask? Circle with more segs is fine.
+// replace with higher-seg circle for animation
+const waterGeo2 = new THREE.CircleGeometry(PIT_WALK_IN - 0.08, 32);
+waterGeo2.rotateX(-Math.PI / 2);
+const water = new THREE.Mesh(waterGeo2, waterMat);
+water.position.set(PIT_CX, WATER_Y, PIT_CZ);
+water.rotation.y = Math.PI / 8;
+world.add(water);
+
+/* ----- braziers ----- */
+const flames = [];
+const brazierLights = [];
+function makeBrazier(x, y, z, scale = 1) {
+  const g = new THREE.Group();
+  g.add(cyl(matWall, 0.16 * scale, 0.22 * scale, 0.9 * scale, 0, 0.45 * scale, 0, 7));
+  g.add(cyl(matStep, 0.32 * scale, 0.22 * scale, 0.16 * scale, 0, 0.95 * scale, 0, 8));
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.28 * scale, 0.22 * scale, 0.18 * scale, 8, 1, true), matDark);
+  bowl.position.y = 1.08 * scale;
+  g.add(bowl);
+  const coals = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * scale, 0.2 * scale, 0.06 * scale, 8), matEmber);
+  coals.position.y = 1.02 * scale;
+  g.add(coals);
+  const flame = new THREE.Mesh(new THREE.PlaneGeometry(0.95 * scale, 1.45 * scale), matFlame);
+  flame.position.y = 1.5 * scale;
+  g.add(flame);
+  const flame2 = flame.clone();
+  flame2.rotation.y = Math.PI / 2;
+  g.add(flame2);
+  flames.push(flame, flame2);
+  const light = new THREE.PointLight(0xff8a3a, 90 * scale, 26 * scale, 2);
+  light.position.set(0, 1.5 * scale, 0);
+  g.add(light);
+  brazierLights.push(light);
+  g.position.set(x, y, z);
+  world.add(g);
+  return g;
+}
+// base of stairs
+makeBrazier(-(STAIR_HALF_W + 2.1), 5.5, STAIR_Z0 - 1.1, 0.85);
+makeBrazier( (STAIR_HALF_W + 2.1), 5.5, STAIR_Z0 - 1.1, 0.85);
+// mid stairs rails (on cap near the middle)
+makeBrazier(-(STAIR_HALF_W + 0.8), stepRise * 14 + 0.95, STAIR_Z0 + stepRun * 14, 0.7);
+makeBrazier( (STAIR_HALF_W + 0.8), stepRise * 14 + 0.95, STAIR_Z0 + stepRun * 14, 0.7);
+// top of stairs
+makeBrazier(-(STAIR_HALF_W + 1.6), PLATFORM_Y + 0.5, PLINTH_Z0 + 1.4, 0.9);
+makeBrazier( (STAIR_HALF_W + 1.6), PLATFORM_Y + 0.5, PLINTH_Z0 + 1.4, 0.9);
+// around the pit (walkway-level? no, plaza corners around pit)
+const pitBraziers = [
+  [PIT_OUTER + 1.3, PLATFORM_Y + 0.5, PIT_CZ - 4.2],
+  [-(PIT_OUTER + 1.3), PLATFORM_Y + 0.5, PIT_CZ - 4.2],
+  [PIT_OUTER + 1.3, PLATFORM_Y + 0.5, PIT_CZ + 4.2],
+  [-(PIT_OUTER + 1.3), PLATFORM_Y + 0.5, PIT_CZ + 4.2],
+];
+for (const p of pitBraziers) makeBrazier(p[0], p[1], p[2], 0.85);
+// back wall
+makeBrazier(-3.6, PLATFORM_Y + 0.5, PLINTH_Z1 - 0.6, 1.0);
+makeBrazier( 3.6, PLATFORM_Y + 0.5, PLINTH_Z1 - 0.6, 1.0);
+
+/* ----- statues ----- */
+function placeStatue(x, y, z, scale, pose, rotY) {
+  const s = createMinotaur(scale, pose);
+  s.position.set(x, y, z);
+  s.rotation.y = rotY;
+  world.add(s);
+  return s;
+}
+// guardians at top of the grand stairs, flanking the landing
+const PLAZA_TOP = PLATFORM_Y + 0.5;
+placeStatue(-(STAIR_HALF_W + 3.4), PLAZA_TOP, PLINTH_Z0 + 2.6, 1.15, 'guard', 0.15);
+placeStatue( (STAIR_HALF_W + 3.4), PLAZA_TOP, PLINTH_Z0 + 2.6, 1.15, 'guard', -0.15);
+// flanking the descent into the pit (front edge)
+placeStatue(-7.6, PLAZA_TOP, PIT_CZ - PIT_OUTER - 0.2, 1.0, 'guard', 0.35);
+placeStatue( 7.6, PLAZA_TOP, PIT_CZ - PIT_OUTER - 0.2, 1.0, 'guard', -0.35);
+// far sides of the pool
+placeStatue(-7.8, PLAZA_TOP, PIT_CZ + 3.6, 1.05, 'axe', Math.PI * 0.6);
+placeStatue( 7.8, PLAZA_TOP, PIT_CZ + 3.6, 1.05, 'axe', -Math.PI * 0.6);
+// colossal idol in the back niche
+placeStatue(0, PLAZA_TOP, PLINTH_Z1 - 1.55, 1.55, 'idol', Math.PI);
+
+/* ----- approach path markers / low stones ----- */
+for (let i = 0; i < 4; i++) {
+  const z = -18 + i * 3.2;
+  world.add(box(matWall, 0.5, 1.1 + (i % 2) * 0.3, 0.5, -8, 0.55, z));
+  world.add(box(matWall, 0.5, 1.1 + ((i + 1) % 2) * 0.3, 0.5,  8, 0.55, z));
+}
+
+/* ----- lighting ----- */
+scene.add(new THREE.AmbientLight(0x5a5046, 1.2));
+const hemi = new THREE.HemisphereLight(0x8a8074, 0x2a2018, 1.25);
+scene.add(hemi);
+const moon = new THREE.DirectionalLight(0xd8d0c4, 1.85);
+moon.position.set(6, 28, -32);
+scene.add(moon);
+const stairFill = new THREE.DirectionalLight(0xffc8a0, 0.95);
+stairFill.position.set(0, 8, -20);
+scene.add(stairFill);
+// sigil glow in the pool
+const sigilLight = new THREE.PointLight(0xcc4428, 55, 20, 2);
+sigilLight.position.set(PIT_CX, WATER_Y + 0.4, PIT_CZ);
+scene.add(sigilLight);
+const idolLight = new THREE.PointLight(0xff8844, 50, 18, 2);
+idolLight.position.set(0, PLATFORM_Y + 5.5, PLINTH_Z1 - 2);
+scene.add(idolLight);
+const landingLight = new THREE.PointLight(0xffc8a0, 58, 22, 2);
+landingLight.position.set(0, PLATFORM_Y + 3.5, PLINTH_Z0 + 3);
+scene.add(landingLight);
+
+/* ---------- ground height for walk mode ---------- */
+function octDist(x, z) {
+  const dx = Math.abs(x - PIT_CX);
+  const dz = Math.abs(z - PIT_CZ);
+  return Math.max(dx, dz, (dx + dz) * Math.SQRT1_2);
+}
+function groundY(x, z) {
+  const od = octDist(x, z);
+  if (od <= PIT_WALK_IN - 0.05) return POOL_FLOOR_Y + 0.08; // wading
+  if (od <= PIT_WALK_OUT) return WALKWAY_Y;
+  if (od <= PIT_OUTER) {
+    const t = (PIT_OUTER - od) / (PIT_OUTER - PIT_WALK_OUT);
+    return PLATFORM_Y - t * (PLATFORM_Y - WALKWAY_Y);
+  }
+  // stairs corridor
+  if (z >= STAIR_Z0 && z <= STAIR_Z1 && Math.abs(x) <= STAIR_HALF_W + 0.15) {
+    const t = (z - STAIR_Z0) / (STAIR_Z1 - STAIR_Z0);
+    return t * PLATFORM_Y;
+  }
+  // plaza
+  if (z >= PLINTH_Z0 && z <= PLINTH_Z1 && Math.abs(x) <= PLINTH_HALF_W) return PLATFORM_Y + 0.5;
+  // approach
+  if (z < STAIR_Z0) return 0;
+  // beside stairs at ground? the plinth occupies sides
+  if (z >= STAIR_Z0 && z <= STAIR_Z1 && Math.abs(x) > STAIR_HALF_W + RAIL_W) {
+    // if still in front of plinth shoulders, ground is 0 until plinth face...
+    // plinth face is at z=8. Below z=8 is approach / stair rails.
+    return 0;
+  }
+  return 0;
+}
+
+/* ---------- controls: orbit vs walk ---------- */
+let mode = 'orbit';
+const keys = Object.create(null);
+const walk = {
+  yaw: 0,
+  pitch: -0.12,
+  x: 0,
+  z: -16,
+  vy: 0,
+  eye: 1.62,
+};
+const joy = { active: false, dx: 0, dy: 0, id: null };
+
+function setMode(next) {
+  mode = next;
+  orbit.enabled = mode === 'orbit';
+  joyEl.classList.toggle('shown', mode === 'walk');
+  document.getElementById('btn-orbit').classList.toggle('active', mode === 'orbit');
+  document.getElementById('btn-walk').classList.toggle('active', mode === 'walk');
+  hint.textContent = mode === 'orbit'
+    ? 'Drag to look · Pinch to zoom'
+    : 'Joystick or WASD to walk · Drag to look';
+  if (mode === 'walk') {
+    // drop the player near current camera if reasonable, else at approach
+    walk.x = camera.position.x;
+    walk.z = camera.position.z;
+    if (walk.z > 50 || walk.z < -40 || Math.abs(walk.x) > 30) {
+      walk.x = 0; walk.z = -16;
+    }
+    walk.yaw = Math.atan2(
+      orbit.target.x - camera.position.x,
+      orbit.target.z - camera.position.z
+    );
+    walk.pitch = 0;
+  } else {
+    orbit.target.set(walk.x + Math.sin(walk.yaw) * 6, groundY(walk.x, walk.z) + 1.2, walk.z + Math.cos(walk.yaw) * 6);
+    orbit.update();
+  }
+}
+document.getElementById('btn-orbit').onclick = () => setMode('orbit');
+document.getElementById('btn-walk').onclick = () => setMode('walk');
+document.getElementById('btn-reset').onclick = () => {
+  setMode('orbit');
+  applyView('wide');
+};
+
+window.addEventListener('keydown', e => { keys[e.code] = true; });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+let draggingLook = false, lastLX = 0, lastLY = 0;
+canvas.addEventListener('pointerdown', e => {
+  if (mode !== 'walk') return;
+  if (e.target === joyEl || e.target === joyKnob) return;
+  draggingLook = true;
+  lastLX = e.clientX; lastLY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', e => {
+  if (mode !== 'walk' || !draggingLook) return;
+  const dx = e.clientX - lastLX, dy = e.clientY - lastLY;
+  lastLX = e.clientX; lastLY = e.clientY;
+  walk.yaw -= dx * 0.005;
+  walk.pitch -= dy * 0.004;
+  walk.pitch = Math.max(-1.2, Math.min(1.1, walk.pitch));
+});
+canvas.addEventListener('pointerup', () => { draggingLook = false; });
+
+function joyPos(e) {
+  const r = joyEl.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  let dx = (e.clientX - cx) / (r.width * 0.5);
+  let dy = (e.clientY - cy) / (r.height * 0.5);
+  const m = Math.hypot(dx, dy);
+  if (m > 1) { dx /= m; dy /= m; }
+  return { dx, dy };
+}
+function setJoy(dx, dy) {
+  joy.dx = dx; joy.dy = dy;
+  joyKnob.style.transform = `translate(${dx * 36}px, ${dy * 36}px)`;
+}
+joyEl.addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation();
+  joy.active = true; joy.id = e.pointerId;
+  joyEl.setPointerCapture(e.pointerId);
+  const p = joyPos(e); setJoy(p.dx, p.dy);
+});
+joyEl.addEventListener('pointermove', e => {
+  if (!joy.active) return;
+  const p = joyPos(e); setJoy(p.dx, p.dy);
+});
+function endJoy() { joy.active = false; setJoy(0, 0); }
+joyEl.addEventListener('pointerup', endJoy);
+joyEl.addEventListener('pointercancel', endJoy);
+
+function updateWalk(dt) {
+  let fwd = 0, str = 0;
+  if (keys['KeyW'] || keys['ArrowUp']) fwd += 1;
+  if (keys['KeyS'] || keys['ArrowDown']) fwd -= 1;
+  if (keys['KeyA'] || keys['ArrowLeft']) str -= 1;
+  if (keys['KeyD'] || keys['ArrowRight']) str += 1;
+  if (joy.active) { str += joy.dx; fwd -= joy.dy; }
+  const speed = (keys['ShiftLeft'] || keys['ShiftRight'] ? 7.5 : 4.2);
+  const len = Math.hypot(fwd, str) || 1;
+  fwd /= len; str /= len;
+  const sy = Math.sin(walk.yaw), cy = Math.cos(walk.yaw);
+  const nx = walk.x + (sy * fwd + cy * str) * speed * dt;
+  const nz = walk.z + (cy * fwd - sy * str) * speed * dt;
+  // stay in bounds
+  walk.x = Math.max(-22, Math.min(22, nx));
+  walk.z = Math.max(-24, Math.min(PLINTH_Z1 + 1, nz));
+  // block the solid plinth face if trying to walk into walls beside stairs at mid-height
+  const gy = groundY(walk.x, walk.z);
+  const eyeY = gy + walk.eye;
+  camera.position.set(walk.x, eyeY, walk.z);
+  const lx = walk.x + Math.sin(walk.yaw) * Math.cos(walk.pitch);
+  const ly = eyeY + Math.sin(walk.pitch);
+  const lz = walk.z + Math.cos(walk.yaw) * Math.cos(walk.pitch);
+  camera.lookAt(lx, ly, lz);
+}
+
+/* ---------- resize / loop ---------- */
+function onResize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w / Math.max(1, h);
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.setSize(w, h, false);
+}
+window.addEventListener('resize', onResize);
+
+const clock = new THREE.Clock();
+let ready = false;
+
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+  waterUniforms.uTime.value = t;
+  sigilLight.intensity = 50 + Math.sin(t * 1.6) * 8;
+  for (let i = 0; i < brazierLights.length; i++) {
+    const flick = 0.85 + Math.sin(t * 7.1 + i * 1.7) * 0.12 + Math.sin(t * 13.0 + i) * 0.08;
+    if (!brazierLights[i].userData.init) {
+      brazierLights[i].userData.base = 90;
+      brazierLights[i].userData.init = true;
+    }
+    brazierLights[i].intensity = brazierLights[i].userData.base * flick;
+  }
+  for (let i = 0; i < flames.length; i++) {
+    const s = 0.9 + Math.sin(t * 9 + i * 0.9) * 0.12;
+    flames[i].scale.set(s * (i % 2 ? 0.85 : 1), s * (1 + Math.sin(t * 11 + i) * 0.08), 1);
+  }
+  if (mode === 'orbit') orbit.update();
+  else updateWalk(dt);
+  renderer.render(scene, camera);
+  if (!ready) {
+    ready = true;
+    window.__SHRINE_READY = true;
+    var bootEl = document.getElementById('boot');
+    if (bootEl) bootEl.classList.add('hidden');
+  }
+}
+
+window.__setView = function (name) {
+  setMode('orbit');
+  applyView(name);
+  renderer.render(scene, camera);
+};
+window.__SHRINE_READY = false;
+
+tick();
+onResize();
+} catch (err) {
+  if (window.__shrineFail) window.__shrineFail(err);
+  else console.error(err);
+}
+</script>
+</body>
+</html>
