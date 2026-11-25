@@ -440,6 +440,7 @@ export function installMultiplayer(api) {
         if (phase === 'countdown') setCountdown(0);
         else if (phase === 'waiting') fightAt = now() - 5000;
         phase = 'fight';
+        const hh = api.getPlayHandle && api.getPlayHandle(); if (hh && hh.setCombat) hh.setCombat(true);
       },
       onHit: function (hit) {
         const h = api.getPlayHandle && api.getPlayHandle();
@@ -516,6 +517,10 @@ export function installMultiplayer(api) {
     if (!mp || !arg || !mp.sendFx) return;
     if (ev === 'proj') { mp.sendFx({ t: 'p', kind: arg.kind, x: arg.x, y: arg.y, z: arg.z, dx: arg.dx, dy: arg.dy, dz: arg.dz }); return; }
     if (ev === 'grenade') { mp.sendFx({ t: 'g', x: arg.x, y: arg.y, z: arg.z, vx: arg.vx, vy: arg.vy, vz: arg.vz }); return; }
+    if (ev === 'boss_warp') { mp.sendFx({ t: 'w', x: arg.x, y: arg.y, z: arg.z, tx: arg.tx, ty: arg.ty, tz: arg.tz }); return; }
+    if (ev === 'boss_rise') { mp.sendFx({ t: 'u', x: arg.x, y: arg.y, z: arg.z }); return; }
+    if (ev === 'boss_pose') { mp.sendFx({ t: 's', x: arg.x, y: arg.y, z: arg.z, hp: arg.hp, yaw: arg.yaw, state: arg.state }); return; }
+    if (ev === 'boss_hit') { if (canDamage() && arg && arg.targetId) mp.sendHit({ targetId: arg.targetId, dmg: arg.dmg || 18 }); return; }
     if (ev !== 'boom') return;
     mp.sendFx({ t: 'b', x: arg.x, y: arg.y, z: arg.z, rad: arg.rad, src: arg.src });
     if (!canDamage() || !(arg.dmg > 0)) return;
@@ -580,7 +585,7 @@ export function installMultiplayer(api) {
         // Enemies are simulated locally and are not sent over the relay, so a
         // room full of clients would each see a different fight. Skip them in
         // multiplayer rooms; single-player playtest is unchanged.
-        const extra = { autoPlay: true, spawnIndex: spawnIndex, skipEnemies: true, multiplayer: true };
+        const extra = { autoPlay: true, spawnIndex: spawnIndex, skipEnemies: true, multiplayer: true, driveBoss: !!isHost, getPeers: function () { return mp.getPeers ? mp.getPeers() : []; } };
         if (spawnPoint) extra.spawnPoint = spawnPoint;
         if (override) extra.levelOverride = override;
         let handle = api.getPlayHandle && api.getPlayHandle();

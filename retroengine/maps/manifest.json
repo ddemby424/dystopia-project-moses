@@ -1,8 +1,8 @@
 {
   "pack": "RetroEngine Trial Map Pack 1",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "created": "2026-11-23",
-  "credit": "Darcy D. Demby, Chief Software Architect — DembySoftwareSystems — Making cool tools with AI...",
+  "credit": "Darcy D. Demby, Chief Software Architect \u2014 DembySoftwareSystems \u2014 Making cool tools with AI...",
   "maps": [
     {
       "slug": "plant4-lockdown",
@@ -182,7 +182,7 @@
       "slug": "site12-dataworks",
       "name": "Site 12: Dataworks",
       "file": "site12-dataworks.retro",
-      "blurb": "A 128×128 factory and data-center compound. Cross the outdoor yard, indoor halls, catwalks and clean lab wing. Single-player: stock Heavy Walkers, Gun Drones and other built-in enemies; clear the Hostiles counter and reach the south yard exit pad. Eight spawns still fill a multiplayer room of eight (bots are disabled in shared rooms).",
+      "blurb": "A 128\u00d7128 factory and data-center compound. Cross the outdoor yard, indoor halls, catwalks and clean lab wing. Single-player: stock Heavy Walkers, Gun Drones and other built-in enemies; clear the Hostiles counter and reach the south yard exit pad. Eight spawns still fill a multiplayer room of eight (bots are disabled in shared rooms).",
       "w": 128,
       "h": 128,
       "par": 400,
@@ -242,8 +242,57 @@
         "terminal",
         "vat",
         "vent"
-      ],
-      "path": "/workspace/dystopia-pages/retroengine/maps/site12-dataworks.retro"
+      ]
+    },
+    {
+      "slug": "marble-shrine",
+      "name": "The Marble Shrine",
+      "file": "marble-shrine.retro",
+      "blurb": "A tall white-marble shrine under a night sky. Climb the grand stair to a high plaza, descend into a sunken pool, clear the minions, and face the minotaur that rises from the throne. Eight spawns still fill a multiplayer room (minion bots stay off in shared rooms; the host drives the boss).",
+      "w": 80,
+      "h": 96,
+      "par": 360,
+      "sky": "night",
+      "track": "crypto",
+      "ents": {
+        "enemy:grunt": 8,
+        "enemy:turret": 4,
+        "enemy:heavy": 4,
+        "enemy:drone": 3,
+        "enemy:minotaur": 1,
+        "pickup:w_shotgun": 1,
+        "pickup:ammo_shells": 1,
+        "pickup:health": 4,
+        "pickup:w_rifle": 1,
+        "pickup:ammo_bullets": 1,
+        "pickup:medkit": 3,
+        "pickup:armor": 1,
+        "pickup:grenades": 2,
+        "pickup:w_law": 1,
+        "pickup:w_rocket": 1,
+        "pickup:ammo_rockets": 2,
+        "pickup:armor_heavy": 1,
+        "exit": 1,
+        "light": 21,
+        "prop": 35
+      },
+      "enemies": 20,
+      "pickups": 19,
+      "exits": 1,
+      "reachable": 6720,
+      "bytes": 26301,
+      "errors": [],
+      "warns": [],
+      "hero": null,
+      "spawns": 8,
+      "props": 35,
+      "lights": 21,
+      "propTypes": [
+        "brazier",
+        "minotaur_statue",
+        "sigil",
+        "throne"
+      ]
     }
   ]
 }

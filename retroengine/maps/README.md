@@ -1,6 +1,6 @@
 # RetroEngine Trial Map Pack 1
 
-Five maps for early trial users of RetroEngine: four escape-pad campaigns and one 128×128 multiplayer compound.
+Six maps for early trial users of RetroEngine: four escape-pad campaigns, one 128×128 multiplayer compound, and a marble minotaur shrine.
 
 | Map | File | Theme |
 | --- | --- | --- |
@@ -9,6 +9,7 @@ Five maps for early trial users of RetroEngine: four escape-pad campaigns and on
 | Nightwatch: Helipad | `nightwatch-helipad.retro` | Night city roofs and a skybridge. Climb the block, take the helipad from the Titan. |
 | Cellblock Yard | `cellblock-yard.retro` | Outdoor prison yard / secured compound. Sidewalks, curbs, chain-link and brick, towers and a sniper catwalk, Titan in the sally port. |
 | Site 12: Dataworks | `site12-dataworks.retro` | 128×128 factory and data-center compound. Outdoor yard, indoor halls, raised catwalks, clean bright lab wing, eight spread-out spawns, and a single-player fight with stock Heavy Walkers, Gun Drones and other built-in enemies (disabled in multiplayer rooms). Music: Industrial Revolution (Kevin MacLeod, CC BY 4.0). |
+| The Marble Shrine | `marble-shrine.retro` | 80×96 white-marble shrine. Tall stair to a high plaza, sunken pool and throne. Single-player: clear stock minions, then a minotaur boss rises from the throne (warp and palm shot). Eight spawns; in shared rooms minion bots stay off and the host drives the boss. Music: Crypto (Kevin MacLeod, CC BY 4.0). |
 
 Each map is beatable: the exit pad is reachable from the start once you have the keys, stairs are stepable, and ammo, health and a rocket launcher sit in front of the boss.
 

@@ -57,6 +57,9 @@ const READY_TAG = 'ready';
 //   fx:p:<kind>:<dx>:<dy>:<dz>   projectile launched (rocket / LAW)
 //   fx:g:<vx>:<vy>:<vz>          grenade thrown
 //   fx:b:<radius>:<src>          blast went off (src r=rocket g=grenade b=barrel)
+//   fx:w:<tx>:<ty>:<tz>         minotaur warp (origin in x,y,z; dest in tx,ty,tz)
+//   fx:u                         minotaur awakens
+//   fx:s:<hp>:<yaw>:<state>      minotaur pose (host, throttled)
 const FX_TAG = 'fx:';
 
 function decodeFx(msg) {
@@ -66,6 +69,9 @@ function decodeFx(msg) {
   if (parts[0] === 'p') return Object.assign(base, { kind: parts[1] || 'rocket', dx: n(2), dy: n(3), dz: n(4) });
   if (parts[0] === 'g') return Object.assign(base, { vx: n(1), vy: n(2), vz: n(3) });
   if (parts[0] === 'b') return Object.assign(base, { rad: n(1) || 2, src: parts[2] || 'r' });
+  if (parts[0] === 'w') return Object.assign(base, { tx: n(1), ty: n(2), tz: n(3) });
+  if (parts[0] === 'u') return base;
+  if (parts[0] === 's') return Object.assign(base, { hp: n(1), yaw: n(2), state: parts[3] || '' });
   return null;
 }
 
@@ -523,6 +529,9 @@ export function connect(url, room, profile, options) {
     if (fx.t === 'p') tag = 'p:' + String(fx.kind || 'rocket').replace(/[^a-z0-9_]/gi, '') + ':' + r(fx.dx) + ':' + r(fx.dy) + ':' + r(fx.dz);
     else if (fx.t === 'g') tag = 'g:' + r(fx.vx) + ':' + r(fx.vy) + ':' + r(fx.vz);
     else if (fx.t === 'b') tag = 'b:' + r(fx.rad) + ':' + String(fx.src || 'r').charAt(0);
+    else if (fx.t === 'w') tag = 'w:' + r(fx.tx) + ':' + r(fx.ty) + ':' + r(fx.tz);
+    else if (fx.t === 'u') tag = 'u';
+    else if (fx.t === 's') tag = 's:' + r(fx.hp) + ':' + r(fx.yaw) + ':' + String(fx.state || '').replace(/[^a-z_]/g, '').slice(0, 12);
     else return false;
     return sendRaw({ type: 'shot', x: r(fx.x), y: r(fx.y), z: r(fx.z), yaw: 0, weapon: FX_TAG + tag });
   }

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.0 (2026-11-25): The Marble Shrine, minotaur boss, warp and palm shot
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.4.0**), powered by DMB Tech 1 **1.2.0**.
+
+- **New map: The Marble Shrine** (`maps/marble-shrine.retro`, 80×96). A larger, gritty white-marble shrine under a night sky: a tall stair (16 steps, 2.4 units) up to a high plaza, then steps down into a sunken ankle-deep pool with a border walkway, a throne at the back, occult sigils, dim flickering braziers, and fog. Marble is procedural (veined, stained, dark). Single-player: clear 19 stock minions (grunts, drones, heavies, turrets), then the boss rises from the throne. The exit pad is behind the throne. Music: Crypto (Kevin MacLeod, CC BY 4.0).
+- **Minotaur boss.** A realistic minotaur (Brazen Minotaur by Alice Liu, CC0, Gobkit — see CREDITS) sits on the throne until every minion is dead, then rises and attacks. Big health bar, melee, a **warp** (fades out and reappears near a player with a telegraph ring and pillar), and a glowing **palm projectile** aimed at the nearest player, slow enough to dodge. If the GLB fails to load, a procedural stand-in is used. Statues around the shrine use the same model, stone-tinted and unanimated.
+- **Victory.** When the minotaur falls, the game shows "THE MINOTAUR FALLS — the shrine is quiet" (the level script also notes that the way behind the throne is open). Walk to the exit pad to finish.
+- **Multiplayer sync (host-driven, no new relay messages).** Shared rooms still skip minion bots so they cannot desync. The minotaur still spawns. Only the **host** runs its AI (`driveBoss`). The boss stays seated until **FIGHT!** (`setCombat`). Warp, rise, pose and the palm bolt ride on the existing `shot` message as `fx:` tags (`p:palm`, `w`, `u`, `s`); pose is throttled to about 4 Hz. Damage the boss deals to players is shooter-authoritative on the existing `hit` message, the same as other weapons. The host targets the nearest player (any peer). Joiner machines apply the visuals and do not run combat AI.
+- **Outdoor shots.** Projectiles over a sky ceiling can travel up to height 12, so a palm bolt on the 2.4 plaza is not clipped by the old wall-height cap.
+- **Gold trim and columns.** The shrine hall has worn, slightly metallic gold trim on baseboards, cornices, stair edges, the pool border and the throne, plus rows of instanced white-marble columns with a carved, faintly glowing occult sigil. Shared geometry and materials, so it stays light on a phone.
+- **Floors taller than 1.** `normalizeLevel` now allows floor height up to 6, so grand stairs and raised plazas stay intact.
+- Editor: minotaur enemy (`!`), minotaur statue, throne, brazier and sigil props; marble and water textures; height presets 1.2 / 1.8 / 2.4.
+- Memory: pool and dispose stay in line with 1.3.0 (water planes and materials are disposed when a level unloads).
+
+
 ## 1.3.0 (2026-11-24): map, LAW launcher, big explosions, grenades, signs
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
