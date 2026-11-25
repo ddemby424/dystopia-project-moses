@@ -664,9 +664,13 @@ const WEAPON_DEFS = [
   { id: 'shotgun', name: 'Combat Shotgun',  ammo: 'shells',  cd: 0.85, dmg: 9,  pellets: 8, spread: 0.085, snd: 'shotgun' },
   { id: 'rifle',   name: 'Assault Rifle',     ammo: 'bullets', cd: 0.095,dmg: 10, pellets: 1, spread: 0.03, auto: true, snd: 'rifle' },
   { id: 'plasma',  name: 'Plasma Caster',   ammo: 'cells',   cd: 0.12, dmg: 20, proj: 'plasma', speed: 15, auto: true, snd: 'plasma' },
-  { id: 'rocket',  name: 'Rocket Launcher', ammo: 'rockets', cd: 0.9,  dmg: 110, proj: 'rocket', speed: 9, splash: 1.9, snd: 'rocket' }
+  { id: 'rocket',  name: 'Rocket Launcher', ammo: 'rockets', cd: 0.9,  dmg: 110, proj: 'rocket', speed: 9, splash: 1.9, snd: 'rocket' },
+  // 1.3.0: single-shot disposable-style tube. Faster rocket, bigger blast, corkscrew smoke trail.
+  { id: 'law',     name: 'LAW Launcher',    ammo: 'rockets', cd: 1.25, dmg: 150, proj: 'law', speed: 13, splash: 2.4, snd: 'rocket' }
 ];
-const MAG_SIZE = [0, 0, 6, 30, 40, 1], RELOAD_TIME = [0, 0, 1.7, 1.5, 1.4, 1.9];
+const MAG_SIZE = [0, 0, 6, 30, 40, 1, 1], RELOAD_TIME = [0, 0, 1.7, 1.5, 1.4, 1.9, 2.2];
+// Grenades: thrown with T (or the NADE touch button), ~2.5 s fuse, bounce off walls and floors.
+const GRENADE = { max: 5, start: 2, fuse: 2.5, dmg: 95, rad: 2.3, speed: 7.5 };
 const AMMO_MAX = { bullets: 300, shells: 60, cells: 300, rockets: 30 };
 const PICKUP_DEFS = {
   health:       { name: 'Stimpack',        give: { hp: 20 } },
@@ -684,6 +688,8 @@ const PICKUP_DEFS = {
   w_rifle:      { name: 'Assault Rifle',     give: { weapon: 3, bullets: 40 } },
   w_plasma:     { name: 'Plasma Caster',   give: { weapon: 4, cells: 40 } },
   w_rocket:     { name: 'Rocket Launcher', give: { weapon: 5, rockets: 5 } },
+  w_law:        { name: 'LAW Launcher',    give: { weapon: 6, rockets: 3 } },
+  grenades:     { name: 'Frag Grenades',   give: { grenades: 2 } },
   chip:         { name: 'Data Chip (secret)', give: { secret: 1 } }
 };
 const PROP_DEFS = {
@@ -914,7 +920,7 @@ function buildWeaponMesh(idx) {
   // First-person weapon, in camera space, barrel pointing down -Z.
   const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
   const body = mat(0x272a30, { metal: 0.8, rough: 0.5, emissive: 0x0c0d10 }), dark = mat(0x1b1e24, { metal: 0.6, rough: 0.5, emissive: 0x0a0b0e });
-  const acc = glowMat([0xffb020, 0x38bdf8, 0xf97316, 0x22d3ee, 0x7cff4f, 0xff3b30][idx] || 0xffffff);
+  const acc = glowMat([0xffb020, 0x38bdf8, 0xf97316, 0x22d3ee, 0x7cff4f, 0xff3b30, 0xff7a1a][idx] || 0xffffff);
   let mz = -0.3;
   if (idx === 0) { // wrench
     box(inner, 0.035, 0.035, 0.34, mat(0x8a8f98, { metal: 0.9, rough: 0.3 }), 0, 0, -0.12);
@@ -954,6 +960,14 @@ function buildWeaponMesh(idx) {
   } else if (idx === 5) { // rocket launcher
     cyl(inner, 0.07, 0.07, 0.6, 10, body, 0.02, 0.02, -0.2).rotation.x = Math.PI / 2; cyl(inner, 0.075, 0.075, 0.04, 10, acc, 0.02, 0.02, -0.5).rotation.x = Math.PI / 2;
     box(inner, 0.05, 0.13, 0.05, dark, 0, -0.1, -0.08).rotation.x = 0.3; box(inner, 0.03, 0.05, 0.1, dark, 0.02, 0.1, -0.18); mz = -0.52;
+  } else if (idx === 6) { // LAW: olive drab tube with flip-up sight and orange end band
+    const olive = mat(0x4a4f2c, { metal: 0.25, rough: 0.75, emissive: 0x0b0c06 });
+    cyl(inner, 0.055, 0.055, 0.66, 12, olive, 0.03, 0.02, -0.2).rotation.x = Math.PI / 2;
+    cyl(inner, 0.062, 0.062, 0.05, 12, dark, 0.03, 0.02, -0.53).rotation.x = Math.PI / 2;
+    cyl(inner, 0.062, 0.062, 0.05, 12, dark, 0.03, 0.02, 0.12).rotation.x = Math.PI / 2;
+    cyl(inner, 0.058, 0.058, 0.03, 12, acc, 0.03, 0.02, -0.47).rotation.x = Math.PI / 2;
+    box(inner, 0.012, 0.06, 0.012, dark, 0.03, 0.09, -0.36); box(inner, 0.04, 0.012, 0.012, dark, 0.03, 0.115, -0.36);
+    box(inner, 0.04, 0.11, 0.045, dark, 0.02, -0.075, -0.1).rotation.x = 0.3; mz = -0.6;
   } else { // custom slot from registerWeapon: a simple glowing rifle
     box(inner, 0.055, 0.07, 0.36, body, 0, 0, -0.14);
     cyl(inner, 0.014, 0.014, 0.22, 8, dark, 0, 0.01, -0.4).rotation.x = Math.PI / 2;
@@ -978,10 +992,13 @@ function buildPickupMesh(sub) {
   } else if (sub.indexOf('ammo_') === 0) {
     const col = { ammo_bullets: 0x4b5d23, ammo_shells: 0x7a2a1a, ammo_cells: 0x1d4f6b, ammo_rockets: 0x5a5a5a }[sub];
     box(inner, 0.26, 0.15, 0.17, mat(col, { metal: 0.3 })); box(inner, 0.27, 0.03, 0.18, glowMat(sub === 'ammo_cells' ? 0x38f2ff : 0xffc21a), 0, 0.03, 0);
+  } else if (sub === 'grenades') {
+    const gm = mat(0x3d4a26, { metal: 0.3, rough: 0.7 }), pin = mat(0x9aa0a8, { metal: 0.9, rough: 0.3 });
+    [[-0.07, 0], [0.07, 0], [0, 0.09]].forEach(o => { const b = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), gm); b.scale.y = 1.25; b.position.set(o[0], 0.08, o[1]); inner.add(b); box(inner, 0.02, 0.03, 0.02, pin, o[0], 0.17, o[1]); });
   } else if (sub.indexOf('key_') === 0) {
     const col = new THREE.Color(KEY_COLORS[sub.slice(4)]); box(inner, 0.2, 0.13, 0.02, glowMat(col)); box(inner, 0.06, 0.03, 0.025, glowMat(0x111111), -0.05, 0.03, 0);
   } else if (sub.indexOf('w_') === 0) {
-    const idx = { w_shotgun: 2, w_rifle: 3, w_plasma: 4, w_rocket: 5 }[sub]; const w = buildWeaponMesh(idx); w.scale.setScalar(1.0); w.rotation.y = Math.PI / 2; w.position.x = -0.25; inner.add(w);
+    const idx = { w_shotgun: 2, w_rifle: 3, w_plasma: 4, w_rocket: 5, w_law: 6 }[sub]; const w = buildWeaponMesh(idx); w.scale.setScalar(1.0); w.rotation.y = Math.PI / 2; w.position.x = -0.25; inner.add(w);
   } else {
     inner.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x0e7490, roughness: 0.2, metalness: 0.3, flatShading: true })));
   }
@@ -1128,6 +1145,135 @@ function applyTeamTint(root, hex) {
     o.frustumCulled = false;
   });
 }
+/* ---------- 1.3.0: procedural FX textures (canvas, generated at run time, no downloads) ----------
+   Everything here is created ONCE and shared: trail/explosion smoke is one Points buffer per level,
+   scorch marks share one geometry + two materials, fireballs come from a fixed pool, rockets and
+   grenades share geometries and per-colour materials. Nothing is allocated per puff. */
+let _fx = null;
+function fxShared() {
+  if (_fx) return _fx;
+  const add = { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false };
+  _fx = {
+    plane: new THREE.PlaneGeometry(1, 1),
+    scorchFloor: new THREE.MeshBasicMaterial({ map: scorchTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, opacity: 0.85 }),
+    scorchWall: new THREE.MeshBasicMaterial({ map: scorchTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, opacity: 0.8 }),
+    fbGeo: new THREE.SphereGeometry(0.3, 14, 10), coreGeo: new THREE.SphereGeometry(0.22, 12, 8),
+    nadeGeo: new THREE.SphereGeometry(0.055, 10, 8), ledGeo: new THREE.SphereGeometry(0.018, 6, 4), ledMat: new THREE.MeshBasicMaterial({ color: 0xff2a1a }),
+    projMats: {}, add
+  };
+  return _fx;
+}
+function projMats(color) {
+  const F = fxShared(); if (F.projMats[color]) return F.projMats[color];
+  const core = new THREE.MeshBasicMaterial(Object.assign({ color, opacity: 0.95 }, F.add)), halo = new THREE.MeshBasicMaterial(Object.assign({ color, opacity: 0.28 }, F.add));
+  return (F.projMats[color] = { core, halo });
+}
+let _puffTex = null, _scorchTex = null;
+function puffTexture() {
+  if (_puffTex) return _puffTex;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  const g = x.createRadialGradient(32, 32, 2, 32, 32, 31); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  x.globalCompositeOperation = 'destination-out';            // a few soft holes so puffs look billowy, not like discs
+  for (let i = 0; i < 9; i++) { const a = i * 2.4, r = 10 + (i % 3) * 5; const h = x.createRadialGradient(32 + Math.cos(a) * r, 32 + Math.sin(a) * r, 0, 32 + Math.cos(a) * r, 32 + Math.sin(a) * r, 7); h.addColorStop(0, 'rgba(0,0,0,.35)'); h.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = h; x.fillRect(0, 0, 64, 64); }
+  _puffTex = new THREE.CanvasTexture(c); return _puffTex;
+}
+function scorchTexture() {
+  if (_scorchTex) return _scorchTex;
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  const g = x.createRadialGradient(64, 64, 4, 64, 64, 62); g.addColorStop(0, 'rgba(8,6,4,.95)'); g.addColorStop(0.5, 'rgba(14,10,8,.7)'); g.addColorStop(1, 'rgba(20,16,12,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 26; i++) { const a = i * 0.97, l = 30 + (i * 37 % 28); x.strokeStyle = 'rgba(10,8,6,.35)'; x.lineWidth = 2 + (i % 3); x.beginPath(); x.moveTo(64, 64); x.lineTo(64 + Math.cos(a) * l, 64 + Math.sin(a) * l); x.stroke(); }
+  _scorchTex = new THREE.CanvasTexture(c); return _scorchTex;
+}
+
+/* ---------- 1.3.0: signs ----------
+   Sparse wall signs (sector markers, fire exits, weathered company plates). Placement is
+   seeded by the level (name + size), so every client in a room sees the same signs.
+   Company names are invented. Textures are drawn on a canvas; nothing is downloaded. */
+const SIGN_COMPANIES = [
+  ['VANTREL HEAVY INDUSTRIES', 'AUTHORIZED PERSONNEL ONLY'], ['OSKARNE FREIGHT CO.', 'LOADING DOCK 3'], ['HELIX-9 RECLAMATION', 'HAZMAT ZONE \u00b7 MASKS REQUIRED'],
+  ['MOREAU & BLACKE CHEMWORKS', 'EST. 2031'], ['ARGENT VALE SMELTING', 'HARD HATS BEYOND THIS POINT'], ['TOLLAN GRID AUTHORITY', 'HIGH VOLTAGE'],
+  ['KORVATH DATA SYSTEMS', 'SERVER WING \u00b7 BADGE ACCESS'], ['GREYMARSH PLASTICS', 'SHIFT B ENTRANCE'], ['IRONVEIL SECURITY', 'CHECKPOINT AHEAD']
+];
+function hashStr(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const _signTex = {};
+function signTexture(type, text, sub) {
+  const key = type + '|' + text + '|' + (sub || ''); if (_signTex[key]) return _signTex[key];
+  const W = 256, H = 128, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'), rnd = mulberry(hashStr(key));
+  const fit = (t, max, px, font) => { let sz = px; do { x.font = font.replace('#', sz); sz -= 2; } while (x.measureText(t).width > max && sz > 10); };
+  if (type === 'exit') {
+    x.fillStyle = '#0c7a3c'; x.fillRect(0, 0, W, H); x.strokeStyle = '#e8fff0'; x.lineWidth = 6; x.strokeRect(6, 6, W - 12, H - 12);
+    x.fillStyle = '#f2fff6'; x.strokeStyle = '#f2fff6'; x.lineCap = 'round'; x.lineWidth = 9;
+    x.beginPath(); x.arc(52, 34, 10, 0, 7); x.fill();
+    const seg = (a, b, c2, d) => { x.beginPath(); x.moveTo(a, b); x.lineTo(c2, d); x.stroke(); };
+    seg(50, 48, 42, 76); seg(48, 54, 66, 62); seg(48, 54, 30, 60); seg(42, 76, 60, 98); seg(42, 76, 28, 92); seg(28, 92, 18, 102);
+    x.fillRect(84, 26, 6, 78); x.textBaseline = 'middle'; fit('EXIT', 130, 58, 'bold #px sans-serif'); x.fillText('EXIT', 102, 66);
+    x.beginPath(); x.moveTo(236, 66); x.lineTo(218, 52); x.lineTo(218, 80); x.closePath(); x.fill();
+  } else if (type === 'sector') {
+    x.fillStyle = '#b8931f'; x.fillRect(0, 0, W, H); x.fillStyle = '#161616';
+    for (let i = -H; i < W; i += 28) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 14, 0); x.lineTo(i + 14 + H, H); x.lineTo(i + H, H); x.closePath(); x.fill(); }
+    x.fillStyle = '#1b1d1f'; x.fillRect(14, 16, W - 28, H - 32);
+    x.fillStyle = '#e6c84a'; x.textBaseline = 'middle'; fit(text, sub ? 176 : 214, 42, 'bold #px monospace'); x.fillText(text, 26, H / 2 + 2);
+    if (sub) { x.beginPath(); const ax = 226, l = sub === 'L' ? -1 : 1; x.moveTo(ax + 14 * l, 64); x.lineTo(ax - 8 * l, 48); x.lineTo(ax - 8 * l, 80); x.closePath(); x.fill(); }
+  } else {
+    const pal = [['#b9b2a2', '#2a2622'], ['#34424f', '#d8dde2'], ['#5b2320', '#e9dcc8'], ['#4a4a3c', '#e3dcc2']][Math.floor(rnd() * 4)];
+    x.fillStyle = pal[0]; x.fillRect(0, 0, W, H); x.strokeStyle = pal[1]; x.globalAlpha = 0.6; x.lineWidth = 3; x.strokeRect(9, 9, W - 18, H - 18); x.globalAlpha = 1;
+    x.fillStyle = pal[1]; x.textBaseline = 'middle'; fit(text, 222, 30, 'bold #px serif'); x.fillText(text, 17, 52);
+    fit(sub || '', 222, 15, '#px monospace'); x.globalAlpha = 0.8; x.fillText(sub || '', 18, 90); x.globalAlpha = 1;
+    x.fillStyle = 'rgba(0,0,0,.45)'; [[16, 16], [W - 16, 16], [16, H - 16], [W - 16, H - 16]].forEach(b => { x.beginPath(); x.arc(b[0], b[1], 4, 0, 7); x.fill(); });
+  }
+  // weathering: grime, rust streaks, scratches, uneven fade
+  for (let i = 0; i < 70; i++) { x.fillStyle = 'rgba(' + (30 + rnd() * 30 | 0) + ',' + (22 + rnd() * 18 | 0) + ',14,' + (rnd() * 0.18).toFixed(2) + ')'; x.beginPath(); x.arc(rnd() * W, rnd() * H, 1 + rnd() * (type === 'exit' ? 4 : 9), 0, 7); x.fill(); }
+  for (let i = 0; i < (type === 'exit' ? 2 : 6); i++) { const sx = rnd() * W, sy = rnd() * H * 0.5, g = x.createLinearGradient(0, sy, 0, sy + 40 + rnd() * 70); g.addColorStop(0, 'rgba(120,62,24,.45)'); g.addColorStop(1, 'rgba(120,62,24,0)'); x.fillStyle = g; x.fillRect(sx, sy, 2 + rnd() * 5, 110); }
+  x.strokeStyle = 'rgba(255,255,255,.1)'; x.lineWidth = 1; for (let i = 0; i < 14; i++) { const sx = rnd() * W, sy = rnd() * H; x.beginPath(); x.moveTo(sx, sy); x.lineTo(sx + rnd() * 40 - 20, sy + rnd() * 10 - 5); x.stroke(); }
+  const v = x.createRadialGradient(W / 2, H / 2, 30, W / 2, H / 2, W * 0.62); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,' + (type === 'exit' ? 0.25 : 0.5) + ')'); x.fillStyle = v; x.fillRect(0, 0, W, H);
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 2; _signTex[key] = t; return t;
+}
+// Deterministic sign list for a level (also used by tests to compare clients).
+function planSigns(L) {
+  const rnd = mulberry(hashStr('signs|' + (L.name || '') + '|' + L.w + 'x' + L.h)), W = L.w, H = L.h, cands = [];
+  const open = (x, y) => x >= 0 && y >= 0 && x < W && y < H && !L.wall[y * W + x] && !L.kind[y * W + x];
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    if (!cellIsSolidStatic(L, x, y)) continue;
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(d => { if (open(x + d[0], y + d[1])) cands.push([x, y, d[0], d[1]]); });
+  }
+  for (let i = cands.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = cands[i]; cands[i] = cands[j]; cands[j] = t; }
+  const want = Math.max(3, Math.min(16, Math.round(cands.length / 120))), out = [];
+  for (const c of cands) {
+    if (out.length >= want) break;
+    if (out.some(o => Math.abs(o.x - c[0]) + Math.abs(o.y - c[1]) < 9)) continue;
+    const r = rnd(); let type, text, sub = '';
+    if (r < 0.4) { type = 'sector'; text = 'SECTOR ' + (1 + Math.floor(rnd() * 9)) + '-' + 'ABCDEFGH'[Math.floor(rnd() * 8)]; sub = ['', 'L', 'R'][Math.floor(rnd() * 3)]; }
+    else if (r < 0.65) { type = 'exit'; text = 'EXIT'; }
+    else { type = 'company'; const co = SIGN_COMPANIES[Math.floor(rnd() * SIGN_COMPANIES.length)]; text = co[0]; sub = co[1]; }
+    out.push({ x: c[0], y: c[1], dx: c[2], dy: c[3], type, text, sub });
+  }
+  return out;
+}
+function placeSigns(L, world) {
+  const list = planSigns(L), wallH = (L.props && L.props.wallH) || 1.5;
+  const geo = new THREE.PlaneGeometry(1, 0.5);
+  list.forEach(sg => {
+    const nx = sg.x + sg.dx, ny = sg.y + sg.dy, fh = (L.fh && L.fh[ny * L.w + nx]) || 0;
+    const exit = sg.type === 'exit', w = exit ? 0.46 : sg.type === 'sector' ? 0.7 : 0.92;
+    const hgt = Math.min(fh + wallH - w * 0.3, fh + (exit ? 1.2 : 0.95));
+    const tex = signTexture(sg.type, sg.text, sg.sub);
+    const m = new THREE.Mesh(geo, exit ? new THREE.MeshBasicMaterial({ map: tex, color: 0xd8ffe4 }) : new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.2, roughness: 0.92, metalness: 0.08, polygonOffset: true, polygonOffsetFactor: -1 }));
+    m.scale.set(w, w, 1);
+    const off = 0.012, px = sg.dx ? (sg.dx > 0 ? sg.x + 1 + off : sg.x - off) : sg.x + 0.5, pz = sg.dy ? (sg.dy > 0 ? sg.y + 1 + off : sg.y - off) : sg.y + 0.5;
+    m.position.set(px, hgt, pz);
+    m.rotation.y = sg.dx > 0 ? Math.PI / 2 : sg.dx < 0 ? -Math.PI / 2 : sg.dy > 0 ? 0 : Math.PI;
+    m.userData.sign = sg; world.add(m);
+    if (exit) {   // soft green glow around fire-exit signs
+      const halo = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x2bff7a, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }));
+      halo.scale.set(1.6, 1.9, 1); halo.position.z = -0.005; m.add(halo);
+    }
+  });
+  return list;
+}
+
 function buildPlayerFallback(def, bodyH) {
   const team = new THREE.Color((def && def.tintColor) || '#8899aa');
   const hull = mat(team.clone().multiplyScalar(0.72).getHex(), { metal: 0.55, rough: 0.45, noMap: true, emissive: 0x0d0f14 });
@@ -1287,7 +1433,7 @@ linear-gradient(45deg,transparent 46%,#ff5a3c 46%,#ff5a3c 54%,transparent 54%),l
 .dfg-vig{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(200,0,0,.65) 100%)}
 .dfg-pick{position:absolute;inset:0;pointer-events:none;opacity:0;background:rgba(255,210,120,.18)}
 .dfg-fps{position:absolute;left:12px;top:64px;font-size:11px;opacity:.7;display:none}
-.dfg-big{position:absolute;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;pointer-events:auto}
+.dfg-big{position:absolute;inset:0;background:rgba(4,6,4,.42);display:none;align-items:center;justify-content:center;pointer-events:none}
 .dfg-big canvas{max-width:92%;max-height:86%;image-rendering:pixelated;border-radius:10px;border:1px solid rgba(255,255,255,.15)}
 .dfg-menu{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(10,12,18,.55),rgba(0,0,0,.85));pointer-events:auto;z-index:20}
 .dfg-panel{width:min(420px,92vw);max-height:88%;overflow:auto;padding:20px 20px 16px}
@@ -1329,6 +1475,8 @@ linear-gradient(45deg,transparent 46%,#ff5a3c 46%,#ff5a3c 54%,transparent 54%),l
 .dfg-tb.swap{width:50px;height:50px;right:124px;bottom:112px;font-size:10px}
 .dfg-tb.reload{width:50px;height:50px;right:186px;bottom:112px;font-size:10px}
 .dfg-tb.run{width:50px;height:50px;left:22px;bottom:170px;font-size:10px}
+.dfg-tb.map{width:64px;height:64px;left:22px;bottom:232px;font-size:12px}.dfg-tb.map.on{background:rgba(140,200,120,.55);color:#020}
+.dfg-tb.nade{width:56px;height:56px;right:186px;bottom:40px;font-size:11px;background:rgba(80,100,40,.55)}
 .dfg-tb.run.on{background:rgba(45,226,255,.6);color:#001}
 .dfg-start-hint{position:absolute;left:0;right:0;bottom:22%;text-align:center;font-size:13px;opacity:.6}
 .dfg-root.touch .dfg-bottom{bottom:auto;top:62px;left:12px;right:auto;flex-direction:column;align-items:flex-start;transform:scale(.82);transform-origin:top left}
@@ -1555,7 +1703,7 @@ function play(container, project, opts) {
   const touch = el('div', 'dfg-touch' + (isTouch ? ' on' : ''), `
     <div class="dfg-zone" data-z="move" style="left:0;width:45%"></div><div class="dfg-zone" data-z="look" style="left:45%;right:0"></div>
     <div class="dfg-joy"><i></i></div>
-    <div class="dfg-tb run" data-t="run">RUN</div><div class="dfg-tb fire" data-t="fire">FIRE</div><div class="dfg-tb jump" data-t="jump">JUMP</div><div class="dfg-tb use" data-t="use">USE</div><div class="dfg-tb swap" data-t="swap">SWAP</div><div class="dfg-tb reload" data-t="reload">RLD</div>`);
+    <div class="dfg-tb run" data-t="run">RUN</div><div class="dfg-tb fire" data-t="fire">FIRE</div><div class="dfg-tb jump" data-t="jump">JUMP</div><div class="dfg-tb use" data-t="use">USE</div><div class="dfg-tb swap" data-t="swap">SWAP</div><div class="dfg-tb reload" data-t="reload">RLD</div><div class="dfg-tb map" data-t="map">MAP</div><div class="dfg-tb nade" data-t="nade">NADE</div>`);
   root.appendChild(touch);
   const menu = el('div', 'dfg-menu'); root.appendChild(menu);
   const $ = s => root.querySelector(s);
@@ -1586,7 +1734,7 @@ function play(container, project, opts) {
   let G = null;        // current level's game state (rebuilt on every level load)
   let state = 'menu';  // 'menu' | 'playing' | 'paused' | 'dead' | 'won'
   let raf = 0, last = performance.now(), fpsAcc = 0, fpsN = 0, destroyed = false;
-  const carry = { hp: 100, armor: 0, ammo: { bullets: 50, shells: 0, cells: 0, rockets: 0 }, owned: [true, true, false, false, false, false], cur: 1 };
+  const carry = { hp: 100, armor: 0, ammo: { bullets: 50, shells: 0, cells: 0, rockets: 0 }, owned: [true, true, false, false, false, false, false], cur: 1, nades: GRENADE.start };
   const input = { keys: {}, mdx: 0, mdy: 0, fire: false, joyX: 0, joyY: 0, run: false, autoRun: false, dragLook: false, touchAim: false };
   let lookTouch = null, moveTouch = null, fireTouch = null;
 
@@ -1620,8 +1768,8 @@ function play(container, project, opts) {
       L, index, W, H: Hh, scene, world, sky, pool, bodyLight, muzzle, fxLight, flash, flashOn: false,
       px: L.spawn.x, py: L.spawn.y, pz: L.fh[Math.floor(L.spawn.y) * W + Math.floor(L.spawn.x)] || 0, vz: 0, onGround: true,
       yaw: L.spawn.r || 0, pitch: 0, vx: 0, vy: 0, bob: 0, stepT: 0,
-      hp: 100, armor: 0, ammo: { bullets: 50, shells: 0, cells: 0, rockets: 0 }, owned: [true, true, false, false, false, false], cur: 1, cd: 0, switchT: 0, recoil: 0, mag: MAG_SIZE.slice(), reloadT: 0, reloadMax: 1,
-      keys: {}, doors: new Map(), enemies: [], pickups: [], props: [], lights: [], exits: [], projectiles: [], particles: null, fireballs: [],
+      hp: 100, armor: 0, ammo: { bullets: 50, shells: 0, cells: 0, rockets: 0 }, owned: [true, true, false, false, false, false, false], cur: 1, nades: GRENADE.start, nadeCd: 0, grenades: [], shake: 0, scorches: [], puffs: null, fxBooms: [], signs: [], cd: 0, switchT: 0, recoil: 0, mag: MAG_SIZE.slice(), reloadT: 0, reloadMax: 1,
+      keys: {}, doors: new Map(), enemies: [], pickups: [], props: [], lights: [], exits: [], projectiles: [], particles: null, fireballs: [], fbPool: [],
       kills: 0, totalEnemies: 0, secrets: 0, totalSecrets: 0, items: 0, totalItems: 0, time: 0, flow: null, flowCell: -1, flowT: 0,
       dmgFlash: 0, pickFlash: 0, hitT: 0, msgs: [], scriptH: {}, lightT: 0, noise: null,
       playerModel: S.playerModel || 'george'
@@ -1644,7 +1792,7 @@ function play(container, project, opts) {
       }
     }
     if (keepInventory && carry.mag) g.mag = carry.mag.slice();
-    if (keepInventory) { g.hp = carry.hp; g.armor = carry.armor; g.ammo = Object.assign({}, carry.ammo); g.owned = carry.owned.slice(); g.cur = carry.cur; }
+    if (keepInventory) { g.nades = carry.nades == null ? GRENADE.start : carry.nades; g.hp = carry.hp; g.armor = carry.armor; g.ammo = Object.assign({}, carry.ammo); g.owned = carry.owned.slice(); g.cur = carry.cur; }
     // Doors: separate meshes so they can slide up into the ceiling.
     for (let i = 0; i < W * Hh; i++) {
       const k = L.kind[i]; if (!k) continue;
@@ -1689,6 +1837,8 @@ function play(container, project, opts) {
     const pts = new THREE.Points(pgeo, new THREE.PointsMaterial({ size: 0.07, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     pts.frustumCulled = false; scene.add(pts);
     g.particles = { pts, list: [], N: NP };
+    g.puffs = makePuffs(scene);
+    if (P.signs !== false) g.signs = placeSigns(L, world);
     buildMinimapBase();
     runScript();
     fire('start');
@@ -1699,6 +1849,10 @@ function play(container, project, opts) {
     remotes.slice().forEach(r => { try { r.dispose(); } catch (e) {} });
     G.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     G.projectiles.forEach(p => p.mesh && G.scene.remove(p.mesh));
+    // per-level FX materials (shared FX geometry/materials live for the whole session)
+    if (G.puffs) { G.puffs.smoke.pts.material.dispose(); G.puffs.fire.pts.material.dispose(); }
+    (G.fbPool || []).forEach(f => f.mesh.material.dispose());
+    G.scene.traverse(o => { if (o.userData && o.userData.sign) { o.material.dispose(); o.children.forEach(c => c.material && c.material.dispose()); } });
     G = null;
   }
   // Swap a procedural model for a custom GLB if the project assigns one to this slot.
@@ -1866,6 +2020,7 @@ function play(container, project, opts) {
     if (gv.hp) { if (G.hp < 100 || p.sub === 'medkit' && G.hp < 100) { G.hp = Math.min(100, G.hp + gv.hp); used = true; } }
     if (gv.armor) { if (G.armor < (gv.armor > 50 ? 200 : 100)) { G.armor = Math.min(gv.armor > 50 ? 200 : 100, G.armor + gv.armor); used = true; } }
     ['bullets', 'shells', 'cells', 'rockets'].forEach(t => { if (gv[t] && G.ammo[t] < AMMO_MAX[t]) { G.ammo[t] = Math.min(AMMO_MAX[t], G.ammo[t] + gv[t]); used = true; } });
+    if (gv.grenades) { if (G.nades < GRENADE.max) { G.nades = Math.min(GRENADE.max, G.nades + gv.grenades); used = true; } }
     if (gv.weapon !== undefined) { if (!G.owned[gv.weapon]) { G.owned[gv.weapon] = true; selectWeapon(gv.weapon); } used = true; }
     if (gv.key) { G.keys[gv.key] = true; used = true; }
     if (gv.secret) { G.secrets++; used = true; msg('SECRET FOUND!'); }
@@ -1918,7 +2073,8 @@ function play(container, project, opts) {
     if (w.ammo) { const i = G.cur; if (G.mag[i] > G.ammo[w.ammo]) G.mag[i] = G.ammo[w.ammo]; if (G.reloadT > 0) return; if (G.mag[i] <= 0) { startReload(); return; } G.mag[i]--; }
     if (w.ammo) G.ammo[w.ammo]--;
     G.cd = w.cd; G.recoil = 1; Sound.play(w.snd);
-    { const kick = [0, 0.014, 0.035, 0.007, 0.006, 0.045][G.cur] || 0; G.pitch = Math.min(1.4, G.pitch + kick * rand(0.8, 1.2)); G.yaw += kick * rand(-0.3, 0.3); G.kickT = 1; }
+    const aimPitch = G.pitch;   // aim with the pitch before this shot's kick
+    { const kick = [0, 0.014, 0.035, 0.007, 0.006, 0.045, 0.06][G.cur] || 0; G.pitch = Math.min(1.4, G.pitch + kick * rand(0.8, 1.2)); G.yaw += kick * rand(-0.3, 0.3); G.kickT = 1; }
     if (w.ammo === 'bullets' || w.ammo === 'shells') ejectShell(w.ammo === 'shells');
     { const fl = weaponMeshes[G.cur].userData.flash, r = rand(0.8, 1.35); fl.rotation.z = rand(0, Math.PI); fl.scale.set(r * 1.3, r * 1.3, 2.4 * r); }
     const eyeZ = G.pz + EYE;
@@ -1933,8 +2089,8 @@ function play(container, project, opts) {
       return;
     }
     if (w.proj) {
-      const cp = Math.cos(G.pitch);
-      let pdx = cyaw * cp, pdy = syaw * cp, pdz = Math.sin(G.pitch);
+      const cp = Math.cos(aimPitch);
+      let pdx = cyaw * cp, pdy = syaw * cp, pdz = Math.sin(aimPitch);
       const aa = aimAssistDir(pdx, pdy, pdz, eyeZ);
       if (aa) { pdx = aa.x; pdy = aa.y; pdz = aa.z; }
       if (w.spread) {
@@ -1945,6 +2101,7 @@ function play(container, project, opts) {
       }
       // Start ahead of the viewmodel / near plane so the pulse halo isn't a screen-filling box on the gun.
       spawnProj('player', w.proj, G.px + cyaw * 0.85, G.py + syaw * 0.85, eyeZ - 0.05, pdx, pdy, pdz, w.speed, w.dmg, w.splash || 0);
+      if (w.splash) fire('proj', { kind: w.proj, x: G.px + cyaw * 0.85, y: G.py + syaw * 0.85, z: eyeZ - 0.05, dx: pdx, dy: pdy, dz: pdz });
       return;
     }
     let anyHit = false;
@@ -2044,16 +2201,25 @@ function play(container, project, opts) {
     G.hp -= dmg; G.dmgFlash = Math.min(1, G.dmgFlash + 0.35 + dmg / 60); Sound.play('hurt');
     if (G.hp <= 0) { G.hp = 0; playerDie(); }
   }
-  function explode(x, y, z, dmg, rad, owner) {
+  // owner: 'player' | 'enemy' | 'barrel' | 'remote' (another player's blast, effects only).
+  // src (multiplayer tag): 'r' rocket, 'g' grenade, 'b' barrel.
+  function explode(x, y, z, dmg, rad, owner, src) {
     Sound.play('explode', distVol(x, y));
-    sparks(x, z, y, 60, 0xff9030); smoke(x, z, y, 14);
-    G.fxLight.position.set(x, z + 0.2, y); G.fxLight.intensity = 4;
-    const fb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
-    fb.position.set(x, z, y); G.scene.add(fb); G.fireballs.push({ mesh: fb, t: 0, rad });
-    if (!dmg) return;
+    const big = rad >= 1.7;
+    sparks(x, z, y, big ? 90 : 60, 0xff9030); smoke(x, z, y, 10);
+    G.fxLight.position.set(x, z + 0.25, y); G.fxLight.intensity = big ? 7 : 4; G.fxLight.distance = Math.max(7, rad * 4.5);
+    fireball(false, x, z, y, rad); fireball(true, x, z + 0.05, y, rad * 0.45);
+    // Rolling fire, then a slow column of dark smoke that hangs in the air.
+    for (let i = 0; i < 12; i++) { const a = rand(0, 6.283), sp = rand(0.6, 2.2) * rad / 2; addPuff(x, z + rand(0, 0.3), y, Math.cos(a) * sp, rand(0.2, 1.4), Math.sin(a) * sp, rand(0.35, 0.65), 0.45 * rad, 1.25 * rad, 1, rand(0.45, 0.7), 0.15, 0.95, 2.8, 0, true); }
+    for (let i = 0; i < 16; i++) { const a = rand(0, 6.283), sp = rand(0.2, 1.1) * rad / 2; addPuff(x + rand(-.2, .2), z + rand(0, 0.4), y + rand(-.2, .2), Math.cos(a) * sp, rand(0.25, 0.9), Math.sin(a) * sp, rand(2.6, 4.2), 0.4 * rad, 1.9 * rad, 0.11, 0.1, 0.09, 0.7, 1.4, 0.18, false); }
+    scorch(x, y, z, rad);
+    { const pd = Math.hypot(G.px - x, G.py - y), reach = rad * 3.5; if (pd < reach) G.shake = Math.max(G.shake, (1 - pd / reach) * Math.min(1.2, rad / 1.8)); }
+    G.fxBooms.push({ x, y, z, t: G.time, owner, src: src || "" }); if (G.fxBooms.length > 12) G.fxBooms.shift();
+    if (owner === 'player' || owner === 'barrel') fire('boom', { x, y, z, dmg, rad, owner, src: src || (owner === 'barrel' ? 'b' : 'r') });
+    if (!dmg || owner === 'remote') return;
     G.enemies.forEach(e => { if (e.state === 'dead') return; const d = Math.hypot(e.x - x, e.y - y); if (d < rad && los(x, y, e.x, e.y)) damageEnemy(e, dmg * (1 - d / rad * 0.6)); });
-    G.props.forEach(p => { if (!p.dead && p.hp) { const d = Math.hypot(p.x - x, p.y - y); if (d < rad) damageProp(p, dmg); } });
-    const pd = Math.hypot(G.px - x, G.py - y); if (pd < rad && los(x, y, G.px, G.py)) damagePlayer(dmg * (1 - pd / rad * 0.7) * (owner === 'player' ? 0.5 : 1), x, y);
+    G.props.forEach(p => { if (!p.dead && p.hp) { const d = Math.hypot(p.x - x, p.y - y); if (d < rad && los(x, y, p.x, p.y)) damageProp(p, dmg); } });
+    const pd = Math.hypot(G.px - x, G.py - y); if (pd < rad && Math.abs(G.pz + 0.4 - z) < rad && los(x, y, G.px, G.py)) damagePlayer(dmg * (1 - pd / rad * 0.7) * (owner === 'player' ? 0.5 : 1), x, y);
   }
 
   /* ---------- projectiles ---------- */
@@ -2066,11 +2232,11 @@ function play(container, project, opts) {
   }
   function spawnProj(owner, kind, x, y, z, dx, dy, dz, speed, dmg, splash) {
     const color = kind === 'plasma' ? 0x7cff4f : kind === 'pulse' ? 0x38bdf8 : kind === 'rocket' ? 0xffa040 : 0xff3b1f;
-    const mesh = new THREE.Mesh(projGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const pm = projMats(color), mesh = new THREE.Mesh(projGeo, pm.core);
     const baseScale = kind === 'rocket' ? 1.6 : kind === 'plasma' ? 1.3 : kind === 'pulse' ? 1.15 : 1.1;
     mesh.userData.baseScale = baseScale;
     mesh.scale.setScalar(baseScale);
-    const halo = new THREE.Mesh(projGeo, mesh.material.clone()); halo.material.opacity = 0.28; halo.scale.setScalar(kind === 'pulse' ? 1.7 : 2.6); mesh.add(halo);
+    const halo = new THREE.Mesh(projGeo, pm.halo); halo.scale.setScalar(kind === 'pulse' ? 1.7 : 2.6); mesh.add(halo);
     mesh.position.set(x, z, y);
     // Keep the mesh small near the camera so an additive halo (player pulse or incoming bolt)
     // doesn't read as a white cube on the first-person gun.
@@ -2089,16 +2255,213 @@ function play(container, project, opts) {
         if (p.owner === 'player') {
           for (const e of G.enemies) { if (e.state === 'dead') continue; const base = e.z + (e.def.hover ? e.def.hover - 0.22 : 0), top = base + (e.def.hover ? 0.44 : e.def.h); if (Math.hypot(e.x - p.x, e.y - p.y) < e.def.r + 0.06 && p.z > base && p.z < top) { if (!p.splash) damageEnemy(e, p.dmg); hit = true; break; } }
           for (const pr of G.props) if (!pr.dead && pr.r > 0 && Math.abs(pr.x - p.x) < pr.r && Math.abs(pr.y - p.y) < pr.r && p.z < pr.z + 1) { if (pr.hp && !p.splash) damageProp(pr, p.dmg); hit = true; }
-        } else if (Math.hypot(G.px - p.x, G.py - p.y) < PLAYER_R + 0.08 && p.z > G.pz - 0.05 && p.z < G.pz + 0.8) { if (!p.splash) damagePlayer(p.dmg, p.x, p.y); hit = true; }
+          // 1.3.0: rockets hit other players' bodies too (the blast sends the damage)
+          if (p.splash && remoteBodyAt(p.x, p.y, p.z, 0.08)) hit = true;
+        } else if (Math.hypot(G.px - p.x, G.py - p.y) < PLAYER_R + 0.08 && p.z > G.pz - 0.05 && p.z < G.pz + 0.8) { if (p.owner !== 'remote' && !p.splash) damagePlayer(p.dmg, p.x, p.y); if (p.owner !== 'remote' || p.splash) hit = true; }
       }
-      p.life -= dt; if (p.kind === 'rocket' && Math.random() < 0.7) smoke(p.x, p.z, p.y, 1);
+      p.life -= dt;
+      if (p.kind === 'rocket' || p.kind === 'law') rocketTrail(p, dt);
       if (hit || p.life <= 0) {
-        if (p.splash) explode(p.x - p.vx * 0.01, p.y - p.vy * 0.01, p.z, p.dmg, p.splash, p.owner);
+        if (p.splash) explode(p.x - p.vx * 0.01, p.y - p.vy * 0.01, p.z, p.owner === 'remote' ? 0 : p.dmg, p.splash, p.owner, 'r');
         else sparks(p.x, p.z, p.y, 8, p.kind === 'plasma' ? 0x7cff4f : 0xff6a30);
-        G.scene.remove(p.mesh); p.mesh.material.dispose(); G.projectiles.splice(i, 1); continue;
+        G.scene.remove(p.mesh); G.projectiles.splice(i, 1); continue;
       }
-      p.mesh.position.set(p.x, p.z, p.y);
+      if (p.vis) p.mesh.position.set(p.vis.x, p.vis.z, p.vis.y); else p.mesh.position.set(p.x, p.z, p.y);
       scaleProjMesh(p.mesh, p.baseScale || p.mesh.userData.baseScale || 1, p.x, p.y, p.z);
+    }
+    updateGrenades(dt);
+  }
+  /* ---------- 1.3.0: sidewinder rocket trail ----------
+     The rocket's drawn position corkscrews around its true flight line (hits still use the
+     true line). Smoke puffs are dropped every few cm of travel, so a long hallway gets one
+     continuous spiral that grows, drifts and fades over ~3.5 s. */
+  function rocketTrail(p, dt) {
+    const law = p.kind === 'law';
+    if (p.seed == null) { p.seed = Math.random() * 6.283; p.t = 0; p.emit = 0; p.last = null; }
+    p.t += dt;
+    const sp = Math.hypot(p.vx, p.vy, p.vz) || 1, dx = p.vx / sp, dy = p.vy / sp, dz = p.vz / sp;
+    // basis around the flight line (map x,y + height z)
+    let ux = -dy, uy = dx, uz = 0; const ul = Math.hypot(ux, uy) || 1; ux /= ul; uy /= ul;
+    const vx = uy * dz - uz * dy, vy = uz * dx - ux * dz, vz = ux * dy - uy * dx;
+    const r = (law ? 0.085 : 0.06) * Math.min(1, p.t * 5) * (1 + 0.4 * Math.sin(p.t * 7.3 + p.seed * 2));
+    const a = p.t * (law ? 17 : 12) + p.seed, ca = Math.cos(a) * r, sa = Math.sin(a) * r;
+    const vis = { x: p.x + ux * ca + vx * sa, y: p.y + uy * ca + vy * sa, z: p.z + uz * ca + vz * sa };
+    const last = p.last || vis;
+    p.emit += sp * dt;
+    const step = 0.09;
+    while (p.emit >= step) {
+      p.emit -= step; const f = 1 - p.emit / (sp * dt || 1);
+      const ex = last.x + (vis.x - last.x) * f, ey = last.y + (vis.y - last.y) * f, ez = last.z + (vis.z - last.z) * f;
+      { const c = rand(0.36, 0.5); addPuff(ex, ez, ey, rand(-0.06, 0.06), rand(0.02, 0.12), rand(-0.06, 0.06), rand(3.0, 4.2), 0.12, law ? 0.9 : 0.75, c, c * 0.97, c * 0.92, 0.58, 0.9, 0.05, false); }
+    }
+    // flame glow at the nozzle
+    addPuff(vis.x - dx * 0.12, vis.z - dz * 0.12, vis.y - dy * 0.12, 0, 0, 0, 0.09, law ? 0.34 : 0.26, 0.08, 1, 0.62, 0.2, 1, 0, 0, true);
+    if (Math.random() < 0.35) sparks(vis.x - dx * 0.15, vis.z - dz * 0.15, vis.y - dy * 0.15, 1, 0xffa040);
+    if (p.mesh.children[0]) p.mesh.children[0].scale.setScalar((law ? 3.4 : 2.8) * (0.85 + Math.random() * 0.3));
+    p.vis = vis; p.last = vis;
+  }
+  /* ---------- 1.3.0: soft smoke / fire puffs (one draw call, sized points) ---------- */
+  const PUFF_N = 1400;     // long hallway trails need room for ~4 s of puffs
+  function makePuffs(scene) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PUFF_N * 3), 3));
+    geo.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(PUFF_N), 1));
+    geo.setAttribute('aCol', new THREE.BufferAttribute(new Float32Array(PUFF_N * 4), 4));
+    const mk = (additive) => new THREE.ShaderMaterial({
+      uniforms: { uTex: { value: puffTexture() }, uScale: { value: 400 }, uMaxPx: { value: 256 }, fogColor: { value: new THREE.Color(scene.fog ? scene.fog.color : 0x000000) }, fogDensity: { value: scene.fog ? scene.fog.density : 0 } },
+      vertexShader: 'attribute float aSize; attribute vec4 aCol; varying vec4 vCol; varying float vFog; uniform float uScale; uniform float uMaxPx; uniform float fogDensity;\n' +
+        'void main(){ vCol = aCol; vec4 mv = modelViewMatrix * vec4(position, 1.0); float d = max(0.05, -mv.z); vCol.a *= smoothstep(0.3, 1.3, d); gl_PointSize = vCol.a < 0.004 ? 0.0 : min(uMaxPx, aSize * uScale / d); gl_Position = projectionMatrix * mv; vFog = 1.0 - exp(-fogDensity * fogDensity * d * d); }',
+      fragmentShader: 'uniform sampler2D uTex; uniform vec3 fogColor; varying vec4 vCol; varying float vFog;\n' +
+        'void main(){ vec4 t = texture2D(uTex, gl_PointCoord); float a = vCol.a * t.a; if (a < 0.01) discard; gl_FragColor = vec4(mix(vCol.rgb, fogColor, vFog), a * (1.0 - vFog * 0.6)); }',
+      transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending
+    });
+    const smokePts = new THREE.Points(geo, mk(false)); smokePts.frustumCulled = false; scene.add(smokePts);
+    const geo2 = geo.clone(); const firePts = new THREE.Points(geo2, mk(true)); firePts.frustumCulled = false; firePts.renderOrder = 2; scene.add(firePts);
+    return { smoke: { pts: smokePts, list: [] }, fire: { pts: firePts, list: [] } };
+  }
+  // fire=true puffs are additive (flame, glow); others are normal-blended smoke.
+  function addPuff(x, z, y, vx, vz, vy, life, s0, s1, r, g, b, a, drag, rise, fireP) {
+    if (!G || !G.puffs) return;
+    const P = fireP ? G.puffs.fire : G.puffs.smoke, cap = fireP ? 260 : PUFF_N;
+    if (P.list.length >= cap) P.list.shift();
+    P.list.push({ x, y, z, vx, vy, vz, life, max: life, s0, s1, r, g, b, a, drag: drag || 0, rise: rise || 0 });
+  }
+  function updatePuffs(dt) {
+    if (!G.puffs) return;
+    const scale = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
+    [G.puffs.smoke, G.puffs.fire].forEach(P => {
+      const geo = P.pts.geometry, pos = geo.attributes.position, sz = geo.attributes.aSize, col = geo.attributes.aCol;
+      P.pts.material.uniforms.uScale.value = scale;
+      // cap on-screen puff size (fill-rate guard for phones and software GL); near-camera puffs fade out in the shader
+      P.pts.material.uniforms.uMaxPx.value = Math.max(48, renderer.domElement.height * 0.3);
+      let n = 0;
+      for (let i = P.list.length - 1; i >= 0; i--) { const q = P.list[i]; q.life -= dt; if (q.life <= 0) { P.list.splice(i, 1); continue; }
+        const k = Math.exp(-q.drag * dt); q.vx *= k; q.vy *= k; q.vz = q.vz * k + q.rise * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; }
+      for (const q of P.list) {
+        const age = 1 - q.life / q.max;                       // 0 → 1
+        const fade = age < 0.08 ? age / 0.08 : Math.pow(1 - age, 1.6);
+        pos.setXYZ(n, q.x, q.z, q.y); sz.setX(n, q.s0 + (q.s1 - q.s0) * Math.sqrt(age));
+        const dark = q.s1 > q.s0 && q.r > 0.9 ? 1 - age * 0.7 : 1;   // fire cools to dark red
+        col.setXYZW(n, q.r * dark, q.g * dark * dark, q.b * dark, q.a * fade); n++;
+        if (n >= PUFF_N) break;
+      }
+      geo.setDrawRange(0, n); pos.needsUpdate = sz.needsUpdate = col.needsUpdate = true;
+    });
+  }
+  /* ---------- 1.3.0: scorch marks (small pool, floor only) ---------- */
+  // Scorch marks: at most SCORCH_MAX meshes per level; past that the oldest one is moved (no new objects).
+  const SCORCH_MAX = 20;
+  function scorchMesh(wall) {
+    const F = fxShared(); let m;
+    if (G.scorches.length >= SCORCH_MAX) { m = G.scorches.shift(); m.material = wall ? F.scorchWall : F.scorchFloor; }
+    else { m = new THREE.Mesh(F.plane, wall ? F.scorchWall : F.scorchFloor); G.scene.add(m); }
+    m.rotation.set(0, 0, 0); G.scorches.push(m); return m;
+  }
+  function scorch(x, y, z, rad) {
+    const cx = Math.floor(x), cy = Math.floor(y); if (solid(cx, cy)) return;
+    const fh = fhAt(cx, cy);
+    // Blast against a wall: burn mark on the wall face it hit.
+    const faces = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(d => solid(Math.floor(x + d[0] * 0.35), Math.floor(y + d[1] * 0.35)));
+    if (faces.length) {
+      const d = faces[0], wm = scorchMesh(true);
+      const wx = d[0] ? (d[0] > 0 ? Math.floor(x + 0.35) - 0.006 : Math.floor(x - 0.35) + 1.006) : x, wy = d[1] ? (d[1] > 0 ? Math.floor(y + 0.35) - 0.006 : Math.floor(y - 0.35) + 1.006) : y;
+      wm.rotation.y = d[0] ? -d[0] * Math.PI / 2 : (d[1] > 0 ? Math.PI : 0); wm.rotation.z = Math.random() * 6.28; wm.scale.setScalar(rad * 0.75);
+      wm.position.set(wx, Math.max(fh + rad * 0.3, Math.min(z, G.L.props.wallH - rad * 0.3)), wy);
+    }
+    if (z - fh > 0.75) return;
+    const m = scorchMesh(false);
+    m.rotation.x = -Math.PI / 2; m.rotation.z = Math.random() * 6.28; m.scale.setScalar(rad * 1.1); m.position.set(x, fh + 0.012, y);
+  }
+  /* ---------- 1.3.0: grenades ---------- */
+  function throwGrenade() {
+    if (!G || state !== 'playing' || G.nades <= 0 || G.nadeCd > 0 || G.hp <= 0) return false;
+    G.nades--; G.nadeCd = 0.7;
+    const cp = Math.cos(G.pitch), cyaw = Math.cos(G.yaw), syaw = Math.sin(G.yaw);
+    const x = G.px + cyaw * 0.35, y = G.py + syaw * 0.35, z = G.pz + EYE - 0.1;
+    const vx = cyaw * cp * GRENADE.speed + G.vx * 0.5, vy = syaw * cp * GRENADE.speed + G.vy * 0.5, vz = 2.2 + Math.sin(G.pitch) * GRENADE.speed;
+    spawnGrenade('player', x, y, z, vx, vy, vz);
+    Sound.play('wrench', 0.6);
+    fire('grenade', { x, y, z, vx, vy, vz });
+    return true;
+  }
+  function spawnGrenade(owner, x, y, z, vx, vy, vz) {
+    const g = new THREE.Group();
+    const F = fxShared();
+    const body = new THREE.Mesh(F.nadeGeo, mat(0x3d4a26, { metal: 0.3, rough: 0.7 })); body.scale.y = 1.25; g.add(body);
+    const led = new THREE.Mesh(F.ledGeo, F.ledMat); led.position.y = 0.07; g.add(led);
+    g.position.set(x, z, y); G.scene.add(g);
+    // hard cap on live grenades: the oldest one goes off now instead of piling up
+    while (G.grenades.length >= 16) { const o = G.grenades.shift(); G.scene.remove(o.mesh); explode(o.x, o.y, o.z + 0.1, o.owner === 'remote' ? 0 : GRENADE.dmg, GRENADE.rad, o.owner, 'g'); }
+    const gr = { owner, x, y, z, vx, vy, vz, fuse: GRENADE.fuse + (owner === 'remote' ? 0.15 : 0), mesh: g, led, bounces: 0 };
+    G.grenades.push(gr); return gr;
+  }
+  // Is a remote player's body at this map point? (for rockets and grenades)
+  function remoteBodyAt(x, y, z, pad) {
+    for (const r of remotes) { if (!r || r._gone || !r.mesh || !r.mesh.visible) continue; const rz = r.z || 0;
+      if (Math.hypot((r.x || 0) - x, (r.y || 0) - y) < PLAYER_R + pad && z > rz - 0.05 && z < rz + 0.85) return r; }
+    return null;
+  }
+  // Fireball pool: at most FB_MAX of each kind at once (oldest is recycled); meshes + materials made once per level.
+  const FB_MAX = 10;
+  function fireball(core, x, z, y, rad) {
+    const F = fxShared(); let f = G.fbPool.find(f => !f.on && f.core === core);
+    if (!f && G.fbPool.filter(f => f.core === core).length < FB_MAX) {
+      const m = new THREE.Mesh(core ? F.coreGeo : F.fbGeo, new THREE.MeshBasicMaterial(Object.assign({ color: core ? 0xfff0c0 : 0xffa040, opacity: 1 }, F.add)));
+      m.visible = false; G.scene.add(m); f = { mesh: m, core, on: false, t: 0, rad: 1, t0: 0 }; G.fbPool.push(f);
+    }
+    if (!f) f = G.fbPool.filter(f => f.core === core).sort((a, b) => a.t0 - b.t0)[0];
+    f.on = true; f.t = 0; f.rad = rad; f.t0 = G.time; f.mesh.visible = true; f.mesh.position.set(x, z, y); f.mesh.scale.setScalar(1);
+    f.mesh.material.opacity = core ? 1 : 0.9;
+  }
+  function updateGrenades(dt) {
+    if (G.nadeCd > 0) G.nadeCd -= dt;
+    for (let i = G.grenades.length - 1; i >= 0; i--) {
+      const q = G.grenades[i]; q.fuse -= dt;
+      const steps = 3, h = dt / steps;
+      for (let s = 0; s < steps; s++) {
+        q.vz -= GRAV * h;
+        const nx = q.x + q.vx * h, ny = q.y + q.vy * h;
+        const blockedAt = (x, y) => solid(Math.floor(x), Math.floor(y)) || fhAt(Math.floor(x), Math.floor(y)) - q.z > 0.12;
+        if (blockedAt(nx + Math.sign(q.vx) * 0.05, q.y)) { q.vx = -q.vx * 0.5; q.bounces++; if (Math.abs(q.vx) > 0.8) Sound.play('step', distVol(q.x, q.y) * 0.6); } else q.x = nx;
+        if (blockedAt(q.x, ny + Math.sign(q.vy) * 0.05)) { q.vy = -q.vy * 0.5; q.bounces++; if (Math.abs(q.vy) > 0.8) Sound.play('step', distVol(q.x, q.y) * 0.6); } else q.y = ny;
+        // bounce off player bodies (other players for my grenades, me for theirs)
+        const body = q.owner === 'remote' ? (Math.hypot(G.px - q.x, G.py - q.y) < PLAYER_R + 0.06 && q.z > G.pz - 0.05 && q.z < G.pz + 0.85 ? { x: G.px, y: G.py } : null) : remoteBodyAt(q.x, q.y, q.z, 0.06);
+        if (body && !q.hitBody) { const bx = q.x - body.x, by = q.y - body.y, bl = Math.hypot(bx, by) || 1, dot = (q.vx * bx + q.vy * by) / bl;
+          if (dot < 0) { q.vx = (q.vx - 2 * dot * bx / bl) * 0.35; q.vy = (q.vy - 2 * dot * by / bl) * 0.35; q.bounces++; q.hitBody = 0.25; } }
+        if (q.hitBody) { q.hitBody -= h; if (q.hitBody <= 0) q.hitBody = 0; }
+        const ground = fhAt(Math.floor(q.x), Math.floor(q.y));
+        q.z += q.vz * h;
+        if (q.z < ground + 0.055) {
+          q.z = ground + 0.055;
+          if (q.vz < -1.2) { q.vz = -q.vz * 0.42; q.vx *= 0.75; q.vy *= 0.75; q.bounces++; Sound.play('step', distVol(q.x, q.y) * 0.5); }
+          else { q.vz = 0; const f = Math.exp(-4 * h); q.vx *= f; q.vy *= f; }
+        }
+        const top = G.L.props.wallH - 0.06; if (q.z > top) { q.z = top; q.vz = -Math.abs(q.vz) * 0.4; }
+      }
+      q.mesh.position.set(q.x, q.z, q.y); q.mesh.rotation.x += Math.hypot(q.vx, q.vy) * dt * 3;
+      q.led.visible = (q.fuse * (q.fuse < 1 ? 8 : 3)) % 1 > 0.5;
+      if (q.fuse <= 0) {
+        G.scene.remove(q.mesh); G.grenades.splice(i, 1);
+        explode(q.x, q.y, q.z + 0.1, q.owner === 'remote' ? 0 : GRENADE.dmg, GRENADE.rad, q.owner, 'g');
+      }
+    }
+  }
+  /* ---------- 1.3.0: another player's rocket / grenade / blast (multiplayer, effects only) ---------- */
+  function remoteFx(m) {
+    if (!G || !m) return;
+    if (m.t === 'p') {
+      const w = WEAPON_DEFS.find(d => d.proj === m.kind && d.splash); if (!w) return;
+      spawnProj('remote', m.kind, m.x, m.y, m.z, m.dx, m.dy, m.dz, w.speed, 0, w.splash);
+      Sound.play('rocket', distVol(m.x, m.y));
+    } else if (m.t === 'g') {
+      spawnGrenade('remote', m.x, m.y, m.z, m.vx, m.vy, m.vz);
+    } else if (m.t === 'b') {
+      if (m.src === 'b') { const pr = G.props.find(p => p.hp && !p.dead && Math.hypot(p.x - m.x, p.y - m.y) < 0.7); if (pr) { pr.dead = true; pr.mesh.visible = false; } }
+      // drop our own copy of their rocket / grenade near the blast
+      for (let i = G.projectiles.length - 1; i >= 0; i--) { const p = G.projectiles[i]; if (p.owner === 'remote' && Math.hypot(p.x - m.x, p.y - m.y) < 1.6) { G.scene.remove(p.mesh); G.projectiles.splice(i, 1); } }
+      for (let i = G.grenades.length - 1; i >= 0; i--) { const q = G.grenades[i]; if (q.owner === 'remote' && Math.hypot(q.x - m.x, q.y - m.y) < 1.6) { G.scene.remove(q.mesh); G.grenades.splice(i, 1); } }
+      const dup = G.fxBooms.some(b => G.time - b.t < 1.2 && Math.hypot(b.x - m.x, b.y - m.y) < 2.2);
+      if (!dup) explode(m.x, m.y, m.z, 0, m.rad || 2, 'remote', m.src);
     }
   }
   /* ---------- particles ---------- */
@@ -2112,7 +2475,9 @@ function play(container, project, opts) {
     for (const p of P.list) { const k = p.life / p.max; pos.setXYZ(n, p.x, p.z, p.y); col.setXYZ(n, p.color.r * k, p.color.g * k, p.color.b * k); n++; }
     P.pts.geometry.setDrawRange(0, n); pos.needsUpdate = true; col.needsUpdate = true;
     for (let i = G.fireballs.length - 1; i >= 0; i--) { const f = G.fireballs[i]; f.t += dt; f.mesh.scale.setScalar(1 + f.t * f.rad * 5); f.mesh.material.opacity = Math.max(0, 0.9 - f.t * 2.4); if (f.t > 0.4) { G.scene.remove(f.mesh); f.mesh.geometry.dispose(); f.mesh.material.dispose(); G.fireballs.splice(i, 1); } }
+    for (const f of G.fbPool) if (f.on) { f.t += dt; f.mesh.scale.setScalar(1 + f.t * f.rad * 5); f.mesh.material.opacity = Math.max(0, (f.core ? 1 : 0.9) - f.t * 2.4); if (f.t > 0.4) { f.on = false; f.mesh.visible = false; } }
     G.fxLight.intensity = Math.max(0, G.fxLight.intensity - dt * 10);
+    updatePuffs(dt);
   }
 
   /* =====================================================================
@@ -2297,6 +2662,12 @@ function play(container, project, opts) {
     const deadDrop = state === 'dead' ? -0.45 : 0;
     camera.position.set(G.px, G.pz + EYE + bob + deadDrop, G.py);
     camera.rotation.set(G.pitch, -G.yaw - Math.PI / 2, state === 'dead' ? 0.4 : 0);
+    if (G.shake > 0.001) {   // 1.3.0: blast shake, decays in about half a second
+      const k = G.shake * G.shake * (S.bob === false ? 0.4 : 1);
+      camera.position.x += rand(-1, 1) * 0.07 * k; camera.position.y += rand(-1, 1) * 0.05 * k; camera.position.z += rand(-1, 1) * 0.07 * k;
+      camera.rotation.z += rand(-1, 1) * 0.035 * k;
+      G.shake = Math.max(0, G.shake - dt * 2.2);
+    }
     G.sky.position.copy(camera.position);
     // flashlight follows the view
     G.flash.position.copy(camera.position);
@@ -2333,7 +2704,7 @@ function play(container, project, opts) {
   function updateHud(dt) {
     setT('hp', H_.hp, Math.ceil(G.hp)); setT('ar', H_.ar, Math.ceil(G.armor));
     H_.hpb.style.width = clamp(G.hp, 0, 100) + '%'; H_.arb.style.width = clamp(G.armor / 2, 0, 100) + '%';
-    const w = WEAPON_DEFS[G.cur]; setT('wn', H_.wn, w.name + (G.reloadT > 0 ? ' · RELOADING' : '')); setT('am', H_.am, w.ammo ? Math.min(G.mag[G.cur], G.ammo[w.ammo]) + ' / ' + Math.max(0, G.ammo[w.ammo] - Math.min(G.mag[G.cur], G.ammo[w.ammo])) : '∞');
+    const w = WEAPON_DEFS[G.cur]; setT('wn', H_.wn, w.name + (G.reloadT > 0 ? ' · RELOADING' : '')); setT('am', H_.am, (w.ammo ? Math.min(G.mag[G.cur], G.ammo[w.ammo]) + ' / ' + Math.max(0, G.ammo[w.ammo] - Math.min(G.mag[G.cur], G.ammo[w.ammo])) : '∞') + '  \u25c6' + G.nades);
     const ws = G.owned.map((o, i) => (o ? 'own' : '') + (i === G.cur ? ' cur' : '')).join(',');
     if (hudCache.ws !== ws) { hudCache.ws = ws; [...H_.ws.children].forEach((s, i) => { s.className = (G.owned[i] ? 'own' : '') + (i === G.cur ? ' cur' : ''); }); }
     ['red', 'blue', 'yellow'].forEach((k, i) => H_.keys[i].classList.toggle('on', !!G.keys[k]));
@@ -2343,6 +2714,7 @@ function play(container, project, opts) {
     G.pickFlash = Math.max(0, G.pickFlash - dt); H_.pick.style.opacity = G.pickFlash * 3;
     G.hitT = Math.max(0, G.hitT - dt); H_.hit.style.opacity = G.hitT > 0 ? 1 : 0;
     drawMinimap();
+    if (bigMap.style.display === 'flex' && (bigMapT += dt) > 0.1) { bigMapT = 0; drawBigMap(); }
   }
   const fmtTime = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
   let miniBase = null;
@@ -2362,12 +2734,31 @@ function play(container, project, opts) {
     c.restore();
     c.fillStyle = '#fff'; c.beginPath(); c.moveTo(R, R - 7); c.lineTo(R - 5, R + 5); c.lineTo(R + 5, R + 5); c.fill();
   }
+  // Automap (M / Tab / MAP button): translucent, redrawn live while open, the game keeps running.
+  let bigMapT = 0;
   function showBigMap(on) {
-    bigMap.style.display = on ? 'flex' : 'none'; if (!on) return;
-    const cv = bigMap.querySelector('canvas'), s = Math.max(4, Math.floor(Math.min(root.clientWidth * 0.9 / G.W, root.clientHeight * 0.85 / G.H)));
-    cv.width = G.W * s; cv.height = G.H * s; const c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(miniBase, 0, 0, cv.width, cv.height);
-    c.fillStyle = '#fff'; c.beginPath(); c.arc(G.px * s, G.py * s, s * 0.45, 0, 7); c.fill();
-    c.strokeStyle = '#fff'; c.lineWidth = 2; c.beginPath(); c.moveTo(G.px * s, G.py * s); c.lineTo((G.px + Math.cos(G.yaw)) * s, (G.py + Math.sin(G.yaw)) * s); c.stroke();
+    bigMap.style.display = on ? 'flex' : 'none';
+    const mb = touch.querySelector('.dfg-tb.map'); if (mb) mb.classList.toggle('on', !!on);
+    if (on) drawBigMap();
+  }
+  function drawBigMap() {
+    if (!G || !miniBase) return;
+    const cv = bigMap.querySelector('canvas'), s = Math.max(3, Math.floor(Math.min(root.clientWidth * 0.94 / G.W, root.clientHeight * 0.8 / G.H)));
+    if (cv.width !== G.W * s || cv.height !== G.H * s) { cv.width = G.W * s; cv.height = G.H * s; }
+    const c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
+    c.fillStyle = 'rgba(6,10,6,.86)'; c.fillRect(0, 0, cv.width, cv.height);
+    c.globalAlpha = 0.9; c.drawImage(miniBase, 0, 0, cv.width, cv.height); c.globalAlpha = 1;
+    c.fillStyle = 'rgba(60,110,50,.18)'; c.globalCompositeOperation = 'multiply'; c.fillRect(0, 0, cv.width, cv.height); c.globalCompositeOperation = 'source-over';
+    c.fillStyle = 'rgba(0,0,0,.22)'; for (let yy = 0; yy < cv.height; yy += 3) c.fillRect(0, yy, cv.width, 1);   // scanlines
+    // other players (multiplayer)
+    remotes.forEach(r => { if (!r.mesh || !r.mesh.visible) return; const d = PLAYER_MODELS[r.id]; c.fillStyle = (d && d.tintColor) || '#ff4ad6'; c.strokeStyle = '#000'; c.lineWidth = 2;
+      c.beginPath(); c.arc(r.x * s, r.y * s, Math.max(3, s * 0.55), 0, 7); c.fill(); c.stroke();
+      c.beginPath(); c.moveTo(r.x * s, r.y * s); c.lineTo((r.x + Math.cos(r.yaw) * 1.2) * s, (r.y + Math.sin(r.yaw) * 1.2) * s); c.strokeStyle = c.fillStyle; c.stroke(); });
+    // you: arrow
+    const px = G.px * s, py = G.py * s, a = G.yaw, L = Math.max(7, s * 1.3);
+    c.fillStyle = '#ffb02e'; c.strokeStyle = '#000'; c.lineWidth = 2; c.beginPath();
+    c.moveTo(px + Math.cos(a) * L, py + Math.sin(a) * L); c.lineTo(px + Math.cos(a + 2.5) * L * 0.65, py + Math.sin(a + 2.5) * L * 0.65); c.lineTo(px + Math.cos(a - 2.5) * L * 0.65, py + Math.sin(a - 2.5) * L * 0.65); c.closePath(); c.fill(); c.stroke();
+    c.font = 'bold ' + Math.max(10, Math.min(16, s * 2)) + 'px monospace'; c.fillStyle = 'rgba(170,220,150,.85)'; c.fillText('AUTOMAP \u00b7 ' + G.L.name.toUpperCase(), 8, 16);
   }
 
   /* ---------- menus ---------- */
@@ -2479,7 +2870,8 @@ function play(container, project, opts) {
     if (ev.code === 'Space') input.jump = true;
     if (ev.code === 'Escape' || ev.code === 'KeyP') { if (state === 'playing') pause(); else if (state === 'paused' && ev.code === 'KeyP') begin(); }
     if (state !== 'playing') return;
-    if (/^Digit[1-6]$/.test(ev.code)) selectWeapon(+ev.code.slice(5) - 1);
+    if (/^Digit[1-7]$/.test(ev.code)) selectWeapon(+ev.code.slice(5) - 1);
+    if (ev.code === 'KeyT') throwGrenade();
     if (ev.code === 'KeyQ') cycleWeapon(1);
     if (ev.code === 'KeyF') { G.flashOn = !G.flashOn; Sound.play('ui'); }
     if (ev.code === 'KeyM' || ev.code === 'Tab') { showBigMap(bigMap.style.display !== 'flex'); ev.preventDefault(); }
@@ -2515,7 +2907,7 @@ function play(container, project, opts) {
     if (isTouch) setTimeout(() => { try { const o = screen.orientation; if (o && o.lock) o.lock('landscape').catch(() => {}); } catch (e) {} }, 200);
     return true;
   }
-  bigMap.addEventListener('click', () => showBigMap(false));
+  // (the automap no longer swallows clicks/touches; close it with M, Tab or the MAP button)
 
   /* ---------- touch controls: floating joystick (left), drag-to-look (right), buttons ---------- */
   const joy = touch.querySelector('.dfg-joy'), knob = joy.querySelector('i');
@@ -2528,7 +2920,7 @@ function play(container, project, opts) {
       if (btn) {
         const k = btn.dataset.t; btn.classList.add('down');
         if (k === 'fire') { input.fire = true; input.fireTap = performance.now(); fireTouch = { id: t.identifier, x: t.clientX, y: t.clientY, btn }; }
-        else if (k === 'jump') input.jump = true; else if (k === 'use') input.use = true; else if (k === 'swap') cycleWeapon(1); else if (k === 'reload') input.reload = true;
+        else if (k === 'jump') input.jump = true; else if (k === 'use') input.use = true; else if (k === 'swap') cycleWeapon(1); else if (k === 'reload') input.reload = true; else if (k === 'nade') throwGrenade(); else if (k === 'map') { showBigMap(bigMap.style.display !== 'flex'); }
         else if (k === 'run') { input.run = !input.run; btn.classList.toggle('on', input.run); }
         if (k !== 'fire') setTimeout(() => btn.classList.remove('down'), 120);
         continue;
@@ -2606,6 +2998,8 @@ function play(container, project, opts) {
     createRemotePlayer(modelId, o) { return createRemotePlayer(modelId, Object.assign({}, o, { session })); },
     playRemoteShot(shot) { return playRemoteShot(shot); },
     lineClear(x1, y1, x2, y2) { return !!G && los(x1, y1, x2, y2); },
+    remoteFx(m) { return remoteFx(m); }, throwGrenade: () => throwGrenade(), explode: (x, y, z, dmg, rad, owner, src) => explode(x, y, z, dmg, rad, owner, src),
+    spawnGrenade: (o, x, y, z, vx, vy, vz) => spawnGrenade(o, x, y, z, vx, vy, vz), showBigMap: on => showBigMap(on), get bigMapOpen() { return bigMap.style.display === 'flex'; },
     destroy() {
       destroyed = true; if (activeSession === session) activeSession = null; remotes.slice().forEach(r => { try { r.dispose(); } catch (e) {} }); cancelAnimationFrame(raf); Sound.music(false); if (TP.audio) { TP.audio.pause(); TP.audio.removeAttribute('src'); }
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp);
@@ -2693,7 +3087,7 @@ function registerEnemy(def) {
 }
 
 return {
-  VERSION, HOSTED_BASE, MUSIC_TRACKS, LIGHT_PRESETS, ASSET_PACK, PLAYER_MODELS, PLAYER_CLIPS, createRemotePlayer, play, boot, Sound, S, saveSettings,
+  VERSION, HOSTED_BASE, MUSIC_TRACKS, LIGHT_PRESETS, ASSET_PACK, PLAYER_MODELS, PLAYER_CLIPS, createRemotePlayer, play, boot, Sound, S, saveSettings, planSigns, GRENADE,
   TEX_DEFS, WALL_TEXTURES, FLOOR_TEXTURES, CEIL_TEXTURES, SKIES, ENEMY_DEFS, WEAPON_DEFS, PICKUP_DEFS, PROP_DEFS, KEY_COLORS, THREE,
   getThumb, newLevel, normalizeLevel, validateLevel, defaultProps, STEP_H,
   packLevel, unpackLevel, registerWeapon, registerEnemy, RETRO_FORMAT, GRID_KEYS, rle, unrle

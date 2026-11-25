@@ -119,6 +119,9 @@ export function attachMultiplayer(engine, opts) {
   mp.on('shot', function (shot) { if (typeof opts.onShot === 'function') opts.onShot(shot); });
   mp.on('hit',  function (hit)  { if (typeof opts.onHit  === 'function') opts.onHit(hit); });
   mp.on('match', function (m)   { if (typeof opts.onMatch === 'function') opts.onMatch(m); });
+  // 1.3.0: rockets, grenades and blasts from other players (visual only here;
+  // damage still arrives as 'hit' from the shooter).
+  mp.on('fx',   function (fx)   { if (typeof opts.onFx === 'function') opts.onFx(fx); });
   // Same wall test the engine uses for line of sight, so remote players never
   // slide through a wall between two updates (they snap instead, like Doom).
   if (mp.setLineClear && typeof opts.lineClear === 'function') mp.setLineClear(opts.lineClear);
@@ -164,7 +167,9 @@ export function attachMultiplayer(engine, opts) {
         }
         // No PvP damage during the pre-match countdown.
         const canHurt = (typeof opts.canDamage !== 'function') || opts.canDamage();
-        if (best && canHurt) mp.sendHit({ targetId: best.id, dmg: dmg });
+        // Splash weapons (rockets) hurt through their blast instead (see mp-app boom).
+        const splash = (typeof opts.weaponSplash === 'function') && opts.weaponSplash(G.cur);
+        if (best && canHurt && !splash) mp.sendHit({ targetId: best.id, dmg: dmg });
       }
       prevCd = G.cd || 0;
 

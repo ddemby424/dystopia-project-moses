@@ -412,6 +412,16 @@ export function installMultiplayer(api) {
         const w = api.RT && api.RT.WEAPON_DEFS && api.RT.WEAPON_DEFS[i];
         return (w && w.melee) ? (w.range || 1.15) : 0;
       },
+      weaponSplash: function (i) {
+        const w = api.RT && api.RT.WEAPON_DEFS && api.RT.WEAPON_DEFS[i];
+        return !!(w && w.splash);
+      },
+      onFx: function (fx) {
+        // 1.3.0: another player's rocket / grenade / blast. Visual only;
+        // their client sends the damage as a 'hit'.
+        const h = api.getPlayHandle && api.getPlayHandle();
+        if (h && h.remoteFx) { try { h.remoteFx(fx); } catch (e) { console.warn('remoteFx', e); } }
+      },
       onShot: function (shot) {
         const h = api.getPlayHandle && api.getPlayHandle();
         if (h && h.playRemoteShot) h.playRemoteShot(shot);
@@ -494,6 +504,31 @@ export function installMultiplayer(api) {
     }
     try { window.RETROENGINE_MP = session; } catch (e) { /* ignore */ }
     return session;
+  }
+
+  /* ---------- 1.3.0: rockets, grenades and blasts ----------
+     The engine fires 'proj' / 'grenade' / 'boom' for the local player. We
+     forward the visuals to the room, and for a blast we work out who is in
+     range (with a wall check) and send them a 'hit' — shooter-authoritative,
+     same as bullets, and never before FIGHT. */
+  function engineEvent(ev, arg) {
+    const mp = curMp || (mpSession && mpSession.mp);
+    if (!mp || !arg || !mp.sendFx) return;
+    if (ev === 'proj') { mp.sendFx({ t: 'p', kind: arg.kind, x: arg.x, y: arg.y, z: arg.z, dx: arg.dx, dy: arg.dy, dz: arg.dz }); return; }
+    if (ev === 'grenade') { mp.sendFx({ t: 'g', x: arg.x, y: arg.y, z: arg.z, vx: arg.vx, vy: arg.vy, vz: arg.vz }); return; }
+    if (ev !== 'boom') return;
+    mp.sendFx({ t: 'b', x: arg.x, y: arg.y, z: arg.z, rad: arg.rad, src: arg.src });
+    if (!canDamage() || !(arg.dmg > 0)) return;
+    const h = api.getPlayHandle && api.getPlayHandle();
+    const peers = mp.getPeers ? mp.getPeers() : [];
+    for (let i = 0; i < peers.length; i++) {
+      const p = peers[i];
+      if (!p || !p.id || p.live === false) continue;
+      const d = Math.hypot((p.x || 0) - arg.x, (p.y || 0) - arg.y);
+      if (d >= arg.rad || Math.abs((p.z || 0) + 0.4 - arg.z) > arg.rad) continue;
+      if (h && h.lineClear && !h.lineClear(arg.x, arg.y, p.x, p.y)) continue;   // walls block blasts
+      mp.sendHit({ targetId: p.id, dmg: Math.round(arg.dmg * (1 - d / arg.rad * 0.7)) });
+    }
   }
 
   async function startGameForRoom(welcome, profile, mp) {
@@ -625,6 +660,7 @@ export function installMultiplayer(api) {
     teardown: teardown,
     defaultMpUrl: defaultMpUrl,
     tick: function (dt) { if (mpTickFn) mpTickFn(dt); },
+    engineEvent: engineEvent,
     get session() { return mpSession; },
     get spawnMode() { return mpSettings.spawnMode; },
     set spawnMode(v) { if (v === 'shared' || v === 'fixed' || v === 'random') mpSettings.spawnMode = v; },

@@ -52,6 +52,22 @@ const SNAP_DIST = 1.5;            // cells
 const MATCH_TAG = 'match';
 // Pre-match Ready rides the same way: weapon 'ready', yaw 1 = ready, 0 = not.
 const READY_TAG = 'ready';
+// 1.3.0 effects (rockets, grenades, blasts) ride the same way: weapon starts
+// with 'fx:' and carries the effect; x/y/z is where it starts.
+//   fx:p:<kind>:<dx>:<dy>:<dz>   projectile launched (rocket / LAW)
+//   fx:g:<vx>:<vy>:<vz>          grenade thrown
+//   fx:b:<radius>:<src>          blast went off (src r=rocket g=grenade b=barrel)
+const FX_TAG = 'fx:';
+
+function decodeFx(msg) {
+  const parts = String(msg.weapon).slice(FX_TAG.length).split(':');
+  const n = i => Number(parts[i]) || 0;
+  const base = { id: msg.id, x: Number(msg.x) || 0, y: Number(msg.y) || 0, z: Number(msg.z) || 0, t: parts[0] };
+  if (parts[0] === 'p') return Object.assign(base, { kind: parts[1] || 'rocket', dx: n(2), dy: n(3), dz: n(4) });
+  if (parts[0] === 'g') return Object.assign(base, { vx: n(1), vy: n(2), vz: n(3) });
+  if (parts[0] === 'b') return Object.assign(base, { rad: n(1) || 2, src: parts[2] || 'r' });
+  return null;
+}
 
 function nowMs() {
   // performance.now() is steadier than Date.now() in a browser (doesn't jump
@@ -297,6 +313,11 @@ export function connect(url, room, profile, options) {
         emit('match', lastMatch);
         return;
       }
+      if (typeof msg.weapon === 'string' && msg.weapon.indexOf(FX_TAG) === 0) {
+        const fx = decodeFx(msg);
+        if (fx) emit('fx', fx);
+        return;
+      }
       emit('shot', msg);
       return;
     }
@@ -494,6 +515,18 @@ export function connect(url, room, profile, options) {
     return sendRaw({ type: 'shot', x: 0, y: 0, z: 0, yaw: myReady ? 1 : 0, weapon: READY_TAG });
   }
 
+  // 1.3.0: send a visual effect to everyone else in the room.
+  function sendFx(fx) {
+    if (!fx || !fx.t) return false;
+    const r = v => Math.round((Number(v) || 0) * 1000) / 1000;
+    let tag;
+    if (fx.t === 'p') tag = 'p:' + String(fx.kind || 'rocket').replace(/[^a-z0-9_]/gi, '') + ':' + r(fx.dx) + ':' + r(fx.dy) + ':' + r(fx.dz);
+    else if (fx.t === 'g') tag = 'g:' + r(fx.vx) + ':' + r(fx.vy) + ':' + r(fx.vz);
+    else if (fx.t === 'b') tag = 'b:' + r(fx.rad) + ':' + String(fx.src || 'r').charAt(0);
+    else return false;
+    return sendRaw({ type: 'shot', x: r(fx.x), y: r(fx.y), z: r(fx.z), yaw: 0, weapon: FX_TAG + tag });
+  }
+
   function sendHit(hit) {
     hit = hit || {};
     if (!hit.targetId) return false;
@@ -573,6 +606,7 @@ export function connect(url, room, profile, options) {
     sendHit: sendHit,
     sendMatch: sendMatch,
     sendReady: sendReady,
+    sendFx: sendFx,
     isReady: function (id) { return (id == null || id === myId) ? myReady : !!readyById.get(id); },
     get joinOrder() { return joinOrder.slice(); },
     setLineClear: function (fn) { lineClear = (typeof fn === 'function') ? fn : null; },

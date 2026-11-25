@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.0 (2026-11-24): map, LAW launcher, big explosions, grenades, signs
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.3.0**), powered by DMB Tech 1 **1.1.0**.
+
+- **In-game map.** Press **M** (or **Tab**), or tap the big **MAP** button on a phone. An overhead map shows the walls, you (orange arrow, pointing where you face) and, in multiplayer, the other players. It is see-through and the game keeps running, so you can still move and shoot. Press or tap again to close.
+- **LAW rocket launcher** (weapon **7**, or Q to cycle). Uses rockets. Pickups on maps (two on Site 12). The rocket flies with a sidewinder smoke trail (a spiraling, wobbling smoke line with a flame glow) that hangs in the air for about 4 seconds and fades out, so it reads in long hallways and open yards.
+- **Bigger explosions.** Bigger fireball, rolling fire, a slow column of dark smoke, a light flash, camera shake for anyone nearby, and a burn mark on the floor or wall. Damage falls off with distance and walls block it. Barrels set each other off.
+- **Grenades.** Press **T**, or tap **NADE** on a phone. They arc, bounce off walls, floors and players, and go off after about 2.5 seconds. You start with 2, carry up to 5, and find more in pickups (three on Site 12). The count shows next to your ammo (◆).
+- **Multiplayer.** Rockets, grenades and blasts show up on every player's screen. The player who fired works out who is in the blast and sends the damage, the same as bullets. No blast damage before **FIGHT!**. Your own blasts still hurt you at half strength. The server is unchanged (the effects ride on the existing shot message).
+- **Signs.** A few sector markers ("SECTOR 7-B" with arrows), glowing green running-man fire exit signs, and weathered plates for made-up companies, drawn by the game itself. Every player sees the same signs in the same places.
+- Editor: **w_law** (map key 9) and **grenades** (map key 7) pickups in the palette.
+- Fixed: rockets kicked their own aim upward (the recoil was applied before the rocket left), so they climbed into the ceiling in long halls.
+
 ## 1.2.6 (2026-11-24): host can see the joiner
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

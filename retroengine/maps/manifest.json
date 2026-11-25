@@ -206,13 +206,15 @@
         "enemy:titan": 1,
         "pickup:w_rifle": 1,
         "pickup:w_rocket": 1,
-        "pickup:ammo_rockets": 1
+        "pickup:ammo_rockets": 1,
+        "pickup:w_law": 2,
+        "pickup:grenades": 3
       },
       "enemies": 38,
-      "pickups": 26,
+      "pickups": 31,
       "exits": 1,
       "reachable": 13428,
-      "bytes": 65805,
+      "bytes": 66068,
       "errors": [],
       "warns": [],
       "hero": null,

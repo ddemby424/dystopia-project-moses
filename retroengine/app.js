@@ -8,7 +8,7 @@
 import { createRuntime } from './dmbtech1.js';
 import { installMultiplayer } from './mp/mp-app.js';
 
-const VERSION = '1.2.6';
+const VERSION = '1.3.0';
 function DFRuntime() { return createRuntime(); }
 
 /* =====================================================================
@@ -28,7 +28,7 @@ const ENTITY_CHARS = {
   'g': ['enemy', 'grunt'], 'd': ['enemy', 'drone'], 'H': ['enemy', 'heavy'], 't': ['enemy', 'turret'], 'T': ['enemy', 'titan'],
   'h': ['pickup', 'health'], 'm': ['pickup', 'medkit'], 'a': ['pickup', 'armor'], 'A': ['pickup', 'armor_heavy'], 'u': ['pickup', 'ammo_bullets'], 's': ['pickup', 'ammo_shells'],
   'c': ['pickup', 'ammo_cells'], 'k': ['pickup', 'ammo_rockets'], 'R': ['pickup', 'key_red'], 'B': ['pickup', 'key_blue'], 'Y': ['pickup', 'key_yellow'],
-  'w': ['pickup', 'w_shotgun'], 'q': ['pickup', 'w_rifle'], 'p': ['pickup', 'w_plasma'], 'z': ['pickup', 'w_rocket'], '$': ['pickup', 'chip'],
+  'w': ['pickup', 'w_shotgun'], 'q': ['pickup', 'w_rifle'], 'p': ['pickup', 'w_plasma'], 'z': ['pickup', 'w_rocket'], '9': ['pickup', 'w_law'], '7': ['pickup', 'grenades'], '$': ['pickup', 'chip'],
   'o': ['prop', 'barrel'], 'x': ['prop', 'crate'], 'K': ['prop', 'crate_tall'], 'P': ['prop', 'pillar'], 'e': ['prop', 'desk'], 'n': ['prop', 'terminal'], 'N': ['prop', 'server'],
   'i': ['prop', 'pipes'], 'G': ['prop', 'generator'], 'l': ['prop', 'locker'], 'f': ['prop', 'lamp'], 'v': ['prop', 'cone'], 'j': ['prop', 'debris'], 'Z': ['prop', 'sandbags'],
   'Q': ['prop', 'console'], 'M': ['prop', 'med_cabinet'], 'E': ['prop', 'lab_bench'], 'W': ['light', '#eef6ff', 8, 2.2, false],
@@ -37,7 +37,7 @@ const ENTITY_CHARS = {
 };
 const DOOR_CHARS = { 'D': 'door', 'r': 'red', 'b': 'blue', 'y': 'yellow' };
 const HEIGHT_CHARS = { '1': 0.15, '2': 0.3, '3': 0.45, '4': 0.6, '5': 0.75 };
-const TEMPLATE_LEGEND_HELP = 'Walls: # % & S · Floors: . , ~(sky) ; : · Doors: D, r/b/y = keycard doors · Heights 1-4 = stairs/catwalk, 5 = cover block · @ start · X exit · L F C V W lights (W = bright white) · g d H t T enemies · h m a A u s c k pickups · R B Y keys · w q p z weapons · $ secret · o x K P e n N i G l f v j Z Q M E U J O props';
+const TEMPLATE_LEGEND_HELP = 'Walls: # % & S · Floors: . , ~(sky) ; : · Doors: D, r/b/y = keycard doors · Heights 1-4 = stairs/catwalk, 5 = cover block · @ start · X exit · L F C V W lights (W = bright white) · g d H t T enemies · h m a A u s c k pickups · R B Y keys · w q p z 9 weapons (9 = LAW) · 7 grenades · $ secret · o x K P e n N i G l f v j Z Q M E U J O props';
 
 const TEMPLATES = [
   { id: 'small_room', name: 'Small Room', cat: 'Rooms', desc: '5x5 room, one door', rows: [
@@ -574,7 +574,7 @@ const cvs = $('#grid'), ctx = cvs.getContext('2d');
 const THING_STYLE = {
   enemy: { grunt: ['#ff4b3a', 'G'], drone: ['#ff7a3a', 'D'], heavy: ['#d8263a', 'H'], turret: ['#ff9a3a', 'T'], titan: ['#ff2050', 'B'] },
   pickup: { health: ['#ff6b6b', '+'], medkit: ['#ff3b3b', '+'], armor: ['#37c25a', 'A'], armor_heavy: ['#2d7bff', 'A'], ammo_bullets: ['#d6b23a', 'b'], ammo_shells: ['#d8823a', 's'], ammo_cells: ['#3ad6ff', 'c'], ammo_rockets: ['#b0b0b0', 'r'],
-    key_red: ['#ff2d2d', 'K'], key_blue: ['#2d8bff', 'K'], key_yellow: ['#ffd21f', 'K'], w_shotgun: ['#ffc21a', '3'], w_rifle: ['#ffc21a', '4'], w_plasma: ['#9dff4f', '5'], w_rocket: ['#ffc21a', '6'], chip: ['#2de2ff', '$'] },
+    key_red: ['#ff2d2d', 'K'], key_blue: ['#2d8bff', 'K'], key_yellow: ['#ffd21f', 'K'], w_shotgun: ['#ffc21a', '3'], w_rifle: ['#ffc21a', '4'], w_plasma: ['#9dff4f', '5'], w_rocket: ['#ffc21a', '6'], w_law: ['#ff7a1a', '7'], grenades: ['#9bb04a', 'G'], chip: ['#2de2ff', '$'] },
   prop: { _: ['#8b95a8', ''] }, light: { _: ['#ffd9a0', ''] }, exit: { _: ['#2dffb0', 'X'] }
 };
 function thingStyle(e) { const g = THING_STYLE[e.t] || {}; return g[e.s] || g._ || ['#fff', '?']; }
@@ -1096,8 +1096,8 @@ function renderPanel() {
     body.innerHTML = `<div id="inspector"></div>` +
       grp('Enemies', Object.keys(RT.ENEMY_DEFS).map(k => ({ t: 'enemy', s: k, name: RT.ENEMY_DEFS[k].name }))) +
       grp('Health & armor', picks(['health', 'medkit', 'armor', 'armor_heavy'])) +
-      grp('Ammo', picks(['ammo_bullets', 'ammo_shells', 'ammo_cells', 'ammo_rockets'])) +
-      grp('Weapons', picks(['w_shotgun', 'w_rifle', 'w_plasma', 'w_rocket'])) +
+      grp('Ammo', picks(['ammo_bullets', 'ammo_shells', 'ammo_cells', 'ammo_rockets', 'grenades'])) +
+      grp('Weapons', picks(['w_shotgun', 'w_rifle', 'w_plasma', 'w_rocket', 'w_law'])) +
       grp('Keys & goals', [...picks(['key_red', 'key_blue', 'key_yellow', 'chip']), { t: 'exit', name: 'Exit pad' }]) +
       grp('Props', Object.keys(RT.PROP_DEFS).map(k => ({ t: 'prop', s: k, name: RT.PROP_DEFS[k].name }))) +
       `<div class="sec"><h4>Light</h4><div class="things"><button class="thing ${ED.brush.thing.t === 'light' ? 'on' : ''}" data-t="light" data-s=""><span class="dot" style="background:${ED.brush.light.color}"></span>Light</button></div>
@@ -1432,7 +1432,7 @@ function playtest(levelIndex, extra) {
     spawnPoint: extra.spawnPoint,
     noUnlockPause: !!extra.multiplayer,
     onQuit: stopPlaytest,
-    onEvent: (ev, arg) => { if (MP && (ev === 'tick' || ev === 'idle')) MP.tick(arg); },
+    onEvent: (ev, arg) => { if (!MP) return; if (ev === 'tick' || ev === 'idle') MP.tick(arg); else if ((ev === 'proj' || ev === 'grenade' || ev === 'boom') && MP.engineEvent) MP.engineEvent(ev, arg); },
     onMultiplayer: () => { if (MP) MP.openLobby(); }
   });
   if (playHandle && extra.spawnPoint) applySpawnPoint(playHandle, extra.spawnPoint);
