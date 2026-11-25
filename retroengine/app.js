@@ -8,7 +8,7 @@
 import { createRuntime } from './dmbtech1.js';
 import { installMultiplayer } from './mp/mp-app.js';
 
-const VERSION = '1.2.5';
+const VERSION = '1.2.6';
 function DFRuntime() { return createRuntime(); }
 
 /* =====================================================================
@@ -1430,8 +1430,9 @@ function playtest(levelIndex, extra) {
     skipEnemies: !!extra.skipEnemies,
     spawnIndex: extra.spawnIndex,
     spawnPoint: extra.spawnPoint,
+    noUnlockPause: !!extra.multiplayer,
     onQuit: stopPlaytest,
-    onEvent: (ev, arg) => { if (MP && ev === 'tick') MP.tick(arg); },
+    onEvent: (ev, arg) => { if (MP && (ev === 'tick' || ev === 'idle')) MP.tick(arg); },
     onMultiplayer: () => { if (MP) MP.openLobby(); }
   });
   if (playHandle && extra.spawnPoint) applySpawnPoint(playHandle, extra.spawnPoint);

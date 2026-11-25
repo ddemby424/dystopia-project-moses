@@ -224,6 +224,7 @@ export function installMultiplayer(api) {
   // Pre-match countdown (performance.now ms when damage turns on).
   let fightAt = 0, fightShownUntil = 0, isHost = false, cdEl = null, lastCdText = '';
   // Match phase: 'waiting' (pre-match roster + Ready) → 'countdown' → 'fight'.
+  let waitShownAt = 0;
   let phase = 'waiting', hostId = null, waitEl = null, waitKey = '', curMp = null, offKeys = null;
 
   function now() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
@@ -256,7 +257,7 @@ export function installMultiplayer(api) {
     if (cdEl && cdEl.parentNode) cdEl.parentNode.removeChild(cdEl);
     cdEl = null; lastCdText = ''; fightAt = 0; fightShownUntil = 0;
     if (waitEl && waitEl.parentNode) waitEl.parentNode.removeChild(waitEl);
-    waitEl = null; waitKey = ''; phase = 'waiting'; hostId = null; curMp = null;
+    waitEl = null; waitKey = ''; waitShownAt = 0; phase = 'waiting'; hostId = null; curMp = null;
     if (offKeys) { offKeys(); offKeys = null; }
   }
 
@@ -290,10 +291,18 @@ export function installMultiplayer(api) {
     if (curMp && curMp.sendMatch) curMp.sendMatch(countdownLeft());
   }
   function showWaiting() {
-    if (phase !== 'waiting' || !curMp) {
+    // Hide while the game's own pause/menu is up, so its Resume button is never covered.
+    const ph = api.getPlayHandle && api.getPlayHandle();
+    if (phase !== 'waiting' || !curMp || (ph && ph.state && ph.state !== 'playing')) {
       if (waitEl) waitEl.style.display = 'none';
+      waitKey = '';
       return;
     }
+    // Free the mouse so the buttons can be clicked: the game grabs it on start
+    // (sometimes a moment after the panel appears), so keep letting go for 2 s.
+    // Later the player may click the view to look around; we leave that alone.
+    if (!waitShownAt) waitShownAt = now();
+    if (now() - waitShownAt < 2000) { try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* ignore */ } }
     const list = roster(curMp), n = list.length, rc = readyCount(list);
     const key = JSON.stringify([list, isHost]);
     if (key === waitKey && waitEl) return;
@@ -312,7 +321,6 @@ export function installMultiplayer(api) {
         if (b.dataset.mp === 'ready') toggleReady();
         if (b.dataset.mp === 'start') hostStart();
       });
-      try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* ignore */ }
     }
     const esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
     const big = 'display:block;width:100%;min-height:56px;margin-top:10px;font:700 20px system-ui,sans-serif;border-radius:8px;border:0;cursor:pointer;touch-action:manipulation;';
@@ -416,8 +424,12 @@ export function installMultiplayer(api) {
       onMatch: function (m) {
         // Only the room host's clock counts; it already subtracted elapsed time.
         if (isHost || !m) return;
-        phase = m.remaining > 0 ? 'countdown' : 'fight';
-        setCountdown(m.remaining);
+        if (m.remaining > 0) { phase = 'countdown'; setCountdown(m.remaining); return; }
+        // 0 = fight is on. Show FIGHT! only if we were counting down; a late
+        // joiner (or a repeat of the host's 0) just carries on.
+        if (phase === 'countdown') setCountdown(0);
+        else if (phase === 'waiting') fightAt = now() - 5000;
+        phase = 'fight';
       },
       onHit: function (hit) {
         const h = api.getPlayHandle && api.getPlayHandle();
@@ -497,6 +509,9 @@ export function installMultiplayer(api) {
       host.classList.remove('on');
       host.innerHTML = '';
     }
+    // Opened Multiplayer from the in-game Play screen? Close that single-player
+    // game first, so the room starts fresh on the room's map without bots.
+    if (api.getPlayHandle && api.getPlayHandle() && api.stopPlaytest) api.stopPlaytest();
     const project = api.getProject();
     let override = null;
     let idx = 0;
@@ -530,7 +545,7 @@ export function installMultiplayer(api) {
         // Enemies are simulated locally and are not sent over the relay, so a
         // room full of clients would each see a different fight. Skip them in
         // multiplayer rooms; single-player playtest is unchanged.
-        const extra = { autoPlay: true, spawnIndex: spawnIndex, skipEnemies: true };
+        const extra = { autoPlay: true, spawnIndex: spawnIndex, skipEnemies: true, multiplayer: true };
         if (spawnPoint) extra.spawnPoint = spawnPoint;
         if (override) extra.levelOverride = override;
         let handle = api.getPlayHandle && api.getPlayHandle();

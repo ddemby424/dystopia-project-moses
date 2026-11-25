@@ -2502,7 +2502,8 @@ function play(container, project, opts) {
   const onUp = () => { input.mouseFire = false; dragging = false; };
   window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
   cv.addEventListener('wheel', ev => { if (state === 'playing') { cycleWeapon(ev.deltaY > 0 ? 1 : -1); ev.preventDefault(); } }, { passive: false });
-  const onLockChange = () => { if (!document.pointerLockElement && state === 'playing' && !isTouch && lockedOnce) pause(); if (document.pointerLockElement) lockedOnce = true; };
+  // opts.noUnlockPause (multiplayer): letting go of the mouse doesn't pause; a network match can't pause anyway.
+  const onLockChange = () => { if (!document.pointerLockElement && state === 'playing' && !isTouch && lockedOnce && !opts.noUnlockPause) pause(); if (document.pointerLockElement) lockedOnce = true; };
   let lockedOnce = false;
   document.addEventListener('pointerlockchange', onLockChange);
   topBtns.addEventListener('click', ev => { const b = ev.target.closest('[data-b]'); if (!b || !G) return; const k = b.dataset.b; if (k === 'pause') { if (state === 'playing') pause(); } else if (k === 'map') showBigMap(bigMap.style.display !== 'flex'); else if (k === 'light') G.flashOn = !G.flashOn; else if (k === 'fs') toggleFullscreen(); });
@@ -2578,6 +2579,9 @@ function play(container, project, opts) {
       updatePlayer(dt);
       if (state === 'playing') { updateDoors(dt); updateEnemies(dt, time); updateProjectiles(dt); fire('tick', dt); }
     } else if (G && state === 'dead') { updateEnemies(dt, time); updateProjectiles(dt); }
+    // Paused / dead / on a menu: game logic stops, but multiplayer must keep
+    // sending our pose and drawing the other players (1.2.6 host fix).
+    if (G && state !== 'playing' && opts.onEvent) { try { opts.onEvent('idle', dt); } catch (e) {} }
     if (G) { remotes.forEach(r => r.update(dt)); updateParticles(dt); updateLights(dt, time); updateHud(dt); render(time, dt); }
     if (S.quality === 'auto' && state === 'playing') {
       adT += (now - adLast) / 1000; adN++;

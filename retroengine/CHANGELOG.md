@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.6 (2026-11-24): host can see the joiner
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.2.6**), powered by DMB Tech 1 **1.1.0**.
+
+- **Fixed: the host couldn't see the other player** (but the other player could see the host). Multiplayer only ran while the game was in its "playing" state. When the host's game paused (the Waiting panel released the mouse, which pauses on PC; on a phone, switching apps to send the room code pauses too), the host stopped drawing other players, so a friend who joined then stayed stuck, hidden in the map's corner wall. Multiplayer now keeps sending your position and drawing other players while paused or on a menu.
+- In a multiplayer room, letting go of the mouse no longer pauses the game (a network match can't pause anyway), so freeing the mouse for the Ready/Start buttons is safe. If the game does pause (Esc, or a phone switching apps), the Waiting panel steps aside so **Resume** is never covered. The Y (Ready) and G (Start) keys still work.
+- A late joiner after FIGHT no longer gets a stray FIGHT! banner.
+- Opening Multiplayer from the in-game Play screen now closes that single-player game first, so the room starts on the room's map with no bots (before, the host kept the old game with 38 enemies).
+- A new remote player stays hidden until it is placed at its real position.
+
 ## 1.2.5 (2026-11-24): see if everyone is in before the match
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

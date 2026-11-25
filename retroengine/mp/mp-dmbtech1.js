@@ -103,6 +103,8 @@ export function attachMultiplayer(engine, opts) {
     let rp = null;
     try { rp = create(peer.modelId || profile.modelId || 'default'); }
     catch (e) { console.error('createRemotePlayer failed:', e); }
+    // Hidden until the first tick places it (it is created at 0,0, inside a wall).
+    if (rp && rp.mesh) rp.mesh.visible = false;
     if (rp) remotes.set(peer.id, rp);
     return rp;
   }
