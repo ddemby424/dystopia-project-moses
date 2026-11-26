@@ -24,6 +24,7 @@ Editor (RetroEngine **1.6.0**), powered by DMB Tech 1 **1.3.0**.
 - Pro's enemies are registered on Pro's own runtime, and campaign.json decides which stock enemies get swapped out in each map. The editor's enemy list and maps don't change.
 - **DMB Tech 1 1.3.0.** Enemy defs can set `lift` (float above the floor with a full-height hitbox) and `bob`. A `jet_anchor` node in an enemy GLB gets a flickering thruster flame. Emissive textures in GLBs glow instead of being switched off. There is a new `redring` projectile.
 - **Multiplayer character picker previews.** Each model in the lobby now has a miniature card with a pre-rendered thumbnail (`assets/thumbs/*.webp`, about 6–12 KB each). The one you pick spins live in a small turntable, and only that model's GLB is loaded. The turntable stops when the lobby closes. If WebGL is off, a large thumbnail is shown instead.
+- **Darcy's own music in Pro.** "Jungle Slap" plays in the Minotaur fight (chapter 7). "Ghetto Shit" plays in chapters 1, 3 and 5. Both are in Pro's music player (`pro/assets/music/`, 128 kbps, 5.4 MB and 2.3 MB). The editor's music list is unchanged.
 - `pro/preview.html?part=enemy|drone|minotaur|sentinel` shows each new model.
 
 ## 1.5.1 (2026-11-25): Pro stands on its own, powered by DMB Tech 1

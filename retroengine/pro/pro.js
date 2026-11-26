@@ -106,6 +106,8 @@ function registerProEnemies() {
     if (d.model) RT.ASSET_PACK['enemy_' + id] = Object.assign({}, d.model);  // src is relative to assetBase '../'
   }
   if (!RT.PROP_DEFS.pro_prop) RT.PROP_DEFS.pro_prop = { name: 'Community model', solid: 0.3 };  // slot used by chapter 6
+  // Darcy's own tracks join this runtime's music player (the editor's list is untouched).
+  ((CFG.music && CFG.music.tracks) || []).forEach(t => { if (!RT.MUSIC_TRACKS.some(x => x.id === t.id)) RT.MUSIC_TRACKS.push(Object.assign({}, t)); });
 }
 // Swap stock enemies for Pro's: every Nth one, plus the N nearest the start (so you meet them right away).
 function swapEnemies(level, rules) {
@@ -165,6 +167,7 @@ async function boot() {
       const level = RT.unpackLevel(await r.json()).level;     // DMB Tech 1's own .retro reader
       level.name = lv.name;                                   // show the chapter name in the HUD
       if (lv.swap) swapEnemies(level, lv.swap);               // put Pro's enemies into the stock maps
+      if (lv.track) level.props = Object.assign({}, level.props, { track: lv.track });   // e.g. Jungle Slap for the Minotaur
       (lv.nudge || []).forEach(n => level.ents.forEach(e => {  // move an entity a little, e.g. the tall Minotaur steps off his throne
         if (e.t === 'enemy' && e.s === n.s) { e.x += n.dx || 0; e.y += n.dy || 0; }
       }));

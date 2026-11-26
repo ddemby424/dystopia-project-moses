@@ -58,7 +58,8 @@
           "to": "warden",
           "every": 1
         }
-      ]
+      ],
+      "track": "pro_ghetto_shit"
     },
     {
       "slug": "cellblock-yard",
@@ -120,7 +121,8 @@
           "every": 2,
           "nearest": 0
         }
-      ]
+      ],
+      "track": "pro_ghetto_shit"
     },
     {
       "slug": "plant4-lockdown",
@@ -187,7 +189,8 @@
           "every": 2,
           "nearest": 0
         }
-      ]
+      ],
+      "track": "pro_ghetto_shit"
     },
     {
       "slug": "catacomb-relay",
@@ -245,7 +248,8 @@
           "dy": -1.3,
           "_why": "the Meshy Minotaur is 2.9 tall and stands in an A-pose, so he waits in front of the throne instead of inside it"
         }
-      ]
+      ],
+      "track": "pro_jungle_slap"
     }
   ],
   "ending": {
@@ -353,5 +357,28 @@
       "tint": 1,
       "maxW": 1.2
     }
+  },
+  "music": {
+    "_about": "Darcy D. Demby's own tracks, added to Pro's music player. A level's 'track' picks what plays there.",
+    "tracks": [
+      {
+        "id": "pro_ghetto_shit",
+        "file": "pro/assets/music/ghetto_shit.mp3",
+        "title": "Ghetto Shit",
+        "artist": "Darcy D. Demby",
+        "genre": "Hip-hop",
+        "license": "© Darcy D. Demby (DembySoftwareSystems)",
+        "url": ""
+      },
+      {
+        "id": "pro_jungle_slap",
+        "file": "pro/assets/music/jungle_slap.mp3",
+        "title": "Jungle Slap",
+        "artist": "Darcy D. Demby",
+        "genre": "Hip-hop",
+        "license": "© Darcy D. Demby (DembySoftwareSystems)",
+        "url": ""
+      }
+    ]
   }
 }
