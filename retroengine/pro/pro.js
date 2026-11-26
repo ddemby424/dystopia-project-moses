@@ -1,12 +1,12 @@
 // PRO — a standalone game powered by DMB Tech 1 (seven chapters, Lab -> Marble Shrine -> broadcast).
-// 1.6.1: every local import carries ?v=1.6.2 so phones never mix a cached old module with new ones.
+// 1.6.1: every local import carries ?v=1.6.3 so phones never mix a cached old module with new ones.
 // This page only *hosts* DMB Tech 1: it loads the seven chapter maps, adds story cards between them,
 // seals each exit until that level's goal is met, and saves how far you got in localStorage.
-import { createRuntime } from '../dmbtech1.js?v=1.6.2';          // the DMB Tech 1 engine (same file the editor uses)
-import { mountPro } from './viewer.js?v=1.6.2';                  // Pro's turntable for the intro and ending cards
-import { sprayTitle } from './spray.js?v=1.6.2';                 // spray-paints the PRO title on the splash
-import { installJuice } from './juice.js?v=1.6.2';
-import { initInstall, onInstallChange, isInstalled, canPrompt, installSteps, promptInstall } from './install.js?v=1.6.2';   // 1.6.1: Play Online / Install App               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
+import { createRuntime } from '../dmbtech1.js?v=1.6.3';          // the DMB Tech 1 engine (same file the editor uses)
+import { mountPro } from './viewer.js?v=1.6.3';                  // Pro's turntable for the intro and ending cards
+import { sprayTitle } from './spray.js?v=1.6.3';                 // spray-paints the PRO title on the splash
+import { installJuice } from './juice.js?v=1.6.3';
+import { initInstall, onInstallChange, isInstalled, canPrompt, installSteps, promptInstall, offlineStatus } from './install.js?v=1.6.3';   // 1.6.1: Play Online / Install App               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
 
 initInstall();                                           // 1.6.1: catch beforeinstallprompt early + register sw.js
 const RT = createRuntime();                              // one engine instance for the whole campaign
@@ -48,6 +48,11 @@ function showCard(o) {
   $('ctitle').textContent = o.title || '';
   const body = $('cbody'); body.innerHTML = '';
   (o.lines || []).forEach(t => { const p = document.createElement('p'); p.textContent = t; body.appendChild(p); }); // textContent = no HTML injection
+  if (o.stats && o.stats.length) {                          // 1.6.3: the chapter's score line (label / value pairs)
+    const d = document.createElement('div'); d.className = 'cstats';
+    o.stats.forEach(([k, v]) => { const i = document.createElement('span'), b = document.createElement('b'); i.textContent = k; b.textContent = v; d.append(i, b); });
+    body.appendChild(d);
+  }
   const btns = $('cbtns'); btns.innerHTML = '';
   (o.buttons || []).forEach(b => {
     const el = document.createElement('button'); el.textContent = b.label; if (b.pri) el.className = 'pri';
@@ -85,18 +90,30 @@ function startAt(index) {
     offHand: 1,                                               // 1.6.2: the arm cannon is his right arm; every other weapon is held left-handed
     musicNote: 'Music © Darcy D. Demby (DembySoftwareSystems). All rights reserved; used in Pro with permission.',   // 1.6.2: music player footer credits Darcy, not the editor's CC BY pack
     quitLabel: 'Campaign menu',
+    lively: true,                                             // 1.6.3: every enemy strides / hovers / recoils / flashes (no cardboard cut-outs)
+    pack: CFG.pack || { inventory: false, regen: false },    // 1.6.3: points / score only (campaign.json can turn regen or the Pack on)
+    safeSpawn: CFG.safeSpawn || { grace: 4 },                 // 1.6.3: start every chapter out of sight with a short "get ready" window
+    pauseExtras: [{ id: 'install', label: isInstalled() ? 'App installed · offline status' : 'Download / Install App' }, { id: 'multiplayer', label: 'Multiplayer lobby' }],
+    onMenu: id => { if (id === 'install') installClick(); else if (id === 'multiplayer') openMultiplayer(); },
     onQuit: () => { if (handle) { JUICE.detach(); handle.destroy(); handle = null; } titleCard(); },
     onEvent: (ev, arg) => { JUICE.onEvent(ev, arg); if (ev === 'won') levelDone(arg); }  // 'won' fires when you step on an open exit pad
   });
   JUICE.attach(handle, host.querySelector('.dfg-root') || host);   // Pro HUD + feel layer for this run
   writeSave({ level: index, done: false });                   // remember the chapter you are on
 }
+function chapterStats() {                                    // 1.6.3: points / score for the summary cards
+  const G = handle && handle.game; if (!G) return [];
+  const t = Math.round(G.time || 0), out = [['Score', (G.points || 0).toLocaleString()]];
+  if (G.clearBonus) out.push(['Clear bonus', '+' + G.clearBonus.toLocaleString()]);
+  out.push(['Kills', (G.kills || 0) + ' / ' + (G.totalEnemies || 0)], ['Time', Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0')]);
+  return out;
+}
 function levelDone(i) {
   const next = i + 1;
   if (next >= LEVELS.length) { writeSave({ level: i, done: true }); return endingCard(); }
   writeSave({ level: next, done: false });                    // a reload now resumes at the next chapter
   const lv = CFG.levels[i], nx = CFG.levels[next];
-  showCard({ kind: 'between', kicker: 'CHAPTER ' + (i + 1) + ' CLEARED', title: nx.name.toUpperCase(), lines: [lv.after, nx.brief],
+  showCard({ kind: 'between', kicker: 'CHAPTER ' + (i + 1) + ' CLEARED', title: nx.name.toUpperCase(), lines: [lv.after, nx.brief], stats: chapterStats(),
     buttons: [{ id: 'continue', label: 'Continue', pri: true, go: () => {
       hideCard();
       const b = host.querySelector('[data-a="next"]');         // the engine's own "Next level" button keeps your guns and ammo
@@ -105,7 +122,7 @@ function levelDone(i) {
 }
 function endingCard() {
   const e = CFG.ending;
-  showCard({ kind: 'ending', kicker: e.kicker, title: e.title, lines: e.lines, hero: true, broadcast: true,
+  showCard({ kind: 'ending', kicker: e.kicker, title: e.title, lines: e.lines, stats: chapterStats(), hero: true, broadcast: true,
     buttons: [{ id: 'again', label: 'Play again', pri: true, go: () => { writeSave({ level: 0, done: false }); startAt(0); } },
               { id: 'menu', label: 'Campaign menu', go: () => { if (handle) { JUICE.detach(); handle.destroy(); handle = null; } titleCard(); } }] });
 }
@@ -116,32 +133,79 @@ function titleCard() {
   // "Download / Install App" installs Pro to the home screen / desktop. Start Chapter 1 + Chapter Select sit below.
   if (resume) btns.push({ id: 'resume', label: 'Play Online · Continue ' + CFG.levels[at].name.replace(/^\d+ · /, ''), pri: true, go: () => briefCard(at) });
   else btns.push({ id: 'new', label: 'Play Online · Chapter 1', pri: true, go: () => { writeSave({ level: 0, done: false }); briefCard(0); } });
-  if (!isInstalled()) btns.push({ id: 'install', label: 'Download / Install App', go: installClick });
+  // 1.6.3: the install button is always here (installed already = it opens the sheet showing the offline status).
+  btns.push({ id: 'install', label: isInstalled() ? 'App installed · offline status' : 'Download / Install App', go: installClick });
+  // 1.6.3: Multiplayer opens RetroEngine's lobby (character picker + 3D preview) straight from Pro's start screen.
+  btns.push({ id: 'multiplayer', label: 'Multiplayer', go: openMultiplayer });
   if (resume) btns.push({ id: 'new', label: 'Start Chapter 1', go: () => { writeSave({ level: 0, done: false }); briefCard(0); } });
   if (s.done) btns.push({ id: 'ending', label: 'Watch the broadcast', go: endingCard });
   btns.push({ id: 'preview', label: 'Inspect the suit', go: () => { location.href = 'preview.html'; } });
   showCard({ kind: 'title', kicker: i.kicker, title: i.title, lines: i.lines, hero: true, buttons: btns });
   chapterSelect(resume ? at : 0);                                            // 1.6.1: pick any chapter 1–7
 }
-// 1.6.1 Install button: the browser's one-tap dialog when it offered one, otherwise a two-line tip with the steps.
+// 1.6.3 Install button (title card, splash corner and the pause menu): the browser's one-tap dialog when it offered one,
+// otherwise a friendly sheet with this browser's steps, an "Install to Home Screen" button and the offline-ready badge.
 async function installClick() {
-  const r = await promptInstall();
-  if (r === 'accepted') { installTip(['Installing Pro…', 'It will appear on your home screen / desktop.']); return; }
-  if (r === 'dismissed') return;                                             // they said no: leave it
-  installTip(installSteps());                                                // Safari / iOS / Firefox / already offered
-}
-function installTip(lines) {
-  let tip = $('install-tip');
-  if (!tip) {                                                                // small inline popover under the buttons
-    tip = document.createElement('div'); tip.id = 'install-tip'; tip.className = 'install-tip'; tip.setAttribute('role', 'status');
-    const x = document.createElement('button'); x.className = 'install-x'; x.setAttribute('aria-label', 'Close'); x.textContent = '×';
-    x.addEventListener('click', () => tip.remove());
-    tip.appendChild(document.createElement('b')); tip.appendChild(document.createElement('span')); tip.appendChild(x);
-    const inst = $('cbtns').querySelector('[data-btn="install"]');
-    $('cbtns').insertBefore(tip, inst ? inst.nextSibling : null);            // right below the Install button's row
+  if (!isInstalled() && canPrompt()) {
+    const r = await promptInstall();
+    if (r === 'accepted') return installSheet('Installing Pro…');
+    if (r === 'dismissed') return;                                           // they said no: leave it
   }
-  tip.children[0].textContent = lines[0]; tip.children[1].textContent = lines[1] || '';
+  installSheet();                                                            // Safari / iOS / Firefox / not offered yet / installed
 }
+function installSheet(head) {
+  let m = $('install-sheet');
+  if (!m) {
+    m = document.createElement('div'); m.id = 'install-sheet'; m.className = 'isheet'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
+    m.innerHTML = '<div class="isheet-box"><button class="isheet-x" aria-label="Close">×</button>'
+      + '<img src="assets/icon-192.png" alt="" class="isheet-ico"><div class="isheet-k">PRO · DMB TECH 1</div><h2></h2>'
+      + '<ol class="isheet-steps"></ol><div class="isheet-off"><i></i><span></span></div>'
+      + '<div class="isheet-btns"><button class="pri" data-ib="go"></button><button data-ib="close">Not now</button></div></div>';
+    m.addEventListener('click', ev => {                                      // tap outside the box or × / Not now closes it
+      ev.stopPropagation();                                                  // never reaches the splash's tap-to-continue
+      const b = ev.target.closest('button');
+      if (ev.target === m || (b && (b.classList.contains('isheet-x') || b.dataset.ib === 'close'))) return closeSheet();
+      if (b && b.dataset.ib === 'go') sheetGo();
+    });
+    document.body.appendChild(m);
+  }
+  const inst = isInstalled();
+  m.querySelector('h2').textContent = head || (inst ? 'Pro is installed' : 'Install Pro');
+  const ol = m.querySelector('.isheet-steps'); ol.innerHTML = '';
+  const steps = inst ? ['You are playing the installed app.', 'Open it any time from your home screen / desktop.']
+    : canPrompt() ? ['Tap “Install to Home Screen” below.', 'Pro opens full screen from its own icon.'] : installSteps();
+  steps.forEach(t => { const li = document.createElement('li'); li.textContent = t; ol.appendChild(li); });
+  const go = m.querySelector('[data-ib="go"]');
+  go.textContent = inst ? 'Done' : 'Install to Home Screen';
+  go.dataset.mode = inst ? 'done' : canPrompt() ? 'prompt' : 'steps';
+  m.classList.add('on');
+  refreshOffline();
+  window.PRO_INSTALL_SHEET = { open: true, steps, mode: go.dataset.mode };   // test hook
+}
+async function sheetGo() {
+  const go = $('install-sheet').querySelector('[data-ib="go"]');
+  if (go.dataset.mode === 'prompt') { const r = await promptInstall(); if (r === 'accepted') { installSheet('Installing Pro…'); return; } installSheet(); return; }
+  if (go.dataset.mode === 'steps') { const ol = $('install-sheet').querySelector('.isheet-steps'); ol.classList.remove('flash'); void ol.offsetWidth; ol.classList.add('flash'); return; }   // point at the steps
+  closeSheet();
+}
+function closeSheet() { const m = $('install-sheet'); if (m) m.classList.remove('on'); if (window.PRO_INSTALL_SHEET) window.PRO_INSTALL_SHEET.open = false; }
+// The offline badge: green "Offline ready" once the service worker holds the engine, the campaign and some maps.
+async function refreshOffline() {
+  const m = $('install-sheet'); if (!m) return;
+  const box = m.querySelector('.isheet-off'), txt = box.querySelector('span');
+  const st = await offlineStatus();
+  const total = CFG ? CFG.levels.length : 7;
+  let cls = 'wait', msg;
+  if (st.sw === 'none') { cls = 'no'; msg = 'Offline play needs the https page (open the online link once).'; }
+  else if (st.sw === 'starting') msg = 'Saving an offline copy… (ready after this load)';
+  else if (st.core && st.maps >= total) { cls = 'ok'; msg = 'Offline ready · all ' + total + ' chapters saved (' + st.files + ' files)'; }
+  else if (st.core) { cls = 'ok'; msg = 'Offline ready · ' + st.maps + '/' + total + ' chapter maps saved (' + st.files + ' files)'; }
+  else msg = 'Saving an offline copy… ' + (st.files || 0) + ' files so far';
+  box.className = 'isheet-off ' + cls; txt.textContent = msg;
+  window.PRO_OFFLINE = Object.assign({ state: cls, msg }, st);              // test hook
+}
+// 1.6.3: Multiplayer = RetroEngine's lobby (pick a character on the 3D turntable, host or join a room).
+function openMultiplayer() { location.href = new URL('../index.html?mode=pro#multiplayer', location.href).href; }   // ?mode=pro = Pro's preset (4 suit colours, PvP / 2P vs AI)
 // Title card is on screen and install state changed (prompt became available / app got installed): redraw it.
 onInstallChange(() => { if (card.dataset.kind === 'title') titleCard(); });
 // 1.6.1: Chapter Select. A styled native <select> (so Android shows its own picker) plus a Play button.
@@ -217,6 +281,13 @@ function tick(label) {                                        // one file finish
   if (label) $('sp-status').textContent = 'LOADING ' + label.toUpperCase() + '…';
 }
 function maybeReady() { if (filesReady && sprayed) splashReady(); }  // paint done AND files loaded
+// 1.6.3: the splash's install chip (top-right). Its tap never counts as "tap to continue".
+const spInstall = $('sp-install');
+if (spInstall) {
+  if (isInstalled()) spInstall.innerHTML = '<i>✓</i>Installed · offline';
+  ['pointerdown', 'click'].forEach(t => spInstall.addEventListener(t, ev => ev.stopPropagation()));
+  spInstall.addEventListener('click', () => installClick());
+}
 function splashReady() {                                      // everything loaded: wait for a tap
   if (splash.classList.contains('ready')) return;             // only once
   splash.classList.add('ready'); $('sp-fill').style.width = '100%';
@@ -224,6 +295,7 @@ function splashReady() {                                      // everything load
   splash.addEventListener('click', () => {                    // the tap also unlocks sound on phones
     splash.classList.add('gone');                             // fade out (CSS), then remove it from view
     setTimeout(() => { splash.style.display = 'none'; splashViewer.dispose(); }, 450);  // free the splash's 3D view
+    if (spInstall) spInstall.classList.add('gone');           // the title card has its own Install button
     titleCard();                                              // straight to the campaign menu
   }, { once: true });
   window.PRO_SPLASH_READY = true;                             // test hook
@@ -263,5 +335,5 @@ async function boot() {
 }
 // Test hook for the automated checks (the game never reads it).
 window.PRO_SPLASH = { spray, viewer: splashViewer };          // test hook: spray progress + charge level
-window.PRO_CAMPAIGN = { installClick, canPrompt, juice: JUICE, get handle() { return handle; }, get cfg() { return CFG; }, get levels() { return LEVELS; }, loadSave: () => loadSave(), startAt, titleCard, exitGate };
+window.PRO_CAMPAIGN = { installClick, installSheet, closeSheet, openMultiplayer, canPrompt, juice: JUICE, get handle() { return handle; }, get cfg() { return CFG; }, get levels() { return LEVELS; }, loadSave: () => loadSave(), startAt, titleCard, exitGate };
 boot();

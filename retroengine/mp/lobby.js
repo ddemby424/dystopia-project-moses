@@ -26,7 +26,7 @@
  * which is what the 1.2 player models will use.
  */
 
-import { connect } from './mp.js?v=1.6.2';   // 1.6.1: same cache-busted URL as mp-dmbtech1.js (one shared module)
+import { connect } from './mp.js?v=1.6.3';   // 1.6.1: same cache-busted URL as mp-dmbtech1.js (one shared module)
 
 // Fallback lists so the menu works even if the caller passes nothing.
 const DEFAULT_LEVELS = [
@@ -184,7 +184,7 @@ export function mountLobby(container, options) {
   // ---- DOM ----------------------------------------------------------
   // One wrapper so our CSS can stay scoped under .mp-lobby and not
   // leak into the rest of a page (the editor, for example).
-  const root = el('div', 'mp-lobby');
+  const root = el('div', 'mp-lobby' + (options.brand ? ' brand-' + options.brand : ''));   // 1.6.3: brand-pro = Pro's gritty look
   root.dataset.tab = 'play';                                         // which pane narrow screens show
   container.innerHTML = '';
   container.appendChild(root);
@@ -196,7 +196,7 @@ export function mountLobby(container, options) {
   backBtn.setAttribute('data-mp-back', '1');                         // tests / host pages find Back by this
   backBtn.innerHTML = '<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Back</span>';
   const titleBox = el('div', 'mpl-title');
-  titleBox.appendChild(el('h1', '', 'Multiplayer'));                 // normal mixed-case title
+  titleBox.appendChild(el('h1', '', options.title || 'Multiplayer'));   // normal mixed-case title (Pro: "Pro · Multiplayer")
   const statusEl = el('div', 'mpl-status is-wait', 'Connecting…');   // dot + text (dot drawn in CSS)
   titleBox.appendChild(statusEl);
   const tabs = el('div', 'mpl-tabs');                                // segmented control: Play | Open rooms
@@ -242,7 +242,7 @@ export function mountLobby(container, options) {
 
   // "You": name + character dropdown.
   const you = el('section', 'mpl-you');
-  you.appendChild(el('h2', 'mpl-h', 'Your fighter'));
+  you.appendChild(el('h2', 'mpl-h', options.youLabel || 'Your fighter'));
   const nameInput = el('input');
   nameInput.type = 'text';
   nameInput.maxLength = 24;
@@ -259,7 +259,7 @@ export function mountLobby(container, options) {
     return { id: c.id, name: c.name, thumb: c.thumb, sub: c.license };
   }), 'Character');
   const charField = el('div', 'mpl-field');
-  charField.appendChild(el('label', '', 'Character'));
+  charField.appendChild(el('label', '', options.charLabel || 'Character'));
   charField.appendChild(charDD.el);
   you.appendChild(charField);
   forms.appendChild(you);
@@ -284,7 +284,7 @@ export function mountLobby(container, options) {
   createSec.appendChild(el('h2', 'mpl-h', 'New room'));
   const roomNameInput = el('input');
   roomNameInput.type = 'text';
-  roomNameInput.maxLength = 32;
+  roomNameInput.maxLength = (options.modes && options.modes.length) ? 24 : 32;   // 1.6.3: room for the mode tag
   roomNameInput.placeholder = 'Night Shift';
   roomNameInput.spellcheck = false;
   const levelSelect = el('select');
@@ -294,6 +294,30 @@ export function mountLobby(container, options) {
   createRow.appendChild(field('Map', nativeSelect(levelSelect)));
   levelSelect.id = 'mpl-map'; createRow.lastChild.firstChild.htmlFor = 'mpl-map';
   createSec.appendChild(createRow);
+  // 1.6.3: mode toggle (only when the host page passes modes, e.g. Pro: Player vs Player | 2 Players vs AI).
+  const modes = Array.isArray(options.modes) ? options.modes : [];
+  let mode = modes.length ? modes[0].id : '';
+  const modeHint = el('div', 'mpl-mode-hint', '');
+  if (modes.length) {
+    const mf = el('div', 'mpl-field mpl-modes');
+    mf.appendChild(el('label', '', 'Mode'));
+    const seg = el('div', 'mpl-seg'); seg.setAttribute('role', 'radiogroup'); seg.setAttribute('aria-label', 'Mode');
+    modes.forEach(function (m) {
+      const b = el('button', 'mpl-seg-b', m.label); b.type = 'button'; b.dataset.mode = m.id; b.setAttribute('role', 'radio');
+      b.addEventListener('click', function () { setMode(m.id); });
+      seg.appendChild(b);
+    });
+    mf.appendChild(seg); mf.appendChild(modeHint);
+    createSec.appendChild(mf);
+  }
+  function setMode(id) {
+    mode = id;
+    const m = modes.find(function (x) { return x.id === id; }) || {};
+    createSec.querySelectorAll('.mpl-seg-b').forEach(function (b) { const on = b.dataset.mode === id; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    modeHint.textContent = m.hint || '';
+    root.dataset.mode = id;
+  }
+  if (modes.length) setMode(mode);
   const createBtn = el('button', 'mpl-btn primary block', 'Create room');
   createSec.appendChild(createBtn);
   const errEl = el('div', 'mpl-error', '');
@@ -347,7 +371,11 @@ export function mountLobby(container, options) {
       const full = room.players >= room.max;
       const card = el('article', 'mpl-card' + (full ? ' is-full' : ''));
       const left = el('div', 'mpl-card-main');
-      left.appendChild(el('div', 'mpl-card-title', room.name || room.id));
+      const rawName = room.name || room.id;
+      const tagM = /^\s*\[(CO-?OP|PVP)\]\s*/i.exec(rawName || '');           // 1.6.3: mode tag -> badge
+      const titleEl = el('div', 'mpl-card-title', tagM ? rawName.slice(tagM[0].length) : rawName);
+      if (tagM) { const coop = /CO/i.test(tagM[1]); const bd = el('span', 'mpl-badge ' + (coop ? 'coop' : 'pvp'), coop ? '2P vs AI' : 'PvP'); titleEl.insertBefore(bd, titleEl.firstChild); }
+      left.appendChild(titleEl);
       const meta = el('div', 'mpl-card-meta');
       const levelName = room.levelName || levelLabel(room.level) || room.level || '';
       meta.appendChild(document.createTextNode(levelName + '  ·  host ' + (room.host || '—')));
@@ -375,7 +403,7 @@ export function mountLobby(container, options) {
   function showInRoom(welcome) {
     inRoom.hidden = false;
     const label = (welcome && (welcome.roomName || welcome.room)) || (mp && mp.room) || 'room';
-    inRoomText.textContent = 'In ' + label;
+    inRoomText.textContent = 'In ' + String(label).replace(/^\s*\[(CO-?OP|PVP)\]\s*/i, '');
   }
 
   function hideInRoom() {
@@ -440,8 +468,11 @@ export function mountLobby(container, options) {
   });
   createBtn.addEventListener('click', function () {
     const profile = currentProfile();
-    const roomName = (roomNameInput.value || '').trim();
+    let roomName = (roomNameInput.value || '').trim();
     if (!roomName) { setError('Give the room a name first.'); return; }
+    const mDef = modes.find(function (x) { return x.id === mode; });
+    if (mDef && mDef.tag) roomName = (mDef.tag + ' ' + roomName).slice(0, 32);   // 1.6.3: the mode rides in the room name
+    if (typeof options.onCreate === 'function') options.onCreate(roomName, mode);
     const levelId = levelSelect.value;
     let levelName = levelId;
     for (let i = 0; i < levels.length; i++) if (levels[i].id === levelId) levelName = levels[i].name;
@@ -451,7 +482,8 @@ export function mountLobby(container, options) {
       level: levelId,
       levelName: levelName,
       playerName: profile.name,
-      modelId: profile.modelId
+      modelId: profile.modelId,
+      max: mDef && mDef.max ? mDef.max : undefined                 // co-op rooms hold 2
     });
   });
   leaveBtn.addEventListener('click', function () { mp.leaveRoom(); });
@@ -474,7 +506,8 @@ export function mountLobby(container, options) {
   return {
     mp: mp, destroy: destroy, hide: hide, show: show,
     refresh: function () { return mp.listRooms(); },
-    setStatus: setStatus, renderRooms: renderRooms
+    setStatus: setStatus, renderRooms: renderRooms,
+    setMode: setMode, get mode() { return mode; }
   };
 }
 

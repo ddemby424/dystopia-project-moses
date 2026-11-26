@@ -114,7 +114,11 @@ export function installJuice(RT, opts) {
       <div class="pj-streak"></div>
       <div class="pj-dmg"></div><div class="pj-speed"></div>
       <div class="pj-track" aria-live="polite"><i>♪</i><span><small></small><b></b></span></div>
-      <div class="pj-dash" role="button" aria-label="Dash">DASH<i></i></div>`;
+      <div class="pj-dash" role="button" aria-label="Dash">DASH<i></i></div>
+      <div class="pj-pts"><small>PTS</small><b>0</b><span class="pj-pop"></span></div>
+      <div class="pj-regen"><i></i>REGEN</div>
+      <div class="pj-ready"><small>STAGING POINT · OUT OF SIGHT</small><b>GET READY</b><span></span></div>
+      <div class="pj-visor"></div>`;
     root.insertBefore(el, root.querySelector('.dfg-menu'));
     root.classList.add('pro-juice');                             // pro.css hides the engine's stock bottom HUD
     const q = s => el.querySelector(s);
@@ -125,6 +129,7 @@ export function installJuice(RT, opts) {
     dash.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); sfx.init(); doDash(); });
     return { el, q, strip, mark: q('.pj-mark'), obj: q('.pj-obj'), dist: q('.pj-dist'), way: q('.pj-way'), wayI: q('.pj-way i'), lvl: q('.pj-lvl'), host: q('.pj-host'),
       feed: q('.pj-feed'), hit: q('.pj-hit'), pips: q('.pj-pips'), wn: q('.pj-wn'), hpI: q('.pj-bar.hp i'), hpB: q('.pj-bar.hp b'), shI: q('.pj-bar.sh i'), shB: q('.pj-bar.sh b'),
+      pts: q('.pj-pts b'), pop: q('.pj-pop'), regen: q('.pj-regen'), ready: q('.pj-ready'), readyN: q('.pj-ready span'), hpBar: q('.pj-bar.hp'),
       keys: q('.pj-keys'), track: q('.pj-track'), streak: q('.pj-streak'), dmg: q('.pj-dmg'), speed: q('.pj-speed'), dash, dashI: q('.pj-dash i'), cache: {} };
   }
   const PX_DEG = 2.2;                                            // compass: pixels per degree of turn
@@ -163,6 +168,10 @@ export function installJuice(RT, opts) {
     set('shw', ui.shI, 'width', Math.min(100, G.armor / 2) + '%'); set('sht', ui.shB, 'text', String(Math.ceil(G.armor)));
     set('low', ui.hpI, 'background', G.hp < 30 ? '#ff2b2b' : '');
     set('keys', ui.keys, 'html', ['red', 'blue', 'yellow'].filter(k => G.keys[k]).map(k => `<b class="${k}"></b>`).join(''));
+    // 1.6.3: points, health regen glow, "get ready" countdown
+    set('pts', ui.pts, 'text', String(G.points || 0));
+    const rg = !!G.regenOn; if (ui.cache.rg !== rg) { ui.cache.rg = rg; ui.regen.classList.toggle('on', rg); ui.hpBar.classList.toggle('regen', rg); }
+    const gr = Math.max(0, G.graceT || 0); set('rdy', ui.ready, 'display', gr > 0 ? 'flex' : 'none'); set('rdyn', ui.readyN, 'text', gr > 0 ? Math.ceil(gr) + ' · move or fire to go' : '');
     // ammo pips under the crosshair: magazine rounds, or a 6-segment recharge bar for the endless cannon
     const W = RT.WEAPON_DEFS[G.cur] || {}, mag = (RT.MAG_SIZE || [])[G.cur] || 0;
     let pipHtml;
@@ -227,6 +236,11 @@ export function installJuice(RT, opts) {
     } else if (ev === 'dash') {
       sfx.whoosh(); flash(ui.speed, 'on', 280);
     } else if (ev === 'kill') { /* counted from 'hit' (has the position) */ }
+    else if (ev === 'points') {                                  // 1.6.3: "+150 KILL" pops beside the score
+      ui.pop.textContent = '+' + a.n + (a.why ? ' ' + String(a.why).toUpperCase() : ''); flash(ui.pop, 'on', 900); flash(ui.pts, 'bump', 260);
+      st.lastPoints = a;
+    } else if (ev === 'pack') { if (a.what === 'add') sfx.orb(); st.lastPack = a; }
+    else if (ev === 'suit') { flash(ui.hpBar.parentNode.querySelector('.pj-bar.sh'), 'rebuild', 1600); }
   }
   function kill(a) {
     const t = now(); st.kills++;

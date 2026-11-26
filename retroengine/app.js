@@ -5,10 +5,10 @@
               2) Data       — room/building templates + starter levels
               3) Editor     — 2D map editor UI
    ===================================================================== */
-import { createRuntime } from './dmbtech1.js?v=1.6.2';   // 1.6.1: ?v= busts phone caches
-import { installMultiplayer } from './mp/mp-app.js?v=1.6.2';
+import { createRuntime } from './dmbtech1.js?v=1.6.3';   // 1.6.1: ?v= busts phone caches
+import { installMultiplayer } from './mp/mp-app.js?v=1.6.3';
 
-const VERSION = '1.6.2';
+const VERSION = '1.6.3';
 function DFRuntime() { return createRuntime(); }
 
 /* =====================================================================
@@ -1434,11 +1434,13 @@ function playtest(levelIndex, extra) {
     multiplayer: !!extra.multiplayer,
     driveBoss: !!extra.driveBoss,
     getPeers: extra.getPeers,
+    coop: !!extra.coop,                                          // 1.6.3: 2 players vs AI (shared enemy hits)
+    lively: !!extra.lively, pack: extra.pack || false,           // 1.6.3: Pro's co-op feel (animated enemies, points + Pack)
     onQuit: stopPlaytest,
     onEvent: (ev, arg) => {
       if (!MP) return;
       if (ev === 'tick' || ev === 'idle') MP.tick(arg);
-      else if ((ev === 'proj' || ev === 'grenade' || ev === 'boom' || ev === 'boss_warp' || ev === 'boss_rise' || ev === 'boss_pose' || ev === 'boss_hit') && MP.engineEvent) MP.engineEvent(ev, arg);
+      else if ((ev === 'proj' || ev === 'grenade' || ev === 'boom' || ev === 'boss_warp' || ev === 'boss_rise' || ev === 'boss_pose' || ev === 'boss_hit' || ev === 'ehit') && MP.engineEvent) MP.engineEvent(ev, arg);
     },
     onMultiplayer: () => { if (MP) MP.openLobby(); }
   });
@@ -2023,7 +2025,8 @@ function boot() {
   window.addEventListener('orientationchange', later); if (window.visualViewport) window.visualViewport.addEventListener('resize', later);
   ['gesturestart', 'gesturechange'].forEach(e => document.addEventListener(e, ev => ev.preventDefault(), { passive: false }));
   let seen = false; try { seen = !!localStorage.getItem(SEEN_KEY); } catch (e) {}
-  if (/^#map=/.test(location.hash)) openFromHash(); else if (/^#pack=/.test(location.hash)) openFromPack(); else if (!seen) openHelp(true);
+  const wantLobby = location.hash === '#multiplayer';            // 1.6.3: Pro's title screen links straight to the multiplayer lobby
+  if (/^#map=/.test(location.hash)) openFromHash(); else if (/^#pack=/.test(location.hash)) openFromPack(); else if (!seen && !wantLobby) openHelp(true);
   loadPackCatalog();
   MP = installMultiplayer({
     RT, toast,
@@ -2033,6 +2036,10 @@ function boot() {
     getPackLevels, loadPackLevel, applySpawnIndex, applySpawnPoint,
     getStarterLevels: listStarterLevels, loadStarterLevel
   });
+  if (wantLobby) {                                                // open the lobby (character picker + 3D preview) and drop the hash
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    setTimeout(() => { if (MP) MP.openLobby(); }, 0);
+  }
   // Debug / test hook (used by the automated tests)
   window.RETROENGINE = window.DOOMFORGE_IDE = { VERSION, packLevel, unpackLevel, encodeMap, decodeMap, inflateRaw, shareLink, exportLevelFile, importLevelText, openFromHash, openFromPack, ED, RT, L, setTool, startTutorial, stopTutorial, tutGo, openHelp, openAbout, get tut() { return TUT; }, placeStamp, startStamp, playtest, stopPlaytest, buildStandaloneHtml, loadProject, normalizeProject, undo, redo, regionData, fitView, get play() { return playHandle; }, TEMPLATES, tplData, autosave, describeCell, applyCellProp, applyLightPreset, updateCellReadout, renderExplorer, refreshPropsDock, openMultiplayer: () => MP && MP.openLobby(), get mp() { return MP; }, loadPackCatalog, loadPackLevel, getPackLevels, applySpawnIndex, applySpawnPoint, listStarterLevels, loadStarterLevel, starterLevelSlug, get packMaps() { return PACK_MAPS; } };
 }

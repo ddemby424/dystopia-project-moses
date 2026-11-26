@@ -20,10 +20,12 @@
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/" } }
 </script>
-<link rel="stylesheet" href="pro.css?v=1.6.2">
+<link rel="stylesheet" href="pro.css?v=1.6.3">
 </head>
 <body>
 <!-- SPLASH: plain HTML + CSS so it shows instantly, before any game code loads. pro.js fills the bar. -->
+<!-- 1.6.3: always-visible Download / Install App chip (works before the game code even loads its menu) -->
+<button id="sp-install" type="button" aria-label="Download / Install App"><i>⬇</i>Install App</button>
 <div id="splash">
   <div class="scan"></div>                                <!-- same CRT scanlines as the story cards -->
   <div id="sp-stage">                                     <!-- Sgt. Protagonist: still image first, then the live 3D model -->
@@ -53,6 +55,6 @@
     </div>
   </div>
 </div>
-<script type="module" src="pro.js?v=1.6.2"></script>
+<script type="module" src="pro.js?v=1.6.3"></script>
 </body>
 </html>

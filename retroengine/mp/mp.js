@@ -60,6 +60,7 @@ const READY_TAG = 'ready';
 //   fx:w:<tx>:<ty>:<tz>         minotaur warp (origin in x,y,z; dest in tx,ty,tz)
 //   fx:u                         minotaur awakens
 //   fx:s:<hp>:<yaw>:<state>      minotaur pose (host, throttled)
+//   fx:e:<enemy index>:<dmg>     1.6.3 co-op: my hit on enemy #i (your copy of that enemy takes it too)
 const FX_TAG = 'fx:';
 
 function decodeFx(msg) {
@@ -72,6 +73,7 @@ function decodeFx(msg) {
   if (parts[0] === 'w') return Object.assign(base, { tx: n(1), ty: n(2), tz: n(3) });
   if (parts[0] === 'u') return base;
   if (parts[0] === 's') return Object.assign(base, { hp: n(1), yaw: n(2), state: parts[3] || '' });
+  if (parts[0] === 'e') return Object.assign(base, { i: n(1) | 0, dmg: n(2) });
   return null;
 }
 
@@ -531,6 +533,7 @@ export function connect(url, room, profile, options) {
     else if (fx.t === 'b') tag = 'b:' + r(fx.rad) + ':' + String(fx.src || 'r').charAt(0);
     else if (fx.t === 'w') tag = 'w:' + r(fx.tx) + ':' + r(fx.ty) + ':' + r(fx.tz);
     else if (fx.t === 'u') tag = 'u';
+    else if (fx.t === 'e') tag = 'e:' + (fx.i | 0) + ':' + r(fx.dmg);
     else if (fx.t === 's') tag = 's:' + r(fx.hp) + ':' + r(fx.yaw) + ':' + String(fx.state || '').replace(/[^a-z_]/g, '').slice(0, 12);
     else return false;
     return sendRaw({ type: 'shot', x: r(fx.x), y: r(fx.y), z: r(fx.z), yaw: 0, weapon: FX_TAG + tag });

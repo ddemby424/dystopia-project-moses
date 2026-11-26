@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.6.3 (2026-11-26): install button, lively enemies, crackling lightning, safe starts, points / score, Pro multiplayer, visor HUD
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.6.3**), powered by DMB Tech 1 **1.3.3**.
+
+- **Download / Install App, always there.** A chip on Pro's splash (top-right, before anything loads), a button on the title card, and one in the pause menu. If the browser offered its install dialog, one tap opens it; otherwise a clean sheet shows this browser's 1-tap steps ("Install to Home Screen") and an **offline-ready** badge. The service worker (`pro-files-1.6.3`) now saves the game code at install and every map, model and texture as it loads (network first, so updates always win): after one online session the installed app plays offline.
+- **Multiplayer from Pro's title screen.** Opens RetroEngine's lobby with Pro's preset (`index.html?mode=pro#multiplayer`): Sgt. Protagonist's suit in **4 colours** (Cyan, Crimson, Gold, Emerald) on the 3D turntable, Pro's 7 chapters as maps, and a mode toggle:
+  - **Player vs Player** (as before);
+  - **2 Players vs AI** (co-op, 2-player rooms): both players fight the chapter's enemies and bosses together. Hits on enemies are shared over the relay (a kill on one screen is a kill on both), the host drives the boss, and players never damage each other.
+  The suit colour rides in the player's model id, so everyone sees your colour in the lobby and in game. The mode rides in the room name (`[CO-OP] …` / `[PVP] …`, shown as a badge), so the existing relay at `dembysoftwaresystems.com/ws` needs no change. Back returns to Pro. The editor's own lobby is unchanged.
+- **No cardboard cut-outs.** Every enemy type (soldiers, troopers, drones, heavy walkers, turrets, sentinels, the Warden, the Minotaur) is procedurally animated: a stride bob and hip sway that follow its real speed, banking and pitching hover units, a heavy stomp for walkers, a sentry sweep for turrets, breathing and a slow look-around when idle, a charge-up lean with a glowing muzzle, then a recoil kick, flash and torso twist on every shot, and a flinch when hit. Turning is eased with a top turn rate (no snapping), movement is smoothed (no sliding), mobile enemies sidestep while winding up, and a chaser that gets stuck wanders to a new angle instead of freezing.
+- **Crackling blue lightning.** Soldiers' zaps are a jagged multi-segment bolt (midpoint displacement) with a white-hot core, blue glow and a wide halo, side forks, and electric spark arcs at the muzzle and the impact; it re-jags and flickers every frame. Soldiers crackle at the muzzle while they charge.
+- **Safe "get ready" start.** Each chapter starts in a staging spot no enemy can see: anyone who could see the start is moved out of sight (the search walks through doors to the next room), with a 4-second GET READY window where nothing can hurt you. Moving or firing ends it early.
+- **Points / score** (Pro, `opts.pack`): points for kills (by tier, bosses most), pickups and chapter clears, on the HUD (with +N pops) and every chapter summary, carried between chapters.
+  - Pro plays **points only**: no health regeneration, no armor rebuild and no inventory Pack (`campaign.json` `pack: { inventory: false, regen: false }`).
+  - The engine keeps those as opt-in switches (`inventory: true` adds the Pack, Suit Rebuild and item drops; `regen: true` adds health regen); the editor's games are unchanged.
+- **Modern menus and a helmet-visor HUD.** Pro's cards, pause, music player, chapter summary, death and victory screens and the install sheet use the lobby's graphite-glass style (1px hairlines, frosted backing). The HUD and touch controls get thin translucent cyan visor glow edges and a faint visor frame, light enough never to block the view.
+- **Fixes:** PvP hits now land (the engine handle was missing `damagePlayer`, so other players' shots never hurt you); survival events reached the host twice; on phones the touch look-zone covered the top HUD buttons (pause, light, fullscreen), so taps on them did nothing.
+- **Cache-busting.** Every page, stylesheet and local module import carries `?v=1.6.3`.
+
 ## 1.6.2 (2026-11-26): life-sized enemies, the Warden's shooting animation, enemy powers, and Darcy's boss music
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

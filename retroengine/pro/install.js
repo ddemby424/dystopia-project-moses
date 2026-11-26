@@ -1,4 +1,4 @@
-/* install.js — 1.6.1: "Play Online" or "Download / Install App" for Pro.
+/* install.js — 1.6.1 (1.6.3: always-visible button + install sheet + offline status): "Play Online" or "Download / Install App" for Pro.
    - Registers sw.js (a tiny network-first service worker) so Chrome / Edge / Samsung Internet treat Pro as
      an installable app and fire `beforeinstallprompt`.
    - Catches that event early, so the Install button can open the browser's own one-tap install dialog.
@@ -50,5 +50,20 @@ export async function promptInstall() {
   catch (err) { return 'unavailable'; }
 }
 
+// 1.6.3: ask the service worker how much of Pro is saved for offline play.
+// Resolves { sw: 'none' | 'starting' | 'on', files, core, maps } ('none' = this browser or file:// has no service worker).
+export function offlineStatus() {
+  if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve({ sw: 'none', files: 0, core: false, maps: 0 });
+  const ctl = navigator.serviceWorker.controller;
+  if (!ctl) return Promise.resolve({ sw: 'starting', files: 0, core: false, maps: 0 });   // registered, takes over after the first load
+  return new Promise(res => {
+    const done = d => { navigator.serviceWorker.removeEventListener('message', on); res(d); };
+    const on = ev => { if (ev.data && ev.data.type === 'status') done({ sw: 'on', files: ev.data.files, core: !!ev.data.core, maps: ev.data.maps || 0 }); };
+    navigator.serviceWorker.addEventListener('message', on);
+    ctl.postMessage({ type: 'status' });
+    setTimeout(() => done({ sw: 'on', files: 0, core: false, maps: 0 }), 1500);   // no answer: say "on" without numbers
+  });
+}
+
 // Test hook: lets the automated checks fake a beforeinstallprompt event.
-window.PRO_INSTALL = { get deferred() { return deferred; }, set deferred(v) { deferred = v; listeners.forEach(f => f()); }, installSteps, isInstalled };
+window.PRO_INSTALL = { get deferred() { return deferred; }, set deferred(v) { deferred = v; listeners.forEach(f => f()); }, installSteps, isInstalled, offlineStatus };

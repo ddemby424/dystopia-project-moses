@@ -17,8 +17,8 @@
   }
   </script>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=1.6.2">
-  <link rel="stylesheet" href="mp/lobby.css?v=1.6.2">
+  <link rel="stylesheet" href="styles.css?v=1.6.3">
+  <link rel="stylesheet" href="mp/lobby.css?v=1.6.3">
 </head>
 <body>
 <!-- SPLASH SCREEN v2 (fixed, id "boot" so it does not clash with the loading screen): stamped "DMB TECH 1" + credits + synthesized hammer sound -->
@@ -66,6 +66,7 @@
   var s = document.getElementById('boot'), stamp = document.getElementById('stamp');
   var credits = document.getElementById('credits'), prompt = document.getElementById('prompt');
   var TEXT = 'DMB TECH 1';                 // the engine's name, drawn on the boot screen
+  if (location.hash === '#multiplayer') { s.remove(); return; }   // 1.6.3: Pro's title screen opened the lobby directly: skip the editor's splash
   var stage = 0, ac;                       // stage 0 = waiting, 1 = stamping, 2 = ready to close
 
   function hammer() {                      // builds a "THUD-clank" from scratch, like a TI-89 beep but fancier
@@ -207,6 +208,6 @@
   </svg>
 
   <!-- All editor + game code -->
-  <script type="module" src="app.js?v=1.6.2"></script>
+  <script type="module" src="app.js?v=1.6.3"></script>
 </body>
 </html>

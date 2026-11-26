@@ -88,13 +88,20 @@ You can spin the slim suit at `retroengine/pro/preview.html`.
 From 1.6.2, enemies are life-sized for the rooms (about 1 unit = 1.76 m, so a 1.7 ceiling is about 3 m): troopers and sentinels are about 1.8 m, drones about 0.75 m, the Warden about 2.2 m and the Minotaur about 3.1 m, towering over his throne in the open-sky Shrine. He stops about 2.3 units away when he walks up, so his horns stay on screen. The Warden and sentinels lean in, charge a glow, then kick back with a muzzle flash and tracer; they also breathe when idle and flinch when hit. Grunts throw blue lightning, turrets fire red lasers, and heavy/titan walkers send out a glowing floor shockwave that you clear by jumping or dashing. Pro's arm cannon stays on the right, and every other gun is held left-handed.
 Music (all by **Darcy D. Demby, DembySoftwareSystems**): Old School Flavor plays on chapters 1, 3 and 5, and **Bass Angel** takes over when you meet a boss in chapters 1–6, with a toast naming the track. Chapter 7 keeps Jungle Slap.
 From 1.6.2 there is no separate Map button: tap or click the top-right minimap (or press M) to open the full map, and again to close it.
+From 1.6.3:
+- **Download / Install App** is always visible (splash corner, title card, pause menu): it opens the browser's install dialog, or a sheet with 1-tap steps and an offline-ready badge. After one online session the installed app plays offline.
+- **Multiplayer** on the title card opens the lobby with Pro's preset: 4 suit colours (Cyan, Crimson, Gold, Emerald), Pro's chapters, and **Player vs Player** or **2 Players vs AI** (co-op against the chapter's enemies and bosses).
+- Every enemy walks, hovers, stomps, breathes, leans into a charge-up and recoils with a flash when it fires; soldiers fire a jagged, crackling blue lightning bolt.
+- Each chapter starts out of every enemy's sight with a 4-second GET READY window.
+- **Points / score** for kills (by tier), pickups and chapter clears, on the HUD and each chapter summary. Pro plays points only: no health regen, armor rebuild or inventory Pack (engine switches `pack.inventory` / `pack.regen`, both off in `campaign.json`).
 
 | File | What it is |
 |---|---|
 | `pro/campaign.json` | chapter order, story text, exit goals, view-model sizing |
 | `pro/pro.js` | campaign host: loads the maps, story cards, exit seals, save/resume |
 | `pro/juice.js` | 1.6.0 feel layer: Pro HUD, compass + waypoint, hitmarkers, dash, streaks, orbs, Web Audio SFX |
-| `pro/install.js`, `pro/sw.js` | 1.6.1 Install App button (`beforeinstallprompt` or per-browser steps) + the install-only service worker |
+| `pro/install.js`, `pro/sw.js` | Install App button (`beforeinstallprompt` or per-browser steps) + the service worker (1.6.3: offline copy, `offlineStatus()`) |
+| `pro/assets/thumbs/pro_*.webp` | 1.6.3 lobby miniatures of the 4 suit colours |
 | `pro/viewer.js` | small turntable for Pro's model (cards + preview) |
 | `pro/assets/pro_suit.glb` | Pro's suit with glowing Sgt. chevrons on both shoulders, 31,232 triangles, 1.83 MB |
 | `pro/manifest.webmanifest`, `pro/assets/icon-*.png` | home-screen install as "Pro" |

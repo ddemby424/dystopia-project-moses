@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.3.2 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.3.3 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.3.2';
+export const VERSION = '1.3.3';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.3.2';
+const VERSION = '1.3.3';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 // Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
@@ -137,6 +137,7 @@ const Sound = (function () {
       // 1.3.2: electric zap (crackle + buzzing saw), laser zip (fast falling sine), shockwave quake (low thump + rumble)
       case 'zap': noise(0.16, 5200, 0.9, 0.42 * v, 'highpass'); tone(0.14, 1600, 240, 'sawtooth', 0.12 * v); tone(0.09, 95, 70, 'square', 0.1 * v); noise(0.07, 3800, 2, 0.25 * v, 'bandpass', 0.06); break;
       case 'laser': tone(0.12, 2600, 380, 'sine', 0.2 * v); tone(0.08, 5200, 900, 'triangle', 0.06 * v); break;
+      case 'rebuild': tone(0.5, 220, 880, 'sawtooth', 0.06 * v); tone(0.45, 330, 1320, 'triangle', 0.08 * v, 0.08); noise(0.4, 2400, 1.5, 0.08 * v, 'bandpass'); break;   // 1.3.3 suit rebuild whine
       case 'quake': tone(0.55, 70, 28, 'sine', 0.55 * v); noise(0.6, 240, 0.7, 0.45 * v); tone(0.3, 160, 60, 'sawtooth', 0.08 * v, 0.05); break;
       case 'alert': tone(0.12, 220, 440, 'square', 0.1 * v); tone(0.12, 440, 330, 'square', 0.1 * v, 0.13); break;
       case 'pain': tone(0.15, 180, 90, 'sawtooth', 0.18 * v); noise(0.1, 700, 1, 0.15 * v, 'bandpass'); break;
@@ -1145,6 +1146,14 @@ function buildPickupMesh(sub) {
     box(inner, 0.24 * s, 0.16 * s, 0.16 * s, white); const red = glowMat(0xff2a2a); box(inner, 0.12 * s, 0.04 * s, 0.17 * s, red); box(inner, 0.04 * s, 0.12 * s, 0.17 * s, red);
   } else if (sub.indexOf('armor') === 0) {
     const c = sub === 'armor' ? 0x2f8f3a : 0x2d6cdf; box(inner, 0.3, 0.32, 0.1, mat(c, { metal: 0.5, rough: 0.4 })); box(inner, 0.1, 0.12, 0.12, mat(c, { metal: 0.5 }), -0.15, 0.12, 0); box(inner, 0.1, 0.12, 0.12, mat(c, { metal: 0.5 }), 0.15, 0.12, 0); box(inner, 0.12, 0.04, 0.11, glowMat(0x9dffb0), 0, 0.02, 0);
+  } else if (sub === 'pack_med') {                              // 1.3.3 Pack items: rugged field kit, grimy and military, never toy-like
+    box(inner, 0.26, 0.16, 0.14, mat(0x3b4030, { metal: 0.2, rough: 0.85 })); box(inner, 0.27, 0.03, 0.15, mat(0x22251c, { rough: 0.9 }), 0, 0.05, 0);
+    const red = glowMat(0xd02020); box(inner, 0.1, 0.03, 0.145, red, 0, 0, 0); box(inner, 0.03, 0.1, 0.145, red, 0, 0, 0);
+  } else if (sub === 'pack_cell') {
+    cyl(inner, 0.065, 0.065, 0.24, 10, mat(0x2a2f36, { metal: 0.8, rough: 0.35 }), 0, 0, 0); [-0.06, 0.06].forEach(y => cyl(inner, 0.068, 0.068, 0.025, 10, glowMat(0x38c8ff), 0, y, 0));
+    cyl(inner, 0.03, 0.03, 0.04, 8, mat(0x9aa0a8, { metal: 0.9 }), 0, 0.14, 0);
+  } else if (sub === 'pack_ammo') {
+    box(inner, 0.28, 0.15, 0.17, mat(0x2c2f26, { metal: 0.5, rough: 0.6 })); box(inner, 0.29, 0.025, 0.18, glowMat(0xffa818), 0, 0.03, 0); box(inner, 0.08, 0.04, 0.05, mat(0x6a6d70, { metal: 0.9 }), 0, 0.095, 0);
   } else if (sub.indexOf('ammo_') === 0) {
     const col = { ammo_bullets: 0x4b5d23, ammo_shells: 0x7a2a1a, ammo_cells: 0x1d4f6b, ammo_rockets: 0x5a5a5a }[sub];
     box(inner, 0.26, 0.15, 0.17, mat(col, { metal: 0.3 })); box(inner, 0.27, 0.03, 0.18, glowMat(sub === 'ammo_cells' ? 0x38f2ff : 0xffc21a), 0, 0.03, 0);
@@ -1249,7 +1258,13 @@ const PLAYER_MODELS = {
   mike:   { id: 'mike',   name: 'Mike',   src: 'assets/models/player_mike.glb',   h: 1.32, tintColor: '#ff3d55', license: 'CC0 1.0' },
   stan:   { id: 'stan',   name: 'Stan',   src: 'assets/models/player_stan.glb',   h: 1.4,  tintColor: '#c8e222', license: 'CC0 1.0' },
   swat:   { id: 'swat',   name: 'SWAT',   src: 'assets/models/soldier_swat.glb',  h: 1.22, tintColor: '#b57cff', license: 'CC0 1.0' },
-  scifi:  { id: 'scifi',  name: 'Sci Fi Character', src: 'assets/models/player_scifi.glb', h: 1.22, tintColor: '#ff4ad6', license: 'CC-BY' }
+  scifi:  { id: 'scifi',  name: 'Sci Fi Character', src: 'assets/models/player_scifi.glb', h: 1.22, tintColor: '#ff4ad6', license: 'CC-BY' },
+  // 1.3.3: Sgt. Protagonist's suit in four colours (Pro's multiplayer). pro: true = only listed in Pro's lobby (?mode=pro).
+  // suit = the colour of his chevrons / visor glow and a tint over the armour; the modelId itself syncs it over the relay.
+  pro_cyan:    { id: 'pro_cyan',    name: 'Pro · Cyan',    src: 'pro/assets/pro_suit.glb', h: 1.38, tintColor: '#19c8ff', suit: '#19c8ff', suitMix: 0, thumb: 'pro/assets/thumbs/pro_cyan.webp', pro: true, license: 'Pro suit · DembySoftwareSystems' },
+  pro_crimson: { id: 'pro_crimson', name: 'Pro · Crimson', src: 'pro/assets/pro_suit.glb', h: 1.38, tintColor: '#ff2b3a', suit: '#ff2b3a', suitMix: 0.8, thumb: 'pro/assets/thumbs/pro_crimson.webp', pro: true, license: 'Pro suit · DembySoftwareSystems' },
+  pro_gold:    { id: 'pro_gold',    name: 'Pro · Gold',    src: 'pro/assets/pro_suit.glb', h: 1.38, tintColor: '#ffb21e', suit: '#ffb21e', suitMix: 0.78, thumb: 'pro/assets/thumbs/pro_gold.webp', pro: true, license: 'Pro suit · DembySoftwareSystems' },
+  pro_emerald: { id: 'pro_emerald', name: 'Pro · Emerald', src: 'pro/assets/pro_suit.glb', h: 1.38, tintColor: '#22d46e', suit: '#22d46e', suitMix: 0.75, thumb: 'pro/assets/thumbs/pro_emerald.webp', pro: true, license: 'Pro suit · DembySoftwareSystems' }
 };
 
 const ASSET_PACK = {
@@ -1301,6 +1316,24 @@ function applyTeamTint(root, hex) {
     if (m.color) m.color.lerp(team, 0.32);
     if (m.emissive) m.emissive.copy(team).multiplyScalar(0.08);
     if (m.map) m.map.encoding = THREE.sRGBEncoding;
+    o.frustumCulled = false;
+  });
+}
+// 1.3.3: Pro suit colours. Glow materials (chevrons, visor) take the colour outright; the armour gets a tint of it
+// (suitMix 0 = his stock cyan look). The lobby preview and the in-game avatar both call this, so they always match.
+function applySuitColor(root, def) {
+  const c = new THREE.Color(def.suit || '#19c8ff'), mix = def.suitMix != null ? def.suitMix : 0.4;
+  root.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const one = m => {
+      m = m.clone();
+      const glow = /chevron|glow|halo|visor|light|emiss/i.test(m.name || '') || (m.emissive && m.emissive.getHex() !== 0 && !m.map);
+      if (glow) { if (m.color) m.color.copy(c); if (m.emissive) m.emissive.copy(c); }
+      else if (m.color && mix > 0) { m.color.lerp(c, mix); if (m.emissive) m.emissive.copy(c).multiplyScalar(0.05); }
+      if (m.map) m.map.encoding = THREE.sRGBEncoding;
+      return m;
+    };
+    o.material = Array.isArray(o.material) ? o.material.map(one) : one(o.material);
     o.frustumCulled = false;
   });
 }
@@ -1684,6 +1717,12 @@ function createRemotePlayer(modelId, opts) {
     update(dt) {
       const ud = root.userData;
       if (ud.mixer) ud.mixer.update(dt);
+      else if (ud.glb) {                                         // 1.3.3: a model with no clips (Pro's suit): stride bob + sway, idle breathing
+        const mv = this.anim === 'move'; this._phase += dt * (mv ? 9 : 1.6);
+        const g = ud.glb, by = g.userData.baseY || 0;
+        g.position.y = by + (mv ? Math.abs(Math.sin(this._phase)) * 0.05 : Math.sin(this._phase) * 0.008);
+        g.rotation.z = mv ? Math.sin(this._phase) * 0.05 : 0; g.rotation.x = mv ? 0.08 : 0;
+      }
       else if (ud.proc && ud.proc.userData.legs && this.anim === 'move') {
         this._phase += dt * 8;
         ud.proc.userData.legs.forEach((leg, i) => { leg.rotation.x = Math.sin(this._phase + i * Math.PI) * 0.5; });
@@ -1702,8 +1741,8 @@ function createRemotePlayer(modelId, opts) {
   rp.ready = load.then(gltf => {
     if (!gltf || (sess && sess.destroyed) || rp._gone) return rp;
     const m = normalizeModel(gltf.scene, REMOTE_BODY_H, false, { h: REMOTE_BODY_H }); if (!m) return rp;
-    applyTeamTint(m, def.tintColor);
-    fallback.visible = false;
+    if (def.suit) applySuitColor(m, def); else applyTeamTint(m, def.tintColor);   // 1.3.3: Pro suits keep their own colour scheme
+    fallback.visible = false; m.userData.baseY = m.position.y;
     root.add(m);
     root.userData.glb = m;
     if (gltf.animations && gltf.animations.length) {
@@ -1771,9 +1810,14 @@ const GAME_CSS = `
 .dfg-lvl{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#ffb35c}
 .dfg-obj{font-size:12px;opacity:.85;margin-top:2px}
 .dfg-mini{pointer-events:auto;cursor:pointer;z-index:6;touch-action:none;position:absolute;right:12px;top:10px;width:132px;height:132px;border-radius:50%;border:2px solid rgba(255,255,255,.14);background:rgba(4,6,10,.65);box-shadow:0 0 0 4px rgba(0,0,0,.25)}
-.dfg-topbtns{position:absolute;right:154px;top:12px;display:flex;gap:8px;pointer-events:auto}
+.dfg-topbtns{position:absolute;right:154px;top:12px;display:flex;gap:8px;pointer-events:auto;z-index:7}
 .dfg-ibtn{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;cursor:pointer;border:1px solid rgba(255,255,255,.12);background:rgba(10,14,22,.6)}
 .dfg-ibtn svg{width:18px;height:18px}
+.dfg-ibtn.dfg-packbtn{position:relative}.dfg-packn{position:absolute;right:-4px;top:-4px;min-width:16px;height:16px;border-radius:8px;background:#c9a227;color:#111;font:700 10px/16px system-ui,sans-serif;font-style:normal;text-align:center;padding:0 3px}.dfg-packn:empty{display:none}
+.dfg-pack{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px;text-align:left}.dfg-pk{display:grid;grid-template-columns:38px 1fr auto auto;align-items:center;gap:10px;padding:8px 10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(0,0,0,.28)}
+.dfg-pk-ico{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:18px;background:#1b1e18;border:1px solid rgba(255,255,255,.12)}.dfg-pk-med{color:#e04040}.dfg-pk-cell{color:#5cc8ff}.dfg-pk-ammo{color:#f0a020}
+.dfg-pk span{display:flex;flex-direction:column;min-width:0}.dfg-pk b{font-size:14px}.dfg-pk small{font-size:11px;opacity:.65}.dfg-pk em{font-style:normal;font:700 18px ui-monospace,monospace;color:#e8e2d0}.dfg-pk em small{font-size:11px;opacity:.5}
+.dfg-pk .dfg-btn{margin:0;min-width:86px;min-height:40px;padding:0 12px}.dfg-pk .dfg-btn[disabled]{opacity:.35;pointer-events:none}.dfg-pk-rebuild{border-color:rgba(92,200,255,.3)}.dfg-pk-tip{font-size:11px;opacity:.6;margin:6px 0}
 .dfg-msgs{position:absolute;left:50%;top:18%;transform:translateX(-50%);text-align:center;font-size:15px;font-weight:700;text-shadow:0 2px 6px #000;letter-spacing:.5px}
 .dfg-msgs div{animation:dfgfade 3s forwards;margin:4px 0}
 @keyframes dfgfade{0%{opacity:0;transform:translateY(6px)}8%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
@@ -1860,7 +1904,8 @@ const ICON = {
   pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
   map: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>',
   fs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
-  light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/></svg>'
+  light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/></svg>',
+  pack: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6"/><path d="M5 9a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M5 13h14M10 13v2h4v-2"/></svg>'   // 1.3.3 backpack
 };
 
 /* =====================================================================
@@ -2103,7 +2148,7 @@ function play(container, project, opts) {
     </div>
     <div class="dfg-vig"></div><div class="dfg-pick"></div><div class="dfg-fps"></div>`);
   root.appendChild(hud);
-  const topBtns = el('div', 'dfg-topbtns', `<div class="dfg-ibtn" data-b="light" title="Flashlight (F)">${ICON.light}</div>${FS.ok() ? `<div class="dfg-ibtn" data-b="fs" title="Full screen">${ICON.fs}</div>` : ''}<div class="dfg-ibtn" data-b="pause" title="Pause (Esc)">${ICON.pause}</div>`);
+  const topBtns = el('div', 'dfg-topbtns', `${opts.pack && opts.pack.inventory !== false ? `<div class="dfg-ibtn dfg-packbtn" data-b="pack" title="Pack (I / B)" role="button" aria-label="Open your Pack">${ICON.pack}<i class="dfg-packn"></i></div>` : ''}<div class="dfg-ibtn" data-b="light" title="Flashlight (F)">${ICON.light}</div>${FS.ok() ? `<div class="dfg-ibtn" data-b="fs" title="Full screen">${ICON.fs}</div>` : ''}<div class="dfg-ibtn" data-b="pause" title="Pause (Esc)">${ICON.pause}</div>`);
   root.appendChild(topBtns);
   // 1.3.2: the minimap IS the map button (tap / click it to open the full map, tap again to close). It sits outside the
   // HUD layer (which ignores pointers) and above the touch zones, so the tap reaches it on phones too.
@@ -2120,7 +2165,7 @@ function play(container, project, opts) {
   miniCv.addEventListener('click', ev => { ev.stopPropagation(); if (G && state === 'playing') showBigMap(bigMap.style.display !== 'flex'); });
   const menu = el('div', 'dfg-menu'); root.appendChild(menu);
   const $ = s => root.querySelector(s);
-  const H_ = { lvl: $('.dfg-lvl'), obj: $('.dfg-obj'), msgs: $('.dfg-msgs'), hit: $('.dfg-hit'), hp: $('.hp'), ar: $('.ar'), hpb: $('.hpb'), arb: $('.arb'), keys: root.querySelectorAll('.dfg-keys b'), wn: $('.wn'), am: $('.am'), ws: $('.dfg-wslots'), vig: $('.dfg-vig'), pick: $('.dfg-pick'), fps: $('.dfg-fps'), mini: $('.dfg-mini'), boss: $('.dfg-boss'), bossHp: $('.dfg-boss-hp') };
+  const H_ = { lvl: $('.dfg-lvl'), obj: $('.dfg-obj'), msgs: $('.dfg-msgs'), hit: $('.dfg-hit'), hp: $('.hp'), ar: $('.ar'), hpb: $('.hpb'), arb: $('.arb'), keys: root.querySelectorAll('.dfg-keys b'), wn: $('.wn'), am: $('.am'), ws: $('.dfg-wslots'), vig: $('.dfg-vig'), pick: $('.dfg-pick'), fps: $('.dfg-fps'), mini: $('.dfg-mini'), boss: $('.dfg-boss'), bossHp: $('.dfg-boss-hp'), packN: root.querySelector('.dfg-packn') };
   H_.ws.innerHTML = WEAPON_DEFS.map((w, i) => `<span>${i + 1}</span>`).join('');
   if (isTouch) touch.querySelectorAll('.dfg-tb').forEach(b => { b.style.transform = `scale(${S.touchScale})`; });
 
@@ -2199,7 +2244,8 @@ function play(container, project, opts) {
       keys: {}, doors: new Map(), enemies: [], pickups: [], props: [], lights: [], exits: [], projectiles: [], particles: null, fireballs: [], fbPool: [],
       kills: 0, totalEnemies: 0, secrets: 0, totalSecrets: 0, items: 0, totalItems: 0, time: 0, flow: null, flowCell: -1, flowT: 0, combat: opts.multiplayer ? false : true,
       dmgFlash: 0, pickFlash: 0, hitT: 0, msgs: [], scriptH: {}, lightT: 0, noise: null,
-      playerModel: S.playerModel || 'george'
+      playerModel: S.playerModel || 'george',
+      points: 0, pack: { med: 0, cell: 0, ammo: 0 }, graceT: 0, lastHurt: -99, regenOn: false, rebuildT: 0, rebuildTo: 0   // 1.3.3 survival layer
     };
     G = g;
     if (opts.spawnPoint && isFinite(opts.spawnPoint.x) && isFinite(opts.spawnPoint.y)) {
@@ -2219,6 +2265,7 @@ function play(container, project, opts) {
       }
     }
     if (keepInventory && carry.mag) g.mag = carry.mag.slice();
+    if (keepInventory && carry.pack) { g.pack = Object.assign({}, carry.pack); g.points = carry.points || 0; }   // 1.3.3: points and the Pack carry into the next chapter
     if (keepInventory) { g.nades = carry.nades == null ? GRENADE.start : carry.nades; g.hp = carry.hp; g.armor = carry.armor; g.ammo = Object.assign({}, carry.ammo); g.owned = carry.owned.slice(); g.cur = carry.cur; }
     // Doors: separate meshes so they can slide up into the ceiling.
     for (let i = 0; i < W * Hh; i++) {
@@ -2236,6 +2283,7 @@ function play(container, project, opts) {
       if (e.t === 'enemy') {
         if (opts.skipEnemies && e.s !== 'minotaur') return;  // MP omits minions; the shrine boss still spawns (host-driven)
         const def = ENEMY_DEFS[e.s] || ENEMY_DEFS.grunt, mesh = buildEnemyMesh(e.s);
+        if (opts.lively) mesh.rotation.order = 'YXZ';               // 1.3.3: yaw first, so banking / pitch happen in the body's own frame
         mesh.position.set(e.x, fh + (def.hover || 0) + liftOf(def), e.y); world.add(mesh);
         const seated = def.boss === true;
         const en = { sub: e.s in ENEMY_DEFS ? e.s : 'grunt', def, x: e.x, y: e.y, z: fh, hp: def.hp * diff().hp, state: seated ? 'seated' : 'idle', t: 0, cd: rand(0.5, 1.5), ang: e.r || 0, mesh, moving: false, deadT: 0, flashT: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rand(0.8, 2), flank: def.speed > 0 && e.s !== 'titan' && e.s !== 'minotaur' && Math.random() < diff().flank ? (Math.random() < 0.5 ? 1 : -1) : 0, coverT: 0, hurtT: 0, warpCd: 2, fade: 1, maxHp: def.hp * diff().hp };
@@ -2263,6 +2311,7 @@ function play(container, project, opts) {
       }
     });
     g.totalEnemies = g.enemies.length;
+    stageSafeSpawn(g, L);                                        // 1.3.3: nobody can see (or shoot) you at the start
     // Particle system: one Points object, re-used for sparks / smoke / explosions.
     const NP = 500, pgeo = new THREE.BufferGeometry();
     pgeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NP * 3), 3));
@@ -2281,6 +2330,7 @@ function play(container, project, opts) {
     buildMinimapBase();
     runScript();
     fire('start');
+    if (g.graceT > 0) { const d = { t: g.graceT, moved: g.safeMoved, stuck: g.safeStuck }; fire('ready', d); }
     H_.lvl.textContent = L.name;
     music(state === 'playing');
   }
@@ -2300,7 +2350,8 @@ function play(container, project, opts) {
     (G.fbPool || []).forEach(f => f.mesh.material.dispose());
     G.enemies.forEach(e => { if (e.shadow) e.shadow.material.dispose(); });
     (G.gunFx || []).forEach(m => m.dispose()); (G.tracers || []).forEach(t => t.mesh.material.dispose());   // 1.3.2 muzzle sprites + tracers
-    (G.beams || []).forEach(b => [b.core, b.glow].forEach(m => { m.geometry.dispose(); m.material.dispose(); }));   // 1.3.2 beams
+    (G.beams || []).forEach(b => [b.core, b.glow, b.halo].concat(b.forks ? b.forks.flatMap(f => [f.core, f.glow]) : []).forEach(m => { if (m) { m.geometry.dispose(); m.material.dispose(); } }));   // 1.3.2 beams + 1.3.3 bolt forks/halo
+    (G.arcs || []).forEach(a => { a.mesh.geometry.dispose(); a.mesh.material.dispose(); });   // 1.3.3 crackle arcs
     (G.waves || []).forEach(w => w.mesh.material.dispose());     // 1.3.2 shockwaves still on the floor   // 1.6.1 contact-shadow materials (geometry + texture are shared)
     G.scene.traverse(o => { if (o.userData && o.userData.sign) { o.material.dispose(); o.children.forEach(c => c.material && c.material.dispose()); } });
     G = null;
@@ -2495,6 +2546,9 @@ function play(container, project, opts) {
   }
   function tryPickup(p) {
     const def = PICKUP_DEFS[p.sub]; if (!def) return; const gv = def.give; let used = false;
+    if (gv.pack) { if (!packAdd(gv.pack)) { if (PACK_ITEMS[gv.pack] && PACK_ITEMS[gv.pack].use()) used = true; else return; } else used = true; }   // 1.3.3: into the Pack (full: use it now if it helps)
+    else if (INV && p.sub === 'medkit' && G.hp >= 100 && packAdd('med')) used = true;   // 1.3.3: a medkit you don't need right now is kept for later
+    else if (INV && gv.armor && G.armor >= (gv.armor > 50 ? 200 : 100) && packAdd('cell')) used = true;   // and spare armor becomes a repair cell
     if (gv.hp) { if (G.hp < 100 || p.sub === 'medkit' && G.hp < 100) { G.hp = Math.min(100, G.hp + gv.hp); used = true; } }
     if (gv.armor) { if (G.armor < (gv.armor > 50 ? 200 : 100)) { G.armor = Math.min(gv.armor > 50 ? 200 : 100, G.armor + gv.armor); used = true; } }
     ['bullets', 'shells', 'cells', 'rockets'].forEach(t => { if (gv[t] && G.ammo[t] < AMMO_MAX[t]) { G.ammo[t] = Math.min(AMMO_MAX[t], G.ammo[t] + gv[t]); used = true; } });
@@ -2504,7 +2558,8 @@ function play(container, project, opts) {
     if (gv.secret) { G.secrets++; used = true; msg('SECRET FOUND!'); }
     if (!used) return;
     p.taken = true; p.mesh.visible = false; if (!gv.secret && !p.reward) G.items++;
-    msg(def.name); G.pickFlash = 0.25;
+    if (PK) addPoints(gv.key ? PK.pickupPts * 2 : gv.secret ? PK.pickupPts * 10 : PK.pickupPts, 'Pickup', p.x, p.y, p.z + 0.3);   // 1.3.3
+    if (!gv.pack) msg(def.name); G.pickFlash = 0.25;
     Sound.play(gv.key ? 'key' : gv.weapon !== undefined ? 'weapon' : 'pickup');
     fire('pickup', p.sub);
   }
@@ -2546,6 +2601,7 @@ function play(container, project, opts) {
     return best;
   }
   function shoot() {
+    if (G.graceT > 0) endGrace();                                // 1.3.3: firing ends the get-ready window
     const w = WEAPON_DEFS[G.cur];
     if (w.ammo && G.ammo[w.ammo] <= 0) { Sound.play('empty'); G.cd = 0.3; input.mouseFire = false; for (let i = WEAPON_DEFS.length - 1; i >= 0; i--) if (G.owned[i] && hasAmmo(i) && i !== G.cur) { selectWeapon(i); break; } return; }
     if (w.ammo) { const i = G.cur; if (G.mag[i] > G.ammo[w.ammo]) G.mag[i] = G.ammo[w.ammo]; if (G.reloadT > 0) return; if (G.mag[i] <= 0) { startReload(); return; } G.mag[i]--; }
@@ -2666,31 +2722,151 @@ function play(container, project, opts) {
     return best;
   }
 
-  function damageEnemy(e, dmg, byPlayer) {
+  function damageEnemy(e, dmg, byPlayer, fromPeer) {
     if (e.state === 'dead') return;
+    // 1.3.3 co-op (opts.coop): every client runs the same enemies; your hits go to the room so your partner's copy takes them too
+    if (opts.coop && byPlayer && !fromPeer && dmg > 0) fire('ehit', { i: G.enemies.indexOf(e), dmg: Math.round(dmg * 10) / 10, x: e.x, y: e.y, z: e.z });
     e.hp -= dmg; e.flashT = 0.1; e.hurtT = (e.hurtT || 0) + dmg;
-    if (e.def.gunAnim) e.flinchT = 1;                            // 1.3.2: gunners jolt back when hit
+    if (animOf(e)) e.flinchT = 1;                                // 1.3.2: gunners jolt back when hit (1.3.3: every animated enemy)
     if (byPlayer && (e.def.bossMusic || e.def.boss)) meetBoss(e);   // 1.3.2: shooting a boss counts as meeting it
     // 1.3.0: hosts hear about the player's hits (hitmarkers, kill streaks); the engine itself doesn't use it
     if (byPlayer) fire('hit', { sub: e.sub, x: e.x, y: e.y, z: e.z + liftOf(e.def) + (e.def.hover || 0) + (e.def.hover ? 0 : e.def.h * 0.6), dmg, kill: e.hp <= 0, boss: !!(e.def && e.def.boss), floor: e.z });
     if (e.state === 'idle') alert(e);
     if (e.hp <= 0) {
       e.state = 'dead'; e.deadT = 0; G.kills++; Sound.play('edie', distVol(e.x, e.y));
-      if (e.def.gunAnim) gunRest(e);                             // 1.3.2: the death tip-over starts from a clean pose
+      if (animOf(e)) gunRest(e);                                 // 1.3.2: the death tip-over starts from a clean pose
       sparks(e.x, e.z + e.def.h * 0.6, e.y, 30, 0xff8030); smoke(e.x, e.z + 0.5, e.y, 8);
       if (e.sub === 'titan') explode(e.x, e.y, e.z + 0.8, 0, 2.5, 'enemy');
       if (e.mesh.userData.glow) e.mesh.userData.glow.color.set(0x222222);
       fire('kill', e.sub);
+      if (PK) { addPoints(Math.round(e.def.score || 100), e.def.boss ? 'Boss down' : 'Kill', e.x, e.y, e.z + e.def.h * 0.8); dropLoot(e); }   // 1.3.3: points by tier + Pack drops
       if (G.kills === G.totalEnemies && G.totalEnemies > 0) {
         if (e.def && e.def.boss) { msg('THE MINOTAUR FALLS — the shrine is quiet'); fire('boss_die', e); }
         else msg('AREA CLEAR — all hostiles down');
       }
     } else if (e.sub !== 'titan' && e.sub !== 'turret' && Math.random() < 0.35) { e.state = 'pain'; e.t = 0.22; Sound.play('pain', distVol(e.x, e.y) * 0.6); }
   }
-  function damageProp(p, dmg) { p.hp -= dmg; if (p.hp <= 0 && !p.dead) { p.dead = true; p.mesh.visible = false; setTimeout(() => G && explode(p.x, p.y, p.z + 0.35, 70, 1.8, 'barrel'), 60); } }
+  function damageProp(p, dmg) {
+    p.hp -= dmg; if (p.hp > 0 || p.dead) return;
+    p.dead = true; p.mesh.visible = false;
+    if (/crate/.test(p.sub)) {                                   // 1.3.3: a breakable crate (a game gives crates hp) splinters, no blast, and may hold a Pack item
+      sparks(p.x, p.z + 0.35, p.y, 18, 0xc89a5a); smoke(p.x, p.z + 0.3, p.y, 5); Sound.play('explode', distVol(p.x, p.y) * 0.35);
+      if (INV && Math.random() < 0.6) spawnLoot('pack_' + ['med', 'cell', 'ammo'][Math.floor(Math.random() * 3)], p.x, p.y, p.z);
+      return;
+    }
+    setTimeout(() => G && explode(p.x, p.y, p.z + 0.35, 70, 1.8, 'barrel'), 60);   // barrels blow up
+  }
+  /* ---------- 1.3.3: survival layer (opts.pack): points, regenerating health, suit rebuild, and a Pack ----------
+     Opt-in: without opts.pack the editor's games play exactly as before. The Pack holds Med Packs, Suit Repair Cells
+     and Ammo Packs (picked up, or dropped by enemies and crates; a game registers the pack_* pickups it wants). */
+  const PK = opts.pack ? Object.assign({ regenDelay: 4.5, regenRate: 7, regenCap: 70, pickupPts: 25, clearPts: 1000, rebuildCost: 600, rebuildArmor: 35, suitMax: 100, inventory: true, regen: true }, opts.pack === true ? {} : opts.pack) : null;
+  const INV = !!(PK && PK.inventory !== false);                     // pack: { inventory: false } = points only, no Pack / rebuild / drops
+  const REGEN = !!(PK && PK.regen !== false);                      // pack: { regen: false } = no health regeneration
+  const PACK_ITEMS = {   // id: name, how many fit, what it does, and using it (returns false when it would be wasted)
+    med:  { name: 'Med Pack',         max: 4, desc: '+40 health',               icon: '✚', use: () => { if (G.hp >= 100) return false; G.hp = Math.min(100, G.hp + 40); Sound.play('pickup'); return true; } },
+    cell: { name: 'Suit Repair Cell', max: 3, desc: 'Rebuild the suit: +50 armor', icon: '⛨', use: () => rebuildSuit(50) },
+    ammo: { name: 'Ammo Pack',        max: 3, desc: 'Refills every weapon + 1 frag', icon: '▤', use: () => {
+      let used = false; const add = { bullets: 60, shells: 12, cells: 50, rockets: 3 };
+      for (const t in add) if (G.ammo[t] < AMMO_MAX[t]) { G.ammo[t] = Math.min(AMMO_MAX[t], G.ammo[t] + add[t]); used = true; }
+      if (G.nades < GRENADE.max) { G.nades++; used = true; }
+      if (used) Sound.play('weapon'); return used; } }
+  };
+  function addPoints(n, why, x, y, z) {                          // score: kills (by tier), pickups, chapter clears; spent on suit rebuilds
+    if (!PK || !G || !n) return;
+    G.points = Math.max(0, (G.points || 0) + n);
+    fire('points', { n, why, total: G.points, x, y, z });
+  }
+  function packAdd(id) {                                         // a picked-up item goes into the Pack (false = full)
+    const it = PACK_ITEMS[id]; if (!INV || !it) return false;
+    const n = G.pack[id] || 0; if (n >= it.max) return false;
+    G.pack[id] = n + 1; msg(it.name + ' → Pack (' + (n + 1) + '/' + it.max + ')');
+    packEvent('add', id); return true;
+  }
+  function packUse(id) {                                         // use one item from the Pack
+    const it = PACK_ITEMS[id]; if (!INV || !it || !G || G.hp <= 0) return false;
+    if (!(G.pack[id] > 0)) { msg('No ' + it.name + ' in your Pack'); return false; }
+    if (!it.use()) { msg(id === 'med' ? 'Health is already full' : id === 'cell' ? 'Suit is already at full armor' : 'Ammo is already full'); return false; }
+    G.pack[id]--; packEvent('use', id); return true;
+  }
+  function packEvent(what, id) { const d = { what, id, pack: Object.assign({}, G.pack) }; fire('pack', d); if (state !== 'playing' && menu.dataset.kind === 'pack') showMenu('pack'); }
+  function rebuildSuit(n) {                                      // armor rebuilds smoothly over ~1.2 s (an animated HUD fill), capped at the suit's max
+    if (G.armor >= PK.suitMax - 0.5) return false;
+    G.rebuildTo = Math.min(PK.suitMax, Math.max(G.armor, G.rebuildT > 0 ? G.rebuildTo : G.armor) + n); G.rebuildT = 1.2;
+    Sound.play('rebuild'); msg('SUIT REBUILDING…');
+    const d = { to: Math.round(G.rebuildTo) }; fire('suit', d); return true;
+  }
+  function suitRebuild() {                                       // the Rebuild Suit action: a repair cell, or points when you have none
+    if (!INV || !G) return false;
+    if (G.pack.cell > 0) return packUse('cell');
+    if ((G.points || 0) < PK.rebuildCost) { msg('Rebuild needs a Suit Repair Cell or ' + PK.rebuildCost + ' points'); return false; }
+    if (!rebuildSuit(PK.rebuildArmor)) { msg('Suit is already at full armor'); return false; }
+    addPoints(-PK.rebuildCost, 'Suit rebuild'); packEvent('rebuild', 'points'); return true;
+  }
+  function dropLoot(e) {                                         // enemies sometimes drop Pack items; bosses always drop a full kit
+    if (!INV || !PICKUP_DEFS.pack_med) return;
+    const boss = e.def.boss || e.def.bossMusic, ids = [];
+    if (boss) ids.push('med', 'cell', 'ammo');
+    else { const r = Math.random(); if (r < 0.22) ids.push('med'); else if (r < 0.36) ids.push('cell'); else if (r < 0.48) ids.push('ammo'); }
+    ids.forEach((id, i) => { const a = i * 2.1 + rand(0, 1); spawnLoot('pack_' + id, e.x + (ids.length > 1 ? Math.cos(a) * 0.45 : 0), e.y + (ids.length > 1 ? Math.sin(a) * 0.45 : 0), e.z); });
+  }
+  function spawnLoot(sub, x, y, z) {
+    if (!PICKUP_DEFS[sub] || cellIsSolidStatic(G.L, Math.floor(x), Math.floor(y))) return null;
+    const m = buildPickupMesh(sub); m.position.set(x, z, y); G.world.add(m);
+    const p = { sub, x, y, z, mesh: m, taken: false, reward: true }; G.pickups.push(p); return p;   // reward: not counted in the items total
+  }
+  function updateSurvival(dt) {
+    if (G.graceT > 0) { G.graceT -= dt; if (G.graceT <= 0) endGrace(); }   // the "get ready" window counts down
+    if (!PK) return;
+    const since = G.time - (G.lastHurt == null ? -99 : G.lastHurt);
+    const on = REGEN && since > PK.regenDelay && G.hp > 0 && G.hp < PK.regenCap;   // out of the fight for a few seconds: health creeps back up to the cap
+    if (on) G.hp = Math.min(PK.regenCap, G.hp + PK.regenRate * dt);
+    if (on !== !!G.regenOn) { G.regenOn = on; const d = { on, hp: G.hp }; fire('regen', d); }
+    if (G.rebuildT > 0) {                                        // suit rebuild in progress: armor fills toward its target
+      G.rebuildT -= dt; G.armor = Math.min(G.rebuildTo, G.armor + Math.max(dt * 25, (G.rebuildTo - G.armor) * Math.min(1, dt * 3)));
+      if (G.rebuildT <= 0) { G.armor = Math.max(G.armor, G.rebuildTo); msg('SUIT REBUILT — armor ' + Math.round(G.armor)); }
+    }
+  }
+  function endGrace() { if (!G || G.graceT == null) return; const was = G.graceT; G.graceT = 0; if (was !== 0 || !G.graceDone) { G.graceDone = true; msg('GO!'); fire('ready', { t: 0 }); } }
+  /* 1.3.3: safe "get ready" staging (opts.safeSpawn = { grace }). Nobody may be able to see the spawn point when a chapter
+     starts: an enemy that can is moved a short walk away (same floor, through open cells only, never through a door)
+     to the nearest spot out of sight. Then a short grace window: enemies stay unaware and you can't be hurt, until it
+     runs out or you fire. */
+  function openNear(L, x, y) { let n = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!cellIsSolidStatic(L, x + dx, y + dy) && !L.kind[(y + dy) * L.w + x + dx]) n++; return n; }
+  function stageSafeSpawn(g, L) {
+    const SS = opts.safeSpawn; if (!SS || opts.multiplayer) return;
+    const W = g.W, Hh = g.H, sx = g.px, sy = g.py;
+    const seen = (x, y) => [[0, 0], [0.4, 0], [-0.4, 0], [0, 0.4], [0, -0.4]].some(([ox, oy]) => Math.hypot(x - sx - ox, y - sy - oy) < 22 && los(sx + ox, sy + oy, x, y));
+    let moved = 0, stuck = 0;
+    for (const e of g.enemies) {
+      if (e.def.boss || e.state === 'seated' || !seen(e.x, e.y)) continue;
+      const c0 = Math.floor(e.x), r0 = Math.floor(e.y), fh0 = L.fh[r0 * W + c0] || 0;
+      const q = [[c0, r0]], seenC = new Set([r0 * W + c0]); let dest = null;
+      while (q.length && !dest) {                                // breadth-first: the nearest open cell out of sight
+        const [cx, cy] = q.shift();
+        for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + ddx, ny = cy + ddy, i = ny * W + nx;
+          if (nx < 1 || ny < 1 || nx >= W - 1 || ny >= Hh - 1 || seenC.has(i) || Math.abs(nx - c0) > 22 || Math.abs(ny - r0) > 22) continue;
+          seenC.add(i);
+          if (cellIsSolidStatic(L, nx, ny)) continue;              // the search walks through doors and over ledges (a closed room still finds the next one)...
+          q.push([nx, ny]);
+          if (L.kind[i] || openNear(L, nx, ny) < 3) continue;     // ...but only lands on open floor, never in a door or a wall nook
+          const x = nx + 0.5, y = ny + 0.5;
+          if (Math.hypot(x - sx, y - sy) >= 6 && !seen(x, y) && !g.enemies.some(o => o !== e && Math.hypot(o.x - x, o.y - y) < 0.9)) { dest = { x, y, fh: L.fh[i] || 0 }; break; }
+        }
+      }
+      if (!dest) { stuck++; e.cd = Math.max(e.cd || 0, (SS.grace != null ? SS.grace : 4) + 1.5); continue; }   // nowhere to hide it: it holds fire until well after GO
+      e.x = dest.x; e.y = dest.y; e.z = dest.fh; e.ang = Math.atan2(sy - e.y, sx - e.x);   // waits facing roughly your way, around the corner
+      e.mesh.position.set(e.x, e.z + (e.def.hover || 0) + liftOf(e.def), e.y); if (e.shadow) e.shadow.position.set(e.x, e.z + 0.012, e.y);
+      moved++; void fh0;
+    }
+    g.graceT = SS.grace != null ? SS.grace : 4; g.safeMoved = moved; g.safeStuck = stuck;
+  }
   function damagePlayer(dmg, fromX, fromY) {
+    if (G.graceT > 0) return;                                    // 1.3.3: get-ready window: nothing can hurt you yet
+    if (opts.coop && G.combat === false) return;                 // 1.3.3 co-op: no enemy damage until the room's FIGHT!
     buzz(dmg >= 25 ? 60 : 25);
     if (state !== 'playing') return;
+    G.lastHurt = G.time;                                         // 1.3.3: regen waits this long after the last hit
     if (G.armor > 0) { const absorb = Math.min(G.armor, dmg * 0.4); G.armor -= absorb; dmg -= absorb; }
     G.hp -= dmg; G.dmgFlash = Math.min(1, G.dmgFlash + 0.35 + dmg / 60); Sound.play('hurt');
     fire('hurt', { dmg, fromX, fromY });                        // 1.3.0: hosts can show where the hit came from
@@ -2754,32 +2930,49 @@ function play(container, project, opts) {
       const g = x.createRadialGradient(0, 0, 0, 0, 0, 20); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)');
       x.fillStyle = g; x.fillRect(-32, -32, 64, 64); });
   }
+  // 1.3.3: the animated body = the GLB, or the built-in procedural model while there is none (e.g. the stock turret)
+  function bodyOf(ud) { return ud.glb || (opts.lively ? ud.proc : null); }
   function gunFx(ud, ga) {                                       // the two muzzle sprites, children of the model so they lean with it
-    if (ud.gunFx) return ud.gunFx;
+    const body = bodyOf(ud);
+    if (ud.gunFx && ud.gunFx.body === body) return ud.gunFx;
+    if (ud.gunFx) { ud.gunFx.glow.visible = ud.gunFx.flash.visible = false; }   // the GLB replaced the stand-in: new sprites on the new body
     if (!glowTex) gunTextures();
     const sprite = (tex, col) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: col, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false })); sp.visible = false; sp.renderOrder = 3; return sp; };
-    const H = ud.glbH || 1, m = ga.muzzle || [0, 0.6, 0.3];
-    const glow = sprite(glowTex, 0xff8a30), flash = sprite(flashTex, 0xffa040);   // orange charge, fiery flash
-    const tip = new THREE.Vector3(m[0] * H, m[1] * H, m[2] * H + 0.03);   // just past the barrel end
-    glow.position.copy(tip); flash.position.copy(tip); ud.glb.add(glow); ud.glb.add(flash);
+    const H = ud.glbH || 1;
+    const glow = sprite(glowTex, ga.color || 0xff8a30), flash = sprite(flashTex, ga.flash || 0xffa040);   // orange charge, fiery flash (1.3.3: blue for lightning, red for lasers)
+    const tip = Array.isArray(ga.muzzle) ? new THREE.Vector3(ga.muzzle[0] * H, ga.muzzle[1] * H, ga.muzzle[2] * H + 0.03)   // just past the barrel end
+      : autoMuzzle(body, ga.my != null ? ga.my : 0.56);         // 1.3.3: no hand-measured muzzle: the front of the body at gun height
+    glow.position.copy(tip); flash.position.copy(tip); body.add(glow); body.add(flash);
     (G.gunFx = G.gunFx || []).push(glow.material, flash.material);   // disposed with the level
-    return (ud.gunFx = { glow, flash, tip, H });
+    return (ud.gunFx = { glow, flash, tip, H, body });
+  }
+  // 1.3.3: a muzzle point for any model: the front face of its solid body box, at height fraction my (in ud.glb's own space).
+  function autoMuzzle(glb, my) {
+    const box = new THREE.Box3(), inv = new THREE.Matrix4(), mtx = new THREE.Matrix4();
+    glb.updateMatrixWorld(true); inv.copy(glb.matrixWorld).invert();          // world -> glb space
+    glb.traverse(o => {
+      if (!o.isMesh || !o.geometry || (o.material && o.material.blending === THREE.AdditiveBlending)) return;   // skip glows / thruster flames
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      box.union(o.geometry.boundingBox.clone().applyMatrix4(mtx.multiplyMatrices(inv, o.matrixWorld)));
+    });
+    if (box.isEmpty()) return new THREE.Vector3(0, 0.6, 0.3);
+    return new THREE.Vector3((box.min.x + box.max.x) / 2, lerp(box.min.y, box.max.y, my), box.max.z + 0.02);   // models face +Z
   }
   const _tip = new THREE.Vector3();
   function gunFire(e) {                                          // called on the shot frame; returns the rifle tip in game coords
-    const ud = e.mesh.userData, ga = e.def.gunAnim; if (!ud.glb) return null;
+    const ud = e.mesh.userData, ga = animOf(e), body = bodyOf(ud); if (!body || !ga) return null;
     const fx = gunFx(ud, ga);
     e.recoilT = 1; fx.flash.material.rotation = Math.random() * Math.PI;   // fresh flash angle every shot
-    e.mesh.updateMatrixWorld(true); _tip.copy(fx.tip); ud.glb.localToWorld(_tip);   // three.js: x, height, y
+    e.mesh.updateMatrixWorld(true); _tip.copy(fx.tip); body.localToWorld(_tip);   // three.js: x, height, y
     const p = { x: _tip.x, y: _tip.z, z: _tip.y };
     if (cellIsSolidStatic(G.L, Math.floor(p.x), Math.floor(p.y))) { p.x = e.x; p.y = e.y; }   // rifle poking into a wall: fire from the body
     if (G.fxLight) {                                             // the idle explosion light becomes the muzzle flash (no extra light)
-      G.fxLight.position.set(p.x, p.z, p.y); G.fxLight.color.setHex(0xffa040); G.fxLight.distance = 5;
+      G.fxLight.position.set(p.x, p.z, p.y); G.fxLight.color.setHex(ga.flash || 0xffa040); G.fxLight.distance = 5;
       G.fxLight.intensity = Math.max(G.fxLight.intensity, 4); G.fxTravelOn = false;
     }
-    sparks(p.x, p.z, p.y, 7, 0xffc060);                         // hot sparks spray from the barrel
-    tracer(p.x, p.z, p.y, G.px, G.pz + 0.45, G.py);              // a bright streak toward you
+    sparks(p.x, p.z, p.y, 7, ga.spark || 0xffc060);             // hot sparks spray from the barrel
+    if (ga.tracer !== false && !isBeam(e.def.proj)) tracer(p.x, p.z, p.y, G.px, G.pz + 0.45, G.py);   // a bright streak toward you (beams are their own streak)
     return p;
   }
   // Tracers: a small pool of thin additive streaks (4 meshes, reused), each lives ~0.1 s.
@@ -2796,18 +2989,72 @@ function play(container, project, opts) {
     if (!G.tracers) return;
     for (const t of G.tracers) { if (t.life <= 0) continue; t.life -= dt; t.mesh.material.opacity = Math.max(0, t.life / 0.1); t.mesh.translateZ(dt * 9); if (t.life <= 0) t.mesh.visible = false; }
   }
-  function gunPose(e, ud, ga, dt, time) {                        // every frame for a living gunner
-    const g = ud.glb, H = ud.glbH || 1;
+  /* ---------- 1.3.3: every enemy moves like it is alive (Darcy: "no cardboard cutouts") ----------
+     bodyPose runs every frame for every living enemy that has a model. Everything moves ud.glb only, as offsets from
+     its rest pose, so the AI, hitboxes and skinned walk cycles are untouched:
+       locomotion  soldiers: stride bob + hip sway + lean into the run; walkers: heavy stomp dip + chassis roll/yaw;
+                   hover units bank and pitch on the holder instead (see the movement code in updateEnemies)
+       idle        breathing, weight shift, and a slow look-around while on watch
+       firing      windup (lean / squat / torso twist / barrel raise) with a charge glow at the muzzle, then the shot:
+                   recoil kick + push-back + flash sprite + muzzle light, then recovery; a flinch when hit
+     def.gunAnim tunes a model by hand (sentinel, Warden); opts.lively gives every other enemy a default by type. */
+  const ANIM_STYLE = {   // lean: windup pitch (+ = toward you), kick: recoil pitch, jolt: recoil push-back (x model height), squat, twist (torso), bob/sway/stride: gait
+    rifle:  { lean: 0.12,  kick: 0.25, jolt: 0.09,  squat: 0.025, twist: 0.10, bob: 0.022, sway: 0.035, stride: 7.5 },
+    hover:  { lean: 0.22,  kick: 0.30, jolt: 0.12,  squat: 0,     twist: 0,    bob: 0,     sway: 0,     stride: 0 },
+    walker: { lean: 0.06,  kick: 0.16, jolt: 0.07,  squat: 0.05,  twist: 0.22, bob: 0.035, sway: 0.05,  stride: 4.6 },
+    turret: { lean: -0.08, kick: 0.12, jolt: 0.14,  squat: 0.02,  twist: 0,    bob: 0,     sway: 0,     stride: 0 },
+    beast:  { lean: 0.2,   kick: 0.14, jolt: -0.12, squat: 0.04,  twist: 0.18, bob: 0.03,  sway: 0.04,  stride: 3.6 }   // jolt < 0: lunges forward
+  };
+  // The animation settings for an enemy: its own def.gunAnim, or (opts.lively) a default picked from what it is.
+  function animOf(e) {
+    const d = e.def; if (d.gunAnim) return d.gunAnim;
+    if (!opts.lively) return null;
+    if (!d._ga) {                                                // made once per enemy type
+      const style = d.boss ? 'beast' : (d.hover || d.lift) ? 'hover' : !d.speed ? 'turret' : (e.sub === 'heavy' || e.sub === 'titan') ? 'walker' : 'rifle';
+      const col = d.proj === 'zap' ? [0x6ab8ff, 0xa8dcff, 0x9fd4ff] : d.proj === 'laser' ? [0xff4020, 0xff7a40, 0xff7040] : d.proj === 'redring' ? [0xff2a3a, 0xff6070, 0xff8090] : [0xff8a30, 0xffa040, 0xffc060];
+      d._ga = { style, muzzle: 'auto', my: style === 'hover' ? 0.5 : style === 'beast' ? 0.62 : 0.58, color: col[0], flash: col[1], spark: col[2], tracer: false, glow: style === 'walker' || style === 'beast' ? 1.4 : 1 };
+    }
+    return d._ga;
+  }
+  function bodyPose(e, ud, ga, dt, time) {
+    const g = bodyOf(ud); if (!g) return;
+    if (!g.userData.rest) g.userData.rest = { p: g.position.clone(), r: g.rotation.clone(), s: g.scale.clone() };   // the model's own rest transform
+    const R = ud.rest = g.userData.rest, H = ud.glbH || 1, style = ga.style || 'rifle', A = ANIM_STYLE[style] || ANIM_STYLE.rifle;
+    const lean = ga.lean != null ? ga.lean : A.lean, kick = ga.kick != null ? ga.kick : A.kick, jolt = ga.jolt != null ? ga.jolt : A.jolt;
     const w = e.state === 'attack' && e.t0 ? clamp(1 - e.t / e.t0, 0, 1) : 0;   // windup 0 -> 1
     const wE = w * w * (3 - 2 * w);                              // eased brace
     e.recoilT = Math.max(0, (e.recoilT || 0) - dt * 4);          // recoil lasts ~0.25 s
     e.flinchT = Math.max(0, (e.flinchT || 0) - dt * 6);          // flinch ~0.17 s
     const k = Math.pow(e.recoilT, 1.6), f = e.flinchT * e.flinchT;   // sharp peak, smooth recovery
-    const br = Math.sin(time * 1.9 + ud.phase);                  // breathing
-    g.rotation.x = (ga.lean || 0.12) * wE - (ga.kick || 0.25) * k - 0.2 * f + 0.012 * br;   // +x leans toward the target
-    g.rotation.z = 0.022 * Math.sin(time * 0.7 + ud.phase * 0.5) + 0.05 * f * (ud.phase % 2 > 1 ? 1 : -1);   // weight shift, flinch twist
-    g.position.set(0, -0.025 * H * wE, (0.03 * wE - 0.09 * k - 0.05 * f) * H);   // crouch into the brace, jolt back on the shot
-    g.scale.set(1 - 0.005 * br, 1 + 0.012 * br, 1 - 0.005 * br);   // chest rises and falls
+    // gait, driven by how fast the body really moves (ud.spd, from the smoothed position)
+    const spdK = opts.lively ? clamp((ud.spd || 0) / Math.max(0.3, e.def.speed || 1), 0, 1.3) : 0;
+    ud.stride = (ud.stride || 0) + dt * A.stride * spdK;
+    const st = ud.stride, skel = ud.acts && ud.acts.move ? 0.35 : 1;   // a skinned walk cycle already swings the legs: less bounce on top
+    let y = 0, z = 0, rx = 0, ry = 0, rz = 0;
+    if (A.stride) {
+      if (style === 'walker' || style === 'beast') {             // heavy feet: a sharp dip as each foot plants, the chassis rolls side to side
+        const plant = Math.pow(1 - Math.abs(Math.sin(st)), 3);
+        y -= A.bob * H * plant * spdK * skel; rz += Math.sin(st) * A.sway * spdK; ry += Math.sin(st) * 0.03 * spdK;
+      } else {                                                   // soldiers: bounce on each step, hips sway, lean into the run
+        y += Math.abs(Math.sin(st)) * A.bob * H * spdK * skel; rz += Math.sin(st) * A.sway * spdK * skel; rx += 0.06 * Math.min(1, spdK);
+      }
+    }
+    // idle life: breathing + weight shift, and a slow look-around while nobody has spotted you
+    const br = Math.sin(time * 1.9 + ud.phase), calm = 1 - Math.min(1, spdK);
+    rx += 0.012 * br; rz += 0.022 * Math.sin(time * 0.7 + ud.phase * 0.5) * calm;
+    if (opts.lively && e.state === 'idle' && style !== 'turret') ry += 0.3 * Math.sin(time * 0.45 + ud.phase) * Math.sin(time * 0.17 + ud.phase * 1.3);
+    if (opts.lively && e.state === 'idle' && style === 'turret') ry += 0.25 * Math.sin(time * 0.6 + ud.phase);   // sentry sweep
+    // firing: windup brace, then the kick; a hit makes it flinch
+    const side = e.strafe || 1;
+    rx += lean * wE - kick * k - 0.2 * f;
+    ry += A.twist * (0.6 * wE - k) * side;                       // torso twists into the shot, snaps back with the recoil
+    y -= A.squat * H * wE;
+    z += (0.03 * wE - jolt * k - 0.05 * f) * H;
+    rz += 0.05 * f * (ud.phase % 2 > 1 ? 1 : -1);
+    g.position.set(R.p.x, R.p.y + y, R.p.z + z);
+    g.rotation.set(R.r.x + rx, R.r.y + ry, R.r.z + rz);
+    const bs = style === 'turret' ? 0.3 : 1;                     // machines barely breathe
+    g.scale.set(R.s.x * (1 - 0.005 * br * bs), R.s.y * (1 + 0.012 * br * bs * (0.4 + 0.6 * calm)), R.s.z * (1 - 0.005 * br * bs));   // chest rises and falls
     if (w > 0 || e.recoilT > 0 || ud.gunFx) {
       const fx = gunFx(ud, ga), gm = ga.glow || 1;
       const flick = 0.85 + Math.sin(time * 47) * 0.15;
@@ -2817,11 +3064,17 @@ function play(container, project, opts) {
       const fl = e.recoilT > 0.4 ? (e.recoilT - 0.4) / 0.6 : 0;   // the flash burns for the first ~0.15 s
       fx.flash.visible = fl > 0; fx.flash.material.opacity = Math.min(1, fl * 1.4);
       fx.flash.scale.setScalar((0.3 + 0.25 * fl) * H * gm);
+      if (w > 0.25 && e.def.proj === 'zap' && Math.random() < dt * 22) {   // lightning soldiers crackle at the muzzle while charging
+        e.mesh.updateMatrixWorld(true); _tip.copy(fx.tip); fx.body.localToWorld(_tip); crackle(_tip.x, _tip.y, _tip.z, 1, 0.09 + 0.1 * w);
+      }
     }
   }
-  function gunRest(e) {                                          // death: drop the pose offsets, hide the muzzle sprites
-    const ud = e.mesh.userData; if (!ud.glb) return;
-    ud.glb.position.set(0, 0, 0); ud.glb.scale.set(1, 1, 1); ud.glb.rotation.z = 0;
+  const gunPose = bodyPose;                                      // 1.3.2 name (the Warden and sentinels): same function
+  function gunRest(e) {                                          // death: back to the rest pose, hide the muzzle sprites
+    const ud = e.mesh.userData, b = bodyOf(ud); if (!b) return;
+    const R = b.userData.rest;
+    if (R) { b.position.copy(R.p); b.scale.copy(R.s); b.rotation.z = R.r.z; b.rotation.y = R.r.y; }
+    else if (b === ud.glb) { b.position.set(0, 0, 0); b.scale.set(1, 1, 1); b.rotation.z = 0; }
     if (ud.gunFx) { ud.gunFx.glow.visible = false; ud.gunFx.flash.visible = false; }
   }
   /* ---------- 1.3.2: beam attacks (def.proj 'zap' = blue lightning, 'laser' = crisp turret laser) ----------
@@ -2829,7 +3082,7 @@ function play(container, project, opts) {
      you are now, so strafing dodges it. The beam stops at walls and hurts you if it passes through your body.
      Drawn as camera-facing ribbons (a bright core + a wide soft glow), rebuilt each frame (lightning re-jags). */
   const BEAM = {
-    zap:   { core: 0xe4f4ff, glow: 0x2f8cff, wCore: 0.022, wGlow: 0.11, life: 0.18, jag: 0.09, n: 12, spark: 0x7cc8ff, light: 0x4aa8ff, snd: 'zap' },
+    zap:   { core: 0xc4e4ff, glow: 0x2f74ff, halo: 0x2250ff, wCore: 0.022, wGlow: 0.075, wHalo: 0.24, life: 0.28, jag: 0.09, n: 17, spark: 0x7cc8ff, light: 0x4aa8ff, snd: 'zap', bolt: true },   // 1.3.3: a real forked bolt
     laser: { core: 0xfff0dc, glow: 0xff2a10, wCore: 0.016, wGlow: 0.075, life: 0.12, jag: 0, n: 2, spark: 0xff7040, light: 0xff4020, snd: 'laser' }
   };
   const isBeam = k => !!BEAM[k];
@@ -2864,20 +3117,95 @@ function play(container, project, opts) {
       if (Math.hypot(G.px - x, G.py - y) < PLAYER_R + 0.1 && z > G.pz - 0.05 && z < G.pz + 0.85) { hitP = true; break; }   // through your body
     }
     if (hitP) damagePlayer(e.def.dmg * diff().dmg, e.x, e.y);
-    const b = (G.beams = G.beams || []).find(o => o.life <= 0) || (G.beams.length < 6 ? (G.beams[G.beams.length] = { core: ribbon(16, 0xffffff, 1), glow: ribbon(16, 0xffffff, 0.5), life: 0 }) : G.beams[0]);
-    if (!b.core.parent) { G.world.add(b.glow); G.world.add(b.core); }
+    const pool = (G.beams = G.beams || []);                      // lightning and lasers keep their own pooled meshes (a bolt has forks and a halo)
+    let b = pool.find(o => o.life <= 0 && !!o.halo === !!B.bolt) || pool.find(o => !!o.halo === !!B.bolt && pool.length >= 8);
+    if (!b) { b = B.bolt ? newBolt() : { core: ribbon(16, 0xffffff, 1), glow: ribbon(16, 0xffffff, 0.5), life: 0 }; pool.push(b); }
+    if (!b.core.parent) [b.halo, b.glow, b.core].concat(b.forks ? b.forks.flatMap(f => [f.glow, f.core]) : []).forEach(o => o && G.world.add(o));
     b.kind = kind; b.B = B; b.life = B.life; b.o = [ox, oz, oy]; b.e = [ex, ez, ey]; b.jagT = 0; b.pts = null;
     b.core.material.color.setHex(B.core); b.glow.material.color.setHex(B.glow); b.core.visible = b.glow.visible = true;
-    if (Math.hypot(ex - G.px, ey - G.py) > 1.1) sparks(ex, ez, ey, 6, B.spark);   // impact sparks (not on your own face: the hit flash shows that)
+    if (B.bolt) { b.halo.material.color.setHex(B.halo); b.halo.visible = true; crackle(ox, oz, oy, 3, 0.16); crackle(ex, ez, ey, Math.hypot(ex - G.px, ey - G.py) > 1.1 ? 4 : 1, 0.2); }   // spark arcs at the muzzle and the impact
+    if (Math.hypot(ex - G.px, ey - G.py) > 1.1) sparks(ex, ez, ey, B.bolt ? 12 : 6, B.spark);   // impact sparks (not on your own face: the hit flash shows that)
     if (G.fxLight) { G.fxLight.position.set(ox, oz, oy); G.fxLight.color.setHex(B.light); G.fxLight.distance = 5; G.fxLight.intensity = Math.max(G.fxLight.intensity, 2.6); G.fxTravelOn = false; }
     Sound.play(B.snd, distVol(e.x, e.y));
     fire('beam', { kind, sub: e.sub, hit: hitP, from: [ox, oy, oz], to: [ex, ey, ez] });
     return hitP;
   }
+  /* 1.3.3 lightning: a forked, zig-zag bolt. The main channel is a midpoint-displaced polyline (17 points), drawn three
+     times: a white-blue core, an electric-blue glow and a wide faint halo. Two or three forks split off it. Every ~30 ms
+     the whole bolt re-strikes in a new shape and its brightness flickers, and short spark arcs crackle at both ends. */
+  function newBolt() {
+    const forks = [0, 1, 2].map(() => ({ core: ribbon(9, 0xeef8ff, 1), glow: ribbon(9, 0x3d9bff, 0.5), pts: Array.from({ length: 9 }, () => new THREE.Vector3()) }));
+    return { core: ribbon(17, 0xffffff, 1), glow: ribbon(17, 0xffffff, 0.5), halo: ribbon(17, 0xffffff, 0.2), forks, life: 0 };
+  }
+  const _bu = new THREE.Vector3(), _bw = new THREE.Vector3(), _bd = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+  const _ou = new Float32Array(33), _ow = new Float32Array(33);
+  // Fill pts (n = 2^k + 1 points) with a jagged line from a to b: each halving adds a random sideways kick, smaller each level.
+  function boltPath(pts, n, ax, ay, az, bx, by, bz, amp) {
+    _bd.set(bx - ax, by - ay, bz - az); const L = _bd.length() || 1; _bd.multiplyScalar(1 / L);
+    _bu.crossVectors(_bd, _up); if (_bu.lengthSq() < 1e-4) _bu.set(1, 0, 0); _bu.normalize(); _bw.crossVectors(_bd, _bu);   // two sideways axes
+    _ou[0] = _ow[0] = _ou[n - 1] = _ow[n - 1] = 0;                 // the ends stay pinned to the muzzle and the impact
+    for (let step = n - 1, a = amp; step > 1; step >>= 1, a *= 0.55) {
+      const h = step >> 1;
+      for (let i = h; i < n - 1; i += step) { _ou[i] = (_ou[i - h] + _ou[i + h]) / 2 + rand(-a, a); _ow[i] = (_ow[i - h] + _ow[i + h]) / 2 + rand(-a, a); }
+    }
+    for (let i = 0; i < n; i++) { const t = i / (n - 1);
+      pts[i].set(ax + (bx - ax) * t + _bu.x * _ou[i] + _bw.x * _ow[i], ay + (by - ay) * t + _bu.y * _ou[i] + _bw.y * _ow[i], az + (bz - az) * t + _bu.z * _ou[i] + _bw.z * _ow[i]); }
+    return L;
+  }
+  function updateBolt(b, dt, k) {
+    const B = b.B; b.jagT -= dt;
+    if (!b.pts || b.jagT <= 0) {                                 // re-strike: new shape, new forks, new brightness
+      b.jagT = 0.03; b.pts = b.pts || Array.from({ length: 17 }, () => new THREE.Vector3());
+      const [x0, y0, z0] = b.o, [x1, y1, z1] = b.e, L = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
+      boltPath(b.pts, 17, x0, y0, z0, x1, y1, z1, Math.min(0.42, L * 0.11));
+      b.flick = rand(0.55, 1);                                   // strobe
+      b.forks.forEach((f, fi) => {
+        f.on = fi < 2 || Math.random() < 0.5; if (!f.on) return;
+        const j = 3 + Math.floor(Math.random() * 10), p = b.pts[j], q = b.pts[j + 2];   // split off somewhere along the bolt
+        const len = Math.min(1.1, L * rand(0.12, 0.26));
+        _bd.subVectors(q, p).normalize().add(new THREE.Vector3(rand(-0.9, 0.9), rand(-0.6, 0.6), rand(-0.9, 0.9))).normalize();
+        boltPath(f.pts, 9, p.x, p.y, p.z, p.x + _bd.x * len, p.y + _bd.y * len, p.z + _bd.z * len, len * 0.16);
+      });
+      if (Math.random() < 0.35) crackle(x0, y0, z0, 1, 0.14);    // the muzzle keeps spitting arcs
+      if (G.fxLight) G.fxLight.intensity = Math.max(G.fxLight.intensity, 2.6 * b.flick * k);   // the room flickers blue with it
+    }
+    const fk = b.flick || 1;
+    layRibbon(b.core, b.pts, B.wCore * rand(0.7, 1.3)); layRibbon(b.glow, b.pts, B.wGlow * rand(0.85, 1.15)); layRibbon(b.halo, b.pts, B.wHalo);
+    b.core.material.opacity = Math.min(1, k * 1.8) * fk; b.glow.material.opacity = 0.8 * k * fk; b.halo.material.opacity = 0.18 * k * fk;
+    b.forks.forEach(f => {
+      f.core.visible = f.glow.visible = !!f.on && k > 0.05; if (!f.on) return;
+      layRibbon(f.core, f.pts, B.wCore * 0.7); layRibbon(f.glow, f.pts, B.wGlow * 0.7);
+      f.core.material.opacity = Math.min(1, k * 1.5) * fk * 0.9; f.glow.material.opacity = 0.6 * k * fk;
+    });
+  }
+  // Short electric arcs (pool of 10 four-point ribbons, ~70 ms each): at a muzzle while it charges, and at both ends of a bolt.
+  function crackle(x, h, y, n, len) {
+    if (!G || !G.world) return;
+    G.arcs = G.arcs || [];
+    for (let c = 0; c < n; c++) {
+      let a = G.arcs.find(o => o.life <= 0);
+      if (!a && G.arcs.length < 10) { a = { mesh: ribbon(4, 0xbfe4ff, 1), pts: Array.from({ length: 4 }, () => new THREE.Vector3()), life: 0 }; G.world.add(a.mesh); G.arcs.push(a); }
+      if (!a) return;
+      const d = new THREE.Vector3(rand(-1, 1), rand(-0.7, 1), rand(-1, 1)).normalize().multiplyScalar(len * rand(0.6, 1.2));
+      a.pts[0].set(x, h, y);
+      for (let i = 1; i < 4; i++) a.pts[i].set(x + d.x * i / 3 + rand(-0.03, 0.03), h + d.y * i / 3 + rand(-0.03, 0.03), y + d.z * i / 3 + rand(-0.03, 0.03));
+      layRibbon(a.mesh, a.pts, 0.014); a.life = a.max = rand(0.05, 0.09); a.mesh.visible = true; a.mesh.material.opacity = 1;
+    }
+  }
+  function updateArcs(dt) {
+    if (!G.arcs) return;
+    for (const a of G.arcs) { if (a.life <= 0) continue; a.life -= dt; a.mesh.material.opacity = Math.max(0, a.life / a.max); if (a.life <= 0) a.mesh.visible = false; }
+  }
   function updateBeams(dt) {
+    updateArcs(dt);
     if (!G.beams) return;
     for (const b of G.beams) {
       if (b.life <= 0) continue;
+      if (b.halo) {                                              // 1.3.3 lightning bolt
+        b.life -= dt; const k = Math.max(0, b.life / b.B.life);
+        if (b.life <= 0) { b.core.visible = b.glow.visible = b.halo.visible = false; b.forks.forEach(f => { f.core.visible = f.glow.visible = false; }); continue; }
+        updateBolt(b, dt, k); continue;
+      }
       b.life -= dt; const k = Math.max(0, b.life / b.B.life);
       if (b.life <= 0) { b.core.visible = b.glow.visible = false; continue; }
       b.jagT -= dt;
@@ -3401,6 +3729,7 @@ function play(container, project, opts) {
           const ox = e.x + Math.cos(e.ang) * 0.7, oy = e.y + Math.sin(e.ang) * 0.7;
           const vx = dx / d3, vy = dy / d3, vz = (tz - mz) / d3, sp = def.palmSpeed || 7.5;
           spawnProj('enemy', 'palm', ox, oy, mz, vx, vy, vz, sp, def.dmg * diff().dmg, 0);
+          if (animOf(e)) gunFire(e);                               // 1.3.3: the palm blast flashes at his chest and kicks him back
           fire('proj', { kind: 'palm', x: ox, y: oy, z: mz, dx: vx, dy: vy, dz: vz });
           Sound.play('bolt', distVol(e.x, e.y));
         }
@@ -3408,8 +3737,8 @@ function play(container, project, opts) {
       }
     } else {
       // chase / combat
-      if (see && dist <= def.meleeR && e.cd <= 0) { e.state = 'attack'; e.attackKind = 'melee'; e.t = 0.38; e.moving = false; }
-      else if (see && dist < def.range && e.cd <= 0) { e.state = 'attack'; e.attackKind = 'palm'; e.t = 0.42; e.moving = false; }
+      if (see && dist <= def.meleeR && e.cd <= 0) { e.state = 'attack'; e.attackKind = 'melee'; e.t = e.t0 = 0.38; e.moving = false; }   // t0: windup length for the 1.3.3 pose
+      else if (see && dist < def.range && e.cd <= 0) { e.state = 'attack'; e.attackKind = 'palm'; e.t = e.t0 = def.windup || 0.42; e.moving = false; }
       else if (e.warpCd <= 0 && dist > 2.2) {
         const dest = pickWarpNear(tgt.x, tgt.y, 3.4);
         showWarpTelegraph(dest.x, dest.y, dest.z + 0.02);
@@ -3431,6 +3760,9 @@ function play(container, project, opts) {
     e.poseT = (e.poseT || 0) - dt;
     if (e.poseT <= 0) { e.poseT = 0.28; fire('boss_pose', { x: e.x, y: e.y, z: e.z, hp: e.hp, yaw: e.ang, state: e.state }); }
     const ud = m.userData;
+    if (e.attackKind === 'melee' && e.state === 'attack' && e.t <= dt * 1.5 && animOf(e)) e.recoilT = Math.max(e.recoilT || 0, 0.7);   // 1.3.3: the swing lands
+    ud.spd = e.moving ? def.speed * diff().speed : lerp(ud.spd || 0, 0, Math.min(1, dt * 6));   // his gait follows his walk
+    const ga = animOf(e); if (ga && ud.glb) bodyPose(e, ud, ga, dt, time);   // 1.3.3: stomping walk, lean + lunge on attacks, breathing
     if (ud.glbMats) ud.glbMats.forEach(mm => mm.emissive && mm.emissive.setRGB(e.flashT > 0 ? 0.55 : 0, e.flashT > 0 ? 0.28 : 0, e.flashT > 0 ? 0.12 : 0));
   }
   function updateEnemies(dt, time) {
@@ -3443,7 +3775,8 @@ function play(container, project, opts) {
         const d2 = (e.x - G.px) * (e.x - G.px) + (e.y - G.py) * (e.y - G.py);
         ud.animAcc = (ud.animAcc || 0) + dt;
         const every = e.state === 'dead' && e.deadT > 2.5 ? 1e9 : d2 > 400 && e.state === 'idle' ? 0.25 : d2 > 144 ? 0.033 : 0;
-        if (ud.animAcc >= every) { ud.mixer.update(ud.animAcc); ud.animAcc = 0; }
+        const pace = opts.lively && e.moving ? clamp((ud.spd || 0) / Math.max(0.3, def.speed || 1), 0.5, 1.25) : 1;   // 1.3.3: walk cycle speed follows the real speed (no foot sliding)
+        if (ud.animAcc >= every) { ud.mixer.update(ud.animAcc * pace); ud.animAcc = 0; }
       }
       else if (ud.mixer) ud.mixer.update(dt * (e.moving ? 1 : 0.3));
       if (e.alertT > 0) { e.alertT -= dt; if (e.alertT <= 0) alert(e); }
@@ -3461,7 +3794,7 @@ function play(container, project, opts) {
       if (def.bossMusic && !G.bossMet && see && dist < def.range + 2) meetBoss(e);   // 1.3.2: boss spotted you -> boss music
       if (def.shockwave && e.state !== 'idle') updateQuakes(e, def.shockwave, dt, see, dist);   // 1.3.2: walkers slam a floor wave now and then
       e.flashT = Math.max(0, e.flashT - dt); e.cd -= dt; e.moving = false;
-      if (e.state === 'idle') { if ((dist < 2.5 + (input.run ? 2.5 : 0) && Math.hypot(G.vx, G.vy) > 1.1 && los(e.x, e.y, G.px, G.py) || dist < 1.5) || see && (dist < 6 || ((dx * Math.cos(e.ang) + dy * Math.sin(e.ang)) / dist > -0.2 && dist < 15))) alert(e); }
+      if (e.state === 'idle') { if (G.graceT > 0) { /* 1.3.3: get-ready window: nobody notices you yet */ } else if ((dist < 2.5 + (input.run ? 2.5 : 0) && Math.hypot(G.vx, G.vy) > 1.1 && los(e.x, e.y, G.px, G.py) || dist < 1.5) || see && (dist < 6 || ((dx * Math.cos(e.ang) + dy * Math.sin(e.ang)) / dist > -0.2 && dist < 15))) alert(e); }
       else if (e.state === 'pain') { e.t -= dt; if (e.t <= 0) e.state = 'chase'; }
       else if (e.state === 'cover') {   // run to cover, wait, then pop out and fight again
         e.coverT -= dt; const cx = e.cover.x - e.x, cy = e.cover.y - e.y, cl = Math.hypot(cx, cy);
@@ -3473,9 +3806,15 @@ function play(container, project, opts) {
       }
       else if (e.state === 'attack') {
         e.t -= dt; e.ang = Math.atan2(dy, dx);
+        if (opts.lively && def.speed > 0 && dist > 0.01) {        // 1.3.3: mobile enemies keep sidestepping while they wind up (never a frozen cutout)
+          const sp = def.speed * diff().speed * 0.35 * dt, px = -dy / dist * e.strafe, py = dx / dist * e.strafe, fly = !!(def.hover || def.lift);
+          let mv = false; const nx = e.x + px * sp, ny = e.y + py * sp;
+          if (!blocked(nx, e.y, e.z, def.r * 0.8, fly, e)) { e.x = nx; mv = true; } if (!blocked(e.x, ny, e.z, def.r * 0.8, fly, e)) { e.y = ny; mv = true; }
+          if (!mv) e.strafe = -e.strafe; e.moving = mv;
+        }
         if (e.t <= 0) {
           let mz = e.z + (def.hover || def.h * 0.62) + liftOf(def);   // lifted troopers shoot from chest height
-          const mp = def.gunAnim ? gunFire(e) : null;             // 1.3.2: gunners fire from their rifle tip (+ flash, recoil, tracer)
+          const mp = animOf(e) ? gunFire(e) : null;               // 1.3.2: gunners fire from their rifle tip (+ flash, recoil, tracer); 1.3.3: every enemy
           if (mp) mz = mp.z;
           if (isBeam(def.proj)) {                                   // 1.3.2: lightning / laser beam from the gun, then the normal cooldown
             const a = Math.atan2(dy, dx); fireBeam(e, def.proj, mp ? mp.x : e.x + Math.cos(a) * 0.3, mp ? mp.y : e.y + Math.sin(a) * 0.3, mz);
@@ -3496,7 +3835,8 @@ function play(container, project, opts) {
         if (def.speed > 0 && e.sub !== 'titan' && e.hurtT > def.hp * diff().hp * (S.difficulty === 'hard' ? 0.25 : 0.4)) { e.hurtT = 0; const c = findCover(e); if (c) { e.state = 'cover'; e.recover = false; e.cover = c; e.coverT = rand(1.4, 2.6); } }
         e.strafeT -= dt; if (e.strafeT <= 0) { if (!e.flank) e.strafe = -e.strafe; e.strafeT = rand(0.7, 1.8); }
         if (e.flank && e.strafe !== e.flank && e.strafeT > 0.3) e.strafe = e.flank;
-        if (see && dist < def.range && e.cd <= 0) { e.state = 'attack'; e.t = def.proj === 'rocket' ? 0.6 : 0.4; e.t0 = e.t; e.aim = { x: G.px, y: G.py, z: G.pz + 0.45 }; }   // t0: windup length (gunAnim); aim: beam lock
+        if (see && dist < def.range && e.cd <= 0) { e.state = 'attack'; e.t = def.windup || (def.proj === 'rocket' ? 0.6 : 0.4); e.t0 = e.t;   // 1.3.3: def.windup = telegraph length
+           e.aim = { x: G.px, y: G.py, z: G.pz + 0.45 }; }   // t0: windup length (gunAnim); aim: beam lock
         else if (def.speed > 0 && see && dist < def.range && e.sub !== 'titan') {
           // in range but reloading: strafe sideways (and keep a little distance) instead of standing still
           const px = -dy / dist, py = dx / dist, back = dist < 2.5 ? -0.7 : e.flank ? (dist > 3.5 ? 0.3 : 0) : dist > def.range * 0.7 ? 0.5 : 0;
@@ -3530,27 +3870,53 @@ function play(container, project, opts) {
           for (const o of G.enemies) if (o !== e && o.state !== 'dead') { const ox = e.x - o.x, oy = e.y - o.y, od = Math.hypot(ox, oy), min = def.r + o.def.r; if (od > 0.001 && od < min) { const push = (min - od) * 0.5; const px = e.x + ox / od * push, py = e.y + oy / od * push; if (!blocked(px, py, e.z, def.r * 0.8, !!def.hover, e)) { e.x = px; e.y = py; } } }
         }
       }
+      // 1.3.3: a chaser that has not moved for a moment (no path, wall in the way) wanders off in a new direction instead of standing there
+      if (opts.lively && def.speed > 0 && e.state === 'chase') {
+        if (e.wanderT > 0) {
+          e.wanderT -= dt; const sp = def.speed * diff().speed * 0.6 * dt, fly = !!(def.hover || def.lift), nx = e.x + Math.cos(e.wanderA) * sp, ny = e.y + Math.sin(e.wanderA) * sp;
+          let mv = false; if (!blocked(nx, e.y, e.z, def.r * 0.8, fly, e)) { e.x = nx; mv = true; } if (!blocked(e.x, ny, e.z, def.r * 0.8, fly, e)) { e.y = ny; mv = true; }
+          if (!mv) e.wanderA += 1.9; else { e.moving = true; if (!see) e.ang = e.wanderA; }
+        } else if (!e.moving && !(see && dist < 1.8)) { e.stuckT = (e.stuckT || 0) + dt; if (e.stuckT > 0.45) { e.stuckT = 0; e.wanderA = see ? Math.atan2(dy, dx) + (Math.random() < 0.5 ? 1.2 : -1.2) : rand(0, 6.283); e.wanderT = rand(0.6, 1.1); } }
+        else e.stuckT = 0;
+      }
       // ground the enemy on the floor (or hover height for drones)
       const gz = groundAt(e.x, e.y, 0.1); e.z = lerp(e.z, gz, Math.min(1, dt * 10));
       const bob = def.bob != null ? def.bob : 0.06;                    // 1.3.0: per-enemy bob height
-      m.position.set(e.x, e.z + (def.hover ? def.hover + Math.sin(time * 2.2 + ud.phase) * bob : 0) + (def.lift ? def.lift + Math.sin(time * 1.7 + ud.phase) * (def.bob != null ? def.bob : 0.07) : 0), e.y);
+      // 1.3.3: the body follows the AI position through a short smoothing, so strafe flips and wall slides don't jitter (teleports snap)
+      if (ud.sx == null || !opts.lively || Math.hypot(e.x - ud.sx, e.y - ud.sy) > 1.2) { ud.sx = e.x; ud.sy = e.y; ud.vx = ud.vy = 0; }
+      const kS = 1 - Math.exp(-dt * 12), osx = ud.sx, osy = ud.sy;
+      ud.sx += (e.x - ud.sx) * kS; ud.sy += (e.y - ud.sy) * kS;
+      ud.vx = lerp(ud.vx || 0, (ud.sx - osx) / Math.max(dt, 1e-3), kS); ud.vy = lerp(ud.vy || 0, (ud.sy - osy) / Math.max(dt, 1e-3), kS);
+      ud.spd = Math.hypot(ud.vx, ud.vy);                                // real speed: drives the gait and the walk-cycle pace
+      m.position.set(ud.sx, e.z + (def.hover ? def.hover + Math.sin(time * 2.2 + ud.phase) * bob : 0) + (def.lift ? def.lift + Math.sin(time * 1.7 + ud.phase) * (def.bob != null ? def.bob : 0.07) : 0), ud.sy);
+      if (opts.lively && (def.hover || def.lift)) {                     // hover units bank into sideways motion and pitch with speed
+        const ca = Math.cos(e.ang), sa = Math.sin(e.ang), top = Math.max(0.5, def.speed || 1);
+        const fwd = ud.vx * ca + ud.vy * sa, sideV = -ud.vx * sa + ud.vy * ca, kb = Math.min(1, dt * 5);
+        ud.bankZ = lerp(ud.bankZ || 0, clamp(sideV / top, -1, 1) * 0.32, kb); ud.bankX = lerp(ud.bankX || 0, clamp(fwd / top, -1, 1) * 0.22, kb);
+        m.rotation.z = ud.bankZ + Math.sin(time * 1.3 + ud.phase) * 0.03; m.rotation.x = ud.bankX;   // plus a slight drift so it never hangs dead still
+      }
       if (ud.jets) ud.jets.forEach((j, i) => { const f = 0.85 + Math.sin(time * 43 + i * 2.1) * 0.12 + Math.sin(time * 17 + i) * 0.08;  // thruster flicker
         j.scale.set(j.userData.s0 * (0.9 + f * 0.1), j.userData.s0 * f * (e.moving ? 1.25 : 1), j.userData.s0 * (0.9 + f * 0.1)); });
       // face the direction we are looking: model faces +Z, so rotation.y = atan2(dirX, dirZ)
       const want = Math.atan2(Math.cos(e.ang), Math.sin(e.ang));
       let dAng = want - m.rotation.y; while (dAng > Math.PI) dAng -= Math.PI * 2; while (dAng < -Math.PI) dAng += Math.PI * 2;
-      m.rotation.y += dAng * Math.min(1, dt * 10);
-      if (def.gunAnim && ud.glb) gunPose(e, ud, def.gunAnim, dt, time);   // 1.3.2: windup / recoil / breathing / flinch
+      if (opts.lively) { const tr = (def.turn || 6.5) * dt; m.rotation.y += clamp(dAng * Math.min(1, dt * 8), -tr, tr); }   // 1.3.3: eased turn with a top turn rate (no snapping)
+      else m.rotation.y += dAng * Math.min(1, dt * 10);
+      const ga = animOf(e);
+      if (ga && bodyOf(ud)) bodyPose(e, ud, ga, dt, time);          // 1.3.2: windup / recoil / breathing / flinch; 1.3.3: + gait and idle life, every enemy
       // animation
       ud.phase += dt * (e.moving ? def.speed * 5 : 1);
       if (ud.proc.userData.legs) ud.proc.userData.legs.forEach((leg, i) => { leg.rotation.x = e.moving ? Math.sin(ud.phase + i * Math.PI) * 0.5 : 0; });
       if (ud.proc.userData.rotor) ud.proc.userData.rotor.rotation.y += dt * 18;
       if (ud.proc.userData.core) ud.proc.userData.core.rotation.y += dt * 3;
-      if (!e.moving && !def.hover) ud.proc.position.y = Math.sin(time * 1.6 + ud.phase) * 0.006;
+      if (!e.moving && !def.hover && !(ga && bodyOf(ud) === ud.proc)) ud.proc.position.y = Math.sin(time * 1.6 + ud.phase) * 0.006;
       const charge = e.state === 'attack' ? 0.6 + Math.sin(time * 40) * 0.4 : 0;
       ud.mats.forEach(mm => mm.emissive.setRGB(e.flashT > 0 ? 0.9 : charge * 0.35, e.flashT > 0 ? 0.9 : charge * 0.08, e.flashT > 0 ? 0.9 : 0));
       const gl = 0.75 + Math.sin(time * 5 + ud.phase) * 0.25;           // models with a glow map (red visor/coils) keep it lit and pulsing
-      if (ud.glbMats) ud.glbMats.forEach(mm => mm.emissive && (mm.emissiveMap && !(e.flashT > 0) ? mm.emissive.setRGB(gl, gl, gl) : mm.emissive.setRGB(e.flashT > 0 ? 0.55 : 0, e.flashT > 0 ? 0.35 : 0, e.flashT > 0 ? 0.3 : 0)));
+      // 1.3.3: winding up, the armour flares with the charge colour (blue lightning, red laser, orange shells)
+      const fw = opts.lively && e.state === 'attack' && e.t0 ? clamp(1 - e.t / e.t0, 0, 1) * 0.42 : 0, fc = fw ? (ga && ga.color) || 0xff8a30 : 0;
+      const fr = ((fc >> 16) & 255) / 255 * fw, fg = ((fc >> 8) & 255) / 255 * fw, fb = (fc & 255) / 255 * fw;
+      if (ud.glbMats) ud.glbMats.forEach(mm => mm.emissive && (mm.emissiveMap && !(e.flashT > 0) ? mm.emissive.setRGB(gl + fr, gl + fg, gl + fb) : mm.emissive.setRGB(e.flashT > 0 ? 0.55 : fr, e.flashT > 0 ? 0.35 : fg, e.flashT > 0 ? 0.3 : fb)));
     }
   }
 
@@ -3665,6 +4031,7 @@ function play(container, project, opts) {
     G.dmgFlash = Math.max(0, G.dmgFlash - dt * 1.5); H_.vig.style.opacity = Math.max(G.dmgFlash, G.hp < 25 ? 0.35 + Math.sin(G.time * 5) * 0.1 : 0);
     G.pickFlash = Math.max(0, G.pickFlash - dt); H_.pick.style.opacity = G.pickFlash * 3;
     G.hitT = Math.max(0, G.hitT - dt); H_.hit.style.opacity = G.hitT > 0 ? 1 : 0;
+    if (INV && H_.packN) { const n = (G.pack.med || 0) + (G.pack.cell || 0) + (G.pack.ammo || 0); setT('packn', H_.packN, n ? String(n) : ''); }   // 1.3.3: items in the Pack
     drawMinimap();
     if (bigMap.style.display === 'flex' && (bigMapT += dt) > 0.1) { bigMapT = 0; drawBigMap(); }
   }
@@ -3717,7 +4084,7 @@ function play(container, project, opts) {
   function characterPickerHtml() {
     const cur = PLAYER_MODELS[S.playerModel] ? S.playerModel : 'george';
     return '<div class="dfg-char-label">Player model <span>how others see you · models load when used</span></div><div class="dfg-chars">' +
-      Object.keys(PLAYER_MODELS).map(id => {
+      Object.keys(PLAYER_MODELS).filter(id => !PLAYER_MODELS[id].pro || id === cur).map(id => {   // 1.3.3: Pro suits live in Pro's lobby
         const d = PLAYER_MODELS[id];
         return `<button type="button" class="dfg-char${id === cur ? ' on' : ''}" style="--tint:${d.tintColor}" data-a="pickchar" data-id="${id}"><span class="dfg-char-sw" style="background:${d.tintColor}"></span><b>${esc(d.name)}</b><i>${esc(d.license || 'CC0 1.0')}</i></button>`;
       }).join('') + '</div>';
@@ -3737,7 +4104,7 @@ function play(container, project, opts) {
     } else if (kind === 'start') {
       h = `<h1>${esc(L.name)}</h1><h2>Level ${G.index + 1} of ${levels.length}</h2>${characterPickerHtml()}${ctrl}<button class="dfg-btn pri" data-a="go">${isTouch ? 'Tap' : 'Click'} to start</button>${opts.onMultiplayer ? '<button class="dfg-btn" data-a="multiplayer">Multiplayer</button>' : ''}${opts.onQuit ? `<button class="dfg-btn" data-a="quit">${esc(opts.quitLabel || 'Back to editor')}</button>` : ''}`;
     } else if (kind === 'pause') {
-      h = `<h1>PAUSED</h1><h2>${esc(L.name)}</h2><button class="dfg-btn pri" data-a="resume">Resume</button><button class="dfg-btn" data-a="restart">Restart level</button><button class="dfg-btn" data-a="settings">Settings</button><button class="dfg-btn" data-a="musicui">Music player</button><button class="dfg-btn" data-a="quit">${opts.quitLabel || (opts.onQuit ? 'Back to editor' : 'Quit to title')}</button>`;
+      h = `<h1>PAUSED</h1><h2>${esc(L.name)}</h2><button class="dfg-btn pri" data-a="resume">Resume</button>${INV ? '<button class="dfg-btn" data-a="pack">Pack</button>' : ''}${(opts.pauseExtras || []).map(x => `<button class="dfg-btn${x.cls ? ' ' + esc(x.cls) : ''}" data-a="ext" data-x="${esc(x.id)}">${esc(x.label)}</button>`).join('')}<button class="dfg-btn" data-a="restart">Restart level</button><button class="dfg-btn" data-a="settings">Settings</button><button class="dfg-btn" data-a="musicui">Music player</button><button class="dfg-btn" data-a="quit">${opts.quitLabel || (opts.onQuit ? 'Back to editor' : 'Quit to title')}</button>`;
     } else if (kind === 'music') {
       const curId = TP.pick === 'synth' || TP.failed || !usePack ? 'synth' : TP.cur;
       h = `<h1>MUSIC</h1><h2>${TP.failed || !usePack ? 'Tracks unavailable offline — using synth' : 'Tap a track to play it'}</h2><div class="dfg-tracks">` +
@@ -3745,6 +4112,14 @@ function play(container, project, opts) {
         `<button class="dfg-trk${curId === 'synth' ? ' on' : ''}" data-a="track" data-i="-1"><b>Synth ambient</b><span>${opts.gameName ? 'DMB Tech 1' : 'RetroEngine'} generative music · built in</span></button></div>` +
         // 1.6.2: a game with its own tracks (Pro) sets opts.musicNote for this footer; the editor keeps its CC BY credit line
         `<p style="font-size:11px;opacity:.6;line-height:1.5">${esc(opts.musicNote || 'Music licensed under Creative Commons Attribution 4.0 (creativecommons.org/licenses/by/4.0). Kevin MacLeod — incompetech.com · Shane Ivers — silvermansound.com')}</p><button class="dfg-btn pri" data-a="back">Back</button>`;
+    } else if (kind === 'pack' && INV) {                          // 1.3.3: the Pack: stored items + Rebuild Suit, big phone-sized buttons
+      const row = id => { const it = PACK_ITEMS[id], n = G.pack[id] || 0;
+        return `<div class="dfg-pk"><i class="dfg-pk-ico dfg-pk-${id}">${it.icon}</i><span><b>${esc(it.name)}</b><small>${esc(it.desc)}</small></span><em>${n}<small>/${it.max}</small></em><button class="dfg-btn${n ? ' pri' : ''}" data-a="packuse" data-i="${id}"${n ? '' : ' disabled'}>Use</button></div>`; };
+      const cells = G.pack.cell || 0, canPts = (G.points || 0) >= PK.rebuildCost;
+      h = `<h1>PACK</h1><h2>Points ${(G.points || 0).toLocaleString()} · Health ${Math.ceil(G.hp)} · Armor ${Math.ceil(G.armor)}${G.regenOn ? ' · regenerating' : ''}</h2><div class="dfg-pack">${['med', 'cell', 'ammo'].map(row).join('')}
+        <div class="dfg-pk dfg-pk-rebuild"><i class="dfg-pk-ico dfg-pk-cell">⛨</i><span><b>Rebuild Suit</b><small>${cells ? 'Uses 1 Suit Repair Cell: +50 armor' : 'No cells: spend ' + PK.rebuildCost + ' points for +' + PK.rebuildArmor + ' armor'}</small></span><em>${Math.ceil(G.armor)}<small>/${PK.suitMax}</small></em><button class="dfg-btn${cells || canPts ? ' pri' : ''}" data-a="rebuild"${cells || canPts ? '' : ' disabled'}>Rebuild</button></div></div>
+        <p class="dfg-pk-tip">${isTouch ? 'Enemies and crates drop Pack items. Health regenerates to ' + PK.regenCap + ' after ' + PK.regenDelay + ' s out of the fight.' : '<kbd>I</kbd>/<kbd>B</kbd> Pack · <kbd>H</kbd> Med Pack · <kbd>X</kbd> Rebuild Suit · health regenerates to ' + PK.regenCap + ' after ' + PK.regenDelay + ' s out of the fight'}</p>
+        <button class="dfg-btn" data-a="packclose">${menuBack === 'pause' && packFromPause ? 'Back' : 'Back to the fight'}</button>`;
     } else if (kind === 'settings') {
       const r = (k, lab, min, max, step) => `<div class="dfg-row"><span>${lab}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${S[k]}"></div>`;
       const c = (k, lab) => `<div class="dfg-row"><span>${lab}</span><input type="checkbox" data-k="${k}" ${S[k] ? 'checked' : ''}></div>`;
@@ -3767,13 +4142,20 @@ function play(container, project, opts) {
     const q = menu.querySelector('[data-k="quality"]'); if (q) q.value = S.quality;
   }
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  function stats() { return `<div class="dfg-stats"><span>Time</span><b>${fmtTime(G.time)}</b><span>Kills</span><b>${G.kills} / ${G.totalEnemies}</b><span>Items</span><b>${G.items} / ${G.totalItems}</b><span>Secrets</span><b>${G.secrets} / ${G.totalSecrets}</b></div>`; }
-  let menuBack = 'pause';
+  function stats() { return `<div class="dfg-stats"><span>Time</span><b>${fmtTime(G.time)}</b><span>Kills</span><b>${G.kills} / ${G.totalEnemies}</b><span>Items</span><b>${G.items} / ${G.totalItems}</b><span>Secrets</span><b>${G.secrets} / ${G.totalSecrets}</b>${PK ? `${G.clearBonus ? `<span>Clear bonus</span><b>+${G.clearBonus.toLocaleString()}</b>` : ''}<span>Points</span><b>${(G.points || 0).toLocaleString()}</b>` : ''}</div>`; }   // 1.3.3: points on the summary
+  let menuBack = 'pause', packFromPause = false;
+  // 1.3.3: open / close the Pack (pauses the game while it is open; a phone needs both hands for the buttons)
+  function openPack() { if (!INV || !G) return; if (state === 'paused' && menu.dataset.kind === 'pack') { if (packFromPause) { packFromPause = false; showMenu('pause'); } else begin(); return; } if (state !== 'playing') return; pause(); packFromPause = false; showMenu('pack'); }
   menu.addEventListener('click', ev => {
     const b = ev.target.closest('[data-a]'); if (!b) return; Sound.init(); Sound.play('ui');
     const a = b.dataset.a;
     if (a === 'fs') { toggleFullscreen(); b.remove(); return; }
     if (a === 'go' || a === 'resume') begin();
+    else if (a === 'pack') { packFromPause = true; menuBack = 'pause'; showMenu('pack'); }   // 1.3.3: Pack from the pause menu
+    else if (a === 'packuse') { packUse(b.dataset.i); showMenu('pack'); }
+    else if (a === 'rebuild') { suitRebuild(); showMenu('pack'); }
+    else if (a === 'packclose') { if (packFromPause) { packFromPause = false; showMenu('pause'); } else begin(); }
+    else if (a === 'ext') { if (opts.onMenu) opts.onMenu(b.dataset.x); }      // 1.3.3: host buttons on the pause menu (Pro: Download / Install App)
     else if (a === 'start0') { loadLevel(0, false); begin(); }
     else if (a === 'startSel') { loadLevel(+menu.querySelector('[data-s="lvl"]').value, false); begin(); }
     else if (a === 'restart') { loadLevel(G.index, G.index > 0); begin(); }
@@ -3796,7 +4178,7 @@ function play(container, project, opts) {
     saveSettings(); Sound.applyVolume(); if (TP.audio) TP.audio.volume = clamp(S.volume * S.music, 0, 1); resize(); H_.fps.style.display = S.showFps ? 'block' : 'none';
     if (k === 'touchScale') touch.querySelectorAll('.dfg-tb').forEach(b => { b.style.transform = `scale(${S.touchScale})`; });
   });
-  function saveCarry() { carry.hp = Math.max(G.hp, 50); carry.armor = G.armor; carry.ammo = Object.assign({}, G.ammo); carry.owned = G.owned.slice(); carry.cur = G.cur; carry.mag = G.mag.slice(); }
+  function saveCarry() { carry.pack = Object.assign({}, G.pack); carry.points = G.points || 0; carry.hp = Math.max(G.hp, 50); carry.armor = G.armor; carry.ammo = Object.assign({}, G.ammo); carry.owned = G.owned.slice(); carry.cur = G.cur; carry.mag = G.mag.slice(); }
 
   function begin() {
     Sound.init(); state = 'playing'; showMenu(null); last = performance.now();
@@ -3813,7 +4195,9 @@ function play(container, project, opts) {
     return '';                                                                  // no goal: open (every older map)
   }
   function levelComplete() {
-    if (state !== 'playing') return; state = 'won'; Sound.play('win'); music(false); fire('exit');
+    if (state !== 'playing') return;
+    if (PK) { G.clearBonus = Math.round(PK.clearPts * (1 + 0.25 * G.index) + Math.max(0, 300 - G.time) * 3); addPoints(G.clearBonus, 'Chapter clear'); }   // 1.3.3: bigger for later chapters, plus a speed bonus
+    state = 'won'; Sound.play('win'); music(false); fire('exit');
     input.fire = input.mouseFire = false; if (document.pointerLockElement) document.exitPointerLock();
     showMenu('won'); if (opts.onEvent) opts.onEvent('won', G.index);
   }
@@ -3829,6 +4213,9 @@ function play(container, project, opts) {
     if (ev.code === 'KeyR') input.reload = true;           // latch taps so a quick press is never missed
     if (ev.code === 'Space') input.jump = true;
     if (ev.code === 'Escape' || ev.code === 'KeyP') { if (state === 'playing') pause(); else if (state === 'paused' && ev.code === 'KeyP') begin(); }
+    if (INV && (ev.code === 'KeyI' || ev.code === 'KeyB')) { openPack(); return; }   // 1.3.3: I / B toggles the Pack
+    if (INV && state === 'playing' && ev.code === 'KeyH') packUse('med');          // quick Med Pack
+    if (INV && state === 'playing' && ev.code === 'KeyX') suitRebuild();           // quick suit rebuild
     if (state !== 'playing') return;
     if (/^Digit[1-7]$/.test(ev.code)) selectWeapon(+ev.code.slice(5) - 1);
     if (ev.code === 'KeyT') throwGrenade();
@@ -3858,7 +4245,7 @@ function play(container, project, opts) {
   const onLockChange = () => { if (!document.pointerLockElement && state === 'playing' && !isTouch && lockedOnce && !opts.noUnlockPause) pause(); if (document.pointerLockElement) lockedOnce = true; };
   let lockedOnce = false;
   document.addEventListener('pointerlockchange', onLockChange);
-  topBtns.addEventListener('click', ev => { const b = ev.target.closest('[data-b]'); if (!b || !G) return; const k = b.dataset.b; if (k === 'pause') { if (state === 'playing') pause(); } else if (k === 'light') G.flashOn = !G.flashOn; else if (k === 'fs') toggleFullscreen(); });
+  topBtns.addEventListener('click', ev => { const b = ev.target.closest('[data-b]'); if (!b || !G) return; const k = b.dataset.b; if (k === 'pause') { if (state === 'playing') pause(); } else if (k === 'pack') openPack(); else if (k === 'light') G.flashOn = !G.flashOn; else if (k === 'fs') toggleFullscreen(); });
   // Full screen hides the phone's address bar. On Android also try to lock landscape (ignored where unsupported).
   function toggleFullscreen() {
     if (!FS.ok()) return false;
@@ -3928,7 +4315,7 @@ function play(container, project, opts) {
     const time = now / 1000;
     if (G && state === 'playing') {
       G.time += dt;
-      updatePlayer(dt);
+      updatePlayer(dt); updateSurvival(dt);                       // 1.3.3: grace window, regen, suit rebuild
       if (state === 'playing') { updateDoors(dt); updateEnemies(dt, time); updateProjectiles(dt); fire('tick', dt); }
     } else if (G && state === 'dead') { updateEnemies(dt, time); updateProjectiles(dt); }
     // Paused / dead / on a menu: game logic stops, but multiplayer must keep
@@ -3963,11 +4350,16 @@ function play(container, project, opts) {
       const p = { sub, x, y, z, mesh: m, taken: false, reward: true };   // reward: not counted in the items total
       G.pickups.push(p); return p;
     },
+    packUse: id => packUse(id), packAdd: id => packAdd(id), suitRebuild: () => suitRebuild(), openPack: () => openPack(), addPoints: (n, why) => addPoints(n, why),   // 1.3.3 survival layer
+    endGrace: () => endGrace(),
+    damagePlayer: (dmg, x, y) => { if (G && dmg > 0) damagePlayer(dmg, x, y); },   // 1.3.3: multiplayer hits from another player / the host's boss (was missing, so PvP hits never landed)
     sparks: (x, y, z, n, color) => sparks(x, z, y, n, color), begin, pause, loadLevel, selectWeapon, shoot: () => shoot(), startReload: () => startReload(), weaponMeshes, music: TP, get dynScale() { return dynScale; }, set dynScale(v) { dynScale = v; resize(); }, toggleFullscreen, damagePlayer, levelComplete,
     createRemotePlayer(modelId, o) { return createRemotePlayer(modelId, Object.assign({}, o, { session })); },
     playRemoteShot(shot) { return playRemoteShot(shot); },
     lineClear(x1, y1, x2, y2) { return !!G && los(x1, y1, x2, y2); },
-    remoteFx(m) { return remoteFx(m); }, setCombat(on) { if (G) G.combat = !!on; }, throwGrenade: () => throwGrenade(), explode: (x, y, z, dmg, rad, owner, src) => explode(x, y, z, dmg, rad, owner, src),
+    remoteFx(m) { return remoteFx(m); }, setCombat(on) { if (G) G.combat = !!on; },
+    coopHit(i, dmg) { const e = G && G.enemies[i | 0]; if (!e || e.state === 'dead' || !(dmg > 0)) return false; damageEnemy(e, dmg, false, true); return true; },   // 1.3.3: partner's hit on enemy i
+    throwGrenade: () => throwGrenade(), explode: (x, y, z, dmg, rad, owner, src) => explode(x, y, z, dmg, rad, owner, src),
     spawnGrenade: (o, x, y, z, vx, vy, vz) => spawnGrenade(o, x, y, z, vx, vy, vz), showBigMap: on => showBigMap(on), get bigMapOpen() { return bigMap.style.display === 'flex'; },
     destroy() {
       destroyed = true; if (activeSession === session) activeSession = null; remotes.slice().forEach(r => { try { r.dispose(); } catch (e) {} }); cancelAnimationFrame(raf); clearInterval(TP.fadeI); Sound.music(false); if (TP.audio) { TP.audio.pause(); TP.audio.removeAttribute('src'); }
@@ -3979,7 +4371,7 @@ function play(container, project, opts) {
     }
   };
   // test hook: step the AI deterministically (the game itself never calls this)
-  window.RETROENGINE_DEBUG = { handle, THREE, input, los: (a, b, c, d) => los(a, b, c, d), findCover: e => findCover(e), damageEnemy: (e, d) => damageEnemy(e, d), diff: () => diff(),
+  window.RETROENGINE_DEBUG = { handle, THREE, input, los: (a, b, c, d) => los(a, b, c, d), findCover: e => findCover(e), damageEnemy: (e, d, byPlayer) => damageEnemy(e, d, byPlayer), remotes: () => remotes.slice(), diff: () => diff(),
     step(dt, n) { for (let i = 0; i < (n || 1); i++) { G.time += dt; updateEnemies(dt, G.time); updateProjectiles(dt); updateDoors(dt); } },
     findBoss: () => G && G.enemies.find(e => e.def && e.def.boss), bossAlive: () => bossAlive(), exitUnlocked: () => !exitSealed(),
     musicTrack: () => TP.cur,   // 1.3.0 test hook: id of the music track loaded right now
@@ -4066,7 +4458,7 @@ function registerEnemy(def) {
 }
 
 return {
-  VERSION, HOSTED_BASE, MUSIC_TRACKS, LIGHT_PRESETS, ASSET_PACK, PLAYER_MODELS, PLAYER_CLIPS, createRemotePlayer, play, boot, Sound, S, saveSettings, planSigns, GRENADE,
+  VERSION, HOSTED_BASE, MUSIC_TRACKS, LIGHT_PRESETS, ASSET_PACK, PLAYER_MODELS, PLAYER_CLIPS, createRemotePlayer, applySuitColor, play, boot, Sound, S, saveSettings, planSigns, GRENADE,
   TEX_DEFS, WALL_TEXTURES, FLOOR_TEXTURES, CEIL_TEXTURES, SKIES, ENEMY_DEFS, WEAPON_DEFS, PICKUP_DEFS, PROP_DEFS, KEY_COLORS, THREE, DASH, MAG_SIZE,
   getThumb, newLevel, normalizeLevel, validateLevel, defaultProps, STEP_H,
   packLevel, unpackLevel, registerWeapon, registerEnemy, RETRO_FORMAT, GRID_KEYS, rle, unrle

@@ -1,9 +1,12 @@
 {
   "id": "pro",
   "name": "PRO",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "saveKey": "retroengine.pro.campaign.v2",
   "legacySaveKeys": ["retroengine.pro.campaign.v1"],
+  "_survival": "1.6.3: points / score (kills by tier, pickups, chapter clears; shown on the HUD and every chapter summary). Pro runs points only: inventory false = no Pack, Suit Rebuild or item drops; regen false = no health regeneration (set either to true to turn it back on). safeSpawn moves anyone who could see the start out of sight and gives a short get-ready window.",
+  "pack": { "inventory": false, "regen": false, "pickupPts": 25, "clearPts": 1000 },
+  "safeSpawn": { "grace": 4 },
   "_sizes": "1.6.2 enemy sizes. A DMB Tech 1 map unit is about 1.76 m: Pro's chapters have 1.55-1.9 unit ceilings (about 2.7-3.3 m) and the player's eye is 0.62. Model 'h' is the height in units: sentinel 1.02 (1.8 m), trooper 0.99 (1.75 m) floating 0.2 up, drone 0.42 (0.74 m), Warden 1.25 (2.2 m), Minotaur 1.75 (3.1 m, towering over his throne; closeR 2.3 makes him stop 2.3 away, where the 75-degree view fits his horns below the HUD even on his dais, and meleeR 2.4 lets his long arms still reach you). 'maxW' caps the width so nothing is wider than a corridor.",
   "viewModel": {
     "slot": "weapon_1",

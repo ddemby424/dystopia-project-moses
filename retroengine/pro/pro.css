@@ -200,3 +200,127 @@ h1 { margin: 0 0 10px; font-size: clamp(22px, 5vw, 40px); letter-spacing: .12em;
 .pj-track small { font-size: 10px; opacity: .7; }
 .pj-track b { font-size: 13px; font-weight: 700; }
 .pj-track.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* =====================================================================================================
+   1.6.3 — modern graphite-glass menus + thin translucent "helmet visor" HUD.
+   Menus (title card, splash corner, pause, Pack, music player, chapter summary, death / victory, install
+   sheet) share the multiplayer lobby's look: dark graphite glass, 1px hairlines, clean Chakra Petch type.
+   The in-game HUD and touch controls get a thin cyan visor glow: 1px glowing edges over light frosted backing,
+   and a faint curved visor frame at the screen edges. Nothing blocks the view (all pointer-events: none
+   except the real buttons, backing alpha ≤ .35).
+   ===================================================================================================== */
+:root { --g-bg: rgba(12, 15, 18, .72); --g-bg2: rgba(22, 27, 32, .78); --g-line: rgba(255, 255, 255, .09); --g-line2: rgba(255, 255, 255, .16);
+  --g-text: #e9eef0; --g-dim: #8d989f; --visor: #4fe3ff; --visor-a: rgba(79, 227, 255, .55); --visor-f: rgba(79, 227, 255, .14);
+  --amber: #e0a040; }
+
+/* ---- story / title cards: glass panel + hairline buttons ---- */
+.card .inner { background: linear-gradient(180deg, rgba(18, 22, 26, .55), rgba(10, 12, 15, .35)); border: 1px solid var(--g-line);
+  border-radius: 16px; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 30px 80px rgba(0, 0, 0, .55); }
+.btns button { border-radius: 10px; border: 1px solid var(--g-line2); background: rgba(255, 255, 255, .045); color: var(--g-text);
+  transition: background .15s, border-color .15s, box-shadow .15s; }
+.btns button:hover, .btns button:focus-visible { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .28); outline: none; }
+.btns button.pri { background: linear-gradient(180deg, rgba(224, 160, 64, .22), rgba(224, 160, 64, .1)); border-color: rgba(224, 160, 64, .75); color: #ffe2b0;
+  box-shadow: 0 0 0 1px rgba(224, 160, 64, .12), 0 0 22px rgba(224, 160, 64, .12); }
+.btns button[data-btn="install"] { border-color: rgba(79, 227, 255, .5); color: #c8f4ff; background: rgba(79, 227, 255, .07); }
+.btns button[data-btn="multiplayer"]:before { content: '◎ '; color: var(--visor); }
+.chsel select { border-radius: 10px !important; }
+
+/* ---- install sheet (title, splash corner, pause menu) ---- */
+.isheet { position: fixed; inset: 0; z-index: 10000; display: none; align-items: center; justify-content: center;
+  background: rgba(2, 4, 6, .62); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); font-family: 'Chakra Petch', system-ui, sans-serif; }
+.isheet.on { display: flex; }
+.isheet-box { position: relative; width: min(400px, 92vw); max-height: 92vh; overflow: auto; box-sizing: border-box; padding: 18px 18px 14px;
+  background: var(--g-bg2); border: 1px solid var(--g-line2); border-radius: 16px; color: var(--g-text); box-shadow: 0 30px 80px rgba(0, 0, 0, .6); }
+.isheet-ico { float: left; width: 46px; height: 46px; border-radius: 11px; margin: 0 12px 4px 0; border: 1px solid var(--g-line2); }
+.isheet-k { font-size: 10.5px; letter-spacing: .26em; color: var(--amber); }
+.isheet h2 { margin: 2px 0 10px; font: 700 21px 'Chakra Petch', sans-serif; letter-spacing: .04em; }
+.isheet-steps { clear: both; margin: 6px 0 10px; padding: 10px 12px 10px 30px; border: 1px solid var(--g-line); border-radius: 10px; background: rgba(0, 0, 0, .22);
+  font-size: 13.5px; line-height: 1.45; color: #cfd7dc; }
+.isheet-steps.flash { animation: isflash .9s; }
+@keyframes isflash { 30% { border-color: var(--visor); box-shadow: 0 0 0 1px var(--visor-a), 0 0 18px var(--visor-f); } }
+.isheet-off { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--g-line); font-size: 12.5px; color: var(--g-dim); }
+.isheet-off i { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #f5b942; box-shadow: 0 0 8px #f5b942; }
+.isheet-off.ok { color: #c9f5da; border-color: rgba(61, 220, 132, .35); } .isheet-off.ok i { background: #3ddc84; box-shadow: 0 0 8px #3ddc84; }
+.isheet-off.no i { background: #ff5d5d; box-shadow: 0 0 8px #ff5d5d; }
+.isheet-btns { display: flex; gap: 8px; margin-top: 12px; }
+.isheet-btns button { flex: 1 1 0; min-height: 44px; border-radius: 10px; border: 1px solid var(--g-line2); background: rgba(255, 255, 255, .05);
+  color: var(--g-text); font: 700 13px 'Chakra Petch', sans-serif; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.isheet-btns button.pri { background: rgba(79, 227, 255, .14); border-color: rgba(79, 227, 255, .7); color: #dff8ff; box-shadow: 0 0 18px rgba(79, 227, 255, .14); }
+.isheet-x { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border: 0; background: none; color: var(--g-dim); font-size: 20px; cursor: pointer; }
+/* always-visible install chip on the splash (top-right) */
+#sp-install { position: fixed; z-index: 1001; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px));
+  display: flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 13px; border-radius: 18px; border: 1px solid rgba(79, 227, 255, .55);
+  background: rgba(8, 12, 15, .6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: #dff8ff;
+  font: 700 12px 'Chakra Petch', sans-serif; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; box-shadow: 0 0 16px rgba(79, 227, 255, .14); }
+#sp-install i { font-style: normal; color: var(--visor); }
+#sp-install.gone { display: none; }
+
+/* ---- engine menus inside Pro (pause, Pack, music, chapter summary, death, victory) ---- */
+.pro-juice .dfg-menu { background: radial-gradient(ellipse at center, rgba(6, 8, 10, .45), rgba(0, 0, 0, .78)); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.pro-juice .dfg-panel { background: var(--g-bg2) !important; border: 1px solid var(--g-line2) !important; border-radius: 16px !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .05) !important; font-family: 'Chakra Petch', system-ui, sans-serif; color: var(--g-text); }
+.pro-juice .dfg-panel h1 { color: var(--g-text); text-shadow: none; font-family: 'Black Ops One', 'Chakra Petch', sans-serif; font-weight: 400; letter-spacing: .08em; }
+.pro-juice .dfg-panel h2 { color: var(--amber); opacity: 1; letter-spacing: .2em; text-transform: uppercase; font-size: 11px; }
+.pro-juice .dfg-btn { border-radius: 10px; border: 1px solid var(--g-line2); background: rgba(255, 255, 255, .045); font-family: 'Chakra Petch', sans-serif; letter-spacing: .1em; }
+.pro-juice .dfg-btn:hover { background: rgba(255, 255, 255, .08); }
+.pro-juice .dfg-btn.pri { background: rgba(79, 227, 255, .13); border-color: rgba(79, 227, 255, .65); color: #e2f9ff; box-shadow: 0 0 18px rgba(79, 227, 255, .12); }
+.pro-juice .dfg-trk, .pro-juice .dfg-pk, .pro-juice .dfg-stat { border-radius: 10px; border-color: var(--g-line) !important; background: rgba(0, 0, 0, .24) !important; }
+.pro-juice .dfg-trk.on { border-color: rgba(79, 227, 255, .6) !important; box-shadow: inset 0 0 0 1px rgba(79, 227, 255, .2); }
+
+/* ---- helmet visor HUD ---- */
+.pj-visor { position: absolute; inset: 0; pointer-events: none; border-radius: 28px / 22px;
+  box-shadow: inset 0 0 0 1px rgba(79, 227, 255, .14), inset 0 0 38px rgba(79, 227, 255, .05);
+  -webkit-mask: radial-gradient(ellipse 120% 105% at 50% 50%, transparent 62%, #000 100%); mask: radial-gradient(ellipse 120% 105% at 50% 50%, transparent 62%, #000 100%); }
+.pj-visor:before, .pj-visor:after { content: ''; position: absolute; top: 9%; bottom: 9%; width: 14px; border: 1px solid rgba(79, 227, 255, .22); }
+.pj-visor:before { left: 6px; border-right: 0; border-radius: 14px 0 0 14px; }
+.pj-visor:after { right: 6px; border-left: 0; border-radius: 0 14px 14px 0; }
+.pro-juice .dfg-ibtn { background: rgba(8, 14, 18, .32) !important; border: 1px solid var(--visor-a) !important; border-radius: 10px !important;
+  box-shadow: 0 0 10px var(--visor-f), inset 0 0 8px rgba(79, 227, 255, .08) !important; color: #dff8ff !important;
+  -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+.pro-juice .dfg-mini { border: 1px solid var(--visor-a) !important; box-shadow: 0 0 12px var(--visor-f) !important; background-color: rgba(4, 10, 14, .3) !important; }
+.pro-juice .dfg-tb { background: rgba(8, 14, 18, .22) !important; border: 1px solid rgba(79, 227, 255, .5) !important;
+  box-shadow: 0 0 10px rgba(79, 227, 255, .12), inset 0 0 10px rgba(79, 227, 255, .07) !important; color: #e2f9ff !important;
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); font-family: 'Chakra Petch', sans-serif !important; letter-spacing: .08em; }
+.pro-juice .dfg-tb.fire, .pro-juice .dfg-tb[data-k="fire"] { border-color: rgba(255, 90, 70, .7) !important; background: rgba(60, 10, 8, .26) !important;
+  box-shadow: 0 0 12px rgba(255, 80, 60, .18), inset 0 0 12px rgba(255, 80, 60, .1) !important; }
+.pro-juice .dfg-joy { border: 1px solid rgba(79, 227, 255, .35) !important; background: rgba(8, 14, 18, .14) !important; box-shadow: 0 0 10px rgba(79, 227, 255, .08) !important; }
+.pro-juice .pj-dash { border: 1px solid var(--visor-a) !important; background: rgba(8, 14, 18, .25) !important; box-shadow: 0 0 10px var(--visor-f) !important; }
+.pj-compass { border-bottom: 1px solid rgba(79, 227, 255, .35) !important; background: linear-gradient(180deg, rgba(8, 14, 18, .32), rgba(8, 14, 18, .08)) !important; }
+.pj-bar { height: 4px; background: rgba(79, 227, 255, .08); box-shadow: inset 0 0 0 1px rgba(79, 227, 255, .18); }
+.pj-bar.hp.regen i { animation: regenpulse 1s ease-in-out infinite; }
+@keyframes regenpulse { 50% { box-shadow: 0 0 12px rgba(120, 255, 170, .9); filter: brightness(1.35); } }
+.pj-bar.sh.rebuild i { animation: regenpulse .4s 4; }
+/* points chip (top-left, under the chapter name) */
+.pj-pts { position: absolute; left: calc(12px + env(safe-area-inset-left, 0px)); top: calc(44px + env(safe-area-inset-top, 0px)); display: flex; align-items: baseline; gap: 6px;
+  padding: 3px 9px; border: 1px solid var(--visor-a); border-radius: 8px; background: rgba(8, 14, 18, .28); box-shadow: 0 0 10px var(--visor-f); font-family: 'Chakra Petch', sans-serif; }
+.pj-pts small { font-size: 9.5px; letter-spacing: .2em; color: var(--visor); }
+.pj-pts b { font-size: 15px; color: #f2fbff; font-variant-numeric: tabular-nums; transition: transform .12s; }
+.pj-pts b.bump { transform: scale(1.18); }
+.pj-pop { position: absolute; left: 100%; margin-left: 8px; top: 2px; white-space: nowrap; font-size: 11.5px; font-weight: 700; color: #ffd27a; opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .2s; }
+.pj-pop.on { opacity: 1; transform: none; }
+.pj-regen { position: absolute; left: 50%; bottom: calc(34px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: none; align-items: center; gap: 5px;
+  font: 700 9.5px 'Chakra Petch', sans-serif; letter-spacing: .24em; color: #8dffbf; text-shadow: 0 0 8px rgba(80, 255, 150, .6); }
+.pj-regen i { width: 6px; height: 6px; border-radius: 50%; background: #5dff9f; box-shadow: 0 0 8px #5dff9f; animation: blink 1s steps(2) infinite; }
+.pj-regen.on { display: flex; }
+.pj-ready { position: absolute; left: 50%; top: 64%; transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 22px; border: 1px solid var(--visor-a); border-radius: 12px; background: rgba(6, 12, 16, .3); box-shadow: 0 0 18px var(--visor-f);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); font-family: 'Chakra Petch', sans-serif; text-align: center; }
+.pj-ready small { font-size: 9.5px; letter-spacing: .24em; color: var(--visor); }
+.pj-ready b { font: 400 24px 'Black Ops One', sans-serif; letter-spacing: .12em; color: #f2fbff; }
+.pj-ready span { font-size: 11px; color: #a9c4cc; letter-spacing: .08em; }
+@media (max-height: 520px) { .pj-ready { top: 63%; padding: 6px 16px; } .pj-ready b { font-size: 19px; } .pj-pts { top: calc(40px + env(safe-area-inset-top, 0px)); } }
+
+/* 1.6.3: score line on the chapter-cleared and ending cards */
+#cbody .cstats { display: grid; grid-template-columns: repeat(4, auto); justify-content: start; gap: 2px 14px; margin: 10px 0 2px; padding: 8px 12px;
+  border: 1px solid rgba(25, 200, 255, .28); border-radius: 10px; background: rgba(10, 18, 24, .55); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+#cbody .cstats span { color: #8fb3bd; grid-row: 1; }
+#cbody .cstats b { color: #f2fbff; font: 400 17px 'Black Ops One', sans-serif; letter-spacing: .06em; grid-row: 2; white-space: nowrap; }
+#cbody .cstats span:first-of-type + b { color: #19c8ff; text-shadow: 0 0 10px rgba(25, 200, 255, .45); }
+
+/* 1.6.3: on short (landscape phone) screens the pause menu goes two-up so every button fits without scrolling */
+@media (max-height: 520px) {
+  .pro-juice .dfg-menu[data-kind="pause"] .dfg-panel { width: min(560px, 94vw); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: start; padding: 14px 16px; }
+  .pro-juice .dfg-menu[data-kind="pause"] .dfg-panel > :not(.dfg-btn) { grid-column: 1 / -1; margin: 0; }
+  .pro-juice .dfg-menu[data-kind="pause"] .dfg-panel > .dfg-btn { margin: 0; width: 100%; padding: 9px 10px; min-height: 0; }
+  .pro-juice .dfg-menu[data-kind="pause"] .dfg-panel > .dfg-btn.pri { grid-column: 1 / -1; }
+}

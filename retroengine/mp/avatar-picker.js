@@ -50,7 +50,7 @@ export function makeAvatarPicker(RT) {
       img.alt = d.name || o.value; img.decoding = 'async';         // eager on purpose (see 1.6.1 note above)
       img.src = thumbFor(o.value, d);                              // pre-rendered 3/4 view
       img.onerror = function () { img.remove(); b.classList.add('noimg'); };   // fall back to a tint swatch
-      const nm = document.createElement('b'); nm.textContent = d.name || o.value;
+      const nm = document.createElement('b'); nm.textContent = d.suit ? String(d.name || o.value).replace(/^Pro\s*·\s*/, '') : (d.name || o.value);   // 1.6.3: suit tiles show just the colour
       b.appendChild(img); b.appendChild(nm);
       b.addEventListener('click', function () {
         if (select.value === o.value) return;
@@ -85,7 +85,10 @@ export function makeAvatarPicker(RT) {
         if (my !== loadId || !renderer) return;
         pivot.clear();
         const m = g.scene, team = new THREE.Color(d.tintColor || '#ffffff');
-        m.traverse(function (o) {                                    // same team tint other players see
+        if (d.suit && RT.applySuitColor) {                           // 1.6.3: Pro suit colour, the same call the in-game avatar uses
+          m.traverse(function (o) { if (o.isLight) o.visible = false; });
+          RT.applySuitColor(m, d);
+        } else m.traverse(function (o) {                             // same team tint other players see
           if (o.isLight) o.visible = false;
           if (!o.isMesh || !o.material) return;
           o.material = o.material.clone();

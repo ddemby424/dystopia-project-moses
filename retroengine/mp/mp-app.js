@@ -11,11 +11,27 @@
  *   3. wss://dembysoftwaresystems.com/ws   on https
  *   4. otherwise, same host as the page, path /ws
  */
-import { mountLobby } from './lobby.js?v=1.6.2';   // 1.6.1: ?v= so phones fetch the new lobby
-import { attachMultiplayer } from './mp-dmbtech1.js?v=1.6.2';
-import { makeAvatarPicker, thumbFor } from './avatar-picker.js?v=1.6.2';   // miniature previews (1.6.1: thumbs resolve from this file)
+import { mountLobby } from './lobby.js?v=1.6.3';   // 1.6.1: ?v= so phones fetch the new lobby
+import { attachMultiplayer } from './mp-dmbtech1.js?v=1.6.3';
+import { makeAvatarPicker, thumbFor } from './avatar-picker.js?v=1.6.3';   // miniature previews (1.6.1: thumbs resolve from this file)
 
 const NAME_KEY = 'retroengine.playerName';
+
+/* 1.6.3: Pro's preset (?mode=pro, opened from Pro's title screen).
+   The lobby lists Sgt. Protagonist's suit in 4 colours (the modelId carries the colour, so every player sees yours),
+   Pro's seven chapter maps, and a mode toggle: Player vs Player, or 2 Players vs AI (co-op against the chapter's
+   enemies and bosses). The relay only knows rooms by name, so the mode rides in the room name as a tag:
+   "[CO-OP] Night Shift" / "[PVP] Night Shift". The tag is drawn as a badge in the room list. */
+export function proPreset() {
+  try { return new URLSearchParams(location.search).get('mode') === 'pro'; } catch (e) { return false; }
+}
+export const MODES = [
+  { id: 'pvp', label: 'Player vs Player', short: 'PvP', tag: '[PVP]', hint: 'Last soldier standing. No damage until FIGHT!' },
+  { id: 'coop', label: '2 Players vs AI', short: 'Co-op', tag: '[CO-OP]', max: 2, hint: 'Team up against the chapter\'s enemies and bosses.' }
+];
+// Mode from a room name: '[CO-OP] …' = co-op, anything else = PvP (every pre-1.6.3 room).
+export function modeOfName(name) { return /^\s*\[CO-?OP\]/i.test(String(name || '')) ? 'coop' : 'pvp'; }
+export function stripModeTag(name) { return String(name || '').replace(/^\s*\[(CO-?OP|PVP)\]\s*/i, ''); }
 
 // Multiplayer spawn.
 //   'shared' (default for testing): everyone starts on the host's pad (pad 1,
@@ -131,9 +147,10 @@ function levelList(project, pack, starters) {
   return out;
 }
 
-function characterList(RT) {
+function characterList(RT, pro) {
   const models = (RT && RT.PLAYER_MODELS) || {};
-  return Object.keys(models).map(function (id) {
+  // 1.6.3: Pro's lobby offers only the four Pro suits; the editor's lobby keeps its own cast.
+  return Object.keys(models).filter(function (id) { return pro ? !!models[id].pro : !models[id].pro; }).map(function (id) {
     // 1.6.1: each entry carries its miniature + licence so the Character dropdown can show them.
     return { id: id, name: models[id].name || id, thumb: thumbFor(id, models[id]), license: models[id].license || '' };
   });
@@ -232,6 +249,10 @@ export function installMultiplayer(api) {
   function now() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
   function countdownLeft() { return Math.max(0, (fightAt - now()) / 1000); }
   function canDamage() { return phase !== 'waiting' && countdownLeft() <= 0; }
+  // 1.6.3: room mode. Co-op = no player-vs-player damage (only enemies and bosses hurt you).
+  const pro = proPreset();
+  let roomMode = 'pvp', lastCreated = '';
+  function pvpOn() { return roomMode !== 'coop' && canDamage(); }
   function setCountdown(sec) {
     const was = countdownLeft() > 0;
     fightAt = now() + Math.max(0, sec) * 1000;
@@ -352,7 +373,8 @@ export function installMultiplayer(api) {
     const RT = api.RT, S = RT && RT.S;
     const models = RT && RT.PLAYER_MODELS;
     const cur = S && S.playerModel;
-    return (models && models[cur]) ? cur : 'george';
+    if (models && models[cur] && !!models[cur].pro === pro) return cur;   // 1.6.3: Pro's lobby = a Pro suit, editor's lobby = its cast
+    return pro && models && models.pro_cyan ? 'pro_cyan' : 'george';
   }
   function setPlayerModel(id) {
     const RT = api.RT;
@@ -422,13 +444,14 @@ export function installMultiplayer(api) {
         // 1.3.0: another player's rocket / grenade / blast. Visual only;
         // their client sends the damage as a 'hit'.
         const h = api.getPlayHandle && api.getPlayHandle();
+        if (fx && fx.t === 'e') { if (roomMode === 'coop' && h && h.coopHit) h.coopHit(fx.i, fx.dmg); return; }   // 1.6.3: partner's hit on a shared enemy
         if (h && h.remoteFx) { try { h.remoteFx(fx); } catch (e) { console.warn('remoteFx', e); } }
       },
       onShot: function (shot) {
         const h = api.getPlayHandle && api.getPlayHandle();
         if (h && h.playRemoteShot) h.playRemoteShot(shot);
       },
-      canDamage: canDamage,
+      canDamage: pvpOn,                     // 1.6.3: co-op rooms never send gun hits at your partner
       lineClear: function (x1, y1, x2, y2) {
         const h = api.getPlayHandle && api.getPlayHandle();
         return !(h && h.lineClear) || h.lineClear(x1, y1, x2, y2);
@@ -522,10 +545,11 @@ export function installMultiplayer(api) {
     if (ev === 'boss_warp') { mp.sendFx({ t: 'w', x: arg.x, y: arg.y, z: arg.z, tx: arg.tx, ty: arg.ty, tz: arg.tz }); return; }
     if (ev === 'boss_rise') { mp.sendFx({ t: 'u', x: arg.x, y: arg.y, z: arg.z }); return; }
     if (ev === 'boss_pose') { mp.sendFx({ t: 's', x: arg.x, y: arg.y, z: arg.z, hp: arg.hp, yaw: arg.yaw, state: arg.state }); return; }
+    if (ev === 'ehit') { if (roomMode === 'coop') mp.sendFx({ t: 'e', i: arg.i, dmg: arg.dmg, x: arg.x, y: arg.y, z: arg.z }); return; }
     if (ev === 'boss_hit') { if (canDamage() && arg && arg.targetId) mp.sendHit({ targetId: arg.targetId, dmg: arg.dmg || 18 }); return; }
     if (ev !== 'boom') return;
     mp.sendFx({ t: 'b', x: arg.x, y: arg.y, z: arg.z, rad: arg.rad, src: arg.src });
-    if (!canDamage() || !(arg.dmg > 0)) return;
+    if (!pvpOn() || !(arg.dmg > 0)) return;               // 1.6.3: co-op blasts never hurt your partner
     const h = api.getPlayHandle && api.getPlayHandle();
     const peers = mp.getPeers ? mp.getPeers() : [];
     for (let i = 0; i < peers.length; i++) {
@@ -571,6 +595,9 @@ export function installMultiplayer(api) {
       idx = (resolved && resolved.idx != null) ? resolved.idx : parseLevelIndex(project, welcome && welcome.level, welcome && welcome.levelName);
     }
     const level = override || (project && project.levels && project.levels[idx]) || null;
+    const roomRow = rooms.find ? rooms.find(function (r) { return r && welcome && r.id === welcome.room; }) : null;
+    roomMode = modeOfName((welcome && welcome.roomName) || (roomRow && roomRow.name) || lastCreated);
+    try { window.RETROENGINE_MP_MODE = roomMode; } catch (e) { /* ignore */ }
     const slot = (welcome && welcome.peers && welcome.peers.length) || 0;
     isHost = slot === 0;
     hostId = isHost ? (socket && socket.id) : (welcome.peers[0] && welcome.peers[0].id);
@@ -587,7 +614,10 @@ export function installMultiplayer(api) {
         // Enemies are simulated locally and are not sent over the relay, so a
         // room full of clients would each see a different fight. Skip them in
         // multiplayer rooms; single-player playtest is unchanged.
-        const extra = { autoPlay: true, spawnIndex: spawnIndex, skipEnemies: true, multiplayer: true, driveBoss: !!isHost, getPeers: function () { return mp.getPeers ? mp.getPeers() : []; } };
+        const coop = roomMode === 'coop';
+        // 1.6.3 co-op: both clients run the chapter's enemies (hits are shared over the relay), the host drives the boss.
+        const extra = { autoPlay: true, spawnIndex: spawnIndex, skipEnemies: !coop, coop: coop, multiplayer: true, driveBoss: !!isHost, getPeers: function () { return mp.getPeers ? mp.getPeers() : []; } };
+        if (pro && coop) { extra.lively = true; extra.pack = { inventory: false, regen: false }; }   // Pro's feel in Pro's co-op: lively enemies + points
         if (spawnPoint) extra.spawnPoint = spawnPoint;
         if (override) extra.levelOverride = override;
         let handle = api.getPlayHandle && api.getPlayHandle();
@@ -624,30 +654,12 @@ export function installMultiplayer(api) {
 
     const RT = api.RT;
     const project = api.getProject();
-    const characters = characterList(RT);
+    const characters = characterList(RT, pro);
     const levelsP = api.getPackLevels ? api.getPackLevels() : Promise.resolve([]);
     const starters = api.getStarterLevels ? api.getStarterLevels() : [];
-    Promise.resolve(levelsP).then(function (pack) {
-      const levels = levelList(project, pack || [], starters);
+    function mount(levels) {
       host.classList.add('on');
-      lobbyUi = mountLobby(host, {
-      url: defaultMpUrl(),
-      playerName: playerName(),
-      playerModel: playerModel(),
-      levels: levels,
-      characters: characters,
-      onCharacterChange: setPlayerModel,
-      renderCharacterPicker: makeAvatarPicker(RT),   // thumbnails + live turntable
-      onNameChange: setPlayerName,
-      onClose: function () { closeLobby(false); },
-      onJoin: function (welcome, profile) {
-        startGameForRoom(welcome, profile, lobbyUi && lobbyUi.mp);
-      }
-    });
-    }).catch(function () {
-      const levels = levelList(project, [], starters);
-      host.classList.add('on');
-      lobbyUi = mountLobby(host, {
+      lobbyUi = mountLobby(host, Object.assign({
         url: defaultMpUrl(),
         playerName: playerName(),
         playerModel: playerModel(),
@@ -656,12 +668,32 @@ export function installMultiplayer(api) {
         onCharacterChange: setPlayerModel,
         renderCharacterPicker: makeAvatarPicker(RT),   // thumbnails + live turntable
         onNameChange: setPlayerName,
-        onClose: function () { closeLobby(false); },
+        onClose: function () { closeLobby(false); if (pro) location.href = new URL('pro/', location.href).href; },   // Pro's lobby: Back = Pro's title screen
+        onCreate: function (name) { lastCreated = name; },
         onJoin: function (welcome, profile) {
           startGameForRoom(welcome, profile, lobbyUi && lobbyUi.mp);
         }
-      });
+      }, pro ? { brand: 'pro', title: 'Pro · Multiplayer', modes: MODES, charLabel: 'Suit colour', youLabel: 'Sgt. Protagonist' } : {}));
+    }
+    Promise.resolve(levelsP).then(function (pack) {
+      const levels = levelList(project, pack || [], starters);
+      if (!pro) return mount(levels);
+      return proLevels(pack || []).then(function (pl) { mount(pl.length ? pl : levels); });
+    }).catch(function () {
+      mount(levelList(project, [], starters));
     });
+  }
+  // 1.6.3: Pro's seven chapters, in campaign order and with Pro's chapter names ("Ch 3 · The Drains").
+  function proLevels(pack) {
+    return fetch(new URL('pro/campaign.json', location.href)).then(function (r) { return r.ok ? r.json() : null; }).then(function (c) {
+      if (!c || !c.levels) return [];
+      return c.levels.map(function (lv, k) {
+        const slug = String(lv.file || '').replace(/\.retro$/, '');
+        if (!/^[A-Za-z0-9._-]+$/.test(slug)) return null;
+        const p = pack.find(function (m) { return m.id === 'pack-' + slug; });     // every chapter map lives in maps/ (Catacomb Relay is not in the editor's pack list)
+        return { id: 'pack-' + slug, name: 'Ch ' + (k + 1) + ' · ' + String(lv.name || (p && p.name) || slug).replace(/^\d+ · /, '') };
+      }).filter(Boolean);
+    }).catch(function () { return []; });
   }
 
   return {
@@ -679,6 +711,8 @@ export function installMultiplayer(api) {
     startGameForRoom: startGameForRoom,
     get countdownLeft() { return countdownLeft(); },
     get phase() { return phase; },
+    get mode() { return roomMode; },
+    get pro() { return pro; },
     get isHost() { return isHost; },
     roster: function () { return curMp ? roster(curMp) : []; },
     toggleReady: toggleReady,
