@@ -31,7 +31,7 @@ Version **1.2.1** is powered by the standalone [DMB Tech 1](../dmbtech1/) librar
 - **Difficulty:** *Easy*, *Normal* and *Hard* change enemy health, speed, damage, reaction time, fire rate and how many flank.
 - **Six weapons:** wrench, Pulse Cannon (default starting gun, infinite ammo), shotgun, assault rifle, plasma caster and rocket launcher. Guns have reload animations, recoil, sway, bob and shell casings.
 - **Pickups and props:** health, armour, ammo, keycards, secrets, explosive barrels and over twenty kinds of props, most of them CC0 Quaternius models with a procedural fallback.
-- **Multiplayer:** Menu → Multiplayer opens a lobby to create or join a room. All six player models are in the character list. If the server is offline, the lobby says so and single-player still works. From 1.6.0, each model gets a miniature preview card, and the one you pick spins live.
+- **Multiplayer:** Menu → Multiplayer opens a lobby to create or join a room. All six player models are in the character list. If the server is offline, the lobby says so and single-player still works. From 1.6.0, each model gets a miniature preview card, and the one you pick spins live. In 1.6.1 the lobby was redesigned: a Play pane (live preview, miniature grid, name, a Character dropdown with miniatures, and a New room form with a Map dropdown) and an Open rooms pane, side by side on wide screens and as tabs on phones.
 - **Look:** 20 gritty textures with lighting, shadowed corners, fog, sky scenes, coloured lights and a flashlight.
 - **Music player:** 5 rap/trap and metal tracks. You can pick one per level or skip tracks in the pause menu.
 - **Level scripts (optional):** short scripts for messages, triggers and rewards, for example "open this door when all enemies are dead".
@@ -78,10 +78,10 @@ Your work **autosaves** in the browser. Use **Menu → Projects** for named save
 ## PRO campaign (1.5.0, standalone from 1.5.1)
 
 Open `retroengine/pro/` (for example `http://localhost:8765/retroengine/pro/`).
-From 1.5.1, Pro is its own game. It has a splash screen with a spray-painted PRO title, Sgt. Protagonist spinning with an ion charge building in his cannon, a loading bar and a **Powered by DMB Tech 1** badge (tap to continue), and none of the editor's branding. On a phone, use **Add to Home screen** to get a full-screen **Pro** icon.
+From 1.5.1, Pro is its own game. It has a splash screen with a spray-painted PRO title, Sgt. Protagonist spinning with an ion charge building in his cannon, a loading bar and a **Powered by DMB Tech 1** badge (tap to continue), and none of the editor's branding. From 1.6.1, the title card offers **Play Online** or **Download / Install App**. The install button opens the browser's own install dialog on Chrome, Edge and Android, and shows the exact steps on Safari/iOS and Firefox. `pro/sw.js` is a network-first service worker that exists only to make Pro installable.
 You play Sgt. Protagonist (nicknamed Protag, Pro or Sgt Taggs) through seven linked chapters (from 1.6.0): Lab → Yard → Drains → Factory → Roof → Catacomb Relay → Marble Shrine. After that comes the ending broadcast.
 You fight hovering red-and-black twin-cannon troopers, Dystopia drones, Ballisticus sentinels, and AntiLegend's Minotaur at the end.
-Each exit pad stays sealed until that chapter's goal is met. Your progress is saved in the browser, and a reload offers **Continue**.
+Each exit pad stays sealed until that chapter's goal is met. Your progress is saved in the browser by chapter name (1.6.1 save format, so older saves start fresh on Chapter 1). A reload offers **Continue**, and the **Chapter Select** dropdown opens any of the seven chapters.
 Pro's arm cannon is your gun, and it fires cyan energy rings.
 From 1.6.0 you can **dash** with Shift or Q, or the DASH button on a phone. Pro also has its own HUD with a compass, a waypoint arrow and distance, hitmarkers, kill streaks, health and shield orbs, and Web Audio sound effects (`pro/juice.js`).
 You can spin the slim suit at `retroengine/pro/preview.html`.
@@ -91,6 +91,7 @@ You can spin the slim suit at `retroengine/pro/preview.html`.
 | `pro/campaign.json` | chapter order, story text, exit goals, view-model sizing |
 | `pro/pro.js` | campaign host: loads the maps, story cards, exit seals, save/resume |
 | `pro/juice.js` | 1.6.0 feel layer: Pro HUD, compass + waypoint, hitmarkers, dash, streaks, orbs, Web Audio SFX |
+| `pro/install.js`, `pro/sw.js` | 1.6.1 Install App button (`beforeinstallprompt` or per-browser steps) + the install-only service worker |
 | `pro/viewer.js` | small turntable for Pro's model (cards + preview) |
 | `pro/assets/pro_suit.glb` | Pro's suit with glowing Sgt. chevrons on both shoulders, 31,232 triangles, 1.83 MB |
 | `pro/manifest.webmanifest`, `pro/assets/icon-*.png` | home-screen install as "Pro" |

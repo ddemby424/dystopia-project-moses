@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.3.0 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.3.1 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.3.0';
+export const VERSION = '1.3.1';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.3.0';
+const VERSION = '1.3.1';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 // Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
@@ -652,23 +652,44 @@ function setAoLevel(L) {
 }
 function aoShader(sh) {
   sh.uniforms.reOcc = AO_U.occ; sh.uniforms.reOccSize = AO_U.size; sh.uniforms.reWallH = AO_U.wallH;
-  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vReW;\nvarying float vReNy;')
-    .replace('#include <project_vertex>', '#include <project_vertex>\nvec4 reWp = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nreWp = instanceMatrix * reWp;\n#endif\nreWp = modelMatrix * reWp; vReW = reWp.xyz; vReNy = abs((modelMatrix * vec4(objectNormal, 0.0)).y);');
-  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D reOcc; uniform vec2 reOccSize; uniform float reWallH; varying vec3 vReW; varying float vReNy;')
+  // 1.6.1: also pass the world-space wall normal (xz) so inner wall-to-wall corners can darken too.
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vReW;\nvarying float vReNy;\nvarying vec2 vReNxz;')
+    .replace('#include <project_vertex>', '#include <project_vertex>\nvec4 reWp = vec4(transformed, 1.0);\nvec3 reN = objectNormal;\n#ifdef USE_INSTANCING\nreWp = instanceMatrix * reWp; reN = mat3(instanceMatrix) * reN;\n#endif\nreWp = modelMatrix * reWp; vReW = reWp.xyz; reN = (modelMatrix * vec4(reN, 0.0)).xyz; vReNy = abs(reN.y); vReNxz = reN.xz / max(1e-4, length(reN.xz));');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D reOcc; uniform vec2 reOccSize; uniform float reWallH; varying vec3 vReW; varying float vReNy; varying vec2 vReNxz;')
     .replace('#include <tonemapping_fragment>', `float reAO = 1.0;
-if (vReNy > 0.5) { float o = texture2D(reOcc, vReW.xz / reOccSize).r; reAO = 1.0 - 0.62 * smoothstep(0.0, 0.8, o); }
-else { reAO = mix(0.42, 1.0, smoothstep(0.0, 0.6, vReW.y)) * mix(0.62, 1.0, smoothstep(0.0, 0.45, reWallH - vReW.y)); }
+if (vReNy > 0.5) { float o = texture2D(reOcc, vReW.xz / reOccSize).r; reAO = 1.0 - 0.64 * smoothstep(0.0, 0.8, o); }
+else {
+  // floor-to-wall band (dark at the skirting, gone by ~0.75 m) and ceiling-to-wall band (gone ~0.55 m below the top)
+  reAO = mix(0.38, 1.0, smoothstep(0.0, 0.75, vReW.y)) * mix(0.58, 1.0, smoothstep(0.0, 0.55, reWallH - vReW.y));
+  // 1.6.1 inner corners: sample the wall map 0.3 m in front of this wall; next to a perpendicular wall the
+  // blurred occupancy rises from ~0.2 (open floor) to ~0.6, so the corner fades darker over ~half a metre.
+  float oc = texture2D(reOcc, (vReW.xz + vReNxz * 0.3) / reOccSize).r;
+  reAO *= mix(1.0, 0.6, smoothstep(0.24, 0.6, oc));
+}
 gl_FragColor.rgb *= reAO;
 #include <tonemapping_fragment>`);
 }
 // Rim light: a cool fresnel edge so enemies separate from dark walls at any distance.
-function addRim(m, color, k) {
+// 1.6.1: opts.key adds a soft overhead "key light" (diffuse colour lit by how much the surface faces up), and
+// opts.spec a fake glint from a light above and in front, so armour plates read as shaped even in dark rooms.
+// A few dot products + one pow per pixel; no extra lights, no env maps.
+function addRim(m, color, k, o) {
+  const key = (o && o.key) || 0, spec = (o && o.spec) || 0;
   m.onBeforeCompile = sh => {
     sh.uniforms.reRim = { value: new THREE.Color(color) }; sh.uniforms.reRimK = { value: k };
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 reRim; uniform float reRimK;')
-      .replace('#include <tonemapping_fragment>', 'float reF = pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 2.2);\ngl_FragColor.rgb += reRim * reF * reRimK;\n#include <tonemapping_fragment>');
+    sh.uniforms.reKey = { value: key }; sh.uniforms.reSpec = { value: spec };
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 reRim; uniform float reRimK; uniform float reKey; uniform float reSpec;')
+      .replace('#include <tonemapping_fragment>', [
+        'vec3 reN = normalize(normal), reV = normalize(vViewPosition);',                       // surface normal, direction to the camera
+        'float reF = pow(1.0 - clamp(abs(dot(reN, reV)), 0.0, 1.0), 2.2);',                     // fresnel edge
+        'gl_FragColor.rgb += reRim * reF * reRimK;',
+        'float reUp = max(dot(reN, normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz)), 0.0);',   // faces the ceiling?
+        'gl_FragColor.rgb += diffuseColor.rgb * reUp * reKey;',
+        'vec3 reK = normalize((viewMatrix * vec4(0.3, 0.85, 0.42, 0.0)).xyz);',                  // fake key light direction
+        'gl_FragColor.rgb += vec3(0.86, 0.92, 1.0) * pow(max(dot(reflect(-reV, reN), reK), 0.0), 18.0) * reSpec;',
+        '#include <tonemapping_fragment>'].join('\n'));
   };
-  m.customProgramCacheKey = () => 'rim' + k; m.needsUpdate = true; return m;
+  m.customProgramCacheKey = () => 'rim' + k + 'k' + key + 's' + (spec > 0 ? 1 : 0); m.needsUpdate = true; return m;   // spec is a uniform: one program for all
 }
 function getMaterial(id) {
   const size = Q().tex, key = id + '@' + size;
@@ -2124,6 +2145,8 @@ function play(container, project, opts) {
     const muzzle = new THREE.PointLight(0xffb060, 0, 2.4, 2); scene.add(muzzle);
     const fxLight = new THREE.PointLight(0xff8a30, 0, 7, 2); scene.add(fxLight);
     const flash = new THREE.SpotLight(0xfff1d6, 0, 14, 0.42, 0.45, 1.4); scene.add(flash); scene.add(flash.target);
+    // 1.6.1 travelling light: NO extra light. The explosion light (fxLight) is idle most of the time, so while it is
+    // idle it follows the nearest glowing shot, or the nearest thruster (every extra light costs every pixel on a phone).
     const g = {
       L, index, W, H: Hh, scene, world, sky, pool, bodyLight, muzzle, fxLight, flash, flashOn: false,
       px: L.spawn.x, py: L.spawn.y, pz: L.fh[Math.floor(L.spawn.y) * W + Math.floor(L.spawn.x)] || 0, vz: 0, onGround: true,
@@ -2173,6 +2196,7 @@ function play(container, project, opts) {
         const seated = def.boss === true;
         const en = { sub: e.s in ENEMY_DEFS ? e.s : 'grunt', def, x: e.x, y: e.y, z: fh, hp: def.hp * diff().hp, state: seated ? 'seated' : 'idle', t: 0, cd: rand(0.5, 1.5), ang: e.r || 0, mesh, moving: false, deadT: 0, flashT: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rand(0.8, 2), flank: def.speed > 0 && e.s !== 'titan' && e.s !== 'minotaur' && Math.random() < diff().flank ? (Math.random() < 0.5 ? 1 : -1) : 0, coverT: 0, hurtT: 0, warpCd: 2, fade: 1, maxHp: def.hp * diff().hp };
         g.enemies.push(en); attachModel(mesh, 'enemy_' + en.sub, def.h, !!def.hover);
+        en.shadow = contactShadow(def); en.shadow.position.set(e.x, fh + 0.012, e.y); world.add(en.shadow);   // 1.6.1 contact shadow
       } else if (e.t === 'pickup') {
         const mesh = buildPickupMesh(e.s); mesh.position.set(e.x, fh, e.y); world.add(mesh);
         g.pickups.push({ sub: e.s, x: e.x, y: e.y, z: fh, mesh, taken: false });
@@ -2226,6 +2250,7 @@ function play(container, project, opts) {
       if (G.shrineOrn.tex && G.shrineOrn.tex.dispose) G.shrineOrn.tex.dispose();
     }
     (G.fbPool || []).forEach(f => f.mesh.material.dispose());
+    G.enemies.forEach(e => { if (e.shadow) e.shadow.material.dispose(); });   // 1.6.1 contact-shadow materials (geometry + texture are shared)
     G.scene.traverse(o => { if (o.userData && o.userData.sign) { o.material.dispose(); o.children.forEach(c => c.material && c.material.dispose()); } });
     G = null;
   }
@@ -2236,7 +2261,10 @@ function play(container, project, opts) {
       if (!gltf || destroyed) return;
       const m = normalizeModel(gltf.scene, spec.h || height || 1, centered, spec); if (!m) return;
       const mats = grittify(m, spec.tint || 1, 0.3);
-      if (/^enemy_/.test(slot)) mats.forEach(mm => { if (mm.isMeshStandardMaterial || mm.isMeshPhysicalMaterial) addRim(mm, 0x9fc4ff, 0.42); });
+      // Enemies: cool fresnel rim + soft top key light + a fake overhead glint so metal plates catch light.
+      if (/^enemy_/.test(slot)) mats.forEach(mm => { if (mm.isMeshStandardMaterial || mm.isMeshPhysicalMaterial) {
+        addRim(mm, 0x9fc4ff, 0.42, { key: 0.22, spec: 0.32 * Math.min(1, 0.4 + mm.metalness) });   // shinier = more glint
+      } });
       if (holder.userData.proc) holder.userData.proc.visible = false; else holder.children.forEach(c => { c.visible = false; });
       holder.add(m); holder.userData.glb = m; holder.userData.glbMats = mats;
       // 1.3.0: a node named "jet_anchor" in the GLB gets a glowing propulsion flame pointing down (cheap: 2 additive meshes).
@@ -2479,6 +2507,12 @@ function play(container, project, opts) {
     const eyeZ = G.pz + EYE;
     if (!w.melee) { wMuzzle.intensity = 0.45; weaponMeshes[G.cur].userData.flash.visible = true; makeNoise(10); }
     wMuzzle.color.setHex(opts.ringShots && G.cur === 1 ? 0x4fe8ff : 0xffc070);   // ring cannon lights its barrel cyan
+    if (!w.melee) {                                              // 1.6.1: the shot also flashes the room in front of you
+      const ringGun = opts.ringShots && G.cur === 1;
+      G.muzzle.color.setHex(ringGun ? 0x4fe8ff : 0xffb060); G.muzzle.distance = ringGun ? 4.2 : 3.2;
+      G.muzzle.intensity = ringGun ? 2.4 : 1.4;
+      if (ringGun) wMuzzle.intensity = 0.9;                      // and lights the cannon itself brighter
+    }
     const cyaw = Math.cos(G.yaw), syaw = Math.sin(G.yaw);
     if (w.melee) {
       let best = null, bd = w.range;
@@ -2541,7 +2575,7 @@ function play(container, project, opts) {
     if (best && typeof best.setPose === 'function') best.setPose(best.x, best.y, best.z, yaw, 'shoot');
     const eyeZ = z + EYE, dx = Math.cos(yaw), dy = Math.sin(yaw);
     const mx = x + dx * 0.55, my = y + dy * 0.55, mz = eyeZ;
-    if (G.fxLight) { G.fxLight.position.set(mx, mz, my); G.fxLight.intensity = Math.max(G.fxLight.intensity || 0, 2.4); }
+    if (G.fxLight) { G.fxLight.position.set(mx, mz, my); G.fxLight.intensity = Math.max(G.fxLight.intensity || 0, 2.4); G.fxLight.color.setHex(0xff8a30); G.fxLight.distance = 7; G.fxTravelOn = false; }   // 1.6.1: warm flash again, takes the light back from the travel glow
     if (G.muzzle) { G.muzzle.position.set(mx, mz, my); G.muzzle.intensity = Math.max(G.muzzle.intensity || 0, 0.8); }
     const reach = w.melee ? (w.range || 1.15) : 40;
     const wd = rayDist(x, y, dx, dy, reach);
@@ -2614,6 +2648,7 @@ function play(container, project, opts) {
     const big = rad >= 1.7;
     sparks(x, z, y, big ? 90 : 60, 0xff9030); smoke(x, z, y, 10);
     G.fxLight.position.set(x, z + 0.25, y); G.fxLight.intensity = big ? 7 : 4; G.fxLight.distance = Math.max(7, rad * 4.5);
+    G.fxLight.color.setHex(0xff8a30); G.fxTravelOn = false;   // 1.6.1: explosions are always warm and take the light back from the travel glow
     fireball(false, x, z, y, rad); fireball(true, x, z + 0.05, y, rad * 0.45);
     // Rolling fire, then a slow column of dark smoke that hangs in the air.
     for (let i = 0; i < 12; i++) { const a = rand(0, 6.283), sp = rand(0.6, 2.2) * rad / 2; addPuff(x, z + rand(0, 0.3), y, Math.cos(a) * sp, rand(0.2, 1.4), Math.sin(a) * sp, rand(0.35, 0.65), 0.45 * rad, 1.25 * rad, 1, rand(0.45, 0.7), 0.15, 0.95, 2.8, 0, true); }
@@ -2639,6 +2674,70 @@ function play(container, project, opts) {
   // 1.2.3 ring shots (opts.ringShots, used by the Pro campaign): the player's Pulse Cannon fires glowing
   // cyan energy rings. Only the look changes; speed, damage and hits are the same pulse bolt.
   let ringGeo = null;                                          // one shared low-poly torus (6 x 18 = 216 triangles)
+  /* ---------- 1.6.1: cheap modern lighting ----------
+     - enemy lighting lives in addRim(): rim + top key light + a fake glint (no env maps: those halved the
+       frame rate in testing, and phones pay the same per-pixel cost).
+     - contact shadows: one soft radial "blob" texture on a flat quad under each enemy (no shadow maps).
+     - travelling light: the (usually idle) explosion light follows the nearest glowing shot, or the nearest
+       thruster. No light is added, so it costs nothing per pixel and never triggers a shader recompile. */
+  let shadowTex = null;
+  const shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);   // flat on the floor, 1 x 1 m before scaling
+  function contactShadow(def) {                                  // a soft dark disc that follows one enemy
+    if (!shadowTex) {
+      const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+      const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.45, 'rgba(0,0,0,0.7)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 64, 64); shadowTex = new THREE.CanvasTexture(c);
+    }
+    const floats = !!(def.hover || def.lift);                    // drones + twin-cannon troopers: softer, wider, fainter
+    const mat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: floats ? 0.5 : 0.86,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });   // never z-fights with the floor
+    const m = new THREE.Mesh(shadowGeo, mat); m.renderOrder = 1; m.frustumCulled = true;
+    m.userData.size = (def.r || 0.3) * (floats ? 3.8 : 3.2) * (def.boss ? 1.25 : 1); m.userData.base = mat.opacity; m.userData.floats = floats;
+    m.scale.setScalar(m.userData.size);
+    return m;
+  }
+  function updateContactShadows() {                              // every frame: follow the body, fade with height and death
+    for (const e of G.enemies) {
+      const sh = e.shadow; if (!sh) continue;
+      const m = e.mesh, ud = sh.userData;
+      const floor = fhAt(Math.floor(m.position.x), Math.floor(m.position.z));
+      const up = Math.max(0, m.position.y - floor - (ud.floats ? 0 : 0.0));   // how high the body is above the floor
+      let k = Math.max(0.25, 1 - up / 3.2);                      // higher = fainter
+      if (e.state === 'dead') k *= Math.max(0, 1 - Math.max(0, e.deadT - 1.2) / 1.5);   // corpses lose it after ~3 s
+      sh.visible = m.visible !== false && k > 0.02 && (e.fade == null || e.fade > 0.05);
+      sh.position.set(m.position.x, floor + 0.012, m.position.z);
+      sh.scale.setScalar(ud.size * (1 + up * 0.22));            // and a little wider/softer
+      sh.material.opacity = ud.base * k * (e.fade != null ? e.fade : 1);
+    }
+  }
+  const FX_KINDS = { pulse: 1, redring: 1, plasma: 1, rocket: 1, law: 1, palm: 1 };   // shots that glow enough to light walls
+  function updateLightFx(dt) {
+    const T = G.fxLight;
+    if (T.intensity <= 1.25 || G.fxTravelOn) {                  // idle, or already ours (explosions set 4–7 and take over)
+      G.fxTravelOn = false;
+      let shot = null, sd = 400;                                 // nearest glowing shot within 20 m
+      for (const p of G.projectiles) {
+        if (!FX_KINDS[p.kind] || !p.mesh) continue;
+        const d = (p.x - G.px) * (p.x - G.px) + (p.y - G.py) * (p.y - G.py); if (d < sd) { sd = d; shot = p; }
+      }
+      if (shot) {                                                // the shot carries its colour down the corridor
+        T.position.copy(shot.mesh.position); T.color.setHex(shot.color || 0x4fe8ff); T.distance = 3.2;
+        T.intensity = 1.2; G.fxTravelOn = true;
+      } else {                                                   // otherwise: the nearest living thruster flickers on the floor
+        let best = null, bd = 144;
+        for (const e of G.enemies) {
+          if (e.state === 'dead' || !e.mesh.userData.jets) continue;
+          const d = (e.x - G.px) * (e.x - G.px) + (e.y - G.py) * (e.y - G.py); if (d < bd) { bd = d; best = e; }
+        }
+        if (best) {
+          best.mesh.userData.jets[0].getWorldPosition(T.position); T.position.y -= 0.25; T.color.setHex(0xff6a2a); T.distance = 2.8;
+          T.intensity = 0.9 + Math.sin(G.time * 31) * 0.12 + Math.sin(G.time * 17.3) * 0.1; G.fxTravelOn = true;
+        }                                                        // nothing to follow: the normal fade below takes it to 0
+      }
+    }
+    G.muzzle.intensity = Math.max(0, G.muzzle.intensity - dt * 14);   // world muzzle flash fades over ~0.15 s
+  }
   function spawnProj(owner, kind, x, y, z, dx, dy, dz, speed, dmg, splash) {
     const ring = (!!opts.ringShots && owner === 'player' && kind === 'pulse') || kind === 'redring';   // Pro's cyan rings, or a trooper's crimson ring
     if (ring && !ringGeo) ringGeo = new THREE.TorusGeometry(0.07, 0.014, 6, 18);  // made once, reused by every ring
@@ -2654,7 +2753,7 @@ function play(container, project, opts) {
     // doesn't read as a white cube on the first-person gun.
     scaleProjMesh(mesh, baseScale, x, y, z);
     G.scene.add(mesh);
-    G.projectiles.push({ owner, kind, x, y, z, vx: dx * speed, vy: dy * speed, vz: dz * speed, dmg, splash, mesh, life: 5, baseScale });
+    G.projectiles.push({ owner, kind, x, y, z, vx: dx * speed, vy: dy * speed, vz: dz * speed, dmg, splash, mesh, life: 5, baseScale, color });   // colour: 1.6.1 travelling light
   }
   function updateProjectiles(dt) {
     for (let i = G.projectiles.length - 1; i >= 0; i--) {
@@ -2683,6 +2782,7 @@ function play(container, project, opts) {
       scaleProjMesh(p.mesh, p.baseScale || p.mesh.userData.baseScale || 1, p.x, p.y, p.z);
     }
     updateGrenades(dt);
+    updateContactShadows(); updateLightFx(dt);                   // 1.6.1: runs wherever the game logic steps
   }
   /* ---------- 1.3.0: sidewinder rocket trail ----------
      The rocket's drawn position corkscrews around its true flight line (hits still use the
@@ -3200,7 +3300,7 @@ function play(container, project, opts) {
     });
     G.bodyLight.position.set(G.px, G.pz + 0.9, G.py);
     { const md = 1.8, cp = Math.cos(G.pitch); G.muzzle.position.set(G.px + Math.cos(G.yaw) * cp * md, G.pz + EYE + Math.sin(G.pitch) * md, G.py + Math.sin(G.yaw) * cp * md); }
-    G.muzzle.intensity = Math.max(0, G.muzzle.intensity - dt * 30); wMuzzle.intensity = Math.max(0, wMuzzle.intensity - dt * 30);
+    wMuzzle.intensity = Math.max(0, wMuzzle.intensity - dt * 30);   // (world muzzle light fades in updateLightFx, 1.6.1)
     G.flash.intensity = G.flashOn ? 2.2 : 0;
   }
 

@@ -1,8 +1,9 @@
 {
   "id": "pro",
   "name": "PRO",
-  "version": "1.6.0",
-  "saveKey": "retroengine.pro.campaign.v1",
+  "version": "1.6.1",
+  "saveKey": "retroengine.pro.campaign.v2",
+  "legacySaveKeys": ["retroengine.pro.campaign.v1"],
   "viewModel": {
     "slot": "weapon_1",
     "src": "assets/pro_cannon.glb",

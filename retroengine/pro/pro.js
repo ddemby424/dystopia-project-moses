@@ -1,11 +1,14 @@
-// PRO — a standalone game powered by DMB Tech 1 (Lab -> Yard -> Factory -> Marble Shrine -> broadcast).
-// This page only *hosts* DMB Tech 1: it loads the four pack maps, adds story cards between them,
+// PRO — a standalone game powered by DMB Tech 1 (seven chapters, Lab -> Marble Shrine -> broadcast).
+// 1.6.1: every local import carries ?v=1.6.1 so phones never mix a cached old module with new ones.
+// This page only *hosts* DMB Tech 1: it loads the seven chapter maps, adds story cards between them,
 // seals each exit until that level's goal is met, and saves how far you got in localStorage.
-import { createRuntime } from '../dmbtech1.js';          // the DMB Tech 1 engine (same file the editor uses)
-import { mountPro } from './viewer.js';                  // Pro's turntable for the intro and ending cards
-import { sprayTitle } from './spray.js';                 // spray-paints the PRO title on the splash
-import { installJuice } from './juice.js';               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
+import { createRuntime } from '../dmbtech1.js?v=1.6.1';          // the DMB Tech 1 engine (same file the editor uses)
+import { mountPro } from './viewer.js?v=1.6.1';                  // Pro's turntable for the intro and ending cards
+import { sprayTitle } from './spray.js?v=1.6.1';                 // spray-paints the PRO title on the splash
+import { installJuice } from './juice.js?v=1.6.1';
+import { initInstall, onInstallChange, isInstalled, canPrompt, installSteps, promptInstall } from './install.js?v=1.6.1';   // 1.6.1: Play Online / Install App               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
 
+initInstall();                                           // 1.6.1: catch beforeinstallprompt early + register sw.js
 const RT = createRuntime();                              // one engine instance for the whole campaign
 const JUICE = installJuice(RT, { levels: () => (CFG ? CFG.levels : []) });   // modern-feel layer (pro/juice.js)
 const $ = id => document.getElementById(id);             // tiny helper: element by id
@@ -13,9 +16,29 @@ const card = $('card'), host = $('game');
 let CFG = null, LEVELS = [], handle = null, viewer = null;
 
 /* ---------- saved progress ---------- */
-// Save shape: { level: <index of the chapter you reached>, done: <true after the ending> }
-function loadSave() { try { return JSON.parse(localStorage.getItem(CFG.saveKey)) || { level: 0, done: false }; } catch (e) { return { level: 0, done: false }; } }
-function writeSave(s) { try { localStorage.setItem(CFG.saveKey, JSON.stringify(s)); } catch (e) {} }   // private mode: just don't save
+// 1.6.1 save shape: { version: 2, slug: '<map file without .retro>', done: <true after the ending> }.
+// The old 1.5.x / 1.6.0 save stored a raw chapter index ({ level: 2 }). Chapters were re-ordered when the campaign
+// grew from 4 to 7, so an old index pointed at the wrong map (old "2" = Factory, new "2" = The Drains).
+// Saving the map's slug instead means a re-ordered campaign can never drop you into the wrong chapter again,
+// and anything that is not a version-2 save (old key, old shape, unknown map) simply starts fresh at Chapter 1.
+const SAVE_VERSION = 2;                                                      // bump when the save shape changes
+function slugOf(i) { const lv = CFG.levels[i]; return lv ? lv.file.replace(/\.retro$/, '') : ''; }   // 'site12-dataworks'
+function indexOfSlug(slug) { return CFG.levels.findIndex(lv => lv.file.replace(/\.retro$/, '') === slug); }  // -1 = unknown
+function loadSave() {
+  const fresh = { level: 0, done: false };                                   // Chapter 1, not finished
+  try {
+    const s = JSON.parse(localStorage.getItem(CFG.saveKey));                 // null when there is no save yet
+    if (!s || s.version !== SAVE_VERSION) return fresh;                      // missing or an older shape: start over
+    const i = indexOfSlug(s.slug);                                           // look the chapter up by map name
+    return i < 0 ? fresh : { level: i, done: !!s.done };                    // a map that left the campaign: start over
+  } catch (e) { return fresh; }                                              // broken JSON or private mode
+}
+function writeSave(s) {                                                      // s = { level: index, done }
+  try { localStorage.setItem(CFG.saveKey, JSON.stringify({ version: SAVE_VERSION, slug: slugOf(s.level), done: !!s.done })); } catch (e) {}   // private mode: just don't save
+}
+function dropOldSaves() {                                                    // 1.6.1: clear pre-1.6.1 keys so they can never come back
+  (CFG.legacySaveKeys || []).forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+}
 function clampLevel(i) { return Math.max(0, Math.min(LEVELS.length - 1, i | 0)); }                    // never point past the last map
 
 /* ---------- story cards ---------- */
@@ -86,11 +109,55 @@ function endingCard() {
 }
 function titleCard() {
   const s = loadSave(), at = clampLevel(s.level), i = CFG.intro, btns = [];
+  const resume = at > 0 && !s.done;                                          // a real save mid-campaign
+  // 1.6.1: the opening choice. "Play Online" plays right here in the browser (continuing your save if there is one);
+  // "Download / Install App" installs Pro to the home screen / desktop. Start Chapter 1 + Chapter Select sit below.
+  if (resume) btns.push({ id: 'resume', label: 'Play Online · Continue ' + CFG.levels[at].name.replace(/^\d+ · /, ''), pri: true, go: () => briefCard(at) });
+  else btns.push({ id: 'new', label: 'Play Online · Chapter 1', pri: true, go: () => { writeSave({ level: 0, done: false }); briefCard(0); } });
+  if (!isInstalled()) btns.push({ id: 'install', label: 'Download / Install App', go: installClick });
+  if (resume) btns.push({ id: 'new', label: 'Start Chapter 1', go: () => { writeSave({ level: 0, done: false }); briefCard(0); } });
   if (s.done) btns.push({ id: 'ending', label: 'Watch the broadcast', go: endingCard });
-  if (at > 0 && !s.done) btns.push({ id: 'resume', label: 'Continue · ' + CFG.levels[at].name, pri: true, go: () => briefCard(at) });
-  btns.push({ id: 'new', label: at > 0 || s.done ? 'New campaign' : 'Begin', pri: !(at > 0 && !s.done), go: () => { writeSave({ level: 0, done: false }); briefCard(0); } });
   btns.push({ id: 'preview', label: 'Inspect the suit', go: () => { location.href = 'preview.html'; } });
   showCard({ kind: 'title', kicker: i.kicker, title: i.title, lines: i.lines, hero: true, buttons: btns });
+  chapterSelect(resume ? at : 0);                                            // 1.6.1: pick any chapter 1–7
+}
+// 1.6.1 Install button: the browser's one-tap dialog when it offered one, otherwise a two-line tip with the steps.
+async function installClick() {
+  const r = await promptInstall();
+  if (r === 'accepted') { installTip(['Installing Pro…', 'It will appear on your home screen / desktop.']); return; }
+  if (r === 'dismissed') return;                                             // they said no: leave it
+  installTip(installSteps());                                                // Safari / iOS / Firefox / already offered
+}
+function installTip(lines) {
+  let tip = $('install-tip');
+  if (!tip) {                                                                // small inline popover under the buttons
+    tip = document.createElement('div'); tip.id = 'install-tip'; tip.className = 'install-tip'; tip.setAttribute('role', 'status');
+    const x = document.createElement('button'); x.className = 'install-x'; x.setAttribute('aria-label', 'Close'); x.textContent = '×';
+    x.addEventListener('click', () => tip.remove());
+    tip.appendChild(document.createElement('b')); tip.appendChild(document.createElement('span')); tip.appendChild(x);
+    const inst = $('cbtns').querySelector('[data-btn="install"]');
+    $('cbtns').insertBefore(tip, inst ? inst.nextSibling : null);            // right below the Install button's row
+  }
+  tip.children[0].textContent = lines[0]; tip.children[1].textContent = lines[1] || '';
+}
+// Title card is on screen and install state changed (prompt became available / app got installed): redraw it.
+onInstallChange(() => { if (card.dataset.kind === 'title') titleCard(); });
+// 1.6.1: Chapter Select. A styled native <select> (so Android shows its own picker) plus a Play button.
+// It defaults to Chapter 1 on a fresh save, or to the chapter you reached.
+function chapterSelect(def) {
+  const row = document.createElement('div'); row.className = 'chsel';        // label + dropdown + button on one line
+  const lab = document.createElement('label'); lab.htmlFor = 'chsel'; lab.textContent = 'Chapter select';
+  const wrap = document.createElement('span'); wrap.className = 'chsel-box';  // holds the chevron icon
+  const sel = document.createElement('select'); sel.id = 'chsel'; sel.setAttribute('aria-label', 'Chapter select');  // label is hidden on short screens
+  CFG.levels.forEach((lv, k) => {                                            // "Chapter 1 · The Lab" … "Chapter 7 · The Marble Shrine"
+    const o = document.createElement('option'); o.value = k;
+    o.textContent = 'Chapter ' + (k + 1) + ' · ' + lv.name.replace(/^\d+ · /, ''); sel.appendChild(o);
+  });
+  sel.value = String(def);
+  const play = document.createElement('button'); play.dataset.btn = 'chapter'; play.textContent = 'Play chapter';
+  play.addEventListener('click', () => briefCard(+sel.value));               // brief card first, like every chapter
+  wrap.appendChild(sel); row.appendChild(lab); row.appendChild(wrap); row.appendChild(play);
+  $('cbtns').appendChild(row);
 }
 function briefCard(index) {                                  // short mission text right before a chapter loads
   const lv = CFG.levels[index];
@@ -157,6 +224,7 @@ function splashReady() {                                      // everything load
 async function boot() {
   try {
     CFG = await (await fetch('campaign.json', { cache: 'no-cache' })).json();
+    dropOldSaves();                                           // 1.6.1: forget the pre-1.6.1 save (wrong chapter index)
     registerProEnemies();                                     // 1.6.0: troopers + Dystopia drones, Pro's runtime only
     await applyAssetHooks();                                  // 1.6.0: drop-in Meshy models (minotaur, community prop)
     total = 1 + CFG.levels.length + 2;                        // campaign.json + each map + suit + cannon
@@ -187,5 +255,5 @@ async function boot() {
 }
 // Test hook for the automated checks (the game never reads it).
 window.PRO_SPLASH = { spray, viewer: splashViewer };          // test hook: spray progress + charge level
-window.PRO_CAMPAIGN = { juice: JUICE, get handle() { return handle; }, get cfg() { return CFG; }, get levels() { return LEVELS; }, loadSave: () => loadSave(), startAt, titleCard, exitGate };
+window.PRO_CAMPAIGN = { installClick, canPrompt, juice: JUICE, get handle() { return handle; }, get cfg() { return CFG; }, get levels() { return LEVELS; }, loadSave: () => loadSave(), startAt, titleCard, exitGate };
 boot();

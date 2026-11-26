@@ -11,9 +11,9 @@
  *   3. wss://dembysoftwaresystems.com/ws   on https
  *   4. otherwise, same host as the page, path /ws
  */
-import { mountLobby } from './lobby.js';
-import { attachMultiplayer } from './mp-dmbtech1.js';
-import { makeAvatarPicker } from './avatar-picker.js';   // 1.6.0: miniature previews
+import { mountLobby } from './lobby.js?v=1.6.1';   // 1.6.1: ?v= so phones fetch the new lobby
+import { attachMultiplayer } from './mp-dmbtech1.js?v=1.6.1';
+import { makeAvatarPicker, thumbFor } from './avatar-picker.js?v=1.6.1';   // miniature previews (1.6.1: thumbs resolve from this file)
 
 const NAME_KEY = 'retroengine.playerName';
 
@@ -134,7 +134,8 @@ function levelList(project, pack, starters) {
 function characterList(RT) {
   const models = (RT && RT.PLAYER_MODELS) || {};
   return Object.keys(models).map(function (id) {
-    return { id: id, name: models[id].name || id };
+    // 1.6.1: each entry carries its miniature + licence so the Character dropdown can show them.
+    return { id: id, name: models[id].name || id, thumb: thumbFor(id, models[id]), license: models[id].license || '' };
   });
 }
 

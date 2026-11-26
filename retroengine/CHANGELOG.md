@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.6.1 (2026-11-26): fixes from Darcy's Fold play-test, a fresh multiplayer lobby, and lighting
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.6.1**), powered by DMB Tech 1 **1.3.1**.
+
+- **Pro starts on Chapter 1 again.** A 1.5.x/1.6.0 save stored a bare chapter number. When the campaign grew from 4 to 7 chapters, the old "level 2" (the Factory) became chapter 3 (The Drains), so an old save dropped you mid-campaign. Saves now go under a new key (`retroengine.pro.campaign.v2`) as `{ version: 2, slug, done }`, where the slug is the chapter's map name. A re-ordered campaign can't point at the wrong chapter any more. Anything that isn't a version-2 save starts fresh on Chapter 1, and the old key is deleted.
+- **Pro's title card** now opens with a two-way choice:
+  - **Play Online** plays in the browser and continues your save if you have one. Otherwise it starts Chapter 1.
+  - **Download / Install App** opens the browser's one-tap install dialog (`beforeinstallprompt`) on Chrome, Edge and Android. On Safari/iOS, Firefox, or after the dialog was turned down, it shows a two-line tip with the exact steps for that browser instead, for example Share → Add to Home Screen. The button is hidden when Pro already runs as an installed app.
+  - **Chapter Select** is a dropdown for chapters 1–7 with a Play chapter button. Next to it is **Start Chapter 1**.
+- **Pro is installable.** `pro/sw.js` is a tiny service worker that only makes the install work: every request still goes to the network, so the game can't get stuck on an old version. Only the page itself is kept, as an offline fallback. The manifest gained `id` and `display_override`.
+- **Multiplayer lobby redesign** (`mp/lobby.css`, `mp/lobby.js`, `mp/avatar-picker.js`). It uses flat graphite surfaces, hairline dividers, Inter or the system font, mixed-case titles and white primary buttons, with no neon outlines and no uppercase monospace labels.
+  - **Play** pane: a live 3D preview of your character with the miniature grid under it. Next to them are your name, a **Character** dropdown that shows the miniatures, and **New room** (room name, **Map** dropdown, Create room).
+  - **Open rooms** pane: clean rows with players and a Join button.
+  - Wide screens show both panes side by side. Phones get **Play | Open rooms** tabs. On the Fold, folded or open and upright or sideways, the miniatures, preview and dropdowns are all on screen without scrolling.
+  - Thumbnail and model paths now resolve from the picker's own file, so they load from any page. They load eagerly, and the preview shows the miniature at once, then fades in the 3D model.
+  - Socket errors only change the status dot. They no longer print "WebSocket error" under Create.
+- **Cache-busting.** Every page, stylesheet and local module import carries `?v=1.6.1`, so a phone that cached 1.5.1/1.6.0 files fetches the new ones.
+- **Lighting (DMB Tech 1 1.3.1, phone-friendly, no shadow maps):**
+  - **Contact shadows.** Each enemy gets a soft dark disc on the floor (one shared 64 px texture on a flat quad). Hovering troopers and drones get a wider, fainter one that fades with height. Corpses lose it after a few seconds.
+  - **Corner shading.** Inner wall-to-wall corners now darken, as well as the floor-to-wall and ceiling-to-wall bands. This uses the same wall-occupancy texture as before, with one extra texture read per wall pixel.
+  - **Shot lighting.** Firing lights the room in front of you (cyan for Pro's ring cannon) and the cannon itself. Between explosions, the explosion light becomes a travelling light: it follows the nearest glowing shot (cyan rings, crimson rings, plasma, rockets), or flickers orange under the nearest thruster when nothing is in the air. No light is added, so it works on every quality tier at no extra per-pixel cost, and the light count never changes mid-level, so there are no shader recompiles.
+  - **Enemy models.** Besides the cool rim light, enemies now get a soft overhead key light and a fake glint on armor plates. These are done in the shader, with no extra lights or env maps. A real environment map halved the frame rate in testing, so it was left out.
+
 ## 1.6.0 (2026-11-26): Pro grows to seven chapters, with new enemies and a new boss
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

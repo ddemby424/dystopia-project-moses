@@ -1,10 +1,12 @@
 {
+  "id": "./",
   "name": "Pro",
   "short_name": "Pro",
   "description": "Pro: Sgt. Protagonist escapes Pandemonium Inc. Powered by DMB Tech 1.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
   "orientation": "landscape",
   "background_color": "#050607",
   "theme_color": "#050607",
