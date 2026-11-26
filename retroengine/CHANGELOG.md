@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.6.2 (2026-11-26): life-sized enemies, the Warden's shooting animation, enemy powers, and Darcy's boss music
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.6.2**), powered by DMB Tech 1 **1.3.2**.
+
+- **Enemies fit the rooms.** Wall and ceiling heights were measured in every chapter (ceilings are 1.55–1.9 units; the Shrine is open sky). With 1 unit ≈ 1.76 m (a 1.7 ceiling ≈ 3 m):
+  - the Warden is about 2.2 m and clears the Lab ceiling with room to spare;
+  - Ballisticus sentinels are about 1.8 m;
+  - twin-cannon troopers are about 1.75 m with a lower, gentler hover;
+  - Dystopia drones are about 0.75 m;
+  - the Minotaur is about 3.1 m, towering over his throne (the Shrine is open sky, so there is no ceiling to hit). He now stops about 2.3 units away (new `closeR`, with `meleeR` 2.4 so his long arms still reach), so his horns stay on screen below the HUD when he walks up to you.
+- **The Warden and sentinels shoot properly** (procedural, no new animation files): they lean forward while a glow charges at the muzzle, then kick back with a fiery flash, a muzzle light and a tracer, and settle again. They breathe when idle and flinch when hit. The flash reuses the existing explosion light, so no light is added.
+- **Enemy powers:**
+  - Grunts fire **blue lightning** (a jagged bolt with a zap sound). The aim locks when they wind up, so strafing dodges it.
+  - Turrets fire crisp **red/orange lasers** with a zip sound.
+  - Heavy and titan walkers send out a random **radial floor shockwave** that glows as it spreads. It hurts only if you are on the ground: jump or dash over it.
+- **Handedness.** Pro's right-arm cannon stays on the right; every other weapon is now held in the left hand (mirrored view model, muzzle and shell ejection).
+- **Minimap is the map button.** The lower-left touch MAP button and the top-row map button are gone. Tap or click the top-right minimap to open the full map; tap again or press M to close it.
+- **Music by Darcy D. Demby (DembySoftwareSystems):**
+  - **Old School Flavor** replaces the old track on chapters 1, 3 and 5.
+  - **Bass Angel** crossfades in when you meet a boss (the Warden, titans) in chapters 1–6, and a toast names the track. Chapter 7 keeps **Jungle Slap**.
+  - The music player lists Bass Angel, Old School Flavor and Jungle Slap.
+- **No 404s.** The optional community-prop drop-in (`pro_prop.glb`) is disabled in `campaign.json`, so it is no longer requested.
+- **Cache-busting.** Every page, stylesheet and local module import carries `?v=1.6.2`; the Pro service worker cache is `pro-shell-1.6.2`.
+
 ## 1.6.1 (2026-11-26): fixes from Darcy's Fold play-test, a fresh multiplayer lobby, and lighting
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
@@ -49,7 +75,7 @@ Editor (RetroEngine **1.6.0**), powered by DMB Tech 1 **1.3.0**.
 - Pro's enemies are registered on Pro's own runtime, and campaign.json decides which stock enemies get swapped out in each map. The editor's enemy list and maps don't change.
 - **DMB Tech 1 1.3.0.** Enemy defs can set `lift` (float above the floor with a full-height hitbox) and `bob`. A `jet_anchor` node in an enemy GLB gets a flickering thruster flame. Emissive textures in GLBs glow instead of being switched off. There is a new `redring` projectile.
 - **Multiplayer character picker previews.** Each model in the lobby now has a miniature card with a pre-rendered thumbnail (`assets/thumbs/*.webp`, about 6–12 KB each). The one you pick spins live in a small turntable, and only that model's GLB is loaded. The turntable stops when the lobby closes. If WebGL is off, a large thumbnail is shown instead.
-- **Darcy's own music in Pro.** "Jungle Slap" plays in the Minotaur fight (chapter 7). "Ghetto Shit" plays in chapters 1, 3 and 5. Both are in Pro's music player (`pro/assets/music/`, 128 kbps, 5.4 MB and 2.3 MB). The editor's music list is unchanged.
+- **Darcy's own music in Pro.** "Jungle Slap" plays in the Minotaur fight (chapter 7), and a second track plays in chapters 1, 3 and 5 (replaced by "Old School Flavor" in 1.6.2). Both are in Pro's music player (`pro/assets/music/`, 128 kbps). The editor's music list is unchanged.
 - `pro/preview.html?part=enemy|drone|minotaur|sentinel` shows each new model.
 
 ## 1.5.1 (2026-11-25): Pro stands on its own, powered by DMB Tech 1

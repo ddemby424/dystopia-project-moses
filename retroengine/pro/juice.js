@@ -113,6 +113,7 @@ export function installJuice(RT, opts) {
       <div class="pj-bars"><div class="pj-bar hp"><i></i><b></b></div><div class="pj-bar sh"><i></i><b></b></div><div class="pj-keys"></div></div>
       <div class="pj-streak"></div>
       <div class="pj-dmg"></div><div class="pj-speed"></div>
+      <div class="pj-track" aria-live="polite"><i>♪</i><span><small></small><b></b></span></div>
       <div class="pj-dash" role="button" aria-label="Dash">DASH<i></i></div>`;
     root.insertBefore(el, root.querySelector('.dfg-menu'));
     root.classList.add('pro-juice');                             // pro.css hides the engine's stock bottom HUD
@@ -124,7 +125,7 @@ export function installJuice(RT, opts) {
     dash.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); sfx.init(); doDash(); });
     return { el, q, strip, mark: q('.pj-mark'), obj: q('.pj-obj'), dist: q('.pj-dist'), way: q('.pj-way'), wayI: q('.pj-way i'), lvl: q('.pj-lvl'), host: q('.pj-host'),
       feed: q('.pj-feed'), hit: q('.pj-hit'), pips: q('.pj-pips'), wn: q('.pj-wn'), hpI: q('.pj-bar.hp i'), hpB: q('.pj-bar.hp b'), shI: q('.pj-bar.sh i'), shB: q('.pj-bar.sh b'),
-      keys: q('.pj-keys'), streak: q('.pj-streak'), dmg: q('.pj-dmg'), speed: q('.pj-speed'), dash, dashI: q('.pj-dash i'), cache: {} };
+      keys: q('.pj-keys'), track: q('.pj-track'), streak: q('.pj-streak'), dmg: q('.pj-dmg'), speed: q('.pj-speed'), dash, dashI: q('.pj-dash i'), cache: {} };
   }
   const PX_DEG = 2.2;                                            // compass: pixels per degree of turn
   function set(key, node, prop, val) { if (ui.cache[key] !== val) { ui.cache[key] = val; if (prop === 'text') node.textContent = val; else if (prop === 'html') node.innerHTML = val; else node.style[prop] = val; } }
@@ -219,6 +220,10 @@ export function installJuice(RT, opts) {
       G.recoil = 1.55;                                             // engine set 1; the view model kicks further back
       if (!(RT.WEAPON_DEFS[a] || {}).ammo) sfx.fire();
       st.lastShot = now(); st.charged = false;
+    } else if (ev === 'track') {                                 // 1.6.2: music switched (Bass Angel when you meet a boss)
+      ui.track.querySelector('small').textContent = a.boss ? 'Boss music · now playing' : 'Now playing';
+      ui.track.querySelector('b').textContent = a.title + (a.artist ? ' — ' + a.artist : '');
+      ui.track.classList.toggle('boss', !!a.boss); flash(ui.track, 'on', 3600); st.lastTrack = a.title;
     } else if (ev === 'dash') {
       sfx.whoosh(); flash(ui.speed, 'on', 280);
     } else if (ev === 'kill') { /* counted from 'hit' (has the position) */ }

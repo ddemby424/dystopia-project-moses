@@ -85,6 +85,9 @@ Each exit pad stays sealed until that chapter's goal is met. Your progress is sa
 Pro's arm cannon is your gun, and it fires cyan energy rings.
 From 1.6.0 you can **dash** with Shift or Q, or the DASH button on a phone. Pro also has its own HUD with a compass, a waypoint arrow and distance, hitmarkers, kill streaks, health and shield orbs, and Web Audio sound effects (`pro/juice.js`).
 You can spin the slim suit at `retroengine/pro/preview.html`.
+From 1.6.2, enemies are life-sized for the rooms (about 1 unit = 1.76 m, so a 1.7 ceiling is about 3 m): troopers and sentinels are about 1.8 m, drones about 0.75 m, the Warden about 2.2 m and the Minotaur about 3.1 m, towering over his throne in the open-sky Shrine. He stops about 2.3 units away when he walks up, so his horns stay on screen. The Warden and sentinels lean in, charge a glow, then kick back with a muzzle flash and tracer; they also breathe when idle and flinch when hit. Grunts throw blue lightning, turrets fire red lasers, and heavy/titan walkers send out a glowing floor shockwave that you clear by jumping or dashing. Pro's arm cannon stays on the right, and every other gun is held left-handed.
+Music (all by **Darcy D. Demby, DembySoftwareSystems**): Old School Flavor plays on chapters 1, 3 and 5, and **Bass Angel** takes over when you meet a boss in chapters 1–6, with a toast naming the track. Chapter 7 keeps Jungle Slap.
+From 1.6.2 there is no separate Map button: tap or click the top-right minimap (or press M) to open the full map, and again to close it.
 
 | File | What it is |
 |---|---|

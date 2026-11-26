@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.3.1 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.3.2 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.3.1';
+export const VERSION = '1.3.2';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.3.1';
+const VERSION = '1.3.2';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 // Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
@@ -134,6 +134,10 @@ const Sound = (function () {
       case 'hit': tone(0.05, 1800, 1200, 'square', 0.06 * v); break;
       case 'explode': noise(1.1, 420, 0.4, 1.0 * v); tone(0.7, 90, 25, 'sine', 0.6 * v); break;
       case 'bolt': tone(0.22, 700, 160, 'sawtooth', 0.12 * v); break;
+      // 1.3.2: electric zap (crackle + buzzing saw), laser zip (fast falling sine), shockwave quake (low thump + rumble)
+      case 'zap': noise(0.16, 5200, 0.9, 0.42 * v, 'highpass'); tone(0.14, 1600, 240, 'sawtooth', 0.12 * v); tone(0.09, 95, 70, 'square', 0.1 * v); noise(0.07, 3800, 2, 0.25 * v, 'bandpass', 0.06); break;
+      case 'laser': tone(0.12, 2600, 380, 'sine', 0.2 * v); tone(0.08, 5200, 900, 'triangle', 0.06 * v); break;
+      case 'quake': tone(0.55, 70, 28, 'sine', 0.55 * v); noise(0.6, 240, 0.7, 0.45 * v); tone(0.3, 160, 60, 'sawtooth', 0.08 * v, 0.05); break;
       case 'alert': tone(0.12, 220, 440, 'square', 0.1 * v); tone(0.12, 440, 330, 'square', 0.1 * v, 0.13); break;
       case 'pain': tone(0.15, 180, 90, 'sawtooth', 0.18 * v); noise(0.1, 700, 1, 0.15 * v, 'bandpass'); break;
       case 'edie': noise(0.7, 900, 0.6, 0.5 * v); tone(0.6, 400, 40, 'sawtooth', 0.25 * v); break;
@@ -1766,7 +1770,7 @@ const GAME_CSS = `
 .dfg-tl{position:absolute;left:12px;top:10px;padding:8px 12px;max-width:46%}
 .dfg-lvl{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#ffb35c}
 .dfg-obj{font-size:12px;opacity:.85;margin-top:2px}
-.dfg-mini{position:absolute;right:12px;top:10px;width:132px;height:132px;border-radius:50%;border:2px solid rgba(255,255,255,.14);background:rgba(4,6,10,.65);box-shadow:0 0 0 4px rgba(0,0,0,.25)}
+.dfg-mini{pointer-events:auto;cursor:pointer;z-index:6;touch-action:none;position:absolute;right:12px;top:10px;width:132px;height:132px;border-radius:50%;border:2px solid rgba(255,255,255,.14);background:rgba(4,6,10,.65);box-shadow:0 0 0 4px rgba(0,0,0,.25)}
 .dfg-topbtns{position:absolute;right:154px;top:12px;display:flex;gap:8px;pointer-events:auto}
 .dfg-ibtn{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;cursor:pointer;border:1px solid rgba(255,255,255,.12);background:rgba(10,14,22,.6)}
 .dfg-ibtn svg{width:18px;height:18px}
@@ -1840,7 +1844,7 @@ linear-gradient(45deg,transparent 46%,#ff5a3c 46%,#ff5a3c 54%,transparent 54%),l
 .dfg-tb.swap{width:50px;height:50px;right:124px;bottom:112px;font-size:10px}
 .dfg-tb.reload{width:50px;height:50px;right:186px;bottom:112px;font-size:10px}
 .dfg-tb.run{width:50px;height:50px;left:22px;bottom:170px;font-size:10px}
-.dfg-tb.map{width:64px;height:64px;left:22px;bottom:232px;font-size:12px}.dfg-tb.map.on{background:rgba(140,200,120,.55);color:#020}
+.dfg-mini.on{border-color:rgba(140,220,120,.7);box-shadow:0 0 0 4px rgba(0,0,0,.25),0 0 14px rgba(120,220,110,.45)}
 .dfg-tb.nade{width:56px;height:56px;right:186px;bottom:40px;font-size:11px;background:rgba(80,100,40,.55)}
 .dfg-tb.run.on{background:rgba(45,226,255,.6);color:#001}
 .dfg-start-hint{position:absolute;left:0;right:0;bottom:22%;text-align:center;font-size:13px;opacity:.6}
@@ -2017,7 +2021,8 @@ function play(container, project, opts) {
   const TP = { audio: null, i: Math.floor(Math.random() * MUSIC_TRACKS.length), cur: null, failed: false, pick: null };
   function music(on) {
     const want = !!on && !!G && G.L.props.music !== false;
-    const tr = TP.pick !== null ? TP.pick : (G && G.L.props.track) || '';
+    // a track picked in the music player wins; else the boss track once you've met a boss (1.3.2); else the level's own
+    const tr = TP.pick !== null ? TP.pick : (G && G.bossMet && G.L.props.bossTrack) || (G && G.L.props.track) || '';
     const useTracks = want && usePack && tr !== 'synth' && MUSIC_TRACKS.length > 0 && !TP.failed;
     if (!useTracks) { if (TP.audio) TP.audio.pause(); Sound.music(want); return; }
     Sound.music(false);
@@ -2029,6 +2034,35 @@ function play(container, project, opts) {
     const fixed = MUSIC_TRACKS.findIndex(t => t.id === tr);
     if (fixed >= 0 && TP.cur !== MUSIC_TRACKS[fixed].id) loadTrack(fixed); else if (!TP.cur) loadTrack(TP.i);
     TP.audio.volume = clamp(S.volume * S.music, 0, 1); const pr = TP.audio.play(); if (pr && pr.catch) pr.catch(() => {});
+  }
+  // 1.3.2: fade the current track out (~0.5 s), run then() (which switches track), then fade the new one in (~0.8 s).
+  // iOS ignores audio.volume, so there it is simply an instant switch.
+  function fadeMusic(then) {
+    clearInterval(TP.fadeI);
+    const a = TP.audio;
+    if (!a || a.paused || TP.failed) { then(); return; }         // nothing playing: just switch
+    const v0 = a.volume; let k = 0;
+    TP.fadeI = setInterval(() => {
+      if (destroyed) { clearInterval(TP.fadeI); return; }
+      k += 0.1; a.volume = clamp(v0 * (1 - k), 0, 1);          // 10 steps x 50 ms down
+      if (k < 1) return;
+      clearInterval(TP.fadeI); then();                           // switch while silent
+      const v1 = a.volume; a.volume = 0; let u = 0;
+      TP.fadeI = setInterval(() => {
+        if (destroyed) { clearInterval(TP.fadeI); return; }
+        u += 0.0625; a.volume = clamp(v1 * u, 0, 1);             // 16 steps x 50 ms up
+        if (u >= 1) clearInterval(TP.fadeI);
+      }, 50);
+    }, 50);
+  }
+  // 1.3.2: the first time you meet a boss (def.bossMusic or def.boss), the level's bossTrack takes over.
+  function meetBoss(e) {
+    if (!G || G.bossMet || !G.L.props.bossTrack) return;        // once per run, and only on levels that set a bossTrack
+    G.bossMet = true;
+    const t = MUSIC_TRACKS.find(x => x.id === G.L.props.bossTrack);
+    fire('track', { id: G.L.props.bossTrack, title: t ? t.title : G.L.props.bossTrack, artist: t ? t.artist : '', boss: true, sub: e.sub });
+    if (!opts.onEvent && t) msg('♪ ' + t.title + (t.artist ? ' — ' + t.artist : ''));   // hosts (Pro) show their own toast
+    if (TP.pick === null && state === 'playing') fadeMusic(() => music(true));   // a hand-picked track keeps playing
   }
   function loadTrack(i) { TP.i = (i + MUSIC_TRACKS.length) % MUSIC_TRACKS.length; const t = MUSIC_TRACKS[TP.i]; TP.cur = t.id; TP.audio.src = assetBase + t.file; }
   function nextTrack(d) { if (!TP.audio || TP.failed) return; loadTrack(TP.i + d); TP.pick = TP.pick === 'synth' ? null : TP.pick !== null ? MUSIC_TRACKS[TP.i].id : null; const pr = TP.audio.play(); if (pr && pr.catch) pr.catch(() => {}); }
@@ -2058,7 +2092,6 @@ function play(container, project, opts) {
   root.appendChild(renderer.domElement);
   const hud = el('div', 'dfg-hud', `
     <div class="dfg-tl dfg-glass"><div class="dfg-lvl"></div><div class="dfg-obj"></div></div>
-    <canvas class="dfg-mini" width="132" height="132"></canvas>
     <div class="dfg-msgs"></div><div class="dfg-boss" hidden><div class="dfg-boss-name">MINOTAUR</div><div class="dfg-boss-track"><i class="dfg-boss-hp"></i></div></div><div class="dfg-cross"></div><div class="dfg-hit"></div>
     <div class="dfg-bottom">
       <div class="dfg-left">
@@ -2070,14 +2103,21 @@ function play(container, project, opts) {
     </div>
     <div class="dfg-vig"></div><div class="dfg-pick"></div><div class="dfg-fps"></div>`);
   root.appendChild(hud);
-  const topBtns = el('div', 'dfg-topbtns', `<div class="dfg-ibtn" data-b="light" title="Flashlight (F)">${ICON.light}</div><div class="dfg-ibtn" data-b="map" title="Map (M)">${ICON.map}</div>${FS.ok() ? `<div class="dfg-ibtn" data-b="fs" title="Full screen">${ICON.fs}</div>` : ''}<div class="dfg-ibtn" data-b="pause" title="Pause (Esc)">${ICON.pause}</div>`);
+  const topBtns = el('div', 'dfg-topbtns', `<div class="dfg-ibtn" data-b="light" title="Flashlight (F)">${ICON.light}</div>${FS.ok() ? `<div class="dfg-ibtn" data-b="fs" title="Full screen">${ICON.fs}</div>` : ''}<div class="dfg-ibtn" data-b="pause" title="Pause (Esc)">${ICON.pause}</div>`);
   root.appendChild(topBtns);
+  // 1.3.2: the minimap IS the map button (tap / click it to open the full map, tap again to close). It sits outside the
+  // HUD layer (which ignores pointers) and above the touch zones, so the tap reaches it on phones too.
+  const miniCv = el('canvas', 'dfg-mini'); miniCv.width = miniCv.height = 132; miniCv.title = 'Map (M)';
+  miniCv.setAttribute('role', 'button'); miniCv.setAttribute('aria-label', 'Open the map');
   const bigMap = el('div', 'dfg-big', '<canvas></canvas>'); root.appendChild(bigMap);
   const touch = el('div', 'dfg-touch' + (isTouch ? ' on' : ''), `
     <div class="dfg-zone" data-z="move" style="left:0;width:45%"></div><div class="dfg-zone" data-z="look" style="left:45%;right:0"></div>
     <div class="dfg-joy"><i></i></div>
-    <div class="dfg-tb run" data-t="run">RUN</div><div class="dfg-tb fire" data-t="fire">FIRE</div><div class="dfg-tb jump" data-t="jump">JUMP</div><div class="dfg-tb use" data-t="use">USE</div><div class="dfg-tb swap" data-t="swap">SWAP</div><div class="dfg-tb reload" data-t="reload">RLD</div><div class="dfg-tb map" data-t="map">MAP</div><div class="dfg-tb nade" data-t="nade">NADE</div>`);
+    <div class="dfg-tb run" data-t="run">RUN</div><div class="dfg-tb fire" data-t="fire">FIRE</div><div class="dfg-tb jump" data-t="jump">JUMP</div><div class="dfg-tb use" data-t="use">USE</div><div class="dfg-tb swap" data-t="swap">SWAP</div><div class="dfg-tb reload" data-t="reload">RLD</div><div class="dfg-tb nade" data-t="nade">NADE</div>`);
   root.appendChild(touch);
+  root.appendChild(miniCv);                                    // after the touch layer, so it is on top of it
+  miniCv.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); });   // never starts a look-drag
+  miniCv.addEventListener('click', ev => { ev.stopPropagation(); if (G && state === 'playing') showBigMap(bigMap.style.display !== 'flex'); });
   const menu = el('div', 'dfg-menu'); root.appendChild(menu);
   const $ = s => root.querySelector(s);
   const H_ = { lvl: $('.dfg-lvl'), obj: $('.dfg-obj'), msgs: $('.dfg-msgs'), hit: $('.dfg-hit'), hp: $('.hp'), ar: $('.ar'), hpb: $('.hpb'), arb: $('.arb'), keys: root.querySelectorAll('.dfg-keys b'), wn: $('.wn'), am: $('.am'), ws: $('.dfg-wslots'), vig: $('.dfg-vig'), pick: $('.dfg-pick'), fps: $('.dfg-fps'), mini: $('.dfg-mini'), boss: $('.dfg-boss'), bossHp: $('.dfg-boss-hp') };
@@ -2104,8 +2144,12 @@ function play(container, project, opts) {
   const shellGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.022, 6), brass = new THREE.MeshStandardMaterial({ color: 0xc89a3c, metalness: 0.9, roughness: 0.3 }), redShell = new THREE.MeshStandardMaterial({ color: 0x8a1d14, metalness: 0.2, roughness: 0.6 });
   const shells = []; for (let i = 0; i < 14; i++) { const m = new THREE.Mesh(shellGeo, brass); m.visible = false; wScene.add(m); shells.push({ m, v: new THREE.Vector3(), life: 0 }); }
   let shellI = 0;
+  // 1.3.2: which hand holds the current weapon. opts.offHand = the main-hand slot (Pro: 1, his right-arm cannon); any other
+  // weapon is drawn mirrored on the left. Without opts.offHand everything stays right-handed (editor games are unchanged).
+  const handSide = () => (opts.offHand != null && G && G.cur !== opts.offHand ? -1 : 1);
   function ejectShell(big) { const sh = shells[shellI++ % shells.length]; sh.m.material = big ? redShell : brass; sh.m.scale.setScalar(big ? 1.6 : 1);
-    sh.m.position.set(0.17, -0.1, -0.42); sh.v.set(rand(0.5, 0.9), rand(0.7, 1.1), rand(0.05, 0.25)); sh.life = 0.7; sh.m.visible = true; sh.m.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3)); }
+    const sd = handSide(); sh.m.position.set(0.17 * sd, -0.1, -0.42); sh.v.set(rand(0.5, 0.9) * sd, rand(0.7, 1.1), rand(0.05, 0.25));   // 1.3.2: ejects to the gun's side
+    sh.life = 0.7; sh.m.visible = true; sh.m.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3)); }
   function updateShells(dt) { shells.forEach(sh => { if (sh.life <= 0) return; sh.life -= dt; sh.v.y -= 3.2 * dt; sh.m.position.addScaledVector(sh.v, dt); sh.m.rotation.x += dt * 14; sh.m.rotation.z += dt * 9; if (sh.life <= 0) sh.m.visible = false; }); }
 
   let G = null;        // current level's game state (rebuilt on every level load)
@@ -2196,6 +2240,10 @@ function play(container, project, opts) {
         const seated = def.boss === true;
         const en = { sub: e.s in ENEMY_DEFS ? e.s : 'grunt', def, x: e.x, y: e.y, z: fh, hp: def.hp * diff().hp, state: seated ? 'seated' : 'idle', t: 0, cd: rand(0.5, 1.5), ang: e.r || 0, mesh, moving: false, deadT: 0, flashT: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rand(0.8, 2), flank: def.speed > 0 && e.s !== 'titan' && e.s !== 'minotaur' && Math.random() < diff().flank ? (Math.random() < 0.5 ? 1 : -1) : 0, coverT: 0, hurtT: 0, warpCd: 2, fade: 1, maxHp: def.hp * diff().hp };
         g.enemies.push(en); attachModel(mesh, 'enemy_' + en.sub, def.h, !!def.hover);
+        // 1.6.2: an enemy placed on a raised floor under a low ceiling is shrunk to fit (never below 70%), so heads don't poke through.
+        const mh = ((ASSET_PACK['enemy_' + en.sub] && ASSET_PACK['enemy_' + en.sub].h) || def.h) * (def.hover ? 0.5 : 1);   // model height above the mesh origin (hover models are centred)
+        const room = P.wallH - 0.06 - fh - (def.hover || 0) - liftOf(def);                          // clear height above its feet, with a small gap
+        if ((L.ceil[Math.floor(e.y) * W + Math.floor(e.x)] || P.ceilTex) !== 'sky' && mh > room) mesh.scale.setScalar(Math.max(0.7, room / mh));
         en.shadow = contactShadow(def); en.shadow.position.set(e.x, fh + 0.012, e.y); world.add(en.shadow);   // 1.6.1 contact shadow
       } else if (e.t === 'pickup') {
         const mesh = buildPickupMesh(e.s); mesh.position.set(e.x, fh, e.y); world.add(mesh);
@@ -2250,7 +2298,10 @@ function play(container, project, opts) {
       if (G.shrineOrn.tex && G.shrineOrn.tex.dispose) G.shrineOrn.tex.dispose();
     }
     (G.fbPool || []).forEach(f => f.mesh.material.dispose());
-    G.enemies.forEach(e => { if (e.shadow) e.shadow.material.dispose(); });   // 1.6.1 contact-shadow materials (geometry + texture are shared)
+    G.enemies.forEach(e => { if (e.shadow) e.shadow.material.dispose(); });
+    (G.gunFx || []).forEach(m => m.dispose()); (G.tracers || []).forEach(t => t.mesh.material.dispose());   // 1.3.2 muzzle sprites + tracers
+    (G.beams || []).forEach(b => [b.core, b.glow].forEach(m => { m.geometry.dispose(); m.material.dispose(); }));   // 1.3.2 beams
+    (G.waves || []).forEach(w => w.mesh.material.dispose());     // 1.3.2 shockwaves still on the floor   // 1.6.1 contact-shadow materials (geometry + texture are shared)
     G.scene.traverse(o => { if (o.userData && o.userData.sign) { o.material.dispose(); o.children.forEach(c => c.material && c.material.dispose()); } });
     G = null;
   }
@@ -2267,6 +2318,7 @@ function play(container, project, opts) {
       } });
       if (holder.userData.proc) holder.userData.proc.visible = false; else holder.children.forEach(c => { c.visible = false; });
       holder.add(m); holder.userData.glb = m; holder.userData.glbMats = mats;
+      holder.userData.glbH = spec.h || height || 1;               // 1.3.2: model height, so gunAnim's muzzle point scales with it
       // 1.3.0: a node named "jet_anchor" in the GLB gets a glowing propulsion flame pointing down (cheap: 2 additive meshes).
       m.updateMatrixWorld(true); const jets = [];
       m.traverse(o => { if (o.name === 'jet_anchor') jets.push(addJet(o, spec.jetColor || 0xff5a2a)); });
@@ -2617,11 +2669,14 @@ function play(container, project, opts) {
   function damageEnemy(e, dmg, byPlayer) {
     if (e.state === 'dead') return;
     e.hp -= dmg; e.flashT = 0.1; e.hurtT = (e.hurtT || 0) + dmg;
+    if (e.def.gunAnim) e.flinchT = 1;                            // 1.3.2: gunners jolt back when hit
+    if (byPlayer && (e.def.bossMusic || e.def.boss)) meetBoss(e);   // 1.3.2: shooting a boss counts as meeting it
     // 1.3.0: hosts hear about the player's hits (hitmarkers, kill streaks); the engine itself doesn't use it
     if (byPlayer) fire('hit', { sub: e.sub, x: e.x, y: e.y, z: e.z + liftOf(e.def) + (e.def.hover || 0) + (e.def.hover ? 0 : e.def.h * 0.6), dmg, kill: e.hp <= 0, boss: !!(e.def && e.def.boss), floor: e.z });
     if (e.state === 'idle') alert(e);
     if (e.hp <= 0) {
       e.state = 'dead'; e.deadT = 0; G.kills++; Sound.play('edie', distVol(e.x, e.y));
+      if (e.def.gunAnim) gunRest(e);                             // 1.3.2: the death tip-over starts from a clean pose
       sparks(e.x, e.z + e.def.h * 0.6, e.y, 30, 0xff8030); smoke(e.x, e.z + 0.5, e.y, 8);
       if (e.sub === 'titan') explode(e.x, e.y, e.z + 0.8, 0, 2.5, 'enemy');
       if (e.mesh.userData.glow) e.mesh.userData.glow.color.set(0x222222);
@@ -2680,6 +2735,214 @@ function play(container, project, opts) {
      - contact shadows: one soft radial "blob" texture on a flat quad under each enemy (no shadow maps).
      - travelling light: the (usually idle) explosion light follows the nearest glowing shot, or the nearest
        thruster. No light is added, so it costs nothing per pixel and never triggers a shader recompile. */
+  /* ---------- 1.3.2: procedural shooting animation for unrigged gunner GLBs (Pro's Warden + Ballisticus sentinels) ----------
+     def.gunAnim = { muzzle: [x, y, z] (rifle tip as a fraction of model height, from the feet centre, model facing +Z),
+                     lean (windup brace, radians), kick (recoil tilt, radians), glow (muzzle size multiplier) }.
+     Windup: the attack's own delay (e.t0) leans the body forward while a charge glows at the rifle tip.
+     Fire: the body jolts back, a fiery flash sprite + the explosion light pop at the tip, and a tracer streaks out.
+     Idle: slow breathing and weight shift. Hit: a quick flinch. All of it moves ud.glb only (2 sprites per gunner). */
+  let glowTex = null, flashTex = null;
+  function gunTextures() {                                       // made once: a soft round glow and a six-spike flash
+    const mk = draw => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); draw(x); return new THREE.CanvasTexture(c); };
+    glowTex = mk(x => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.75)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 64, 64); });
+    flashTex = mk(x => { x.translate(32, 32); x.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 6; i++) {                              // six tapered spikes
+        x.rotate(Math.PI / 3); x.beginPath(); x.moveTo(-3.5, 0); x.lineTo(0, -31 + (i % 2) * 9); x.lineTo(3.5, 0); x.closePath();
+        x.fillStyle = 'rgba(255,255,255,0.85)'; x.fill(); }
+      const g = x.createRadialGradient(0, 0, 0, 0, 0, 20); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = g; x.fillRect(-32, -32, 64, 64); });
+  }
+  function gunFx(ud, ga) {                                       // the two muzzle sprites, children of the model so they lean with it
+    if (ud.gunFx) return ud.gunFx;
+    if (!glowTex) gunTextures();
+    const sprite = (tex, col) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: col, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false })); sp.visible = false; sp.renderOrder = 3; return sp; };
+    const H = ud.glbH || 1, m = ga.muzzle || [0, 0.6, 0.3];
+    const glow = sprite(glowTex, 0xff8a30), flash = sprite(flashTex, 0xffa040);   // orange charge, fiery flash
+    const tip = new THREE.Vector3(m[0] * H, m[1] * H, m[2] * H + 0.03);   // just past the barrel end
+    glow.position.copy(tip); flash.position.copy(tip); ud.glb.add(glow); ud.glb.add(flash);
+    (G.gunFx = G.gunFx || []).push(glow.material, flash.material);   // disposed with the level
+    return (ud.gunFx = { glow, flash, tip, H });
+  }
+  const _tip = new THREE.Vector3();
+  function gunFire(e) {                                          // called on the shot frame; returns the rifle tip in game coords
+    const ud = e.mesh.userData, ga = e.def.gunAnim; if (!ud.glb) return null;
+    const fx = gunFx(ud, ga);
+    e.recoilT = 1; fx.flash.material.rotation = Math.random() * Math.PI;   // fresh flash angle every shot
+    e.mesh.updateMatrixWorld(true); _tip.copy(fx.tip); ud.glb.localToWorld(_tip);   // three.js: x, height, y
+    const p = { x: _tip.x, y: _tip.z, z: _tip.y };
+    if (cellIsSolidStatic(G.L, Math.floor(p.x), Math.floor(p.y))) { p.x = e.x; p.y = e.y; }   // rifle poking into a wall: fire from the body
+    if (G.fxLight) {                                             // the idle explosion light becomes the muzzle flash (no extra light)
+      G.fxLight.position.set(p.x, p.z, p.y); G.fxLight.color.setHex(0xffa040); G.fxLight.distance = 5;
+      G.fxLight.intensity = Math.max(G.fxLight.intensity, 4); G.fxTravelOn = false;
+    }
+    sparks(p.x, p.z, p.y, 7, 0xffc060);                         // hot sparks spray from the barrel
+    tracer(p.x, p.z, p.y, G.px, G.pz + 0.45, G.py);              // a bright streak toward you
+    return p;
+  }
+  // Tracers: a small pool of thin additive streaks (4 meshes, reused), each lives ~0.1 s.
+  const tracerGeo = new THREE.BoxGeometry(0.022, 0.022, 1).translate(0, 0, 0.5);   // 1 m long, starts at its origin
+  function tracer(x, h, y, tx, th, ty) {
+    if (!G.tracers) G.tracers = [];
+    let t = G.tracers.find(o => o.life <= 0);
+    if (!t && G.tracers.length < 4) { t = { mesh: new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })), life: 0 }; G.world.add(t.mesh); G.tracers.push(t); }
+    if (!t) t = G.tracers[0];                                    // all busy: reuse the oldest
+    t.mesh.position.set(x, h, y); t.mesh.lookAt(tx, th, ty);
+    t.mesh.scale.set(1, 1, Math.min(1.6, Math.hypot(tx - x, th - h, ty - y))); t.life = 0.1; t.mesh.visible = true;
+  }
+  function updateTracers(dt) {
+    if (!G.tracers) return;
+    for (const t of G.tracers) { if (t.life <= 0) continue; t.life -= dt; t.mesh.material.opacity = Math.max(0, t.life / 0.1); t.mesh.translateZ(dt * 9); if (t.life <= 0) t.mesh.visible = false; }
+  }
+  function gunPose(e, ud, ga, dt, time) {                        // every frame for a living gunner
+    const g = ud.glb, H = ud.glbH || 1;
+    const w = e.state === 'attack' && e.t0 ? clamp(1 - e.t / e.t0, 0, 1) : 0;   // windup 0 -> 1
+    const wE = w * w * (3 - 2 * w);                              // eased brace
+    e.recoilT = Math.max(0, (e.recoilT || 0) - dt * 4);          // recoil lasts ~0.25 s
+    e.flinchT = Math.max(0, (e.flinchT || 0) - dt * 6);          // flinch ~0.17 s
+    const k = Math.pow(e.recoilT, 1.6), f = e.flinchT * e.flinchT;   // sharp peak, smooth recovery
+    const br = Math.sin(time * 1.9 + ud.phase);                  // breathing
+    g.rotation.x = (ga.lean || 0.12) * wE - (ga.kick || 0.25) * k - 0.2 * f + 0.012 * br;   // +x leans toward the target
+    g.rotation.z = 0.022 * Math.sin(time * 0.7 + ud.phase * 0.5) + 0.05 * f * (ud.phase % 2 > 1 ? 1 : -1);   // weight shift, flinch twist
+    g.position.set(0, -0.025 * H * wE, (0.03 * wE - 0.09 * k - 0.05 * f) * H);   // crouch into the brace, jolt back on the shot
+    g.scale.set(1 - 0.005 * br, 1 + 0.012 * br, 1 - 0.005 * br);   // chest rises and falls
+    if (w > 0 || e.recoilT > 0 || ud.gunFx) {
+      const fx = gunFx(ud, ga), gm = ga.glow || 1;
+      const flick = 0.85 + Math.sin(time * 47) * 0.15;
+      const hot = Math.max(w, e.recoilT * 0.8);                  // charge builds at the tip, the barrel stays hot after the shot
+      fx.glow.visible = hot > 0.02; fx.glow.material.opacity = hot * flick;
+      fx.glow.scale.setScalar((0.06 + 0.16 * Math.max(wE, e.recoilT)) * H * gm * flick);
+      const fl = e.recoilT > 0.4 ? (e.recoilT - 0.4) / 0.6 : 0;   // the flash burns for the first ~0.15 s
+      fx.flash.visible = fl > 0; fx.flash.material.opacity = Math.min(1, fl * 1.4);
+      fx.flash.scale.setScalar((0.3 + 0.25 * fl) * H * gm);
+    }
+  }
+  function gunRest(e) {                                          // death: drop the pose offsets, hide the muzzle sprites
+    const ud = e.mesh.userData; if (!ud.glb) return;
+    ud.glb.position.set(0, 0, 0); ud.glb.scale.set(1, 1, 1); ud.glb.rotation.z = 0;
+    if (ud.gunFx) { ud.gunFx.glow.visible = false; ud.gunFx.flash.visible = false; }
+  }
+  /* ---------- 1.3.2: beam attacks (def.proj 'zap' = blue lightning, 'laser' = crisp turret laser) ----------
+     The enemy locks its aim when the windup starts; the beam fires at a point 60% of the way from that lock to where
+     you are now, so strafing dodges it. The beam stops at walls and hurts you if it passes through your body.
+     Drawn as camera-facing ribbons (a bright core + a wide soft glow), rebuilt each frame (lightning re-jags). */
+  const BEAM = {
+    zap:   { core: 0xe4f4ff, glow: 0x2f8cff, wCore: 0.022, wGlow: 0.11, life: 0.18, jag: 0.09, n: 12, spark: 0x7cc8ff, light: 0x4aa8ff, snd: 'zap' },
+    laser: { core: 0xfff0dc, glow: 0xff2a10, wCore: 0.016, wGlow: 0.075, life: 0.12, jag: 0, n: 2, spark: 0xff7040, light: 0xff4020, snd: 'laser' }
+  };
+  const isBeam = k => !!BEAM[k];
+  function ribbon(n, color, opacity) {                           // a strip of n points (2 verts each), additive
+    const g = new THREE.BufferGeometry(), idx = [];
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 6), 3));
+    for (let i = 0; i < n - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    g.setIndex(idx);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.frustumCulled = false; m.renderOrder = 4; return m;
+  }
+  const _bA = new THREE.Vector3(), _bB = new THREE.Vector3(), _bS = new THREE.Vector3(), _bV = new THREE.Vector3();
+  function layRibbon(mesh, pts, w) {                             // pts are three.js points; widen each one sideways to the camera
+    const pos = mesh.geometry.attributes.position, n = pts.length;
+    for (let i = 0; i < n; i++) {
+      _bA.copy(pts[Math.max(0, i - 1)]); _bB.copy(pts[Math.min(n - 1, i + 1)]);
+      _bS.subVectors(_bB, _bA); _bV.subVectors(camera.position, pts[i]); _bS.cross(_bV).normalize().multiplyScalar(w * 0.5);
+      pos.setXYZ(i * 2, pts[i].x + _bS.x, pts[i].y + _bS.y, pts[i].z + _bS.z); pos.setXYZ(i * 2 + 1, pts[i].x - _bS.x, pts[i].y - _bS.y, pts[i].z - _bS.z);
+    }
+    pos.needsUpdate = true;
+  }
+  function fireBeam(e, kind, ox, oy, oz) {                       // ox, oy = map position, oz = height of the muzzle
+    const B = BEAM[kind], a = e.aim || { x: G.px, y: G.py, z: G.pz + 0.45 };
+    const tx = a.x + (G.px - a.x) * 0.6, ty = a.y + (G.py - a.y) * 0.6, tz = a.z + (G.pz + 0.45 - a.z) * 0.6;
+    let dx = tx - ox, dy = ty - oy, dz = tz - oz; const L = Math.hypot(dx, dy, dz) || 1; dx /= L; dy /= L; dz /= L;
+    let ex = ox, ey = oy, ez = oz, hitP = false;
+    for (let t = 0; t < 18; t += 0.08) {                         // march to the first wall / floor / ceiling
+      const x = ox + dx * t, y = oy + dy * t, z = oz + dz * t, cx = Math.floor(x), cy = Math.floor(y);
+      const zMax = (G.L.ceil[cy * G.W + cx] || G.L.props.ceilTex) === 'sky' ? 12 : G.L.props.wallH;
+      if (solid(cx, cy) || z < fhAt(cx, cy) || z > zMax) break;
+      ex = x; ey = y; ez = z;
+      if (Math.hypot(G.px - x, G.py - y) < PLAYER_R + 0.1 && z > G.pz - 0.05 && z < G.pz + 0.85) { hitP = true; break; }   // through your body
+    }
+    if (hitP) damagePlayer(e.def.dmg * diff().dmg, e.x, e.y);
+    const b = (G.beams = G.beams || []).find(o => o.life <= 0) || (G.beams.length < 6 ? (G.beams[G.beams.length] = { core: ribbon(16, 0xffffff, 1), glow: ribbon(16, 0xffffff, 0.5), life: 0 }) : G.beams[0]);
+    if (!b.core.parent) { G.world.add(b.glow); G.world.add(b.core); }
+    b.kind = kind; b.B = B; b.life = B.life; b.o = [ox, oz, oy]; b.e = [ex, ez, ey]; b.jagT = 0; b.pts = null;
+    b.core.material.color.setHex(B.core); b.glow.material.color.setHex(B.glow); b.core.visible = b.glow.visible = true;
+    if (Math.hypot(ex - G.px, ey - G.py) > 1.1) sparks(ex, ez, ey, 6, B.spark);   // impact sparks (not on your own face: the hit flash shows that)
+    if (G.fxLight) { G.fxLight.position.set(ox, oz, oy); G.fxLight.color.setHex(B.light); G.fxLight.distance = 5; G.fxLight.intensity = Math.max(G.fxLight.intensity, 2.6); G.fxTravelOn = false; }
+    Sound.play(B.snd, distVol(e.x, e.y));
+    fire('beam', { kind, sub: e.sub, hit: hitP, from: [ox, oy, oz], to: [ex, ey, ez] });
+    return hitP;
+  }
+  function updateBeams(dt) {
+    if (!G.beams) return;
+    for (const b of G.beams) {
+      if (b.life <= 0) continue;
+      b.life -= dt; const k = Math.max(0, b.life / b.B.life);
+      if (b.life <= 0) { b.core.visible = b.glow.visible = false; continue; }
+      b.jagT -= dt;
+      if (!b.pts || (b.B.jag && b.jagT <= 0)) {                  // lightning re-jags ~30 times a second
+        b.jagT = 0.033; const n = b.B.n, pts = b.pts || Array.from({ length: 16 }, () => new THREE.Vector3());
+        const [x0, y0, z0] = b.o, [x1, y1, z1] = b.e;
+        for (let i = 0; i < 16; i++) {
+          const t = Math.min(1, i / (n - 1)), j = (i === 0 || t >= 1) ? 0 : b.B.jag;   // ends stay pinned
+          pts[i].set(x0 + (x1 - x0) * t + rand(-j, j), y0 + (y1 - y0) * t + rand(-j, j), z0 + (z1 - z0) * t + rand(-j, j));
+        }
+        b.pts = pts;
+      }
+      layRibbon(b.core, b.pts, b.B.wCore * (0.7 + 0.6 * Math.random() * (b.B.jag ? 1 : 0.2)));
+      layRibbon(b.glow, b.pts, b.B.wGlow);
+      b.core.material.opacity = Math.min(1, k * 1.6); b.glow.material.opacity = 0.55 * k;
+    }
+  }
+
+  /* ---------- 1.3.2: radial floor shockwave (def.shockwave = { every: [min, max] s, radius, speed, dmg, charge, color }) ----------
+     Now and then a walker that can see you charges for a moment (a pulsing glow under it), then slams out a
+     glowing ripple ring that races across the floor. Standing in the ring as it passes hurts; jump over it,
+     dash through it, or be out of range. Walls block it (no line of sight = no hit). */
+  let waveTex = null;
+  function waveTexture() {                                       // a bright band at the rim with two fainter ripples inside
+    const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+    const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+    [[0, 0], [0.5, 0], [0.58, 0.28], [0.64, 0], [0.74, 0], [0.8, 0.42], [0.86, 0.08], [0.9, 0.95], [0.95, 0.6], [1, 0]].forEach(([o, a]) => g.addColorStop(o, 'rgba(255,255,255,' + a + ')'));
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128); waveTex = new THREE.CanvasTexture(c);
+  }
+  function startQuake(e, sw) {
+    if (!waveTex) waveTexture();
+    const mat = new THREE.MeshBasicMaterial({ map: waveTex, color: sw.color || 0xffa040, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 });
+    const m = new THREE.Mesh(shadowGeo, mat); m.renderOrder = 2; m.position.set(e.x, e.z + 0.02, e.y); G.world.add(m);
+    (G.waves = G.waves || []).push({ e, x: e.x, y: e.y, z: e.z, r: 0, max: sw.radius || 3.4, speed: sw.speed || 3.2, dmg: sw.dmg || 14, charge: sw.charge || 0.55, t: 0, hit: false, mesh: m });
+  }
+  function updateQuakes(e, sw, dt, see, dist) {                   // per walker: decide when to slam
+    if (e.qT == null) e.qT = rand(2, 5);
+    if (G.waves && G.waves.some(w => w.e === e && w.t < w.charge)) return;   // already charging
+    e.qT -= dt;
+    if (e.qT <= 0 && see && dist < (sw.radius || 3.4) + 1.5) { startQuake(e, sw); e.qT = rand((sw.every || [4, 8])[0], (sw.every || [4, 8])[1]); }
+  }
+  function updateWaves(dt) {
+    if (!G.waves) return;
+    for (let i = G.waves.length - 1; i >= 0; i--) {
+      const w = G.waves[i], m = w.mesh; w.t += dt;
+      if (w.t < w.charge) {                                      // charging: a pulsing glow under the walker
+        if (w.e.state === 'dead') w.t = 99;
+        w.x = w.e.x; w.y = w.e.y; w.z = w.e.z; m.position.set(w.x, w.z + 0.02, w.y);
+        const k = w.t / w.charge; m.scale.setScalar(0.6 + 0.5 * k + Math.sin(w.t * 40) * 0.06); m.material.opacity = 0.35 + 0.6 * k;
+        if (w.t + dt >= w.charge && w.e.state !== 'dead') { Sound.play('quake', distVol(w.x, w.y)); G.shake = Math.max(G.shake || 0, Math.max(0, 0.5 - Math.hypot(G.px - w.x, G.py - w.y) * 0.08)); fire('quake', { x: w.x, y: w.y, sub: w.e.sub }); }
+        continue;
+      }
+      if (w.t > 50) { G.world.remove(m); m.material.dispose(); G.waves.splice(i, 1); continue; }   // walker died while charging
+      w.r += w.speed * dt; const k = w.r / w.max;
+      m.scale.setScalar(Math.max(0.01, w.r * 2 / 0.9)); m.material.opacity = Math.max(0, 1 - k * k) * 0.95;   // band sits at 90% of the texture radius
+      const d = Math.hypot(G.px - w.x, G.py - w.y);
+      if (!w.hit && Math.abs(d - w.r) < 0.32 && state === 'playing') {   // the ring is passing under you
+        const grounded = G.onGround && Math.abs(G.pz - w.z) < 0.3, dashing = G.dashT > 0;
+        if (grounded && !dashing && los(w.x, w.y, G.px, G.py)) { w.hit = true; damagePlayer(w.dmg * diff().dmg, w.x, w.y); fire('quakeHit', { dmg: w.dmg }); }
+        else if (d < w.r) w.hit = true;                           // cleared it (jumped / dashed): it can't hit you on the way out
+      }
+      if (w.r >= w.max) { G.world.remove(m); m.material.dispose(); G.waves.splice(i, 1); }
+    }
+  }
   let shadowTex = null;
   const shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);   // flat on the floor, 1 x 1 m before scaling
   function contactShadow(def) {                                  // a soft dark disc that follows one enemy
@@ -2782,7 +3045,7 @@ function play(container, project, opts) {
       scaleProjMesh(p.mesh, p.baseScale || p.mesh.userData.baseScale || 1, p.x, p.y, p.z);
     }
     updateGrenades(dt);
-    updateContactShadows(); updateLightFx(dt);                   // 1.6.1: runs wherever the game logic steps
+    updateContactShadows(); updateLightFx(dt); updateTracers(dt); updateBeams(dt); updateWaves(dt);   // 1.6.1 (+ 1.3.2 tracers, beams, waves): runs wherever the game logic steps
   }
   /* ---------- 1.3.0: sidewinder rocket trail ----------
      The rocket's drawn position corkscrews around its true flight line (hits still use the
@@ -3152,7 +3415,7 @@ function play(container, project, opts) {
         showWarpTelegraph(dest.x, dest.y, dest.z + 0.02);
         e.state = 'warping'; e.t = 0; e.warpTo = dest; e.warpCd = (def.warpCd || 7) * rand(0.85, 1.15);
         fire('boss_warp', { x: e.x, y: e.y, z: e.z, tx: dest.x, ty: dest.y, tz: dest.z });
-      } else if (def.speed > 0 && dist > 1.5) {
+      } else if (def.speed > 0 && dist > (def.closeR || 1.5)) {   // 1.6.2: closeR = how near he walks up (a taller boss stops further out so he stays in frame)
         const mx = dx, my = dy, ml = Math.hypot(mx, my) || 1, sp = def.speed * diff().speed * dt;
         const nx = e.x + mx / ml * sp, ny = e.y + my / ml * sp;
         if (!blocked(nx, e.y, e.z, def.r * 0.85, false, e)) e.x = nx;
@@ -3195,6 +3458,8 @@ function play(container, project, opts) {
       }
       const dx = G.px - e.x, dy = G.py - e.y, dist = Math.hypot(dx, dy);
       const see = dist < 18 && los(e.x, e.y, G.px, G.py);
+      if (def.bossMusic && !G.bossMet && see && dist < def.range + 2) meetBoss(e);   // 1.3.2: boss spotted you -> boss music
+      if (def.shockwave && e.state !== 'idle') updateQuakes(e, def.shockwave, dt, see, dist);   // 1.3.2: walkers slam a floor wave now and then
       e.flashT = Math.max(0, e.flashT - dt); e.cd -= dt; e.moving = false;
       if (e.state === 'idle') { if ((dist < 2.5 + (input.run ? 2.5 : 0) && Math.hypot(G.vx, G.vy) > 1.1 && los(e.x, e.y, G.px, G.py) || dist < 1.5) || see && (dist < 6 || ((dx * Math.cos(e.ang) + dy * Math.sin(e.ang)) / dist > -0.2 && dist < 15))) alert(e); }
       else if (e.state === 'pain') { e.t -= dt; if (e.t <= 0) e.state = 'chase'; }
@@ -3209,14 +3474,20 @@ function play(container, project, opts) {
       else if (e.state === 'attack') {
         e.t -= dt; e.ang = Math.atan2(dy, dx);
         if (e.t <= 0) {
-          const mz = e.z + (def.hover || def.h * 0.62) + liftOf(def);   // lifted troopers shoot from chest height
-          for (let s = 0; s < def.shots; s++) {
-            const tz = G.pz + 0.45, d3 = Math.hypot(dx, dy, tz - mz), sp = def.proj === 'rocket' ? 5.5 : 6.5;
-            const spr = def.shots > 1 ? (s - (def.shots - 1) / 2) * 0.12 : rand(-0.04, 0.04), a = Math.atan2(dy, dx) + spr;
+          let mz = e.z + (def.hover || def.h * 0.62) + liftOf(def);   // lifted troopers shoot from chest height
+          const mp = def.gunAnim ? gunFire(e) : null;             // 1.3.2: gunners fire from their rifle tip (+ flash, recoil, tracer)
+          if (mp) mz = mp.z;
+          if (isBeam(def.proj)) {                                   // 1.3.2: lightning / laser beam from the gun, then the normal cooldown
+            const a = Math.atan2(dy, dx); fireBeam(e, def.proj, mp ? mp.x : e.x + Math.cos(a) * 0.3, mp ? mp.y : e.y + Math.sin(a) * 0.3, mz);
+          } else for (let s = 0; s < def.shots; s++) {
+            const ox = mp ? mp.x : e.x, oy = mp ? mp.y : e.y, ddx = G.px - ox, ddy = G.py - oy, dd = Math.hypot(ddx, ddy) || 1;   // aim from where the shot starts
+            const tz = G.pz + 0.45, d3 = Math.hypot(ddx, ddy, tz - mz), sp = def.proj === 'rocket' ? 5.5 : 6.5;
+            const spr = def.shots > 1 ? (s - (def.shots - 1) / 2) * 0.12 : rand(-0.04, 0.04), a = Math.atan2(ddy, ddx) + spr;
             const off = e.sub === 'titan' ? (s ? 0.45 : -0.45) : 0;
-            spawnProj('enemy', def.proj, e.x + Math.cos(a) * 0.35 - Math.sin(a) * off, e.y + Math.sin(a) * 0.35 + Math.cos(a) * off, mz + (e.sub === 'titan' ? 0.4 : 0), Math.cos(a) * dist / d3, Math.sin(a) * dist / d3, (tz - mz) / d3, sp, def.dmg * diff().dmg, def.proj === 'rocket' ? 1.4 : 0);
+            const fwd = mp ? 0 : 0.35;                                // the rifle tip is already in front of the body
+            spawnProj('enemy', def.proj, ox + Math.cos(a) * fwd - Math.sin(a) * off, oy + Math.sin(a) * fwd + Math.cos(a) * off, mz + (e.sub === 'titan' ? 0.4 : 0), Math.cos(a) * dd / d3, Math.sin(a) * dd / d3, (tz - mz) / d3, sp, def.dmg * diff().dmg, def.proj === 'rocket' ? 1.4 : 0);
           }
-          Sound.play(def.proj === 'rocket' ? 'rocket' : 'bolt', distVol(e.x, e.y));
+          if (!isBeam(def.proj)) Sound.play(def.proj === 'rocket' ? 'rocket' : 'bolt', distVol(e.x, e.y));   // beams play their own zap / zip
           e.cd = def.cd * diff().cd * rand(0.8, 1.3); e.state = 'chase';
         }
       } else if (e.state === 'chase') {
@@ -3225,7 +3496,7 @@ function play(container, project, opts) {
         if (def.speed > 0 && e.sub !== 'titan' && e.hurtT > def.hp * diff().hp * (S.difficulty === 'hard' ? 0.25 : 0.4)) { e.hurtT = 0; const c = findCover(e); if (c) { e.state = 'cover'; e.recover = false; e.cover = c; e.coverT = rand(1.4, 2.6); } }
         e.strafeT -= dt; if (e.strafeT <= 0) { if (!e.flank) e.strafe = -e.strafe; e.strafeT = rand(0.7, 1.8); }
         if (e.flank && e.strafe !== e.flank && e.strafeT > 0.3) e.strafe = e.flank;
-        if (see && dist < def.range && e.cd <= 0) { e.state = 'attack'; e.t = def.proj === 'rocket' ? 0.6 : 0.4; }
+        if (see && dist < def.range && e.cd <= 0) { e.state = 'attack'; e.t = def.proj === 'rocket' ? 0.6 : 0.4; e.t0 = e.t; e.aim = { x: G.px, y: G.py, z: G.pz + 0.45 }; }   // t0: windup length (gunAnim); aim: beam lock
         else if (def.speed > 0 && see && dist < def.range && e.sub !== 'titan') {
           // in range but reloading: strafe sideways (and keep a little distance) instead of standing still
           const px = -dy / dist, py = dx / dist, back = dist < 2.5 ? -0.7 : e.flank ? (dist > 3.5 ? 0.3 : 0) : dist > def.range * 0.7 ? 0.5 : 0;
@@ -3269,6 +3540,7 @@ function play(container, project, opts) {
       const want = Math.atan2(Math.cos(e.ang), Math.sin(e.ang));
       let dAng = want - m.rotation.y; while (dAng > Math.PI) dAng -= Math.PI * 2; while (dAng < -Math.PI) dAng += Math.PI * 2;
       m.rotation.y += dAng * Math.min(1, dt * 10);
+      if (def.gunAnim && ud.glb) gunPose(e, ud, def.gunAnim, dt, time);   // 1.3.2: windup / recoil / breathing / flinch
       // animation
       ud.phase += dt * (e.moving ? def.speed * 5 : 1);
       if (ud.proc.userData.legs) ud.proc.userData.legs.forEach((leg, i) => { leg.rotation.x = e.moving ? Math.sin(ud.phase + i * Math.PI) * 0.5 : 0; });
@@ -3356,14 +3628,16 @@ function play(container, project, opts) {
     const k = Math.min(1, dt * 9); G.swX += (clamp(-dYaw * 1.6, -0.05, 0.05) - G.swX) * k; G.swY += (clamp((G.pitch - G.prevPitch) * 1.6, -0.04, 0.04) - G.swY) * k;
     G.prevYaw = G.yaw; G.prevPitch = G.pitch;
     const sway = Math.sin(G.bob * 0.5) * 0.012 + G.swX, lift = Math.abs(Math.cos(G.bob * 0.5)) * 0.01 - G.swY;
-    wm.position.set(0.14 + sway, -0.15 - lift - G.switchT * 0.8 - G.recoil * 0.01, -0.36 + G.recoil * 0.05);
+    const side = handSide();                                       // 1.3.2: -1 = left hand (Pro's other weapons), 1 = right
+    wm.scale.x = side * Math.abs(wm.scale.z);                      // mirror the model, keeping its size (three.js flips the face winding itself)
+    wm.position.set(side * (0.14 + (side < 0 ? G.switchT * 0.9 : 0)) + sway, -0.15 - lift - G.switchT * 0.8 - G.recoil * 0.01, -0.36 + G.recoil * 0.05);   // swings in from the left
     wm.rotation.set(G.recoil * 0.12 + (G.cur === 0 && G.recoil > 0 ? G.recoil * -0.9 : 0) + G.swY * 2, G.swX * 3, -G.swX * 2);
     const rl = G.reloadT > 0 ? Math.sin(Math.PI * (1 - G.reloadT / G.reloadMax)) : 0;   // dip + tilt while reloading
-    if (rl) { wm.position.y -= rl * 0.13; wm.rotation.x -= rl * 0.35; wm.rotation.z = rl * 0.6; }
+    if (rl) { wm.position.y -= rl * 0.13; wm.rotation.x -= rl * 0.35; wm.rotation.z = rl * 0.6 * side; }
     updateShells(dt);
     if (wm.userData.flash.visible && G.recoil < 0.7) wm.userData.flash.visible = false;
     if (wm.userData.glowMats) { const gk = G.recoil * 0.2; wm.userData.glowMats.forEach(m => m.emissive.setRGB(0.1 * gk, 0.6 * gk, 0.8 * gk)); }  // cyan glow fades with the recoil
-    wMuzzle.position.set(0.16, -0.12, -0.7);
+    wMuzzle.position.set(0.16 * side, -0.12, -0.7);
     renderer.clear();
     renderer.render(G.scene, camera);
     renderer.clearDepth();
@@ -3416,7 +3690,7 @@ function play(container, project, opts) {
   let bigMapT = 0;
   function showBigMap(on) {
     bigMap.style.display = on ? 'flex' : 'none';
-    const mb = touch.querySelector('.dfg-tb.map'); if (mb) mb.classList.toggle('on', !!on);
+    miniCv.classList.toggle('on', !!on); miniCv.setAttribute('aria-label', on ? 'Close the map' : 'Open the map');   // 1.3.2: the minimap is the button
     if (on) drawBigMap();
   }
   function drawBigMap() {
@@ -3469,7 +3743,8 @@ function play(container, project, opts) {
       h = `<h1>MUSIC</h1><h2>${TP.failed || !usePack ? 'Tracks unavailable offline — using synth' : 'Tap a track to play it'}</h2><div class="dfg-tracks">` +
         MUSIC_TRACKS.map((t, i) => `<button class="dfg-trk${curId === t.id ? ' on' : ''}" data-a="track" data-i="${i}"><b>${esc(t.title)}</b><span>${esc(t.artist)} · ${esc(t.genre)} · ${esc(t.license)}</span></button>`).join('') +
         `<button class="dfg-trk${curId === 'synth' ? ' on' : ''}" data-a="track" data-i="-1"><b>Synth ambient</b><span>${opts.gameName ? 'DMB Tech 1' : 'RetroEngine'} generative music · built in</span></button></div>` +
-        `<p style="font-size:11px;opacity:.6;line-height:1.5">Music licensed under Creative Commons Attribution 4.0 (creativecommons.org/licenses/by/4.0). Kevin MacLeod — incompetech.com · Shane Ivers — silvermansound.com</p><button class="dfg-btn pri" data-a="back">Back</button>`;
+        // 1.6.2: a game with its own tracks (Pro) sets opts.musicNote for this footer; the editor keeps its CC BY credit line
+        `<p style="font-size:11px;opacity:.6;line-height:1.5">${esc(opts.musicNote || 'Music licensed under Creative Commons Attribution 4.0 (creativecommons.org/licenses/by/4.0). Kevin MacLeod — incompetech.com · Shane Ivers — silvermansound.com')}</p><button class="dfg-btn pri" data-a="back">Back</button>`;
     } else if (kind === 'settings') {
       const r = (k, lab, min, max, step) => `<div class="dfg-row"><span>${lab}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${S[k]}"></div>`;
       const c = (k, lab) => `<div class="dfg-row"><span>${lab}</span><input type="checkbox" data-k="${k}" ${S[k] ? 'checked' : ''}></div>`;
@@ -3583,7 +3858,7 @@ function play(container, project, opts) {
   const onLockChange = () => { if (!document.pointerLockElement && state === 'playing' && !isTouch && lockedOnce && !opts.noUnlockPause) pause(); if (document.pointerLockElement) lockedOnce = true; };
   let lockedOnce = false;
   document.addEventListener('pointerlockchange', onLockChange);
-  topBtns.addEventListener('click', ev => { const b = ev.target.closest('[data-b]'); if (!b || !G) return; const k = b.dataset.b; if (k === 'pause') { if (state === 'playing') pause(); } else if (k === 'map') showBigMap(bigMap.style.display !== 'flex'); else if (k === 'light') G.flashOn = !G.flashOn; else if (k === 'fs') toggleFullscreen(); });
+  topBtns.addEventListener('click', ev => { const b = ev.target.closest('[data-b]'); if (!b || !G) return; const k = b.dataset.b; if (k === 'pause') { if (state === 'playing') pause(); } else if (k === 'light') G.flashOn = !G.flashOn; else if (k === 'fs') toggleFullscreen(); });
   // Full screen hides the phone's address bar. On Android also try to lock landscape (ignored where unsupported).
   function toggleFullscreen() {
     if (!FS.ok()) return false;
@@ -3605,7 +3880,7 @@ function play(container, project, opts) {
       if (btn) {
         const k = btn.dataset.t; btn.classList.add('down');
         if (k === 'fire') { input.fire = true; input.fireTap = performance.now(); fireTouch = { id: t.identifier, x: t.clientX, y: t.clientY, btn }; }
-        else if (k === 'jump') input.jump = true; else if (k === 'use') input.use = true; else if (k === 'swap') cycleWeapon(1); else if (k === 'reload') input.reload = true; else if (k === 'nade') throwGrenade(); else if (k === 'map') { showBigMap(bigMap.style.display !== 'flex'); }
+        else if (k === 'jump') input.jump = true; else if (k === 'use') input.use = true; else if (k === 'swap') cycleWeapon(1); else if (k === 'reload') input.reload = true; else if (k === 'nade') throwGrenade();
         else if (k === 'run') { input.run = !input.run; btn.classList.toggle('on', input.run); }
         if (k !== 'fire') setTimeout(() => btn.classList.remove('down'), 120);
         continue;
@@ -3695,7 +3970,7 @@ function play(container, project, opts) {
     remoteFx(m) { return remoteFx(m); }, setCombat(on) { if (G) G.combat = !!on; }, throwGrenade: () => throwGrenade(), explode: (x, y, z, dmg, rad, owner, src) => explode(x, y, z, dmg, rad, owner, src),
     spawnGrenade: (o, x, y, z, vx, vy, vz) => spawnGrenade(o, x, y, z, vx, vy, vz), showBigMap: on => showBigMap(on), get bigMapOpen() { return bigMap.style.display === 'flex'; },
     destroy() {
-      destroyed = true; if (activeSession === session) activeSession = null; remotes.slice().forEach(r => { try { r.dispose(); } catch (e) {} }); cancelAnimationFrame(raf); Sound.music(false); if (TP.audio) { TP.audio.pause(); TP.audio.removeAttribute('src'); }
+      destroyed = true; if (activeSession === session) activeSession = null; remotes.slice().forEach(r => { try { r.dispose(); } catch (e) {} }); cancelAnimationFrame(raf); clearInterval(TP.fadeI); Sound.music(false); if (TP.audio) { TP.audio.pause(); TP.audio.removeAttribute('src'); }
       window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp);
       window.removeEventListener('resize', resize); window.removeEventListener('orientationchange', onOrient); if (window.visualViewport) window.visualViewport.removeEventListener('resize', onOrient); if (FS.el()) FS.exit(); document.removeEventListener('pointerlockchange', onLockChange); document.removeEventListener('visibilitychange', onVis);
       if (ro) ro.disconnect(); if (document.pointerLockElement) document.exitPointerLock();

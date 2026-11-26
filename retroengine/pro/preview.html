@@ -32,7 +32,7 @@
   <p id="stats"></p>
 </div>
 <script type="module">
-  import { mountPro } from './viewer.js?v=1.6.1';                // the shared turntable (1.6.1: cache-busted)
+  import { mountPro } from './viewer.js?v=1.6.2';                // the shared turntable (1.6.1: cache-busted)
   const part = new URLSearchParams(location.search).get('part');  // ?part=cannon shows just his arm cannon (the in-game view model)
   const MODELS = { cannon: 'assets/pro_cannon.glb', enemy: 'assets/pro_enemy.glb', drone: 'assets/bot_drone.glb',
     minotaur: 'assets/pro_minotaur.glb', sentinel: 'assets/pro_sentinel.glb' };   // 1.6.0 Meshy drop-ins  // ?part=enemy = the red twin-cannon trooper

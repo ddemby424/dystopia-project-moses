@@ -1,9 +1,10 @@
 {
   "id": "pro",
   "name": "PRO",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "saveKey": "retroengine.pro.campaign.v2",
   "legacySaveKeys": ["retroengine.pro.campaign.v1"],
+  "_sizes": "1.6.2 enemy sizes. A DMB Tech 1 map unit is about 1.76 m: Pro's chapters have 1.55-1.9 unit ceilings (about 2.7-3.3 m) and the player's eye is 0.62. Model 'h' is the height in units: sentinel 1.02 (1.8 m), trooper 0.99 (1.75 m) floating 0.2 up, drone 0.42 (0.74 m), Warden 1.25 (2.2 m), Minotaur 1.75 (3.1 m, towering over his throne; closeR 2.3 makes him stop 2.3 away, where the 75-degree view fits his horns below the HUD even on his dais, and meleeR 2.4 lets his long arms still reach you). 'maxW' caps the width so nothing is wider than a corridor.",
   "viewModel": {
     "slot": "weapon_1",
     "src": "assets/pro_cannon.glb",
@@ -60,7 +61,8 @@
           "every": 1
         }
       ],
-      "track": "pro_ghetto_shit"
+      "track": "pro_old_school_flavor",
+      "bossTrack": "pro_bass_angel"
     },
     {
       "slug": "cellblock-yard",
@@ -91,7 +93,8 @@
           "every": 2,
           "nearest": 0
         }
-      ]
+      ],
+      "bossTrack": "pro_bass_angel"
     },
     {
       "slug": "drainworks-overflow",
@@ -123,7 +126,8 @@
           "nearest": 0
         }
       ],
-      "track": "pro_ghetto_shit"
+      "track": "pro_old_school_flavor",
+      "bossTrack": "pro_bass_angel"
     },
     {
       "slug": "plant4-lockdown",
@@ -159,7 +163,8 @@
           "to": "warden",
           "every": 1
         }
-      ]
+      ],
+      "bossTrack": "pro_bass_angel"
     },
     {
       "slug": "nightwatch-helipad",
@@ -191,7 +196,8 @@
           "nearest": 0
         }
       ],
-      "track": "pro_ghetto_shit"
+      "track": "pro_old_school_flavor",
+      "bossTrack": "pro_bass_angel"
     },
     {
       "slug": "catacomb-relay",
@@ -211,7 +217,8 @@
           "every": 1,
           "nearest": 1
         }
-      ]
+      ],
+      "bossTrack": "pro_bass_angel"
     },
     {
       "slug": "marble-shrine",
@@ -272,16 +279,17 @@
       "dmg": 8,
       "cd": 1.4,
       "shots": 1,
-      "h": 1.15,
+      "h": 0.98,
       "r": 0.3,
       "score": 300,
       "proj": "redring",
-      "lift": 0.42,
-      "bob": 0.07,
+      "lift": 0.2,
+      "bob": 0.05,
       "model": {
         "src": "pro/assets/pro_enemy.glb",
-        "h": 1.15,
-        "tint": 1
+        "h": 0.99,
+        "tint": 1,
+        "maxW": 0.9
       }
     },
     "ddrone": {
@@ -292,16 +300,17 @@
       "dmg": 6,
       "cd": 1.1,
       "shots": 1,
-      "h": 0.5,
-      "r": 0.28,
+      "h": 0.4,
+      "r": 0.24,
       "score": 120,
       "proj": "plasma",
       "hover": 0.72,
       "bob": 0.14,
       "model": {
         "src": "pro/assets/bot_drone.glb",
-        "h": 0.56,
-        "tint": 0.85
+        "h": 0.42,
+        "tint": 0.85,
+        "maxW": 0.5
       }
     },
     "sentinel": {
@@ -312,14 +321,20 @@
       "dmg": 7,
       "cd": 1.6,
       "shots": 3,
-      "h": 1.6,
-      "r": 0.38,
+      "h": 0.98,
+      "r": 0.32,
       "score": 400,
       "proj": "bolt",
       "model": {
         "src": "pro/assets/pro_sentinel.glb",
-        "h": 1.7,
-        "tint": 0.9
+        "h": 1.02,
+        "tint": 0.9,
+        "maxW": 0.82
+      },
+      "gunAnim": {
+        "muzzle": [0.274, 0.398, 0.193],
+        "lean": 0.14,
+        "kick": 0.26
       }
     },
     "warden": {
@@ -330,29 +345,71 @@
       "dmg": 22,
       "cd": 1.9,
       "shots": 2,
-      "h": 1.95,
-      "r": 0.45,
+      "h": 1.2,
+      "r": 0.4,
       "score": 2000,
       "proj": "rocket",
       "model": {
         "src": "pro/assets/pro_sentinel.glb",
-        "h": 2.1,
-        "tint": 0.75
+        "h": 1.25,
+        "tint": 0.75,
+        "maxW": 0.96
+      },
+      "bossMusic": true,
+      "gunAnim": {
+        "muzzle": [0.274, 0.398, 0.193],
+        "lean": 0.14,
+        "kick": 0.32,
+        "glow": 1.4
       }
     },
     "minotaur": {
-      "h": 2.8,
-      "r": 0.6,
+      "h": 1.7,
+      "r": 0.55,
+      "closeR": 2.3,
+      "meleeR": 2.4,
       "model": {
         "src": "pro/assets/pro_minotaur.glb",
-        "h": 2.9,
-        "tint": 0.95
+        "h": 1.75,
+        "tint": 0.95,
+        "maxW": 1.6
+      }
+    }
+  },
+  "enemyMods": {
+    "_about": "1.6.2 powers for the stock enemies in Pro's maps (Pro's runtime only; the editor's enemies are unchanged).",
+    "grunt": {
+      "proj": "zap"
+    },
+    "turret": {
+      "proj": "laser"
+    },
+    "heavy": {
+      "shockwave": {
+        "every": [4, 8],
+        "radius": 3.4,
+        "speed": 3.2,
+        "dmg": 14,
+        "charge": 0.55,
+        "color": 16752704
+      }
+    },
+    "titan": {
+      "bossMusic": true,
+      "shockwave": {
+        "every": [3.5, 6.5],
+        "radius": 4.2,
+        "speed": 3.6,
+        "dmg": 20,
+        "charge": 0.65,
+        "color": 16752704
       }
     }
   },
   "assetHooks": {
-    "_about": "Drop a file in pro/assets/ and Pro uses it automatically on the next load. Missing files are skipped.",
+    "_about": "Drop a file in pro/assets/, set its \"enabled\" to true, and Pro uses it on the next load (1.6.2: disabled hooks are never requested, so there are no 404s).",
     "prop_pro_prop": {
+      "enabled": false,
       "src": "pro/assets/pro_prop.glb",
       "h": 1.2,
       "tint": 1,
@@ -360,12 +417,21 @@
     }
   },
   "music": {
-    "_about": "Darcy D. Demby's own tracks, added to Pro's music player. A level's 'track' picks what plays there.",
+    "_about": "Darcy D. Demby's own tracks, added to Pro's music player. A level's 'track' plays there; its 'bossTrack' takes over when you meet a boss.",
     "tracks": [
       {
-        "id": "pro_ghetto_shit",
-        "file": "pro/assets/music/ghetto_shit.mp3",
-        "title": "Ghetto Shit",
+        "id": "pro_bass_angel",
+        "file": "pro/assets/music/bass_angel.mp3",
+        "title": "Bass Angel",
+        "artist": "Darcy D. Demby",
+        "genre": "Hip-hop",
+        "license": "© Darcy D. Demby (DembySoftwareSystems)",
+        "url": ""
+      },
+      {
+        "id": "pro_old_school_flavor",
+        "file": "pro/assets/music/old_school_flavor.mp3",
+        "title": "Old School Flavor",
         "artist": "Darcy D. Demby",
         "genre": "Hip-hop",
         "license": "© Darcy D. Demby (DembySoftwareSystems)",

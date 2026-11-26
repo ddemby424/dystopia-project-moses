@@ -1,12 +1,12 @@
 // PRO — a standalone game powered by DMB Tech 1 (seven chapters, Lab -> Marble Shrine -> broadcast).
-// 1.6.1: every local import carries ?v=1.6.1 so phones never mix a cached old module with new ones.
+// 1.6.1: every local import carries ?v=1.6.2 so phones never mix a cached old module with new ones.
 // This page only *hosts* DMB Tech 1: it loads the seven chapter maps, adds story cards between them,
 // seals each exit until that level's goal is met, and saves how far you got in localStorage.
-import { createRuntime } from '../dmbtech1.js?v=1.6.1';          // the DMB Tech 1 engine (same file the editor uses)
-import { mountPro } from './viewer.js?v=1.6.1';                  // Pro's turntable for the intro and ending cards
-import { sprayTitle } from './spray.js?v=1.6.1';                 // spray-paints the PRO title on the splash
-import { installJuice } from './juice.js?v=1.6.1';
-import { initInstall, onInstallChange, isInstalled, canPrompt, installSteps, promptInstall } from './install.js?v=1.6.1';   // 1.6.1: Play Online / Install App               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
+import { createRuntime } from '../dmbtech1.js?v=1.6.2';          // the DMB Tech 1 engine (same file the editor uses)
+import { mountPro } from './viewer.js?v=1.6.2';                  // Pro's turntable for the intro and ending cards
+import { sprayTitle } from './spray.js?v=1.6.2';                 // spray-paints the PRO title on the splash
+import { installJuice } from './juice.js?v=1.6.2';
+import { initInstall, onInstallChange, isInstalled, canPrompt, installSteps, promptInstall } from './install.js?v=1.6.2';   // 1.6.1: Play Online / Install App               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
 
 initInstall();                                           // 1.6.1: catch beforeinstallprompt early + register sw.js
 const RT = createRuntime();                              // one engine instance for the whole campaign
@@ -82,6 +82,8 @@ function startAt(index) {
     gameName: 'Pro',                                          // 1.5.1: engine screens say Pro / DMB Tech 1, never the editor's name
     exitGate,                                                 // our per-level seal (see above)
     ringShots: true,                                          // Pro's cannon fires glowing cyan energy rings
+    offHand: 1,                                               // 1.6.2: the arm cannon is his right arm; every other weapon is held left-handed
+    musicNote: 'Music © Darcy D. Demby (DembySoftwareSystems). All rights reserved; used in Pro with permission.',   // 1.6.2: music player footer credits Darcy, not the editor's CC BY pack
     quitLabel: 'Campaign menu',
     onQuit: () => { if (handle) { JUICE.detach(); handle.destroy(); handle = null; } titleCard(); },
     onEvent: (ev, arg) => { JUICE.onEvent(ev, arg); if (ev === 'won') levelDone(arg); }  // 'won' fires when you step on an open exit pad
@@ -172,9 +174,14 @@ function registerProEnemies() {
     RT.registerEnemy(Object.assign({ id }, def));             // e.g. trooper: lift 0.42 = floats, proj 'redring' = crimson rings
     if (d.model) RT.ASSET_PACK['enemy_' + id] = Object.assign({}, d.model);  // src is relative to assetBase '../'
   }
+  // 1.6.2: stock enemies get Pro's powers (soldiers shoot blue lightning, turrets fire lasers, ball walkers slam floor waves).
+  // RT is Pro's own runtime copy, so the editor's enemies never change.
+  for (const [id, mod] of Object.entries(CFG.enemyMods || {})) if (id[0] !== '_' && RT.ENEMY_DEFS[id]) Object.assign(RT.ENEMY_DEFS[id], mod);
   if (!RT.PROP_DEFS.pro_prop) RT.PROP_DEFS.pro_prop = { name: 'Community model', solid: 0.3 };  // slot used by chapter 6
-  // Darcy's own tracks join this runtime's music player (the editor's list is untouched).
-  ((CFG.music && CFG.music.tracks) || []).forEach(t => { if (!RT.MUSIC_TRACKS.some(x => x.id === t.id)) RT.MUSIC_TRACKS.push(Object.assign({}, t)); });
+  // 1.6.2: Pro's music player is Darcy's tracks only (Bass Angel, Old School Flavor, Jungle Slap).
+  // This runtime has its own MUSIC_TRACKS array, so the editor's CC BY list is untouched.
+  const proTracks = ((CFG.music && CFG.music.tracks) || []).map(t => Object.assign({}, t));   // copies, in campaign.json order
+  if (proTracks.length) RT.MUSIC_TRACKS.splice(0, RT.MUSIC_TRACKS.length, ...proTracks);       // replace the list in place (the runtime holds this array)
 }
 // Swap stock enemies for Pro's: every Nth one, plus the N nearest the start (so you meet them right away).
 function swapEnemies(level, rules) {
@@ -187,7 +194,7 @@ function swapEnemies(level, rules) {
 }
 // Asset hooks: if a file exists in pro/assets/, use it for that slot (e.g. pro_minotaur.glb for the shrine boss).
 async function applyAssetHooks() {
-  const hooks = Object.entries(CFG.assetHooks || {}).filter(([k]) => k[0] !== '_');
+  const hooks = Object.entries(CFG.assetHooks || {}).filter(([k, v]) => k[0] !== '_' && v.enabled !== false);   // 1.6.2: disabled hooks are not even asked for (no 404)
   await Promise.all(hooks.map(async ([slot, spec]) => {
     try { const r = await fetch('../' + spec.src, { method: 'HEAD' }); if (!r.ok) return; } catch (e) { return; }   // not dropped in yet
     RT.ASSET_PACK[slot] = Object.assign({}, RT.ASSET_PACK[slot] || {}, spec);
@@ -236,6 +243,7 @@ async function boot() {
       level.name = lv.name;                                   // show the chapter name in the HUD
       if (lv.swap) swapEnemies(level, lv.swap);               // put Pro's enemies into the stock maps
       if (lv.track) level.props = Object.assign({}, level.props, { track: lv.track });   // e.g. Jungle Slap for the Minotaur
+      if (lv.bossTrack) level.props = Object.assign({}, level.props, { bossTrack: lv.bossTrack });   // 1.6.2: Bass Angel takes over when you meet a boss
       (lv.nudge || []).forEach(n => level.ents.forEach(e => {  // move an entity a little, e.g. the tall Minotaur steps off his throne
         if (e.t === 'enemy' && e.s === n.s) { e.x += n.dx || 0; e.y += n.dy || 0; }
       }));

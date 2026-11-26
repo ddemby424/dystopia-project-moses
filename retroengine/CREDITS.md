@@ -127,13 +127,14 @@ The glowing Sgt. chevrons on Pro's suit, the trooper's thruster flame, the crims
 
 The ring projectiles, story cards, broadcast screen, splash screen, spray-paint title animation, ion-charge effect, splash art (rendered from the suit above) and home-screen icons are original work. The splash title and engine badge use **Black Ops One** (James Grieshaber, SIL Open Font License 1.1, Google Fonts: https://fonts.google.com/specimen/Black+Ops+One).
 
-## PRO campaign music (1.6.0)
+## PRO campaign music (1.6.2)
 | Track | File | Artist | License |
 |---|---|---|---|
+| Bass Angel (boss music: takes over when you meet a boss in chapters 1–6, such as the Warden) | `pro/assets/music/bass_angel.mp3` | **Darcy D. Demby (DembySoftwareSystems)** | © Darcy D. Demby. All rights reserved, used in Pro with his permission |
+| Old School Flavor (plays in chapters 1, 3 and 5) | `pro/assets/music/old_school_flavor.mp3` | **Darcy D. Demby (DembySoftwareSystems)** | © Darcy D. Demby. All rights reserved, used in Pro with his permission |
 | Jungle Slap (plays in chapter 7, The Marble Shrine) | `pro/assets/music/jungle_slap.mp3` | **Darcy D. Demby (DembySoftwareSystems)** | © Darcy D. Demby. All rights reserved, used in Pro with his permission |
-| Ghetto Shit (plays in chapters 1, 3 and 5, and can be picked in the music player) | `pro/assets/music/ghetto_shit.mp3` | **Darcy D. Demby (DembySoftwareSystems)** | © Darcy D. Demby. All rights reserved, used in Pro with his permission |
 
-Both were re-encoded to 128 kbps MP3 for the web. They are only in Pro's music list, not the editor's.
+All three are re-encoded to 128 kbps MP3 for the web, and all three can be picked any time in Pro's music player. They are only in Pro's music list, not the editor's.
 
 ## Props, pickups, turret, effects and sound: original
 The **med cabinet**, **extinguisher**, **generator**, **floor lamp**, traffic cone, debris and sandbags, plus every pickup, keycard, the Sentry Turret, the fallback enemy robots, particles and every sound effect, are built or synthesized by DMB Tech 1 (WebAudio for sound). Those procedural prop meshes also stay on screen if a GLB above fails to load. No sound files are used except the music above.

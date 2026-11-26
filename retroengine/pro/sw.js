@@ -1,8 +1,8 @@
-/* sw.js — Pro's service worker (1.6.1). Its job is to make Pro installable as an app, NOT to cache the game:
+/* sw.js — Pro's service worker (1.6.2). Its job is to make Pro installable as an app, NOT to cache the game:
    every request goes to the network as usual, so a phone can never get stuck on an old version.
    The only thing kept offline is the page itself, so an installed Pro opened without a connection shows
    its own splash instead of the browser's "no internet" page. */
-const SHELL = 'pro-shell-1.6.1';                                    // bump with each release; old copies are deleted
+const SHELL = 'pro-shell-1.6.2';                                    // bump with each release; old copies are deleted
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(SHELL).then(c => c.addAll(['./', 'index.html'])).catch(() => {}).then(() => self.skipWaiting()));
