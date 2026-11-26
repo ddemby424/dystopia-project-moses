@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.6.0 (2026-11-26): Pro grows to seven chapters, with new enemies and a new boss
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.6.0**), powered by DMB Tech 1 **1.3.0**.
+
+- **Sgt. chevrons on Pro's suit.** Both shoulder plates now carry classic three-stripe sergeant chevrons in glowing ion blue, the same blue as his visor and cannon charge. They are real geometry fitted to the armor (`pro/assets/pro_suit.glb`, now 31,232 triangles and 1.83 MB) and they breathe slowly on the splash screen, the story cards and the preview.
+- **Modern feel in Pro** (`pro/juice.js`, Pro only, nothing to download):
+  - **Gun feel.** A hitmarker tick and flash on every hit, red when it kills. The arm cannon kicks harder, impacts throw bright sparks, and a red wedge on the edge of the screen shows which way a hit came from.
+  - **Thruster dash.** Press **Shift** or **Q**, or tap the **DASH** button on a phone. You get a 0.18 s burst with a 0.9 s cooldown and a speed-line flash, which is enough to sidestep twin-cannon fire. Holding Shift still runs.
+  - **Combo rush.** DOUBLE KILL, TRIPLE KILL, QUAD KILL and RAMPAGE callouts, a kill feed, a crimson shatter burst when an enemy dies, and glowing health and shield orbs (+10) that pop out of the fallen. Orbs don't count toward the map's item total.
+  - **Pro HUD.** Slim health and shield bars, ammo pips under the crosshair (a recharge bar for the endless cannon), and a compass bar at the top with an objective marker. Under it, a waypoint arrow shows the distance to the next key, target, boss or exit. The engine's light, map, full-screen and pause buttons move to a row under the minimap.
+  - **Audio punch.** Web Audio sounds made in code: ring-cannon fire and recharge, a thruster hum when hovering enemies are close, the hitmarker tick, a dash whoosh, and a low thump on heavy hits. They follow your volume and SFX settings.
+- DMB Tech 1 1.3.0 host hooks for this: `'hit'`, `'hurt'`, `'shot'` and `'dash'` events, and `handle.dash()`, `handle.spawnPickup()` and `handle.sparks()`. Nothing changes unless a host uses them.
+- **Seven chapters.** The Lab → The Yard → The Drains → The Factory → The Roof → **Catacomb Relay** (new) → The Marble Shrine, each with its own brief and between-chapter card.
+- **New map: Catacomb Relay** (`maps/catacomb-relay.retro`, 64×64). A start crypt, a bone corridor, an ossuary hall with pillars, a relay room full of servers and vats, and a marble antechamber that leads to the Shrine. The exit stays sealed until every twin-cannon trooper is dead. It is used by Pro only and isn't added to the editor's map pack.
+- **Twin-cannon troopers** (`pro/assets/pro_enemy.glb`, 19,865 triangles, 1.08 MB). Built from Pro's own suit in red and black. They hover on a glowing thruster under the down-pointing cannon, bob as they float, and fire crimson rings from the raised cannon.
+- **Dystopia drones** (`pro/assets/bot_drone.glb`, 104 KB, the site's "Bot Drone" by Dave404, CC BY 3.0). They fly at mid height, weave and fire plasma, and replace the gun drones in every chapter.
+- **Ballisticus sentinels** ("Ballisticus, the Living Armory" by Andfx, CC0, Meshy community; `pro/assets/pro_sentinel.glb`, 14,986 triangles, 1.16 MB, cut down from 3.1 M faces and 169 MB). They take over from the heavy walkers, with more of them in the Lab, the Factory and the Relay. The Warden in the Lab and the Factory's titan are now a big Ballisticus too.
+- **The Minotaur is AntiLegend's avatar** (`pro/assets/pro_minotaur.glb`, 21,708 triangles, 1.06 MB, cut down from 1.36 M faces and 53 MB). He stands 2.8 m tall in front of his throne in the Marble Shrine.
+- **Drop-in model slots.** Add `pro/assets/pro_prop.glb` and it shows up as the community model in the Relay. If the file isn't there, the slot is skipped.
+- Pro's enemies are registered on Pro's own runtime, and campaign.json decides which stock enemies get swapped out in each map. The editor's enemy list and maps don't change.
+- **DMB Tech 1 1.3.0.** Enemy defs can set `lift` (float above the floor with a full-height hitbox) and `bob`. A `jet_anchor` node in an enemy GLB gets a flickering thruster flame. Emissive textures in GLBs glow instead of being switched off. There is a new `redring` projectile.
+- **Multiplayer character picker previews.** Each model in the lobby now has a miniature card with a pre-rendered thumbnail (`assets/thumbs/*.webp`, about 6–12 KB each). The one you pick spins live in a small turntable, and only that model's GLB is loaded. The turntable stops when the lobby closes. If WebGL is off, a large thumbnail is shown instead.
+- `pro/preview.html?part=enemy|drone|minotaur|sentinel` shows each new model.
+
 ## 1.5.1 (2026-11-25): Pro stands on its own, powered by DMB Tech 1
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

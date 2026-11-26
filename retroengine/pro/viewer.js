@@ -32,7 +32,8 @@ export function mountPro(canvas, options) {
     controls.target.set(0, 0, 0);
   }
   let raf = 0, last = performance.now(), dead = false, clock = 0;
-  let charge = null;                                                  // the ion-charge effect (built after the model loads)
+  let charge = null;
+  const chev = [];                                                    // glowing Sgt. chevron materials (unlit)                                                  // the ion-charge effect (built after the model loads)
   function size() {                                                   // match the canvas's on-screen size
     const w = canvas.clientWidth || 300, h = canvas.clientHeight || 300;
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
@@ -47,6 +48,8 @@ export function mountPro(canvas, options) {
     const dt = Math.min(0.05, (t - last) / 1000); last = t;           // seconds since the last frame (capped)
     if (o.spin) pivot.rotation.y += o.spin * dt;                       // slow turntable
     clock += dt; if (charge) charge.update(clock);                     // pulse the cannon charge
+    const g = 0.82 + 0.18 * Math.sin(clock * 2.6);                     // slow ion-blue breathing on the chevrons
+    for (const cm of chev) { if (!cm.userData.c0) cm.userData.c0 = cm.color.clone(); cm.color.copy(cm.userData.c0).multiplyScalar(cm.name === 'chevron_halo' ? g * g : 0.85 + 0.25 * g); }
     if (controls) controls.update();
     size(); renderer.render(scene, camera);
     raf = requestAnimationFrame(frame);
@@ -58,11 +61,12 @@ export function mountPro(canvas, options) {
       m.scale.setScalar(s); m.position.copy(c).multiplyScalar(-s);     // middle of his body sits on the pivot
       pivot.add(m);
       if (o.charge) charge = buildCharge(m);                           // glow lives inside the model, so it spins with him
+      m.traverse(c => { if (c.isMesh && /^chevron_/.test(c.material.name)) { c.material.toneMapped = false; chev.push(c.material); } });  // no tone mapping: keep the blue saturated   // 1.6.0: Sgt. chevrons glow and pulse
       res(true);
     }, undefined, () => res(false));                                   // failure: resolve false so the page can say so
   });
   raf = requestAnimationFrame(frame);
-  return { ready, renderer, camera, pivot, get charge() { return charge; }, setSpin(v) { o.spin = v; }, dispose() { dead = true; cancelAnimationFrame(raf); if (controls) controls.dispose(); renderer.dispose(); } };
+  return { ready, renderer, camera, pivot, get charge() { return charge; }, get chevrons() { return chev; }, setSpin(v) { o.spin = v; }, dispose() { dead = true; cancelAnimationFrame(raf); if (controls) controls.dispose(); renderer.dispose(); } };
 }
 
 /* ---------- ion charge in the arm cannon (splash screen) ----------

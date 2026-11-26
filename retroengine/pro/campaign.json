@@ -1,9 +1,18 @@
 {
   "id": "pro",
   "name": "PRO",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "saveKey": "retroengine.pro.campaign.v1",
-  "viewModel": { "slot": "weapon_1", "src": "assets/pro_cannon.glb", "len": 0.62, "off": [0.02, -0.02, 0] },
+  "viewModel": {
+    "slot": "weapon_1",
+    "src": "assets/pro_cannon.glb",
+    "len": 0.62,
+    "off": [
+      0.02,
+      -0.02,
+      0
+    ]
+  },
   "intro": {
     "kicker": "PANDEMONIUM INC. HQ — SUBLEVEL 9",
     "title": "PRO",
@@ -19,33 +28,224 @@
       "slug": "site12-dataworks",
       "file": "site12-dataworks.retro",
       "name": "1 · The Lab",
-      "brief": "THE LAB. Their servers hold Project SEED, the chip grown from your brain scans. Fight out of the lab wing. The Warden, a Titan, carries the exit codes: put it down, then reach the south yard exit pad.",
-      "goal": { "type": "kill", "enemy": "titan", "msg": "EXIT SEALED — the Warden (Titan) still holds the codes" },
-      "after": "Project SEED files copied. Your scans. Their signatures. The only way out is through the holding yard."
+      "brief": "THE LAB. Their servers hold Project SEED, the chip grown from your brain scans. Fight out of the lab wing. The Warden, a walking Bulletforge armory, carries the exit codes: put it down, then reach the south yard exit pad.",
+      "goal": {
+        "type": "kill",
+        "enemy": "warden",
+        "msg": "EXIT SEALED — the Warden still holds the codes"
+      },
+      "after": "Project SEED files copied. Your scans. Their signatures. The only way out is through the holding yard.",
+      "swap": [
+        {
+          "from": "drone",
+          "to": "ddrone",
+          "every": 1
+        },
+        {
+          "from": "grunt",
+          "to": "trooper",
+          "every": 3,
+          "nearest": 2
+        },
+        {
+          "from": "heavy",
+          "to": "sentinel",
+          "every": 2,
+          "nearest": 1
+        },
+        {
+          "from": "titan",
+          "to": "warden",
+          "every": 1
+        }
+      ]
     },
     {
       "slug": "cellblock-yard",
       "file": "cellblock-yard.retro",
       "name": "2 · The Yard",
       "brief": "THE YARD. Test subjects were held here before you. None walked out. Take the yard key, then the red sally-port key. The exit pad stays sealed without it.",
-      "goal": { "type": "key", "key": "red", "msg": "EXIT SEALED — you need the red sally-port key" },
-      "after": "Cell logs recovered: names, dates, and the word DONOR on every file. Next: the factory where they build the soldiers."
+      "goal": {
+        "type": "key",
+        "key": "red",
+        "msg": "EXIT SEALED — you need the red sally-port key"
+      },
+      "after": "Cell logs recovered: names, dates, and the word DONOR on every file. The yard drains feed the plant's coolant tunnels. You go under.",
+      "swap": [
+        {
+          "from": "drone",
+          "to": "ddrone",
+          "every": 1
+        },
+        {
+          "from": "grunt",
+          "to": "trooper",
+          "every": 3,
+          "nearest": 1
+        },
+        {
+          "from": "heavy",
+          "to": "sentinel",
+          "every": 2,
+          "nearest": 0
+        }
+      ]
+    },
+    {
+      "slug": "drainworks-overflow",
+      "file": "drainworks-overflow.retro",
+      "name": "3 · The Drains",
+      "brief": "THE DRAINS. Pandemonium dumps its failures down here. Something in red armor is hunting in the dark: twin-cannon troopers, built from your stolen suit. One cannon fires and the other keeps them in the air. Pull the gate keys. The outflow hatch needs the red one.",
+      "goal": {
+        "type": "key",
+        "key": "red",
+        "msg": "EXIT SEALED — the outflow hatch needs the red key"
+      },
+      "after": "You surface inside Plant 4, right under the assembly line.",
+      "swap": [
+        {
+          "from": "drone",
+          "to": "ddrone",
+          "every": 1
+        },
+        {
+          "from": "grunt",
+          "to": "trooper",
+          "every": 3,
+          "nearest": 1
+        },
+        {
+          "from": "heavy",
+          "to": "sentinel",
+          "every": 2,
+          "nearest": 0
+        }
+      ]
     },
     {
       "slug": "plant4-lockdown",
       "file": "plant4-lockdown.retro",
-      "name": "3 · The Factory",
-      "brief": "THE FACTORY. The chip soldiers come off this line, built from your designs. Grab the red keycard and reach the loading-dock escape pad.",
-      "goal": { "type": "key", "key": "red", "msg": "EXIT SEALED — you need the red keycard" },
-      "after": "Assembly line wrecked. The cult's elevator only goes one place now: the Marble Shrine, where AntiLegend waits."
+      "name": "4 · The Factory",
+      "brief": "THE FACTORY. The chip soldiers and the red troopers come off this line, built from your designs. Grab the red keycard and reach the loading-dock escape pad.",
+      "goal": {
+        "type": "key",
+        "key": "red",
+        "msg": "EXIT SEALED — you need the red keycard"
+      },
+      "after": "Assembly line wrecked. A cult gunship is fuelling on the HQ roof to carry the SEED master chip to the shrine.",
+      "swap": [
+        {
+          "from": "drone",
+          "to": "ddrone",
+          "every": 1
+        },
+        {
+          "from": "grunt",
+          "to": "trooper",
+          "every": 3,
+          "nearest": 1
+        },
+        {
+          "from": "heavy",
+          "to": "sentinel",
+          "every": 1,
+          "nearest": 1
+        },
+        {
+          "from": "titan",
+          "to": "warden",
+          "every": 1
+        }
+      ]
+    },
+    {
+      "slug": "nightwatch-helipad",
+      "file": "nightwatch-helipad.retro",
+      "name": "5 · The Roof",
+      "brief": "THE ROOF. Climb the block to the helipad before the gunship lifts off. The sky is full of drones. The helipad gate needs the red keycard.",
+      "goal": {
+        "type": "key",
+        "key": "red",
+        "msg": "EXIT SEALED — the helipad gate needs the red keycard"
+      },
+      "after": "The gunship got away, but its flight log didn't. It isn't flying up. It's flying down, to a relay under the old catacombs.",
+      "swap": [
+        {
+          "from": "drone",
+          "to": "ddrone",
+          "every": 1
+        },
+        {
+          "from": "grunt",
+          "to": "trooper",
+          "every": 2,
+          "nearest": 1
+        },
+        {
+          "from": "heavy",
+          "to": "sentinel",
+          "every": 2,
+          "nearest": 0
+        }
+      ]
+    },
+    {
+      "slug": "catacomb-relay",
+      "file": "catacomb-relay.retro",
+      "name": "6 · Catacomb Relay",
+      "brief": "THE CATACOMB RELAY. Bone vaults and humming relay racks. This is where they beam the SEED chip to AntiLegend's altar. Destroy every twin-cannon trooper guarding the relay, and the shrine gate opens when the last one drops.",
+      "goal": {
+        "type": "kill",
+        "enemy": "trooper",
+        "msg": "EXIT SEALED — twin-cannon troopers still guard the relay"
+      },
+      "after": "Relay burned and the signal is dead. All that's left is the shrine, and the beast on its throne.",
+      "swap": [
+        {
+          "from": "heavy",
+          "to": "sentinel",
+          "every": 1,
+          "nearest": 1
+        }
+      ]
     },
     {
       "slug": "marble-shrine",
       "file": "marble-shrine.retro",
-      "name": "4 · The Marble Shrine",
+      "name": "7 · The Marble Shrine",
       "brief": "THE MARBLE SHRINE. The cult's altar. The minotaur on the throne is AntiLegend's avatar. Clear the minions and kill the beast. The exit stays sealed until it falls.",
-      "goal": { "type": "boss", "msg": "" },
-      "after": ""
+      "goal": {
+        "type": "boss",
+        "msg": ""
+      },
+      "after": "",
+      "swap": [
+        {
+          "from": "drone",
+          "to": "ddrone",
+          "every": 1
+        },
+        {
+          "from": "grunt",
+          "to": "trooper",
+          "every": 3,
+          "nearest": 0
+        },
+        {
+          "from": "heavy",
+          "to": "sentinel",
+          "every": 2,
+          "nearest": 0
+        }
+      ],
+      "nudge": [
+        {
+          "s": "minotaur",
+          "dx": 0,
+          "dy": -1.3,
+          "_why": "the Meshy Minotaur is 2.9 tall and stands in an A-pose, so he waits in front of the throne instead of inside it"
+        }
+      ]
     }
   ],
   "ending": {
@@ -53,9 +253,105 @@
     "title": "THIS IS SGT. PROTAGONIST",
     "lines": [
       "Pandemonium Inc. stole my work, locked people in cages, and tried to grow a weapon out of my brain.",
-      "Project SEED. The donor logs. The shrine. Every file is attached to this broadcast. Every name. Every signature.",
+      "Project SEED. The donor logs. The relay. The shrine. Every file is attached to this broadcast. Every name. Every signature.",
       "Their horned god bled out on his own altar. Now the world gets to see who kneeled to it.",
       "— Sgt. Protagonist. My squad calls me Pro. Signing off."
     ]
+  },
+  "enemies": {
+    "trooper": {
+      "name": "Twin-Cannon Trooper",
+      "hp": 80,
+      "speed": 1.5,
+      "range": 10,
+      "dmg": 8,
+      "cd": 1.4,
+      "shots": 1,
+      "h": 1.15,
+      "r": 0.3,
+      "score": 300,
+      "proj": "redring",
+      "lift": 0.42,
+      "bob": 0.07,
+      "model": {
+        "src": "pro/assets/pro_enemy.glb",
+        "h": 1.15,
+        "tint": 1
+      }
+    },
+    "ddrone": {
+      "name": "Dystopia Drone",
+      "hp": 30,
+      "speed": 2.9,
+      "range": 9,
+      "dmg": 6,
+      "cd": 1.1,
+      "shots": 1,
+      "h": 0.5,
+      "r": 0.28,
+      "score": 120,
+      "proj": "plasma",
+      "hover": 0.72,
+      "bob": 0.14,
+      "model": {
+        "src": "pro/assets/bot_drone.glb",
+        "h": 0.56,
+        "tint": 0.85
+      }
+    },
+    "sentinel": {
+      "name": "Ballisticus Sentinel",
+      "hp": 180,
+      "speed": 1.1,
+      "range": 11,
+      "dmg": 7,
+      "cd": 1.6,
+      "shots": 3,
+      "h": 1.6,
+      "r": 0.38,
+      "score": 400,
+      "proj": "bolt",
+      "model": {
+        "src": "pro/assets/pro_sentinel.glb",
+        "h": 1.7,
+        "tint": 0.9
+      }
+    },
+    "warden": {
+      "name": "The Warden",
+      "hp": 650,
+      "speed": 1.0,
+      "range": 14,
+      "dmg": 22,
+      "cd": 1.9,
+      "shots": 2,
+      "h": 1.95,
+      "r": 0.45,
+      "score": 2000,
+      "proj": "rocket",
+      "model": {
+        "src": "pro/assets/pro_sentinel.glb",
+        "h": 2.1,
+        "tint": 0.75
+      }
+    },
+    "minotaur": {
+      "h": 2.8,
+      "r": 0.6,
+      "model": {
+        "src": "pro/assets/pro_minotaur.glb",
+        "h": 2.9,
+        "tint": 0.95
+      }
+    }
+  },
+  "assetHooks": {
+    "_about": "Drop a file in pro/assets/ and Pro uses it automatically on the next load. Missing files are skipped.",
+    "prop_pro_prop": {
+      "src": "pro/assets/pro_prop.glb",
+      "h": 1.2,
+      "tint": 1,
+      "maxW": 1.2
+    }
   }
 }

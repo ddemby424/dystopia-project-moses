@@ -31,7 +31,7 @@ Version **1.2.1** is powered by the standalone [DMB Tech 1](../dmbtech1/) librar
 - **Difficulty:** *Easy*, *Normal* and *Hard* change enemy health, speed, damage, reaction time, fire rate and how many flank.
 - **Six weapons:** wrench, Pulse Cannon (default starting gun, infinite ammo), shotgun, assault rifle, plasma caster and rocket launcher. Guns have reload animations, recoil, sway, bob and shell casings.
 - **Pickups and props:** health, armour, ammo, keycards, secrets, explosive barrels and over twenty kinds of props, most of them CC0 Quaternius models with a procedural fallback.
-- **Multiplayer:** Menu → Multiplayer opens a lobby to create or join a room. All six player models are in the character list. If the server is offline, the lobby says so and single-player still works.
+- **Multiplayer:** Menu → Multiplayer opens a lobby to create or join a room. All six player models are in the character list. If the server is offline, the lobby says so and single-player still works. From 1.6.0, each model gets a miniature preview card, and the one you pick spins live.
 - **Look:** 20 gritty textures with lighting, shadowed corners, fog, sky scenes, coloured lights and a flashlight.
 - **Music player:** 5 rap/trap and metal tracks. You can pick one per level or skip tracks in the pause menu.
 - **Level scripts (optional):** short scripts for messages, triggers and rewards, for example "open this door when all enemies are dead".
@@ -79,21 +79,30 @@ Your work **autosaves** in the browser. Use **Menu → Projects** for named save
 
 Open `retroengine/pro/` (for example `http://localhost:8765/retroengine/pro/`).
 From 1.5.1, Pro is its own game. It has a splash screen with a spray-painted PRO title, Sgt. Protagonist spinning with an ion charge building in his cannon, a loading bar and a **Powered by DMB Tech 1** badge (tap to continue), and none of the editor's branding. On a phone, use **Add to Home screen** to get a full-screen **Pro** icon.
-You play Sgt. Protagonist (nicknamed Protag, Pro or Sgt Taggs) through four linked chapters: Lab → Yard → Factory → Marble Shrine. After that comes the ending broadcast.
+You play Sgt. Protagonist (nicknamed Protag, Pro or Sgt Taggs) through seven linked chapters (from 1.6.0): Lab → Yard → Drains → Factory → Roof → Catacomb Relay → Marble Shrine. After that comes the ending broadcast.
+You fight hovering red-and-black twin-cannon troopers, Dystopia drones, Ballisticus sentinels, and AntiLegend's Minotaur at the end.
 Each exit pad stays sealed until that chapter's goal is met. Your progress is saved in the browser, and a reload offers **Continue**.
 Pro's arm cannon is your gun, and it fires cyan energy rings.
+From 1.6.0 you can **dash** with Shift or Q, or the DASH button on a phone. Pro also has its own HUD with a compass, a waypoint arrow and distance, hitmarkers, kill streaks, health and shield orbs, and Web Audio sound effects (`pro/juice.js`).
 You can spin the slim suit at `retroengine/pro/preview.html`.
 
 | File | What it is |
 |---|---|
 | `pro/campaign.json` | chapter order, story text, exit goals, view-model sizing |
 | `pro/pro.js` | campaign host: loads the maps, story cards, exit seals, save/resume |
+| `pro/juice.js` | 1.6.0 feel layer: Pro HUD, compass + waypoint, hitmarkers, dash, streaks, orbs, Web Audio SFX |
 | `pro/viewer.js` | small turntable for Pro's model (cards + preview) |
-| `pro/assets/pro_suit.glb` | Pro's suit, 30,656 triangles, 1.8 MB |
+| `pro/assets/pro_suit.glb` | Pro's suit with glowing Sgt. chevrons on both shoulders, 31,232 triangles, 1.83 MB |
 | `pro/manifest.webmanifest`, `pro/assets/icon-*.png` | home-screen install as "Pro" |
 | `pro/spray.js` | spray-paint title animation (overspray, speckle, drips) |
 | `pro/assets/pro_splash.webp` | still render of the slim suit, shown while the 3D model loads |
 | `pro/assets/pro_cannon.glb` | his right-arm cannon, 5,034 triangles, 390 KB (first-person gun) |
+| `pro/assets/pro_enemy.glb` | twin-cannon trooper, 19,865 triangles, 1.08 MB (1.6.0) |
+| `pro/assets/bot_drone.glb` | Dystopia drone, 104 KB (1.6.0) |
+| `pro/assets/pro_sentinel.glb` | Ballisticus sentinel / Warden, 14,986 triangles, 1.16 MB (1.6.0) |
+| `pro/assets/pro_minotaur.glb` | the Minotaur (AntiLegend), 21,708 triangles, 1.06 MB (1.6.0) |
+| `pro/assets/pro_prop.glb` | optional: drop a model here and it appears in the Catacomb Relay |
+| `maps/catacomb-relay.retro` | chapter 6 map, 64×64 (1.6.0) |
 
 ## Trial map pack
 Five official maps are in the `maps/` folder, with a phone-friendly list at `maps/index.html`. Tap **Play** to load a map in RetroEngine, or download the `.retro` file and import it. The first four are escape-pad trials (guards, a Titan, and an exit pad). **Site 12: Dataworks** is a 128×128 multiplayer compound with eight spread-out spawns, an outdoor yard, indoor halls, catwalks, and a clean bright lab wing. **The Marble Shrine** is a white-marble temple with a minotaur boss; the exit pad behind the throne unlocks only after that boss is defeated.

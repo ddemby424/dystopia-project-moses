@@ -34,8 +34,15 @@
 <script type="module">
   import { mountPro } from './viewer.js';                        // the shared turntable
   const part = new URLSearchParams(location.search).get('part');  // ?part=cannon shows just his arm cannon (the in-game view model)
-  const src = part === 'cannon' ? 'assets/pro_cannon.glb' : 'assets/pro_suit.glb';
+  const MODELS = { cannon: 'assets/pro_cannon.glb', enemy: 'assets/pro_enemy.glb', drone: 'assets/bot_drone.glb',
+    minotaur: 'assets/pro_minotaur.glb', sentinel: 'assets/pro_sentinel.glb' };   // 1.6.0 Meshy drop-ins  // ?part=enemy = the red twin-cannon trooper
+  const src = MODELS[part] || 'assets/pro_suit.glb';
   const v = mountPro(document.getElementById('c'), { controls: true, spin: 0.35, src });
+  if (part === 'enemy') { document.querySelector('#cap h1').textContent = 'Pandemonium twin-cannon trooper';   // enemy caption
+    document.querySelector('#cap p').textContent = "Built from Pro's stolen suit design: one cannon aims, the other fires down to keep it hovering."; }
+  const CAPS = { minotaur: ['The Minotaur', "AntiLegend's Minotaur avatar, the Marble Shrine's final boss."],      // 1.6.0 captions
+    sentinel: ['Ballisticus, the Living Armory', 'Bulletforge sentinel by Andfx (CC0, Meshy community). Pro uses it as the heavy warden.'] };
+  if (CAPS[part]) { document.querySelector('#cap h1').textContent = CAPS[part][0]; document.querySelector('#cap p').textContent = CAPS[part][1]; }
   const msg = document.getElementById('msg'), btn = document.getElementById('spin');
   v.ready.then(ok => {                                          // hide the loading text, or explain a failure
     msg.textContent = ok ? '' : 'Could not load the suit model. Check your connection and reload.';

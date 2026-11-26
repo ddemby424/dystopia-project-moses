@@ -66,3 +66,81 @@ h1 { margin: 0 0 10px; font-size: clamp(22px, 5vw, 40px); letter-spacing: .12em;
   #sp-stage { height: 36vh; width: 80vw; } #sp-spray { width: 80vw; height: 18vh; margin: 0 auto; }
   #sp-text { max-width: 92vw; } #sp-bar { margin: 0 auto; width: 70vw; }
 }
+
+/* ---------- 1.6.0: Pro HUD + feel layer (pro/juice.js) ---------- */
+/* hide the engine's stock bottom bars and top-left card; the minimap, buttons and touch controls stay */
+.pro-juice .dfg-bottom, .pro-juice .dfg-tl { display: none !important; }
+.pro-juice .dfg-boss { top: calc(64px + env(safe-area-inset-top, 0px)) !important; }
+.pj { position: absolute; inset: 0; pointer-events: none; font-family: 'Black Ops One', system-ui, sans-serif; color: #e8f6ff; z-index: 5; }
+/* the engine's light/map/fullscreen/pause buttons move into a small row under the minimap, so the compass owns the top centre */
+.pro-juice .dfg-topbtns { top: calc(122px + env(safe-area-inset-top, 0px)) !important; right: calc(8px + env(safe-area-inset-right, 0px)) !important; left: auto !important;
+  flex-direction: row !important; transform: scale(.78); transform-origin: top right; }
+/* top compass bar */
+.pj-compass { position: absolute; left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); width: 260px; height: 30px; margin-left: -130px; overflow: hidden;
+  background: linear-gradient(90deg, transparent, rgba(8, 14, 22, .55) 18%, rgba(8, 14, 22, .55) 82%, transparent); border-top: 1px solid rgba(120, 220, 255, .35); }
+.pj-strip { position: absolute; left: 50%; top: 2px; height: 14px; will-change: transform; }
+.pj-strip span { position: absolute; transform: translateX(-50%); font-size: 9px; letter-spacing: .08em; opacity: .55; font-family: system-ui, sans-serif; font-weight: 700; }
+.pj-strip span.big { font-size: 11px; opacity: .95; color: #9fe8ff; }
+.pj-compass::after { content: ''; position: absolute; left: 50%; top: 0; width: 1px; height: 8px; background: #fff; }   /* your heading */
+.pj-mark { position: absolute; left: 50%; top: 4px; width: 8px; height: 8px; margin-left: -4px; background: #ffb23a; box-shadow: 0 0 6px #ffb23a; will-change: transform; }
+.pj-objline { position: absolute; left: 0; right: 0; bottom: 1px; text-align: center; font-size: 9px; letter-spacing: .12em; font-family: system-ui, sans-serif; }
+.pj-obj { color: #ffcf7a; font-weight: 700; } .pj-dist { margin-left: 6px; opacity: .85; }
+/* waypoint arrow under the compass */
+.pj-way { position: absolute; left: 50%; top: calc(42px + env(safe-area-inset-top, 0px)); width: 22px; height: 22px; margin-left: -11px; }
+.pj-way i { position: absolute; inset: 0; will-change: transform; }
+.pj-way i::before { content: ''; position: absolute; left: 5px; top: 1px; border: 6px solid transparent; border-bottom: 13px solid #ffb23a; border-top: 0; filter: drop-shadow(0 0 4px rgba(255, 178, 58, .8)); }
+/* chapter + hostiles, top left, small */
+.pj-ch { position: absolute; left: calc(12px + env(safe-area-inset-left, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); font-size: 10px; letter-spacing: .12em; display: flex; flex-direction: column; gap: 2px; text-shadow: 0 1px 2px #000; }
+.pj-lvl { color: #ffb35c; } .pj-host { font-family: system-ui, sans-serif; font-weight: 700; font-size: 9px; opacity: .8; }
+/* kill feed, top right under the minimap */
+.pj-feed { position: absolute; left: calc(12px + env(safe-area-inset-left, 0px)); top: calc(40px + env(safe-area-inset-top, 0px)); text-align: left; align-items: flex-start; font-size: 10px; font-family: system-ui, sans-serif; font-weight: 700; display: flex; flex-direction: column; gap: 3px; }
+.pj-feed div { background: rgba(8, 12, 18, .55); padding: 2px 6px; border-left: 2px solid #ff2436; animation: pjIn .18s ease-out; }
+.pj-feed div.boss { border-color: #ffb23a; color: #ffcf7a; }
+@keyframes pjIn { from { transform: translateX(-14px); opacity: 0; } }
+/* hitmarker: four short ticks around the crosshair */
+.pj-hit { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; opacity: 0; transform: rotate(45deg) scale(.8); }
+.pj-hit::before, .pj-hit::after { content: ''; position: absolute; left: 50%; top: 50%; background: #fff; box-shadow: 0 0 6px #9ff4ff; }
+.pj-hit::before { width: 30px; height: 2px; margin: -1px 0 0 -15px; clip-path: polygon(0 0, 33% 0, 33% 100%, 0 100%, 0 0, 67% 0, 100% 0, 100% 100%, 67% 100%); }
+.pj-hit::after { width: 2px; height: 30px; margin: -15px 0 0 -1px; clip-path: polygon(0 0, 100% 0, 100% 33%, 0 33%, 0 67%, 100% 67%, 100% 100%, 0 100%); }
+.pj-hit.on { opacity: 1; transform: rotate(45deg) scale(1); transition: opacity .12s ease-out .02s, transform .05s; }
+.pj-hit.kill::before, .pj-hit.kill::after { background: #ff3a4a; box-shadow: 0 0 8px #ff2436; }
+.pj-hit.kill.on { transform: rotate(45deg) scale(1.25); }
+/* ammo pips + weapon name under the crosshair */
+.pj-pips { position: absolute; left: 50%; top: calc(50% + 22px); transform: translateX(-50%); display: flex; gap: 2px; align-items: center; }
+.pj-pips i { width: 4px; height: 8px; background: rgba(255, 255, 255, .18); border-radius: 1px; }
+.pj-pips i.on { background: #ffd27a; box-shadow: 0 0 4px rgba(255, 210, 122, .7); }
+.pj-pips i.cy.on { background: #6fe6ff; box-shadow: 0 0 4px rgba(111, 230, 255, .8); }
+.pj-pips em { font-style: normal; font-size: 9px; margin-left: 4px; font-family: system-ui, sans-serif; font-weight: 700; opacity: .85; }
+.pj-wn { position: absolute; left: 50%; top: calc(50% + 34px); transform: translateX(-50%); font-size: 8px; letter-spacing: .16em; opacity: .55; white-space: nowrap; font-family: system-ui, sans-serif; font-weight: 700; text-transform: uppercase; }
+/* slim health + shield bars, bottom centre-left (clear of the touch stick) */
+.pj-bars { position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); width: 210px; margin-left: -105px; display: flex; flex-direction: column; gap: 4px; }
+.pj-bar { position: relative; height: 5px; background: rgba(255, 255, 255, .12); border-radius: 3px; overflow: visible; }
+.pj-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; transition: width .15s; }
+.pj-bar.hp i { background: linear-gradient(90deg, #ff3a3a, #ff8a5a); box-shadow: 0 0 6px rgba(255, 70, 60, .6); }
+.pj-bar.sh i { background: linear-gradient(90deg, #2aa8ff, #7ff0ff); box-shadow: 0 0 6px rgba(80, 200, 255, .6); }
+.pj-bar b { position: absolute; right: -30px; top: -5px; font-size: 10px; font-family: system-ui, sans-serif; width: 26px; }
+.pj-keys { display: flex; gap: 4px; height: 6px; } .pj-keys b { width: 12px; height: 6px; border-radius: 2px; }
+.pj-keys .red { background: #ff3b3b; } .pj-keys .blue { background: #3b8bff; } .pj-keys .yellow { background: #ffd23b; }
+/* streak callout */
+.pj-streak { position: absolute; left: 50%; top: 32%; transform: translate(-50%, -50%) scale(.6); font-size: 26px; letter-spacing: .08em; color: #fff;
+  text-shadow: 0 0 10px #ff2436, 0 0 22px rgba(255, 36, 54, .6), 0 2px 0 #000; opacity: 0; white-space: nowrap; }
+.pj-streak.on { animation: pjStreak 1.3s ease-out forwards; }
+@keyframes pjStreak { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.6); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -62%) scale(1); } }
+/* directional damage wedge: a red glow on the edge the shot came from (rotated about the centre) */
+.pj-dmg { position: absolute; left: 50%; top: 50%; width: 150vmax; height: 150vmax; margin: -75vmax 0 0 -75vmax; opacity: 0; will-change: transform, opacity;
+  background: radial-gradient(ellipse 22% 9% at 50% 18%, rgba(255, 30, 30, .9), rgba(255, 30, 30, 0) 70%); }
+.pj-dmg.on { opacity: var(--a, .8); transition: opacity .45s ease-in .08s; }
+.pj-dmg:not(.on) { transition: opacity .4s; }
+/* dash speed lines */
+.pj-speed { position: absolute; inset: 0; opacity: 0;
+  background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(170, 235, 255, .0) 0deg 5deg, rgba(170, 235, 255, .22) 5deg 6deg);
+  -webkit-mask: radial-gradient(circle at 50% 50%, transparent 32%, #000 70%); mask: radial-gradient(circle at 50% 50%, transparent 32%, #000 70%); }
+.pj-speed.on { animation: pjSpeed .28s ease-out; }
+@keyframes pjSpeed { 0% { opacity: 0; transform: scale(1.15); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1); } }
+/* DASH touch button (only on touch screens), with a cooldown fill */
+.pj-dash { display: none; position: absolute; right: calc(96px + env(safe-area-inset-right, 0px)); bottom: calc(186px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; border-radius: 50%;
+  pointer-events: auto; touch-action: none; align-items: center; justify-content: center; overflow: hidden; font: 700 10px system-ui, sans-serif; letter-spacing: 1px;
+  border: 2px solid rgba(111, 230, 255, .6); background: rgba(12, 40, 60, .55); color: #cff6ff; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.pj-dash i { position: absolute; inset: 0; background: rgba(0, 0, 0, .45); transform-origin: bottom; transform: scaleY(0); }
+.dfg-root.touch .pj-dash { display: flex; }
+@media (max-height: 420px) { .pj-compass { width: 220px; margin-left: -110px; } }

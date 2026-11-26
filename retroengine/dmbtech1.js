@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.2.4 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.3.0 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.2.4';
+export const VERSION = '1.3.0';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.2.4';
+const VERSION = '1.3.0';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 // Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
@@ -696,6 +696,9 @@ const ENEMY_DEFS = {
   titan:  { name: 'Titan (Boss)',  hp: 650, speed: 1.0, range: 14, dmg: 22, cd: 1.9, shots: 2, h: 1.3,  r: 0.45, score: 2000, proj: 'rocket' },
   minotaur:{ name: 'Minotaur (Boss)', hp: 900, speed: 1.35, range: 11, dmg: 18, cd: 1.7, shots: 1, h: 2.15, r: 0.5, score: 3500, proj: 'palm', boss: true, melee: 28, meleeR: 1.75, palmSpeed: 7.5, warpCd: 7 }
 };
+// 1.3.0: def.lift = a full-size enemy that FLOATS this far above the floor (Pro's twin-cannon troopers).
+// Unlike def.hover (small drones, centred body), a lifted enemy keeps its full height for hits and aims from its chest.
+const liftOf = d => (d && d.lift) || 0;
 const WEAPON_DEFS = [
   { id: 'wrench',  name: 'Wrench',          ammo: null,      cd: 0.45, dmg: 30, melee: true, range: 1.15, snd: 'wrench' },
   { id: 'pistol',  name: 'Pulse Cannon',    ammo: null,    cd: 0.13, dmg: 28, pellets: 1, spread: 0.008, auto: true, proj: 'pulse', speed: 22, recoil: 0.14, snd: 'pulse' },
@@ -1693,6 +1696,23 @@ function createRemotePlayer(modelId, opts) {
   return rp;
 }
 
+// 1.3.0 thruster flame for a "jet_anchor" node. World-down, sized in world units (undoes the model's scale).
+let jetGeo = null, jetTex = null;
+function addJet(anchor, color) {
+  if (!jetGeo) { jetGeo = new THREE.ConeGeometry(0.075, 0.42, 10, 1, true); jetGeo.translate(0, -0.21, 0);   // cone hangs down from the nozzle
+    const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.3, 'rgba(255,190,120,.8)'); r.addColorStop(1, 'rgba(255,60,20,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+    jetTex = new THREE.CanvasTexture(c); }
+  const ws = new THREE.Vector3(); anchor.getWorldScale(ws); const inv = 1 / Math.max(ws.y, 1e-4);   // world-unit size no matter how the model was scaled
+  const grp = new THREE.Group(); grp.scale.setScalar(inv); grp.userData.s0 = inv;
+  const add = { transparent: true, blending: THREE.AdditiveBlending, depthWrite: false };
+  const outer = new THREE.Mesh(jetGeo, new THREE.MeshBasicMaterial(Object.assign({ color, opacity: 0.55, side: THREE.DoubleSide }, add)));   // orange-red flame
+  const inner = new THREE.Mesh(jetGeo, new THREE.MeshBasicMaterial(Object.assign({ color: 0xfff0c0, opacity: 0.8, side: THREE.DoubleSide }, add)));   // hot core
+  inner.scale.set(0.45, 0.65, 0.45);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial(Object.assign({ map: jetTex, color, opacity: 0.9 }, add))); glow.scale.setScalar(0.34);   // bright nozzle bloom
+  grp.add(outer, inner, glow); anchor.add(grp);
+  return grp;
+}
 // Gritty pass for bright low-poly assets: darker albedo, rougher/more metallic surfaces.
 function grittify(root, tint, metal) {
   const mats = [];
@@ -2149,7 +2169,7 @@ function play(container, project, opts) {
       if (e.t === 'enemy') {
         if (opts.skipEnemies && e.s !== 'minotaur') return;  // MP omits minions; the shrine boss still spawns (host-driven)
         const def = ENEMY_DEFS[e.s] || ENEMY_DEFS.grunt, mesh = buildEnemyMesh(e.s);
-        mesh.position.set(e.x, fh + (def.hover || 0), e.y); world.add(mesh);
+        mesh.position.set(e.x, fh + (def.hover || 0) + liftOf(def), e.y); world.add(mesh);
         const seated = def.boss === true;
         const en = { sub: e.s in ENEMY_DEFS ? e.s : 'grunt', def, x: e.x, y: e.y, z: fh, hp: def.hp * diff().hp, state: seated ? 'seated' : 'idle', t: 0, cd: rand(0.5, 1.5), ang: e.r || 0, mesh, moving: false, deadT: 0, flashT: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rand(0.8, 2), flank: def.speed > 0 && e.s !== 'titan' && e.s !== 'minotaur' && Math.random() < diff().flank ? (Math.random() < 0.5 ? 1 : -1) : 0, coverT: 0, hurtT: 0, warpCd: 2, fade: 1, maxHp: def.hp * diff().hp };
         g.enemies.push(en); attachModel(mesh, 'enemy_' + en.sub, def.h, !!def.hover);
@@ -2219,6 +2239,10 @@ function play(container, project, opts) {
       if (/^enemy_/.test(slot)) mats.forEach(mm => { if (mm.isMeshStandardMaterial || mm.isMeshPhysicalMaterial) addRim(mm, 0x9fc4ff, 0.42); });
       if (holder.userData.proc) holder.userData.proc.visible = false; else holder.children.forEach(c => { c.visible = false; });
       holder.add(m); holder.userData.glb = m; holder.userData.glbMats = mats;
+      // 1.3.0: a node named "jet_anchor" in the GLB gets a glowing propulsion flame pointing down (cheap: 2 additive meshes).
+      m.updateMatrixWorld(true); const jets = [];
+      m.traverse(o => { if (o.name === 'jet_anchor') jets.push(addJet(o, spec.jetColor || 0xff5a2a)); });
+      if (jets.length) holder.userData.jets = jets;
       if (gltf.animations && gltf.animations.length) {
         const mixer = new THREE.AnimationMixer(m.children[0]), acts = {};
         Object.keys(ENEMY_CLIPS).forEach(k => { const c = findClip(gltf.animations, ENEMY_CLIPS[k]); if (c) acts[k] = mixer.clipAction(c); });
@@ -2333,6 +2357,17 @@ function play(container, project, opts) {
     // Same lerp as before, but snappier (was 14 ground / 3 air) so starts, stops and strafes with less stiffness.
     const a = 1 - Math.exp(-dt * (G.onGround ? 28 : 8));
     G.vx = lerp(G.vx, tvx, a); G.vy = lerp(G.vy, tvy, a);
+    // 1.3.0: thruster dash (only when a host calls handle.dash()): a 0.18 s burst along the stick, or forward
+    G.dashCd = Math.max(0, (G.dashCd || 0) - dt);
+    if (G.dashReq) {
+      G.dashReq = false;
+      if (G.dashCd <= 0) {
+        const l = Math.hypot(f, s), df = l > 0.1 ? f / l : 1, ds = l > 0.1 ? s / l : 0;   // which way to burst
+        G.dashVX = (cy * df - sy * ds) * DASH.speed; G.dashVY = (sy * df + cy * ds) * DASH.speed;
+        G.dashT = DASH.time; G.dashCd = DASH.cd; fire('dash', { df, ds });
+      }
+    }
+    if (G.dashT > 0) { G.dashT -= dt; G.vx = G.dashVX; G.vy = G.dashVY; }   // hold the burst speed
     const nx = G.px + G.vx * dt, ny = G.py + G.vy * dt;
     if (!blocked(nx, G.py, G.pz, PLAYER_R, false, G)) G.px = nx; else bumpDoor(nx, G.py);
     if (!blocked(G.px, ny, G.pz, PLAYER_R, false, G)) G.py = ny; else bumpDoor(G.px, ny);
@@ -2388,7 +2423,7 @@ function play(container, project, opts) {
     if (gv.key) { G.keys[gv.key] = true; used = true; }
     if (gv.secret) { G.secrets++; used = true; msg('SECRET FOUND!'); }
     if (!used) return;
-    p.taken = true; p.mesh.visible = false; if (!gv.secret) G.items++;
+    p.taken = true; p.mesh.visible = false; if (!gv.secret && !p.reward) G.items++;
     msg(def.name); G.pickFlash = 0.25;
     Sound.play(gv.key ? 'key' : gv.weapon !== undefined ? 'weapon' : 'pickup');
     fire('pickup', p.sub);
@@ -2420,7 +2455,7 @@ function play(container, project, opts) {
     let best = null, bestAng = 0.08 * assist; // light cone (~3.7° at the 0.80 default)
     G.enemies.forEach(e => {
       if (e.state === 'dead') return;
-      const tx = e.x - G.px, ty = e.y - G.py, tz = (e.z + (e.def.hover || 0) + e.def.h * 0.55) - eyeZ;
+      const tx = e.x - G.px, ty = e.y - G.py, tz = (e.z + (e.def.hover || 0) + liftOf(e.def) + e.def.h * 0.55) - eyeZ;
       const L = Math.hypot(tx, ty, tz);
       if (L < 0.4 || L > 28) return;
       const nx = tx / L, ny = ty / L, nz = tz / L;
@@ -2436,6 +2471,7 @@ function play(container, project, opts) {
     if (w.ammo) { const i = G.cur; if (G.mag[i] > G.ammo[w.ammo]) G.mag[i] = G.ammo[w.ammo]; if (G.reloadT > 0) return; if (G.mag[i] <= 0) { startReload(); return; } G.mag[i]--; }
     if (w.ammo) G.ammo[w.ammo]--;
     G.cd = w.cd; G.recoil = 1; Sound.play(w.snd);
+    fire('shot', G.cur);                                        // 1.3.0: hosts can add their own fire sound / kick
     const aimPitch = G.pitch;   // aim with the pitch before this shot's kick
     { const kick = [0, 0.014, 0.035, 0.007, 0.006, 0.045, 0.06][G.cur] || 0; G.pitch = Math.min(1.4, G.pitch + kick * rand(0.8, 1.2)); G.yaw += kick * rand(-0.3, 0.3); G.kickT = 1; }
     if (w.ammo === 'bullets' || w.ammo === 'shells') ejectShell(w.ammo === 'shells');
@@ -2447,7 +2483,7 @@ function play(container, project, opts) {
     if (w.melee) {
       let best = null, bd = w.range;
       G.enemies.forEach(e => { if (e.state === 'dead') return; const dx = e.x - G.px, dy = e.y - G.py, d = Math.hypot(dx, dy); if (d < bd + e.def.r && (dx * cyaw + dy * syaw) / d > 0.6) { best = e; bd = d; } });
-      if (best) { damageEnemy(best, w.dmg); Sound.play('hit'); }
+      if (best) { damageEnemy(best, w.dmg, true); Sound.play('hit'); }
       else { const wd = rayDist(G.px, G.py, cyaw, syaw, w.range); if (wd < w.range) sparks(G.px + cyaw * wd, eyeZ - 0.1, G.py + syaw * wd, 8, 0xffd080); }
       G.props.forEach(p => { if (p.hp && !p.dead && Math.hypot(p.x - G.px, p.y - G.py) < w.range + 0.2) damageProp(p, w.dmg); });
       return;
@@ -2478,10 +2514,10 @@ function play(container, project, opts) {
       const wd = rayDist(G.px, G.py, dx, dy, 40);
       let best = null, bt = wd;
       const test = (o, r, z0, z1) => { const rx = o.x - G.px, ry = o.y - G.py, t = rx * dx + ry * dy; if (t <= 0 || t >= bt) return false; const perp = Math.abs(rx * dy - ry * dx); if (perp > r) return false; const z = eyeZ + tp * t; if (z < z0 || z > z1) return false; bt = t; return true; };
-      G.enemies.forEach(e => { if (e.state === 'dead') return; const base = e.z + (e.def.hover || 0) - (e.def.hover ? 0.22 : 0); if (test(e, e.def.r, base, base + (e.def.hover ? 0.44 : e.def.h))) best = e; });
+      G.enemies.forEach(e => { if (e.state === 'dead') return; const base = e.z + (e.def.hover || 0) - (e.def.hover ? 0.22 : 0) + liftOf(e.def); if (test(e, e.def.r, base, base + (e.def.hover ? 0.44 : e.def.h))) best = e; });
       G.props.forEach(p => { if (!p.dead && p.r > 0 && test(p, p.r, p.z, p.z + 1)) best = p; });
       const hx = G.px + dx * bt, hy = G.py + dy * bt, hz = eyeZ + tp * bt;
-      if (best && best.def) { damageEnemy(best, w.dmg); anyHit = true; sparks(hx, hz, hy, 5, 0xff5a2a); }
+      if (best && best.def) { damageEnemy(best, w.dmg, true); anyHit = true; sparks(hx, hz, hy, 5, 0xff5a2a); }
       else if (best) { if (best.hp) damageProp(best, w.dmg); sparks(hx, hz, hy, 4, 0xffd080); }
       else { sparks(hx - dx * 0.02, clamp(hz, 0.02, G.L.props.wallH), hy - dy * 0.02, 6, 0xffd080); smoke(hx - dx * 0.05, hz, hy - dy * 0.05, 2); }
     }
@@ -2544,9 +2580,11 @@ function play(container, project, opts) {
     return best;
   }
 
-  function damageEnemy(e, dmg) {
+  function damageEnemy(e, dmg, byPlayer) {
     if (e.state === 'dead') return;
     e.hp -= dmg; e.flashT = 0.1; e.hurtT = (e.hurtT || 0) + dmg;
+    // 1.3.0: hosts hear about the player's hits (hitmarkers, kill streaks); the engine itself doesn't use it
+    if (byPlayer) fire('hit', { sub: e.sub, x: e.x, y: e.y, z: e.z + liftOf(e.def) + (e.def.hover || 0) + (e.def.hover ? 0 : e.def.h * 0.6), dmg, kill: e.hp <= 0, boss: !!(e.def && e.def.boss), floor: e.z });
     if (e.state === 'idle') alert(e);
     if (e.hp <= 0) {
       e.state = 'dead'; e.deadT = 0; G.kills++; Sound.play('edie', distVol(e.x, e.y));
@@ -2566,6 +2604,7 @@ function play(container, project, opts) {
     if (state !== 'playing') return;
     if (G.armor > 0) { const absorb = Math.min(G.armor, dmg * 0.4); G.armor -= absorb; dmg -= absorb; }
     G.hp -= dmg; G.dmgFlash = Math.min(1, G.dmgFlash + 0.35 + dmg / 60); Sound.play('hurt');
+    fire('hurt', { dmg, fromX, fromY });                        // 1.3.0: hosts can show where the hit came from
     if (G.hp <= 0) { G.hp = 0; playerDie(); }
   }
   // owner: 'player' | 'enemy' | 'barrel' | 'remote' (another player's blast, effects only).
@@ -2584,7 +2623,7 @@ function play(container, project, opts) {
     G.fxBooms.push({ x, y, z, t: G.time, owner, src: src || "" }); if (G.fxBooms.length > 12) G.fxBooms.shift();
     if (owner === 'player' || owner === 'barrel') fire('boom', { x, y, z, dmg, rad, owner, src: src || (owner === 'barrel' ? 'b' : 'r') });
     if (!dmg || owner === 'remote') return;
-    G.enemies.forEach(e => { if (e.state === 'dead') return; const d = Math.hypot(e.x - x, e.y - y); if (d < rad && los(x, y, e.x, e.y)) damageEnemy(e, dmg * (1 - d / rad * 0.6)); });
+    G.enemies.forEach(e => { if (e.state === 'dead') return; const d = Math.hypot(e.x - x, e.y - y); if (d < rad && los(x, y, e.x, e.y)) damageEnemy(e, dmg * (1 - d / rad * 0.6), owner === 'player'); });
     G.props.forEach(p => { if (!p.dead && p.hp) { const d = Math.hypot(p.x - x, p.y - y); if (d < rad && los(x, y, p.x, p.y)) damageProp(p, dmg); } });
     const pd = Math.hypot(G.px - x, G.py - y); if (pd < rad && Math.abs(G.pz + 0.4 - z) < rad && los(x, y, G.px, G.py)) damagePlayer(dmg * (1 - pd / rad * 0.7) * (owner === 'player' ? 0.5 : 1), x, y);
   }
@@ -2601,9 +2640,9 @@ function play(container, project, opts) {
   // cyan energy rings. Only the look changes; speed, damage and hits are the same pulse bolt.
   let ringGeo = null;                                          // one shared low-poly torus (6 x 18 = 216 triangles)
   function spawnProj(owner, kind, x, y, z, dx, dy, dz, speed, dmg, splash) {
-    const ring = !!opts.ringShots && owner === 'player' && kind === 'pulse';   // is this one of Pro's rings?
+    const ring = (!!opts.ringShots && owner === 'player' && kind === 'pulse') || kind === 'redring';   // Pro's cyan rings, or a trooper's crimson ring
     if (ring && !ringGeo) ringGeo = new THREE.TorusGeometry(0.07, 0.014, 6, 18);  // made once, reused by every ring
-    const color = ring ? 0x4fe8ff : kind === 'plasma' ? 0x7cff4f : kind === 'pulse' ? 0x38bdf8 : kind === 'rocket' ? 0xffa040 : kind === 'palm' ? 0xffcc55 : 0xff3b1f;
+    const color = kind === 'redring' ? 0xff2436 : ring ? 0x4fe8ff : kind === 'plasma' ? 0x7cff4f : kind === 'pulse' ? 0x38bdf8 : kind === 'rocket' ? 0xffa040 : kind === 'palm' ? 0xffcc55 : 0xff3b1f;
     const pm = projMats(color), mesh = new THREE.Mesh(ring ? ringGeo : projGeo, pm.core);
     const baseScale = kind === 'rocket' ? 1.6 : kind === 'palm' ? 2.1 : kind === 'plasma' ? 1.3 : kind === 'pulse' ? 1.15 : 1.1;
     mesh.userData.baseScale = baseScale;
@@ -2627,7 +2666,7 @@ function play(container, project, opts) {
         const ct = (G.L.ceil[cy * G.W + cx] || G.L.props.ceilTex); const zMax = ct === 'sky' ? 12 : G.L.props.wallH;
         if (solid(cx, cy) || p.z < fhAt(cx, cy) || p.z > zMax) hit = true;
         if (p.owner === 'player') {
-          for (const e of G.enemies) { if (e.state === 'dead') continue; const base = e.z + (e.def.hover ? e.def.hover - 0.22 : 0), top = base + (e.def.hover ? 0.44 : e.def.h); if (Math.hypot(e.x - p.x, e.y - p.y) < e.def.r + 0.06 && p.z > base && p.z < top) { if (!p.splash) damageEnemy(e, p.dmg); hit = true; break; } }
+          for (const e of G.enemies) { if (e.state === 'dead') continue; const base = e.z + (e.def.hover ? e.def.hover - 0.22 : 0) + liftOf(e.def), top = base + (e.def.hover ? 0.44 : e.def.h); if (Math.hypot(e.x - p.x, e.y - p.y) < e.def.r + 0.06 && p.z > base && p.z < top) { if (!p.splash) damageEnemy(e, p.dmg, true); hit = true; break; } }
           for (const pr of G.props) if (!pr.dead && pr.r > 0 && Math.abs(pr.x - p.x) < pr.r && Math.abs(pr.y - p.y) < pr.r && p.z < pr.z + 1) { if (pr.hp && !p.splash) damageProp(pr, p.dmg); hit = true; }
           // 1.3.0: rockets hit other players' bodies too (the blast sends the damage)
           if (p.splash && remoteBodyAt(p.x, p.y, p.z, 0.08)) hit = true;
@@ -3049,6 +3088,7 @@ function play(container, project, opts) {
       if (e.state === 'dead') {   // death animation: tip over and sink a little
         e.deadT += dt; const k = Math.min(1, e.deadT / 0.6);
         if (def.hover) { m.position.y = Math.max(e.z + 0.1, e.z + def.hover - e.deadT * 2.5); m.rotation.z = k * 1.2; }
+        else if (def.lift) { m.position.y = Math.max(e.z, e.z + def.lift - e.deadT * 1.8); m.rotation.x = -k * 1.2; if (ud.jets) ud.jets.forEach(j => { j.visible = false; }); }  // thruster dies, it drops
         else { ud.proc.rotation.x = -k * 1.35 * (e.sub === 'turret' ? 0.3 : 1); m.position.y = e.z - k * 0.05; if (ud.glb && !(ud.acts && ud.acts.death)) ud.glb.rotation.x = -k * 1.35; }
         ud.mats.forEach(mm => mm.color.lerp(new THREE.Color(0x1a1a1a), dt * 1.5));
         continue;
@@ -3069,7 +3109,7 @@ function play(container, project, opts) {
       else if (e.state === 'attack') {
         e.t -= dt; e.ang = Math.atan2(dy, dx);
         if (e.t <= 0) {
-          const mz = e.z + (def.hover || def.h * 0.62);
+          const mz = e.z + (def.hover || def.h * 0.62) + liftOf(def);   // lifted troopers shoot from chest height
           for (let s = 0; s < def.shots; s++) {
             const tz = G.pz + 0.45, d3 = Math.hypot(dx, dy, tz - mz), sp = def.proj === 'rocket' ? 5.5 : 6.5;
             const spr = def.shots > 1 ? (s - (def.shots - 1) / 2) * 0.12 : rand(-0.04, 0.04), a = Math.atan2(dy, dx) + spr;
@@ -3121,7 +3161,10 @@ function play(container, project, opts) {
       }
       // ground the enemy on the floor (or hover height for drones)
       const gz = groundAt(e.x, e.y, 0.1); e.z = lerp(e.z, gz, Math.min(1, dt * 10));
-      m.position.set(e.x, e.z + (def.hover ? def.hover + Math.sin(time * 2.2 + ud.phase) * 0.06 : 0), e.y);
+      const bob = def.bob != null ? def.bob : 0.06;                    // 1.3.0: per-enemy bob height
+      m.position.set(e.x, e.z + (def.hover ? def.hover + Math.sin(time * 2.2 + ud.phase) * bob : 0) + (def.lift ? def.lift + Math.sin(time * 1.7 + ud.phase) * (def.bob != null ? def.bob : 0.07) : 0), e.y);
+      if (ud.jets) ud.jets.forEach((j, i) => { const f = 0.85 + Math.sin(time * 43 + i * 2.1) * 0.12 + Math.sin(time * 17 + i) * 0.08;  // thruster flicker
+        j.scale.set(j.userData.s0 * (0.9 + f * 0.1), j.userData.s0 * f * (e.moving ? 1.25 : 1), j.userData.s0 * (0.9 + f * 0.1)); });
       // face the direction we are looking: model faces +Z, so rotation.y = atan2(dirX, dirZ)
       const want = Math.atan2(Math.cos(e.ang), Math.sin(e.ang));
       let dAng = want - m.rotation.y; while (dAng > Math.PI) dAng -= Math.PI * 2; while (dAng < -Math.PI) dAng += Math.PI * 2;
@@ -3134,7 +3177,8 @@ function play(container, project, opts) {
       if (!e.moving && !def.hover) ud.proc.position.y = Math.sin(time * 1.6 + ud.phase) * 0.006;
       const charge = e.state === 'attack' ? 0.6 + Math.sin(time * 40) * 0.4 : 0;
       ud.mats.forEach(mm => mm.emissive.setRGB(e.flashT > 0 ? 0.9 : charge * 0.35, e.flashT > 0 ? 0.9 : charge * 0.08, e.flashT > 0 ? 0.9 : 0));
-      if (ud.glbMats) ud.glbMats.forEach(mm => mm.emissive && mm.emissive.setRGB(e.flashT > 0 ? 0.55 : 0, e.flashT > 0 ? 0.35 : 0, e.flashT > 0 ? 0.3 : 0));
+      const gl = 0.75 + Math.sin(time * 5 + ud.phase) * 0.25;           // models with a glow map (red visor/coils) keep it lit and pulsing
+      if (ud.glbMats) ud.glbMats.forEach(mm => mm.emissive && (mm.emissiveMap && !(e.flashT > 0) ? mm.emissive.setRGB(gl, gl, gl) : mm.emissive.setRGB(e.flashT > 0 ? 0.55 : 0, e.flashT > 0 ? 0.35 : 0, e.flashT > 0 ? 0.3 : 0)));
     }
   }
 
@@ -3535,7 +3579,16 @@ function play(container, project, opts) {
   raf = requestAnimationFrame(frame);
 
   const handle = {
-    get game() { return G; }, get state() { return state; }, camera, renderer, begin, pause, loadLevel, selectWeapon, shoot: () => shoot(), startReload: () => startReload(), weaponMeshes, music: TP, get dynScale() { return dynScale; }, set dynScale(v) { dynScale = v; resize(); }, toggleFullscreen, damagePlayer, levelComplete,
+    get game() { return G; }, get state() { return state; }, camera, renderer,
+    // 1.3.0 host hooks: dash, a reward pickup at a spot (mesh optional; needs userData.spin), and a spark burst
+    dash() { if (!G || state !== 'playing' || (G.dashCd || 0) > 0) return false; G.dashReq = true; return true; },
+    spawnPickup(sub, x, y, z, mesh) {
+      if (!G || !PICKUP_DEFS[sub]) return null;
+      const m = mesh || buildPickupMesh(sub); m.position.set(x, z, y); G.world.add(m);
+      const p = { sub, x, y, z, mesh: m, taken: false, reward: true };   // reward: not counted in the items total
+      G.pickups.push(p); return p;
+    },
+    sparks: (x, y, z, n, color) => sparks(x, z, y, n, color), begin, pause, loadLevel, selectWeapon, shoot: () => shoot(), startReload: () => startReload(), weaponMeshes, music: TP, get dynScale() { return dynScale; }, set dynScale(v) { dynScale = v; resize(); }, toggleFullscreen, damagePlayer, levelComplete,
     createRemotePlayer(modelId, o) { return createRemotePlayer(modelId, Object.assign({}, o, { session })); },
     playRemoteShot(shot) { return playRemoteShot(shot); },
     lineClear(x1, y1, x2, y2) { return !!G && los(x1, y1, x2, y2); },
@@ -3554,6 +3607,7 @@ function play(container, project, opts) {
   window.RETROENGINE_DEBUG = { handle, THREE, input, los: (a, b, c, d) => los(a, b, c, d), findCover: e => findCover(e), damageEnemy: (e, d) => damageEnemy(e, d), diff: () => diff(),
     step(dt, n) { for (let i = 0; i < (n || 1); i++) { G.time += dt; updateEnemies(dt, G.time); updateProjectiles(dt); updateDoors(dt); } },
     findBoss: () => G && G.enemies.find(e => e.def && e.def.boss), bossAlive: () => bossAlive(), exitUnlocked: () => !exitSealed(),
+    musicTrack: () => TP.cur,   // 1.3.0 test hook: id of the music track loaded right now
     killMinions() { if (!G) return 0; let n = 0; G.enemies.forEach(e => { if ((!e.def || !e.def.boss) && e.state !== 'dead') { damageEnemy(e, 9999); n++; } }); return n; },
     awakenBoss() { if (G) G.combat = true; const b = G && G.enemies.find(e => e.def && e.def.boss); if (b && b.state === 'seated') { b.state = 'rising'; b.t = 0; msg('THE MINOTAUR AWAKENS'); } return b; },
     setPlayer(x, y, z, yaw) { if (!G) return; G.px = x; G.py = y; if (z != null) G.pz = z; if (yaw != null) G.yaw = yaw; },
@@ -3628,6 +3682,8 @@ function registerWeapon(def) {
   RELOAD_TIME.push(def.reload == null ? 0 : +def.reload);
   return WEAPON_DEFS.length - 1;
 }
+// 1.3.0: thruster dash tuning (used only when a host calls handle.dash())
+const DASH = { speed: 10.5, time: 0.18, cd: 0.9 };
 function registerEnemy(def) {
   if (!def || !def.id) throw new Error('enemy def needs an id');
   ENEMY_DEFS[def.id] = Object.assign({}, ENEMY_DEFS[def.id] || {}, def);
@@ -3636,7 +3692,7 @@ function registerEnemy(def) {
 
 return {
   VERSION, HOSTED_BASE, MUSIC_TRACKS, LIGHT_PRESETS, ASSET_PACK, PLAYER_MODELS, PLAYER_CLIPS, createRemotePlayer, play, boot, Sound, S, saveSettings, planSigns, GRENADE,
-  TEX_DEFS, WALL_TEXTURES, FLOOR_TEXTURES, CEIL_TEXTURES, SKIES, ENEMY_DEFS, WEAPON_DEFS, PICKUP_DEFS, PROP_DEFS, KEY_COLORS, THREE,
+  TEX_DEFS, WALL_TEXTURES, FLOOR_TEXTURES, CEIL_TEXTURES, SKIES, ENEMY_DEFS, WEAPON_DEFS, PICKUP_DEFS, PROP_DEFS, KEY_COLORS, THREE, DASH, MAG_SIZE,
   getThumb, newLevel, normalizeLevel, validateLevel, defaultProps, STEP_H,
   packLevel, unpackLevel, registerWeapon, registerEnemy, RETRO_FORMAT, GRID_KEYS, rle, unrle
 };

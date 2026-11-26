@@ -13,6 +13,7 @@
  */
 import { mountLobby } from './lobby.js';
 import { attachMultiplayer } from './mp-dmbtech1.js';
+import { makeAvatarPicker } from './avatar-picker.js';   // 1.6.0: miniature previews
 
 const NAME_KEY = 'retroengine.playerName';
 
@@ -635,6 +636,7 @@ export function installMultiplayer(api) {
       levels: levels,
       characters: characters,
       onCharacterChange: setPlayerModel,
+      renderCharacterPicker: makeAvatarPicker(RT),   // thumbnails + live turntable
       onNameChange: setPlayerName,
       onClose: function () { closeLobby(false); },
       onJoin: function (welcome, profile) {
@@ -651,6 +653,7 @@ export function installMultiplayer(api) {
         levels: levels,
         characters: characters,
         onCharacterChange: setPlayerModel,
+        renderCharacterPicker: makeAvatarPicker(RT),   // thumbnails + live turntable
         onNameChange: setPlayerName,
         onClose: function () { closeLobby(false); },
         onJoin: function (welcome, profile) {

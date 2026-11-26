@@ -4,8 +4,10 @@
 import { createRuntime } from '../dmbtech1.js';          // the DMB Tech 1 engine (same file the editor uses)
 import { mountPro } from './viewer.js';                  // Pro's turntable for the intro and ending cards
 import { sprayTitle } from './spray.js';                 // spray-paints the PRO title on the splash
+import { installJuice } from './juice.js';               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
 
 const RT = createRuntime();                              // one engine instance for the whole campaign
+const JUICE = installJuice(RT, { levels: () => (CFG ? CFG.levels : []) });   // modern-feel layer (pro/juice.js)
 const $ = id => document.getElementById(id);             // tiny helper: element by id
 const card = $('card'), host = $('game');
 let CFG = null, LEVELS = [], handle = null, viewer = null;
@@ -48,7 +50,7 @@ function exitGate(G) {
 /* ---------- starting and leaving the game ---------- */
 function startAt(index) {
   hideCard();
-  if (handle) { try { handle.destroy(); } catch (e) {} handle = null; }
+  if (handle) { JUICE.detach(); try { handle.destroy(); } catch (e) {} handle = null; }
   const vm = CFG.viewModel;                                   // Pro's own arm cannon as the first-person Pulse Cannon
   const project = { name: CFG.name, levels: LEVELS, models: vm ? { [vm.slot]: Object.assign({}, vm, { src: new URL(vm.src, import.meta.url).href }) } : {} };  // src made absolute; len/flip/off size and aim it
   handle = RT.play(host, project, {
@@ -58,9 +60,10 @@ function startAt(index) {
     exitGate,                                                 // our per-level seal (see above)
     ringShots: true,                                          // Pro's cannon fires glowing cyan energy rings
     quitLabel: 'Campaign menu',
-    onQuit: () => { if (handle) { handle.destroy(); handle = null; } titleCard(); },
-    onEvent: (ev, arg) => { if (ev === 'won') levelDone(arg); }  // fires when you step on an open exit pad
+    onQuit: () => { if (handle) { JUICE.detach(); handle.destroy(); handle = null; } titleCard(); },
+    onEvent: (ev, arg) => { JUICE.onEvent(ev, arg); if (ev === 'won') levelDone(arg); }  // 'won' fires when you step on an open exit pad
   });
+  JUICE.attach(handle, host.querySelector('.dfg-root') || host);   // Pro HUD + feel layer for this run
   writeSave({ level: index, done: false });                   // remember the chapter you are on
 }
 function levelDone(i) {
@@ -73,13 +76,13 @@ function levelDone(i) {
       hideCard();
       const b = host.querySelector('[data-a="next"]');         // the engine's own "Next level" button keeps your guns and ammo
       if (b) b.click(); else startAt(next);                    // fallback: open the next map fresh
-    } }, { id: 'menu', label: 'Campaign menu', go: () => { if (handle) { handle.destroy(); handle = null; } titleCard(); } }] });
+    } }, { id: 'menu', label: 'Campaign menu', go: () => { if (handle) { JUICE.detach(); handle.destroy(); handle = null; } titleCard(); } }] });
 }
 function endingCard() {
   const e = CFG.ending;
   showCard({ kind: 'ending', kicker: e.kicker, title: e.title, lines: e.lines, hero: true, broadcast: true,
     buttons: [{ id: 'again', label: 'Play again', pri: true, go: () => { writeSave({ level: 0, done: false }); startAt(0); } },
-              { id: 'menu', label: 'Campaign menu', go: () => { if (handle) { handle.destroy(); handle = null; } titleCard(); } }] });
+              { id: 'menu', label: 'Campaign menu', go: () => { if (handle) { JUICE.detach(); handle.destroy(); handle = null; } titleCard(); } }] });
 }
 function titleCard() {
   const s = loadSave(), at = clampLevel(s.level), i = CFG.intro, btns = [];
@@ -93,6 +96,34 @@ function briefCard(index) {                                  // short mission te
   const lv = CFG.levels[index];
   showCard({ kind: 'brief', kicker: 'CHAPTER ' + (index + 1) + ' OF ' + LEVELS.length, title: lv.name.toUpperCase(), lines: [lv.brief],
     buttons: [{ id: 'go', label: 'Deploy', pri: true, go: () => startAt(index) }, { id: 'menu', label: 'Back', go: titleCard }] });
+}
+
+/* ---------- 1.6.0: Pro's own enemies (only this page's DMB Tech 1 runtime knows them) ---------- */
+function registerProEnemies() {
+  for (const [id, d] of Object.entries(CFG.enemies || {})) {
+    const def = Object.assign({}, d); delete def.model;      // stats only; the model goes in the asset pack
+    RT.registerEnemy(Object.assign({ id }, def));             // e.g. trooper: lift 0.42 = floats, proj 'redring' = crimson rings
+    if (d.model) RT.ASSET_PACK['enemy_' + id] = Object.assign({}, d.model);  // src is relative to assetBase '../'
+  }
+  if (!RT.PROP_DEFS.pro_prop) RT.PROP_DEFS.pro_prop = { name: 'Community model', solid: 0.3 };  // slot used by chapter 6
+}
+// Swap stock enemies for Pro's: every Nth one, plus the N nearest the start (so you meet them right away).
+function swapEnemies(level, rules) {
+  const sp = level.spawn || { x: 0, y: 0 };
+  for (const r of rules) {
+    const list = level.ents.filter(e => e.t === 'enemy' && e.s === r.from)
+      .sort((a, b) => Math.hypot(a.x - sp.x, a.y - sp.y) - Math.hypot(b.x - sp.x, b.y - sp.y));   // nearest first
+    list.forEach((e, i) => { if (i < (r.nearest || 0) || i % (r.every || 1) === (r.every > 1 ? r.every - 1 : 0)) e.s = r.to; });
+  }
+}
+// Asset hooks: if a file exists in pro/assets/, use it for that slot (e.g. pro_minotaur.glb for the shrine boss).
+async function applyAssetHooks() {
+  const hooks = Object.entries(CFG.assetHooks || {}).filter(([k]) => k[0] !== '_');
+  await Promise.all(hooks.map(async ([slot, spec]) => {
+    try { const r = await fetch('../' + spec.src, { method: 'HEAD' }); if (!r.ok) return; } catch (e) { return; }   // not dropped in yet
+    RT.ASSET_PACK[slot] = Object.assign({}, RT.ASSET_PACK[slot] || {}, spec);
+    (window.PRO_HOOKS = window.PRO_HOOKS || []).push(slot);   // test hook: which drop-ins are live
+  }));
 }
 
 /* ---------- splash screen + boot: read campaign.json, fetch each map, warm Pro's models ---------- */
@@ -124,6 +155,8 @@ function splashReady() {                                      // everything load
 async function boot() {
   try {
     CFG = await (await fetch('campaign.json', { cache: 'no-cache' })).json();
+    registerProEnemies();                                     // 1.6.0: troopers + Dystopia drones, Pro's runtime only
+    await applyAssetHooks();                                  // 1.6.0: drop-in Meshy models (minotaur, community prop)
     total = 1 + CFG.levels.length + 2;                        // campaign.json + each map + suit + cannon
     tick('campaign');
     LEVELS = await Promise.all(CFG.levels.map(async lv => {
@@ -131,6 +164,10 @@ async function boot() {
       if (!r.ok) throw new Error(lv.file + ' (' + r.status + ')');
       const level = RT.unpackLevel(await r.json()).level;     // DMB Tech 1's own .retro reader
       level.name = lv.name;                                   // show the chapter name in the HUD
+      if (lv.swap) swapEnemies(level, lv.swap);               // put Pro's enemies into the stock maps
+      (lv.nudge || []).forEach(n => level.ents.forEach(e => {  // move an entity a little, e.g. the tall Minotaur steps off his throne
+        if (e.t === 'enemy' && e.s === n.s) { e.x += n.dx || 0; e.y += n.dy || 0; }
+      }));
       tick(lv.name.replace(/^\d+ · /, ''));                  // e.g. "LOADING THE YARD…"
       return level;
     }));
@@ -147,5 +184,5 @@ async function boot() {
 }
 // Test hook for the automated checks (the game never reads it).
 window.PRO_SPLASH = { spray, viewer: splashViewer };          // test hook: spray progress + charge level
-window.PRO_CAMPAIGN = { get handle() { return handle; }, get cfg() { return CFG; }, get levels() { return LEVELS; }, loadSave: () => loadSave(), startAt, titleCard, exitGate };
+window.PRO_CAMPAIGN = { juice: JUICE, get handle() { return handle; }, get cfg() { return CFG; }, get levels() { return LEVELS; }, loadSave: () => loadSave(), startAt, titleCard, exitGate };
 boot();
