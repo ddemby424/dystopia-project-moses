@@ -75,6 +75,22 @@ Your work **autosaves** in the browser. Use **Menu → Projects** for named save
 - **Whole game:** **Export** makes one `.html` file containing all your levels that anyone can play.
 - **Safety:** level scripts from other people are switched **off** when you import them. You can read the script in the Level tab and turn it on only if you trust it.
 
+## PRO campaign (1.5.0)
+
+Open `retroengine/pro/` (for example `http://localhost:8765/retroengine/pro/`).
+You play Sgt. Protagonist (nicknamed Protag, Pro or Sgt Taggs) through four linked chapters: Lab → Yard → Factory → Marble Shrine. After that comes the ending broadcast.
+Each exit pad stays sealed until that chapter's goal is met. Your progress is saved in the browser, and a reload offers **Continue**.
+Pro's arm cannon is your gun, and it fires cyan energy rings.
+You can spin the slim suit at `retroengine/pro/preview.html`.
+
+| File | What it is |
+|---|---|
+| `pro/campaign.json` | chapter order, story text, exit goals, view-model sizing |
+| `pro/pro.js` | campaign host: loads the maps, story cards, exit seals, save/resume |
+| `pro/viewer.js` | small turntable for Pro's model (cards + preview) |
+| `pro/assets/pro_suit.glb` | Pro's suit, 30,656 triangles, 1.8 MB |
+| `pro/assets/pro_cannon.glb` | his right-arm cannon, 5,034 triangles, 390 KB (first-person gun) |
+
 ## Trial map pack
 Five official maps are in the `maps/` folder, with a phone-friendly list at `maps/index.html`. Tap **Play** to load a map in RetroEngine, or download the `.retro` file and import it. The first four are escape-pad trials (guards, a Titan, and an exit pad). **Site 12: Dataworks** is a 128×128 multiplayer compound with eight spread-out spawns, an outdoor yard, indoor halls, catwalks, and a clean bright lab wing. **The Marble Shrine** is a white-marble temple with a minotaur boss; the exit pad behind the throne unlocks only after that boss is defeated.
 

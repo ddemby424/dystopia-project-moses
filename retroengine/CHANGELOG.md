@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.0 (2026-11-25): PRO, the first story campaign
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.5.0**), powered by DMB Tech 1 **1.2.3**.
+
+- **New campaign: PRO** (`pro/`). You are Sgt. Protagonist (nicknames: "Protag", "Pro", "Sgt Taggs"), an elite weapons specialist and mechatronics engineer. You're breaking out of Pandemonium Inc. HQ, where New Age cultists want your brain to seed a self-growing AI soldier chip and plan to sacrifice the rest of you to their horned god AntiLegend. Four linked chapters use the pack maps: **The Lab** (Site 12: Dataworks) → **The Yard** (Cellblock Yard) → **The Factory** (Plant 4: Lockdown) → **The Marble Shrine** (the minotaur is AntiLegend's avatar). The campaign ends with a pirate-TV **ending broadcast**.
+- **Story cards.** An intro card, a mission brief before each chapter, a short card between chapters, and the ending broadcast. All the text is in `pro/campaign.json`.
+- **Exits stay sealed until each chapter's goal is met.** Lab: kill the Warden (Titan). Yard: get the red sally-port key. Factory: get the red keycard. Shrine: kill the minotaur (the 1.4.2 rule). Stepping on a sealed pad tells you what is missing.
+- **Saved progress.** Your chapter is saved in this browser (`localStorage`, key `retroengine.pro.campaign.v1`). If you reload, you get **Continue** at the chapter you reached. Your guns and ammo carry over inside one session. After a reload, the chapter starts with the default loadout.
+- **Pro's suit.** Darcy's Meshy model, slimmed on the box for phones: 30,656 triangles and 1.8 MB, down from 1.58 M faces and 57 MB, with 1024 JPEG textures. It spins on the intro and ending cards. Inspect it at `pro/preview.html`, and see just the cannon at `?part=cannon`.
+- **Pro's arm cannon is your first-person gun.** The right forearm cannon was cut out of the same model (5,034 triangles, 390 KB) and aimed down the barrel. It replaces the Pulse Cannon view model in the lower right, in the campaign only. It **fires glowing cyan energy rings** (a shared 216-triangle torus), with a ring-shaped muzzle flash, a cyan barrel light, a short coil glow and the usual recoil kick. Damage, speed and hits are the same as the Pulse Cannon.
+- DMB Tech 1 1.2.3 adds three small host hooks, and the editor and other modes don't use them. `opts.exitGate(G)` returns a reason the exit is sealed, or ''. `opts.ringShots` turns on ring projectiles for the player's Pulse Cannon. `opts.quitLabel` renames the quit button. A project model can now be an object `{ src, len, flip, off }`, so a host can size a view model.
+- The editor, trial map pack, multiplayer and the Marble Shrine are unchanged.
+
+
 ## 1.4.2 (2026-11-25): Shrine exit stays sealed until the minotaur falls
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

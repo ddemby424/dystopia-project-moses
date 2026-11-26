@@ -1,0 +1,61 @@
+{
+  "id": "pro",
+  "name": "PRO",
+  "version": "1.5.0",
+  "saveKey": "retroengine.pro.campaign.v1",
+  "viewModel": { "slot": "weapon_1", "src": "assets/pro_cannon.glb", "len": 0.62, "off": [0.02, -0.02, 0] },
+  "intro": {
+    "kicker": "PANDEMONIUM INC. HQ — SUBLEVEL 9",
+    "title": "PRO",
+    "lines": [
+      "You are Sgt. Protagonist — Protag to the brass, Pro or Sgt Taggs to his squad. Elite weapons specialist and mechatronics engineer.",
+      "The armor you wake up in is yours. You designed it. Pandemonium Inc. stole it, and built this whole AI facility on your work.",
+      "Their New Age cult wants your brain to seed a self-growing AI soldier chip. What is left of you goes on the altar of their horned god, AntiLegend.",
+      "Not today. Break out. Take the proof. Expose them."
+    ]
+  },
+  "levels": [
+    {
+      "slug": "site12-dataworks",
+      "file": "site12-dataworks.retro",
+      "name": "1 · The Lab",
+      "brief": "THE LAB. Their servers hold Project SEED, the chip grown from your brain scans. Fight out of the lab wing. The Warden, a Titan, carries the exit codes: put it down, then reach the south yard exit pad.",
+      "goal": { "type": "kill", "enemy": "titan", "msg": "EXIT SEALED — the Warden (Titan) still holds the codes" },
+      "after": "Project SEED files copied. Your scans. Their signatures. The only way out is through the holding yard."
+    },
+    {
+      "slug": "cellblock-yard",
+      "file": "cellblock-yard.retro",
+      "name": "2 · The Yard",
+      "brief": "THE YARD. Test subjects were held here before you. None walked out. Take the yard key, then the red sally-port key. The exit pad stays sealed without it.",
+      "goal": { "type": "key", "key": "red", "msg": "EXIT SEALED — you need the red sally-port key" },
+      "after": "Cell logs recovered: names, dates, and the word DONOR on every file. Next: the factory where they build the soldiers."
+    },
+    {
+      "slug": "plant4-lockdown",
+      "file": "plant4-lockdown.retro",
+      "name": "3 · The Factory",
+      "brief": "THE FACTORY. The chip soldiers come off this line, built from your designs. Grab the red keycard and reach the loading-dock escape pad.",
+      "goal": { "type": "key", "key": "red", "msg": "EXIT SEALED — you need the red keycard" },
+      "after": "Assembly line wrecked. The cult's elevator only goes one place now: the Marble Shrine, where AntiLegend waits."
+    },
+    {
+      "slug": "marble-shrine",
+      "file": "marble-shrine.retro",
+      "name": "4 · The Marble Shrine",
+      "brief": "THE MARBLE SHRINE. The cult's altar. The minotaur on the throne is AntiLegend's avatar. Clear the minions and kill the beast. The exit stays sealed until it falls.",
+      "goal": { "type": "boss", "msg": "" },
+      "after": ""
+    }
+  ],
+  "ending": {
+    "kicker": "LIVE · ALL CHANNELS · PIRATE SIGNAL",
+    "title": "THIS IS SGT. PROTAGONIST",
+    "lines": [
+      "Pandemonium Inc. stole my work, locked people in cages, and tried to grow a weapon out of my brain.",
+      "Project SEED. The donor logs. The shrine. Every file is attached to this broadcast. Every name. Every signature.",
+      "Their horned god bled out on his own altar. Now the world gets to see who kneeled to it.",
+      "— Sgt. Protagonist. My squad calls me Pro. Signing off."
+    ]
+  }
+}

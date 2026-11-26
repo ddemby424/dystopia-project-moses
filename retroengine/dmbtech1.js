@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.2.2 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.2.3 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.2.2';
+export const VERSION = '1.2.3';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.2.2';
+const VERSION = '1.2.3';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 // Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
@@ -1990,7 +1990,7 @@ function play(container, project, opts) {
   }
   function loadTrack(i) { TP.i = (i + MUSIC_TRACKS.length) % MUSIC_TRACKS.length; const t = MUSIC_TRACKS[TP.i]; TP.cur = t.id; TP.audio.src = assetBase + t.file; }
   function nextTrack(d) { if (!TP.audio || TP.failed) return; loadTrack(TP.i + d); TP.pick = TP.pick === 'synth' ? null : TP.pick !== null ? MUSIC_TRACKS[TP.i].id : null; const pr = TP.audio.play(); if (pr && pr.catch) pr.catch(() => {}); }
-  function slotSrc(slot) { if (models[slot]) return { src: models[slot] }; const p = usePack && ASSET_PACK[slot]; return p ? Object.assign({}, p, { src: assetBase + p.src }) : null; }
+  function slotSrc(slot) { if (models[slot]) return typeof models[slot] === 'object' ? Object.assign({}, models[slot]) : { src: models[slot] }; const p = usePack && ASSET_PACK[slot]; return p ? Object.assign({}, p, { src: assetBase + p.src }) : null; }
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   const remotes = [];
   const session = { get world() { return G && G.world; }, get scene() { return G && G.scene; }, get assetBase() { return assetBase; }, get destroyed() { return destroyed; }, remotes };
@@ -2053,7 +2053,11 @@ function play(container, project, opts) {
   const weaponMeshes = WEAPON_DEFS.map((w, i) => { const m = buildWeaponMesh(i); m.visible = false; wScene.add(m); return m; });
   weaponMeshes.forEach((wm, i) => { const spec = slotSrc('weapon_' + i); if (!spec) return;
     loadGlb(spec.src).then(gltf => { if (!gltf || destroyed) return; const gun = buildGunFromGlb(gltf.scene, Object.assign({ len: 0.5 }, spec)); if (!gun) return;
-      wm.userData.inner.visible = false; wm.add(gun.obj); wm.userData.flash.position.set(0, gun.muzzleY, gun.muzzleZ); wm.userData.glb = gun.obj; }); });
+      wm.userData.inner.visible = false; wm.add(gun.obj); wm.userData.flash.position.set(0, gun.muzzleY, gun.muzzleZ); wm.userData.glb = gun.obj;
+      if (opts.ringShots && i === 1) {                          // Pro's cannon: the coils glow when it fires
+        const mats = []; gun.obj.traverse(o => { if (o.isMesh && o.material && o.material.emissive) mats.push(o.material); }); wm.userData.glowMats = mats;
+        const fl = wm.userData.flash; fl.geometry = new THREE.TorusGeometry(0.05, 0.012, 6, 16);  // muzzle flash becomes a ring too
+      } }); });
   // Ejected shell casings: a small pool of meshes animated in camera space (cheap, never clip walls).
   const shellGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.022, 6), brass = new THREE.MeshStandardMaterial({ color: 0xc89a3c, metalness: 0.9, roughness: 0.3 }), redShell = new THREE.MeshStandardMaterial({ color: 0x8a1d14, metalness: 0.2, roughness: 0.6 });
   const shells = []; for (let i = 0; i < 14; i++) { const m = new THREE.Mesh(shellGeo, brass); m.visible = false; wScene.add(m); shells.push({ m, v: new THREE.Vector3(), life: 0 }); }
@@ -2345,9 +2349,11 @@ function play(container, project, opts) {
     // pickups & exits
     for (const p of G.pickups) if (!p.taken && Math.abs(p.x - G.px) < 0.45 && Math.abs(p.y - G.py) < 0.45 && Math.abs(p.z - G.pz) < 0.6) tryPickup(p);
     // A living boss (seated, rising, or in combat) keeps the exit sealed. Maps with no boss are unchanged.
+    // 1.2.3: a host page can add its own goal through opts.exitGate (see exitSealed below).
     for (const e of G.exits) if (Math.hypot(e.x - G.px, e.y - G.py) < 0.42) {
-      if (bossAlive()) {
-        if (!G.exitLockT || G.time - G.exitLockT > 3) { G.exitLockT = G.time; msg('THE EXIT IS SEALED — the minotaur still lives'); }
+      const seal = exitSealed();                     // '' = open, otherwise the reason it is sealed
+      if (seal) {
+        if (!G.exitLockT || G.time - G.exitLockT > 3) { G.exitLockT = G.time; msg(seal); }
         continue;
       }
       levelComplete(); return;
@@ -2435,6 +2441,7 @@ function play(container, project, opts) {
     { const fl = weaponMeshes[G.cur].userData.flash, r = rand(0.8, 1.35); fl.rotation.z = rand(0, Math.PI); fl.scale.set(r * 1.3, r * 1.3, 2.4 * r); }
     const eyeZ = G.pz + EYE;
     if (!w.melee) { wMuzzle.intensity = 0.45; weaponMeshes[G.cur].userData.flash.visible = true; makeNoise(10); }
+    wMuzzle.color.setHex(opts.ringShots && G.cur === 1 ? 0x4fe8ff : 0xffc070);   // ring cannon lights its barrel cyan
     const cyaw = Math.cos(G.yaw), syaw = Math.sin(G.yaw);
     if (w.melee) {
       let best = null, bd = w.range;
@@ -2589,14 +2596,20 @@ function play(container, project, opts) {
     mesh.visible = vis > 0.02;
     mesh.scale.setScalar((baseScale || 1) * (vis > 0.02 ? Math.max(vis, 0.15) : 0.15));
   }
+  // 1.2.3 ring shots (opts.ringShots, used by the Pro campaign): the player's Pulse Cannon fires glowing
+  // cyan energy rings. Only the look changes; speed, damage and hits are the same pulse bolt.
+  let ringGeo = null;                                          // one shared low-poly torus (6 x 18 = 216 triangles)
   function spawnProj(owner, kind, x, y, z, dx, dy, dz, speed, dmg, splash) {
-    const color = kind === 'plasma' ? 0x7cff4f : kind === 'pulse' ? 0x38bdf8 : kind === 'rocket' ? 0xffa040 : kind === 'palm' ? 0xffcc55 : 0xff3b1f;
-    const pm = projMats(color), mesh = new THREE.Mesh(projGeo, pm.core);
+    const ring = !!opts.ringShots && owner === 'player' && kind === 'pulse';   // is this one of Pro's rings?
+    if (ring && !ringGeo) ringGeo = new THREE.TorusGeometry(0.07, 0.014, 6, 18);  // made once, reused by every ring
+    const color = ring ? 0x4fe8ff : kind === 'plasma' ? 0x7cff4f : kind === 'pulse' ? 0x38bdf8 : kind === 'rocket' ? 0xffa040 : kind === 'palm' ? 0xffcc55 : 0xff3b1f;
+    const pm = projMats(color), mesh = new THREE.Mesh(ring ? ringGeo : projGeo, pm.core);
     const baseScale = kind === 'rocket' ? 1.6 : kind === 'palm' ? 2.1 : kind === 'plasma' ? 1.3 : kind === 'pulse' ? 1.15 : 1.1;
     mesh.userData.baseScale = baseScale;
     mesh.scale.setScalar(baseScale);
-    const halo = new THREE.Mesh(projGeo, pm.halo); halo.scale.setScalar(kind === 'pulse' ? 1.7 : 2.6); mesh.add(halo);
+    const halo = new THREE.Mesh(ring ? ringGeo : projGeo, pm.halo); halo.scale.setScalar(ring ? 1.35 : kind === 'pulse' ? 1.7 : 2.6); mesh.add(halo);
     mesh.position.set(x, z, y);
+    if (ring) { mesh.lookAt(x + dx, z + dz, y + dy); mesh.userData.ring = true; }  // face the ring along its flight path (world is x, z-up, y)
     // Keep the mesh small near the camera so an additive halo (player pulse or incoming bolt)
     // doesn't read as a white cube on the first-person gun.
     scaleProjMesh(mesh, baseScale, x, y, z);
@@ -3188,7 +3201,7 @@ function play(container, project, opts) {
     G.flash.target.position.copy(camera.position).add(fwd);
     // spinning pickups, exit beam
     G.pickups.forEach(p => { if (!p.taken) { p.mesh.userData.spin.rotation.y = time * 1.8; p.mesh.userData.spin.position.y = 0.24 + Math.sin(time * 2.5 + p.x) * 0.04; } });
-    G.exits.forEach(e => { const beam = e.mesh && e.mesh.userData.beam; if (beam) beam.material.opacity = bossAlive() ? 0.03 : (0.1 + Math.sin(time * 3) * 0.05); });
+    G.exits.forEach(e => { const beam = e.mesh && e.mesh.userData.beam; if (beam) beam.material.opacity = exitSealed() ? 0.03 : (0.1 + Math.sin(time * 3) * 0.05); });
     // first-person weapon: bob, recoil, raise/lower when switching
     weaponMeshes.forEach((m, i) => { m.visible = i === G.cur && state !== 'dead'; });
     const wm = weaponMeshes[G.cur];
@@ -3204,6 +3217,7 @@ function play(container, project, opts) {
     if (rl) { wm.position.y -= rl * 0.13; wm.rotation.x -= rl * 0.35; wm.rotation.z = rl * 0.6; }
     updateShells(dt);
     if (wm.userData.flash.visible && G.recoil < 0.7) wm.userData.flash.visible = false;
+    if (wm.userData.glowMats) { const gk = G.recoil * 0.2; wm.userData.glowMats.forEach(m => m.emissive.setRGB(0.1 * gk, 0.6 * gk, 0.8 * gk)); }  // cyan glow fades with the recoil
     wMuzzle.position.set(0.16, -0.12, -0.7);
     renderer.clear();
     renderer.render(G.scene, camera);
@@ -3302,9 +3316,9 @@ function play(container, project, opts) {
         ${levels.length > 1 ? `<div class="dfg-row"><span>Level</span><select data-s="lvl">${levels.map((l, i) => `<option value="${i}">${i + 1}. ${esc(l.name)}</option>`).join('')}</select></div><button class="dfg-btn" data-a="startSel">Play selected level</button>` : ''}
         ${characterPickerHtml()}${opts.onMultiplayer ? '<button class="dfg-btn" data-a="multiplayer">Multiplayer</button>' : ''}<button class="dfg-btn" data-a="settings">Settings</button>${ctrl}`;
     } else if (kind === 'start') {
-      h = `<h1>${esc(L.name)}</h1><h2>Level ${G.index + 1} of ${levels.length}</h2>${characterPickerHtml()}${ctrl}<button class="dfg-btn pri" data-a="go">${isTouch ? 'Tap' : 'Click'} to start</button>${opts.onMultiplayer ? '<button class="dfg-btn" data-a="multiplayer">Multiplayer</button>' : ''}${opts.onQuit ? '<button class="dfg-btn" data-a="quit">Back to editor</button>' : ''}`;
+      h = `<h1>${esc(L.name)}</h1><h2>Level ${G.index + 1} of ${levels.length}</h2>${characterPickerHtml()}${ctrl}<button class="dfg-btn pri" data-a="go">${isTouch ? 'Tap' : 'Click'} to start</button>${opts.onMultiplayer ? '<button class="dfg-btn" data-a="multiplayer">Multiplayer</button>' : ''}${opts.onQuit ? `<button class="dfg-btn" data-a="quit">${esc(opts.quitLabel || 'Back to editor')}</button>` : ''}`;
     } else if (kind === 'pause') {
-      h = `<h1>PAUSED</h1><h2>${esc(L.name)}</h2><button class="dfg-btn pri" data-a="resume">Resume</button><button class="dfg-btn" data-a="restart">Restart level</button><button class="dfg-btn" data-a="settings">Settings</button><button class="dfg-btn" data-a="musicui">Music player</button><button class="dfg-btn" data-a="quit">${opts.onQuit ? 'Back to editor' : 'Quit to title'}</button>`;
+      h = `<h1>PAUSED</h1><h2>${esc(L.name)}</h2><button class="dfg-btn pri" data-a="resume">Resume</button><button class="dfg-btn" data-a="restart">Restart level</button><button class="dfg-btn" data-a="settings">Settings</button><button class="dfg-btn" data-a="musicui">Music player</button><button class="dfg-btn" data-a="quit">${opts.quitLabel || (opts.onQuit ? 'Back to editor' : 'Quit to title')}</button>`;
     } else if (kind === 'music') {
       const curId = TP.pick === 'synth' || TP.failed || !usePack ? 'synth' : TP.cur;
       h = `<h1>MUSIC</h1><h2>${TP.failed || !usePack ? 'Tracks unavailable offline — using synth' : 'Tap a track to play it'}</h2><div class="dfg-tracks">` +
@@ -3321,10 +3335,10 @@ function play(container, project, opts) {
         ${characterPickerHtml()}
         <p style="font-size:11px;opacity:.6">Quality changes to lights & textures apply on the next level load. Player models load only when a third-person / remote player uses them.</p><button class="dfg-btn pri" data-a="back">Back</button>`;
     } else if (kind === 'dead') {
-      h = `<h1 style="color:#ff3b30">YOU DIED</h1><h2>${esc(L.name)}</h2>${stats()}<button class="dfg-btn pri" data-a="restart">Try again</button><button class="dfg-btn" data-a="quit">${opts.onQuit ? 'Back to editor' : 'Quit to title'}</button>`;
+      h = `<h1 style="color:#ff3b30">YOU DIED</h1><h2>${esc(L.name)}</h2>${stats()}<button class="dfg-btn pri" data-a="restart">Try again</button><button class="dfg-btn" data-a="quit">${opts.quitLabel || (opts.onQuit ? 'Back to editor' : 'Quit to title')}</button>`;
     } else if (kind === 'won') {
       const lastOne = G.index >= levels.length - 1;
-      h = `<h1 style="color:#2dffb0">${lastOne ? 'CAMPAIGN COMPLETE' : 'LEVEL COMPLETE'}</h1><h2>${esc(L.name)}</h2>${stats()}${lastOne ? '' : '<button class="dfg-btn pri" data-a="next">Next level</button>'}<button class="dfg-btn${lastOne ? ' pri' : ''}" data-a="restart">Replay level</button><button class="dfg-btn" data-a="quit">${opts.onQuit ? 'Back to editor' : 'Quit to title'}</button>`;
+      h = `<h1 style="color:#2dffb0">${lastOne ? 'CAMPAIGN COMPLETE' : 'LEVEL COMPLETE'}</h1><h2>${esc(L.name)}</h2>${stats()}${lastOne ? '' : '<button class="dfg-btn pri" data-a="next">Next level</button>'}<button class="dfg-btn${lastOne ? ' pri' : ''}" data-a="restart">Replay level</button><button class="dfg-btn" data-a="quit">${opts.quitLabel || (opts.onQuit ? 'Back to editor' : 'Quit to title')}</button>`;
     }
     if (isTouch && (kind === 'start' || kind === 'title' || kind === 'pause')) h += `<div class="dfg-rot">Tip: turn your phone sideways for the best view</div>${FS.ok() && !FS.el() ? '<button class="dfg-btn" data-a="fs">Full screen</button>' : ''}`;
     const wide = (kind === 'start' || kind === 'title' || kind === 'settings');
@@ -3372,6 +3386,12 @@ function play(container, project, opts) {
   function pause() { if (state !== 'playing') return; state = 'paused'; showMenu('pause'); input.fire = input.mouseFire = false; input.fireTap = 0; music(false); if (document.pointerLockElement) document.exitPointerLock(); }
   function playerDie() { state = 'dead'; music(false); input.fire = input.mouseFire = false; setTimeout(() => { if (state === 'dead' && !destroyed) { showMenu('dead'); if (document.pointerLockElement) document.exitPointerLock(); } }, 1200); }
   function bossAlive() { return !!(G && G.enemies.some(e => e.def && e.def.boss && e.state !== 'dead')); }
+  // Why the exit pads are sealed right now ('' means open).
+  function exitSealed() {
+    if (bossAlive()) return 'THE EXIT IS SEALED — the minotaur still lives';   // 1.4.2 rule, always first
+    if (opts.exitGate) { try { return opts.exitGate(G) || ''; } catch (e) { return ''; } }  // host goal, e.g. the Pro campaign
+    return '';                                                                  // no goal: open (every older map)
+  }
   function levelComplete() {
     if (state !== 'playing') return; state = 'won'; Sound.play('win'); music(false); fire('exit');
     input.fire = input.mouseFire = false; if (document.pointerLockElement) document.exitPointerLock();
@@ -3532,7 +3552,7 @@ function play(container, project, opts) {
   // test hook: step the AI deterministically (the game itself never calls this)
   window.RETROENGINE_DEBUG = { handle, THREE, input, los: (a, b, c, d) => los(a, b, c, d), findCover: e => findCover(e), damageEnemy: (e, d) => damageEnemy(e, d), diff: () => diff(),
     step(dt, n) { for (let i = 0; i < (n || 1); i++) { G.time += dt; updateEnemies(dt, G.time); updateProjectiles(dt); updateDoors(dt); } },
-    findBoss: () => G && G.enemies.find(e => e.def && e.def.boss), bossAlive: () => bossAlive(), exitUnlocked: () => !bossAlive(),
+    findBoss: () => G && G.enemies.find(e => e.def && e.def.boss), bossAlive: () => bossAlive(), exitUnlocked: () => !exitSealed(),
     killMinions() { if (!G) return 0; let n = 0; G.enemies.forEach(e => { if ((!e.def || !e.def.boss) && e.state !== 'dead') { damageEnemy(e, 9999); n++; } }); return n; },
     awakenBoss() { if (G) G.combat = true; const b = G && G.enemies.find(e => e.def && e.def.boss); if (b && b.state === 'seated') { b.state = 'rising'; b.t = 0; msg('THE MINOTAUR AWAKENS'); } return b; },
     setPlayer(x, y, z, yaw) { if (!G) return; G.px = x; G.py = y; if (z != null) G.pz = z; if (yaw != null) G.yaw = yaw; },
