@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.2.3 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.2.4 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.2.3';
+export const VERSION = '1.2.4';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.2.3';
+const VERSION = '1.2.4';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 // Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
@@ -33,6 +33,7 @@ function seeded(seed) {             // repeatable random numbers (xorshift)
   return () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
 }
 function hexToRgb(h) { h = (h || '#888888').replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16) || 0; return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+const esc0 = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));  // HTML-escape for early screens
 function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; }
 
 /* ---------- settings (saved in the browser) ---------- */
@@ -2003,7 +2004,7 @@ function play(container, project, opts) {
   if (hasWebGL()) { try { renderer = new THREE.WebGLRenderer({ antialias: Q().aa, powerPreference: 'high-performance' }); } catch (e) { renderer = null; } }
   if (!renderer) {   // no WebGL at all (blocked, very old phone, or GPU blocklisted): explain instead of a blank screen
     root.classList.add('nogl');
-    root.innerHTML = `<div class="dfg-menu" style="display:flex"><div class="dfg-panel"><h1>3D NOT AVAILABLE</h1><h2>This browser could not start WebGL</h2><p style="font-size:13px;line-height:1.5;opacity:.85">RetroEngine needs WebGL to draw the 3D game. Try: update your browser, open this page in Chrome, Safari, Firefox or Samsung Internet instead of an in-app browser, turn off battery saver or "lite" mode, and enable hardware acceleration. The level editor still works.</p>${opts.onQuit ? '<button class="dfg-btn pri" data-a="quit">Back to editor</button>' : ''}</div></div>`;
+    root.innerHTML = `<div class="dfg-menu" style="display:flex"><div class="dfg-panel"><h1>3D NOT AVAILABLE</h1><h2>This browser could not start WebGL</h2><p style="font-size:13px;line-height:1.5;opacity:.85">${opts.gameName ? esc0(opts.gameName) + ' (DMB Tech 1)' : 'RetroEngine'} needs WebGL to draw the 3D game. Try: update your browser, open this page in Chrome, Safari, Firefox or Samsung Internet instead of an in-app browser, turn off battery saver or "lite" mode, and enable hardware acceleration.${opts.gameName ? '' : ' The level editor still works.'}</p>${opts.onQuit ? `<button class="dfg-btn pri" data-a="quit">${esc0(opts.quitLabel || 'Back to editor')}</button>` : ''}</div></div>`;
     const qb = root.querySelector('[data-a="quit"]'); if (qb) qb.addEventListener('click', () => opts.onQuit());
     return { nogl: true, game: null, state: 'nogl', destroy() { root.remove(); } };
   }
@@ -3311,7 +3312,7 @@ function play(container, project, opts) {
     const ctrl = isTouch ? `<div class="dfg-ctrl"><span>Left side</span><span>drag to move</span><span>Right side</span><span>drag to look</span><span>FIRE</span><span>hold to shoot (drag to aim)</span><span>USE</span><span>open doors</span></div>`
       : `<div class="dfg-ctrl"><kbd>WASD</kbd><span>move · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump</span><kbd>Mouse</kbd><span>look · click to shoot</span><kbd>E</kbd><span>use / open doors</span><kbd>1-6</kbd><span>weapons · wheel / Q to cycle</span><kbd>F</kbd><span>flashlight · <kbd>M</kbd> map · <kbd>Esc</kbd> pause</span></div>`;
     if (kind === 'title') {
-      h = `<h1>${esc(project.name || 'RetroEngine')}</h1><h2>${levels.length} level${levels.length > 1 ? 's' : ''} · made with RetroEngine</h2>
+      h = `<h1>${esc(project.name || opts.gameName || 'RetroEngine')}</h1><h2>${levels.length} level${levels.length > 1 ? 's' : ''} · ${opts.gameName ? 'powered by DMB Tech 1' : 'made with RetroEngine'}</h2>
         <button class="dfg-btn pri" data-a="start0">Start campaign</button>
         ${levels.length > 1 ? `<div class="dfg-row"><span>Level</span><select data-s="lvl">${levels.map((l, i) => `<option value="${i}">${i + 1}. ${esc(l.name)}</option>`).join('')}</select></div><button class="dfg-btn" data-a="startSel">Play selected level</button>` : ''}
         ${characterPickerHtml()}${opts.onMultiplayer ? '<button class="dfg-btn" data-a="multiplayer">Multiplayer</button>' : ''}<button class="dfg-btn" data-a="settings">Settings</button>${ctrl}`;
@@ -3323,7 +3324,7 @@ function play(container, project, opts) {
       const curId = TP.pick === 'synth' || TP.failed || !usePack ? 'synth' : TP.cur;
       h = `<h1>MUSIC</h1><h2>${TP.failed || !usePack ? 'Tracks unavailable offline — using synth' : 'Tap a track to play it'}</h2><div class="dfg-tracks">` +
         MUSIC_TRACKS.map((t, i) => `<button class="dfg-trk${curId === t.id ? ' on' : ''}" data-a="track" data-i="${i}"><b>${esc(t.title)}</b><span>${esc(t.artist)} · ${esc(t.genre)} · ${esc(t.license)}</span></button>`).join('') +
-        `<button class="dfg-trk${curId === 'synth' ? ' on' : ''}" data-a="track" data-i="-1"><b>Synth ambient</b><span>RetroEngine generative music · built in</span></button></div>` +
+        `<button class="dfg-trk${curId === 'synth' ? ' on' : ''}" data-a="track" data-i="-1"><b>Synth ambient</b><span>${opts.gameName ? 'DMB Tech 1' : 'RetroEngine'} generative music · built in</span></button></div>` +
         `<p style="font-size:11px;opacity:.6;line-height:1.5">Music licensed under Creative Commons Attribution 4.0 (creativecommons.org/licenses/by/4.0). Kevin MacLeod — incompetech.com · Shane Ivers — silvermansound.com</p><button class="dfg-btn pri" data-a="back">Back</button>`;
     } else if (kind === 'settings') {
       const r = (k, lab, min, max, step) => `<div class="dfg-row"><span>${lab}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${S[k]}"></div>`;

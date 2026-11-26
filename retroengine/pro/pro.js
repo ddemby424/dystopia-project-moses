@@ -1,8 +1,9 @@
-// PRO — a RetroEngine campaign (Lab -> Yard -> Factory -> Marble Shrine -> broadcast).
+// PRO — a standalone game powered by DMB Tech 1 (Lab -> Yard -> Factory -> Marble Shrine -> broadcast).
 // This page only *hosts* DMB Tech 1: it loads the four pack maps, adds story cards between them,
 // seals each exit until that level's goal is met, and saves how far you got in localStorage.
 import { createRuntime } from '../dmbtech1.js';          // the DMB Tech 1 engine (same file the editor uses)
 import { mountPro } from './viewer.js';                  // Pro's turntable for the intro and ending cards
+import { sprayTitle } from './spray.js';                 // spray-paints the PRO title on the splash
 
 const RT = createRuntime();                              // one engine instance for the whole campaign
 const $ = id => document.getElementById(id);             // tiny helper: element by id
@@ -52,7 +53,8 @@ function startAt(index) {
   const project = { name: CFG.name, levels: LEVELS, models: vm ? { [vm.slot]: Object.assign({}, vm, { src: new URL(vm.src, import.meta.url).href }) } : {} };  // src made absolute; len/flip/off size and aim it
   handle = RT.play(host, project, {
     level: index,                                             // chapter to open
-    assetBase: '../',                                         // shared RetroEngine models + music live one folder up
+    assetBase: '../',                                         // shared enemy/prop models + music live one folder up
+    gameName: 'Pro',                                          // 1.5.1: engine screens say Pro / DMB Tech 1, never the editor's name
     exitGate,                                                 // our per-level seal (see above)
     ringShots: true,                                          // Pro's cannon fires glowing cyan energy rings
     quitLabel: 'Campaign menu',
@@ -85,7 +87,6 @@ function titleCard() {
   if (at > 0 && !s.done) btns.push({ id: 'resume', label: 'Continue · ' + CFG.levels[at].name, pri: true, go: () => briefCard(at) });
   btns.push({ id: 'new', label: at > 0 || s.done ? 'New campaign' : 'Begin', pri: !(at > 0 && !s.done), go: () => { writeSave({ level: 0, done: false }); briefCard(0); } });
   btns.push({ id: 'preview', label: 'Inspect the suit', go: () => { location.href = 'preview.html'; } });
-  btns.push({ id: 'exit', label: 'RetroEngine', go: () => { location.href = '../'; } });
   showCard({ kind: 'title', kicker: i.kicker, title: i.title, lines: i.lines, hero: true, buttons: btns });
 }
 function briefCard(index) {                                  // short mission text right before a chapter loads
@@ -94,22 +95,57 @@ function briefCard(index) {                                  // short mission te
     buttons: [{ id: 'go', label: 'Deploy', pri: true, go: () => startAt(index) }, { id: 'menu', label: 'Back', go: titleCard }] });
 }
 
-/* ---------- boot: read campaign.json, then fetch and unpack each map ---------- */
+/* ---------- splash screen + boot: read campaign.json, fetch each map, warm Pro's models ---------- */
+const splash = $('splash');
+let loaded = 0, total = 1;                                    // loading-bar counters (total grows once we know the maps)
+let filesReady = false, sprayed = false;                      // "tap to continue" needs both
+// Splash part 1: spray-paint the title right away, then show the engine badge.
+const spray = sprayTitle($('sp-spray'), { duration: 2600 });
+spray.done.then(() => { sprayed = true; splash.classList.add('sprayed'); maybeReady(); });
+// Splash part 2: swap the still image for the live spinning suit with the ion charge in his cannon.
+const splashViewer = mountPro($('sp-3d'), { spin: 0.55, charge: true });
+splashViewer.ready.then(ok => { if (ok) splash.classList.add('live'); });   // if the GLB fails, the still image stays
+function tick(label) {                                        // one file finished: move the bar and say what loaded
+  loaded++; $('sp-fill').style.width = Math.round(100 * loaded / total) + '%';
+  if (label) $('sp-status').textContent = 'LOADING ' + label.toUpperCase() + '…';
+}
+function maybeReady() { if (filesReady && sprayed) splashReady(); }  // paint done AND files loaded
+function splashReady() {                                      // everything loaded: wait for a tap
+  if (splash.classList.contains('ready')) return;             // only once
+  splash.classList.add('ready'); $('sp-fill').style.width = '100%';
+  $('sp-status').textContent = 'TAP TO CONTINUE';
+  splash.addEventListener('click', () => {                    // the tap also unlocks sound on phones
+    splash.classList.add('gone');                             // fade out (CSS), then remove it from view
+    setTimeout(() => { splash.style.display = 'none'; splashViewer.dispose(); }, 450);  // free the splash's 3D view
+    titleCard();                                              // straight to the campaign menu
+  }, { once: true });
+  window.PRO_SPLASH_READY = true;                             // test hook
+}
 async function boot() {
   try {
     CFG = await (await fetch('campaign.json', { cache: 'no-cache' })).json();
+    total = 1 + CFG.levels.length + 2;                        // campaign.json + each map + suit + cannon
+    tick('campaign');
     LEVELS = await Promise.all(CFG.levels.map(async lv => {
-      const r = await fetch('../maps/' + lv.file);            // the same .retro files as the trial map pack
+      const r = await fetch('../maps/' + lv.file);            // the same .retro map files the game ships with
       if (!r.ok) throw new Error(lv.file + ' (' + r.status + ')');
       const level = RT.unpackLevel(await r.json()).level;     // DMB Tech 1's own .retro reader
       level.name = lv.name;                                   // show the chapter name in the HUD
+      tick(lv.name.replace(/^\d+ · /, ''));                  // e.g. "LOADING THE YARD…"
       return level;
     }));
-    titleCard();
+    // Warm the browser cache with Pro's suit and cannon so the menu and first chapter open fast.
+    await Promise.all(['assets/pro_suit.glb', CFG.viewModel.src].map(src =>
+      fetch(src).then(r => r.arrayBuffer()).catch(() => null).then(() => tick(src.indexOf('cannon') >= 0 ? 'arm cannon' : 'suit'))));
+    filesReady = true; $('sp-fill').style.width = '100%';
+    if (!sprayed) $('sp-status').textContent = 'READY';      // still painting: wait for the last stroke
+    maybeReady();
   } catch (e) {
-    showCard({ kind: 'error', title: 'COULD NOT LOAD', lines: ['The campaign files did not load: ' + e.message, 'Check your connection and reload.'] });
+    splash.style.display = 'none';
+    showCard({ kind: 'error', title: 'COULD NOT LOAD', lines: ['The game files did not load: ' + e.message, 'Check your connection and reload.'] });
   }
 }
 // Test hook for the automated checks (the game never reads it).
+window.PRO_SPLASH = { spray, viewer: splashViewer };          // test hook: spray progress + charge level
 window.PRO_CAMPAIGN = { get handle() { return handle; }, get cfg() { return CFG; }, get levels() { return LEVELS; }, loadSave: () => loadSave(), startAt, titleCard, exitGate };
 boot();

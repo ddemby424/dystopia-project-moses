@@ -75,9 +75,10 @@ Your work **autosaves** in the browser. Use **Menu → Projects** for named save
 - **Whole game:** **Export** makes one `.html` file containing all your levels that anyone can play.
 - **Safety:** level scripts from other people are switched **off** when you import them. You can read the script in the Level tab and turn it on only if you trust it.
 
-## PRO campaign (1.5.0)
+## PRO campaign (1.5.0, standalone from 1.5.1)
 
 Open `retroengine/pro/` (for example `http://localhost:8765/retroengine/pro/`).
+From 1.5.1, Pro is its own game. It has a splash screen with a spray-painted PRO title, Sgt. Protagonist spinning with an ion charge building in his cannon, a loading bar and a **Powered by DMB Tech 1** badge (tap to continue), and none of the editor's branding. On a phone, use **Add to Home screen** to get a full-screen **Pro** icon.
 You play Sgt. Protagonist (nicknamed Protag, Pro or Sgt Taggs) through four linked chapters: Lab → Yard → Factory → Marble Shrine. After that comes the ending broadcast.
 Each exit pad stays sealed until that chapter's goal is met. Your progress is saved in the browser, and a reload offers **Continue**.
 Pro's arm cannon is your gun, and it fires cyan energy rings.
@@ -89,6 +90,9 @@ You can spin the slim suit at `retroengine/pro/preview.html`.
 | `pro/pro.js` | campaign host: loads the maps, story cards, exit seals, save/resume |
 | `pro/viewer.js` | small turntable for Pro's model (cards + preview) |
 | `pro/assets/pro_suit.glb` | Pro's suit, 30,656 triangles, 1.8 MB |
+| `pro/manifest.webmanifest`, `pro/assets/icon-*.png` | home-screen install as "Pro" |
+| `pro/spray.js` | spray-paint title animation (overspray, speckle, drips) |
+| `pro/assets/pro_splash.webp` | still render of the slim suit, shown while the 3D model loads |
 | `pro/assets/pro_cannon.glb` | his right-arm cannon, 5,034 triangles, 390 KB (first-person gun) |
 
 ## Trial map pack

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.1 (2026-11-25): Pro stands on its own, powered by DMB Tech 1
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.5.1**), powered by DMB Tech 1 **1.2.4**.
+
+- **Pro has its own splash screen.** The title **PRO** is spray-painted on screen one stroke at a time, with soft overspray, speckle and a few paint drips (`pro/spray.js`, a 2D canvas, no sound). Next to it, the slim Sgt. Protagonist suit spins while a **blue ion charge** keeps building in his arm cannon: a pulsing cyan glow, a light on the barrel and 24 sparks pulled into the muzzle. A still image shows first while the 3D model loads. A cyan loading bar fills as the campaign, the four maps, the suit and the cannon load. When the paint is done, the **Powered by DMB Tech 1** engine badge and a small Darcy D. Demby · DembySoftwareSystems credit appear, then **TAP TO CONTINUE** takes you to the campaign menu.
+- **Pro loads as a standalone game.** The page title is just "Pro", and the menu's RetroEngine button is gone. The game's own screens (pause, quit, music player, no-WebGL notice) name Pro and DMB Tech 1, never the editor.
+- **Add to Home screen.** `pro/manifest.webmanifest` and icons open it full screen in landscape as **Pro**.
+- DMB Tech 1 1.2.4 adds `opts.gameName`. When a host sets it, the engine's built-in screens use that name and "DMB Tech 1" instead of "RetroEngine". The editor doesn't set it and looks the same.
+- The editor, map pack, multiplayer and the Marble Shrine are unchanged.
+
+
 ## 1.5.0 (2026-11-25): PRO, the first story campaign
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

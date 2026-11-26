@@ -5,8 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#050607">
 <meta name="robots" content="noindex">                      <!-- keep it out of search engines -->
-<title>PRO — a RetroEngine campaign</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap">
+<title>Pro</title>
+<!-- Home-screen install: "Add to Home screen" on the Fold opens it full screen as "Pro". -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pro">
+<meta name="application-name" content="Pro">
+<link rel="icon" type="image/png" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<!-- Fonts (SIL Open Font License): Chakra Petch for text, Black Ops One for the big stencil title. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Black+Ops+One&display=swap">
 <!-- Three.js r128 is DMB Tech 1's peer dependency (same pin as the editor). -->
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
@@ -15,6 +23,23 @@
 <link rel="stylesheet" href="pro.css">
 </head>
 <body>
+<!-- SPLASH: plain HTML + CSS so it shows instantly, before any game code loads. pro.js fills the bar. -->
+<div id="splash">
+  <div class="scan"></div>                                <!-- same CRT scanlines as the story cards -->
+  <div id="sp-stage">                                     <!-- Sgt. Protagonist: still image first, then the live 3D model -->
+    <img id="sp-art" src="assets/pro_splash.webp" alt="Sgt. Protagonist in his armored suit"> <!-- shows instantly -->
+    <canvas id="sp-3d"></canvas>                          <!-- spinning slim suit + ion charge, fades in when loaded -->
+  </div>
+  <div id="sp-text">
+    <div id="sp-kicker">PANDEMONIUM INC. HQ · SUBLEVEL 9</div>
+    <h1 id="sp-title"><span class="sr">PRO</span><canvas id="sp-spray"></canvas></h1> <!-- title is spray-painted onto this canvas -->
+    <div id="sp-sub">Sgt. Protagonist is getting out.</div>
+    <div id="sp-bar"><i id="sp-fill"></i></div>           <!-- loading bar; width set by pro.js -->
+    <div id="sp-status">BOOTING…</div>                    <!-- what is loading right now -->
+    <div id="sp-badge"><small>POWERED BY</small><b>DMB TECH 1</b></div>  <!-- the engine badge -->
+    <div id="sp-credit">Darcy D. Demby · DembySoftwareSystems</div>
+  </div>
+</div>
 <div id="game"></div>                                     <!-- DMB Tech 1 draws the levels in here -->
 <div id="card" class="card">                              <!-- story cards sit on top of the game -->
   <div class="scan"></div>                                <!-- CRT scanlines, for grit -->
