@@ -32,7 +32,7 @@ export function mountPro(canvas, options) {
     controls.target.set(0, 0, 0);
   }
   let raf = 0, last = performance.now(), dead = false, clock = 0;
-  let charge = null;
+  let charge = null, mixer = null;
   const chev = [];                                                    // glowing Sgt. chevron materials (unlit)                                                  // the ion-charge effect (built after the model loads)
   function size() {                                                   // match the canvas's on-screen size
     const w = canvas.clientWidth || 300, h = canvas.clientHeight || 300;
@@ -47,7 +47,9 @@ export function mountPro(canvas, options) {
     if (dead) return;
     const dt = Math.min(0.05, (t - last) / 1000); last = t;           // seconds since the last frame (capped)
     if (o.spin) pivot.rotation.y += o.spin * dt;                       // slow turntable
-    clock += dt; if (charge) charge.update(clock);                     // pulse the cannon charge
+    clock += dt;
+    if (mixer) mixer.update(dt);                                       // 1.6.5: his Mixamo idle (rifle-aiming breath and sway)
+    if (charge) charge.update(clock);                                  // pulse the cannon charge (it rides the cannon arm)
     const g = 0.82 + 0.18 * Math.sin(clock * 2.6);                     // slow ion-blue breathing on the chevrons
     for (const cm of chev) { if (!cm.userData.c0) cm.userData.c0 = cm.color.clone(); cm.color.copy(cm.userData.c0).multiplyScalar(cm.name === 'chevron_halo' ? g * g : 0.85 + 0.25 * g); }
     if (controls) controls.update();
@@ -60,19 +62,27 @@ export function mountPro(canvas, options) {
       const c = box.getCenter(new THREE.Vector3()), s = 2 / Math.max(box.getSize(new THREE.Vector3()).y, 1e-4);
       m.scale.setScalar(s); m.position.copy(c).multiplyScalar(-s);     // middle of his body sits on the pivot
       pivot.add(m);
-      if (o.charge) charge = buildCharge(m);                           // glow lives inside the model, so it spins with him
+      if (g.animations && g.animations.length) {                       // 1.6.5: the suit is rigged: play his idle
+        mixer = new THREE.AnimationMixer(m);
+        const idle = g.animations.find(a => /idle/i.test(a.name)) || g.animations[0];
+        mixer.clipAction(idle).play();
+      }
+      if (o.charge) charge = buildCharge(m, box.min.y);                // glow lives inside the model, so it spins with him
       m.traverse(c => { if (c.isMesh && /^chevron_/.test(c.material.name)) { c.material.toneMapped = false; chev.push(c.material); } });  // no tone mapping: keep the blue saturated   // 1.6.0: Sgt. chevrons glow and pulse
+      window.PRO_VIEWER_ANIM = { clips: (g.animations || []).map(a => a.name), skinned: !!mixer };   // test hook
       res(true);
     }, undefined, () => res(false));                                   // failure: resolve false so the page can say so
   });
   raf = requestAnimationFrame(frame);
-  return { ready, renderer, camera, pivot, get charge() { return charge; }, get chevrons() { return chev; }, setSpin(v) { o.spin = v; }, dispose() { dead = true; cancelAnimationFrame(raf); if (controls) controls.dispose(); renderer.dispose(); } };
+  return { ready, renderer, camera, pivot, get mixer() { return mixer; }, get charge() { return charge; }, get chevrons() { return chev; }, setSpin(v) { o.spin = v; }, dispose() { dead = true; cancelAnimationFrame(raf); if (controls) controls.dispose(); renderer.dispose(); } };
 }
 
 /* ---------- ion charge in the arm cannon (splash screen) ----------
    Everything is additive-blended and tiny: 1 glow sprite, 1 core sprite, 1 point light, 24 particles. */
-// Centre of the cannon muzzle in the slim suit's own coordinates (measured from pro_suit.glb).
+// Centre of the cannon muzzle in the slim suit's own coordinates (measured from the 1.6.4 pro_suit.glb, whose feet were at
+// y = -0.951; 1.6.5's rigged file stands on y = 0, so buildCharge measures the height from the model's own feet).
 const MUZZLE = [-0.768, -0.183, 0.429];                                   // just past the muzzle face, so the glow sits in front of it
+const FEET0 = -0.951;
 const AXIS = [-0.288, -0.567, 0.772];                                     // direction the barrel points
 function glowTexture() {                                                  // soft round spot drawn on a small canvas
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -82,8 +92,22 @@ function glowTexture() {                                                  // sof
   g.fillStyle = r; g.fillRect(0, 0, 64, 64);
   const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
 }
-function buildCharge(model) {
-  const tex = glowTexture(), at = new THREE.Vector3(...MUZZLE);
+// 1.6.5: a point on the rest pose that rides the bone moving that part of the skinned mesh
+// (three.js skinning: world = boneWorld * boneInverse * bindMatrix * vertex).
+function pinToBone(model, p) {
+  let sm = null; model.traverse(o => { if (o.isSkinnedMesh && (!sm || o.geometry.attributes.position.count > sm.geometry.attributes.position.count)) sm = o; });
+  if (!sm) return null;
+  model.updateMatrixWorld(true);
+  const v = p.clone().applyMatrix4(model.matrixWorld).applyMatrix4(new THREE.Matrix4().copy(sm.matrixWorld).invert());
+  const pos = sm.geometry.attributes.position, si = sm.geometry.attributes.skinIndex, sw = sm.geometry.attributes.skinWeight;
+  let bi = -1, bd = Infinity;
+  for (let i = 0; i < pos.count; i++) { const d = (pos.getX(i) - v.x) ** 2 + (pos.getY(i) - v.y) ** 2 + (pos.getZ(i) - v.z) ** 2; if (d < bd) { bd = d; bi = i; } }
+  const ws = [sw.getX(bi), sw.getY(bi), sw.getZ(bi), sw.getW(bi)], j = [si.getX(bi), si.getY(bi), si.getZ(bi), si.getW(bi)][ws.indexOf(Math.max(...ws))];
+  return { bone: sm.skeleton.bones[j], local: v.applyMatrix4(sm.bindMatrix).applyMatrix4(sm.skeleton.boneInverses[j]) };
+}
+function buildCharge(model, feetY) {
+  const tex = glowTexture(), at = new THREE.Vector3(MUZZLE[0], (feetY != null ? feetY - FEET0 : 0) + MUZZLE[1], MUZZLE[2]);
+  const pin = pinToBone(model, at), cur = new THREE.Vector3(), base = at.clone();
   const add = (color, opacity) => new THREE.SpriteMaterial({ map: tex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false });
   const halo = new THREE.Sprite(add(0x2a7dff, 0.8)); halo.position.copy(at); model.add(halo);   // big blue halo
   const core = new THREE.Sprite(add(0xbff6ff, 1)); core.position.copy(at); model.add(core);     // hot cyan-white core
@@ -97,7 +121,12 @@ function buildCharge(model) {
   const CYCLE = 2.4;                                                      // seconds for one charge-up
   return {
     level: 0,                                                             // 0..1 how charged it is right now (test hook)
+    get at() { return at; }, base, pinned: !!pin,                         // test hooks: the muzzle now / on the rest pose
     update(t) {
+      if (pin) {                                                          // 1.6.5: follow the cannon through his idle animation
+        cur.copy(pin.local).applyMatrix4(pin.bone.matrixWorld); model.worldToLocal(cur);
+        at.copy(cur); halo.position.copy(cur); core.position.copy(cur); light.position.copy(cur);
+      }
       const k = (t % CYCLE) / CYCLE;                                      // 0 -> 1 over each cycle
       const flick = 0.85 + 0.15 * Math.sin(t * 37);                       // fast shimmer so it feels alive
       const c = k * k * flick;                                            // ramps up slowly, then fast

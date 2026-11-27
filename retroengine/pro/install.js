@@ -66,7 +66,7 @@ export function offlineStatus() {
 }
 
 // 1.6.4: the version of the code that is running right now (this file is loaded with the same ?v= as the rest of Pro).
-export const APP_VERSION = '1.6.4';
+export const APP_VERSION = '1.6.5';
 function cmpVer(a, b) {                                            // '1.6.10' > '1.6.9'
   const x = String(a).split('.').map(n => parseInt(n, 10) || 0), y = String(b).split('.').map(n => parseInt(n, 10) || 0);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0 ? 1 : -1; }

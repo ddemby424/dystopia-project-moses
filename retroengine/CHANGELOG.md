@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.6.5 (2026-11-27): Mixamo-rigged models with real skeletal animation, a Minotaur who wakes when you come close
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.6.5**), powered by DMB Tech 1 **1.3.5**.
+
+- **Rigged, animated models.** Pro's suit, the sentinel / Warden, the twin-cannon trooper and the Minotaur now carry a Mixamo skeleton (22 joints, clean weights, fused weapons bound to the forearm / hand) and baked clips, with every PBR texture kept:
+  - suit, sentinel and trooper: **idle / run / attack / die** (Mixamo rifle set, gun arm aimed forward);
+  - the Minotaur: **idle / run / attack / roar / die** (Mixamo mutant set).
+  The GLBs stay uncompressed (no Draco): suit 2.48 MB, sentinel 1.66 MB, trooper 1.59 MB, Minotaur 1.66 MB.
+- **AnimationMixer in the engine (DMB Tech 1 1.3.5).** Every skinned model is cloned with `SkeletonUtils` and gets its own mixer: enemies, the Minotaur, remote multiplayer suits and the 3D preview. Clips crossfade (0.3 s): idle, run (scaled by real speed), attack (re-triggered on every shot), roar and die (play once and hold). Each unit starts at a random point in its idle clip. On skinned models the procedural bob, sway and breathing are toned down to a light touch, so they no longer fight the skeleton. The 1.6.4 armour flare during a wind-up is fainter too, because the clip already shows the wind-up. Non-skinned enemies (drones, turrets, the editor's models) are unchanged. Muzzle flashes, lightning, the Minotaur's eyes and chest flare, and the preview's cannon charge are pinned to the moving bones.
+- **Chapter 7: the Minotaur wakes up.** Before, he stayed seated until every minion was dead, so he was easy to miss. Now he rises when you come within about 25 m (14 units) of the throne, step onto the dais, or hit him from anywhere, or when the minions are all gone. While he sits, a dimmed **MINOTAUR · DORMANT ON HIS THRONE** bar shows and his eyes pulse slowly. He is now 2.8 units tall (about 4.9 m) and towers over the 1.95-unit statues. His dark armour is drawn without fog and with a softer rim light, so it stays crisp against the white marble. When he wakes he roars, rises and turns to face you.
+- **Cache-busting:** every page, stylesheet and local module import carries `?v=1.6.5`, the service worker uses `pro-files-1.6.5`, and `pro/version.json` reports 1.6.5.
+- Everything from 1.6.4 is unchanged: the tougher campaign, the boss move set, the brighter lighting and the update check.
+
 ## 1.6.4 (2026-11-26): tougher campaign, a 4× Minotaur with boss animations, brighter lighting, live update check
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.

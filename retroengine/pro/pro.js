@@ -1,12 +1,12 @@
 // PRO — a standalone game powered by DMB Tech 1 (seven chapters, Lab -> Marble Shrine -> broadcast).
-// 1.6.1: every local import carries ?v=1.6.4 so phones never mix a cached old module with new ones.
+// 1.6.1: every local import carries ?v=1.6.5 so phones never mix a cached old module with new ones.
 // This page only *hosts* DMB Tech 1: it loads the seven chapter maps, adds story cards between them,
 // seals each exit until that level's goal is met, and saves how far you got in localStorage.
-import { createRuntime } from '../dmbtech1.js?v=1.6.4';          // the DMB Tech 1 engine (same file the editor uses)
-import { mountPro } from './viewer.js?v=1.6.4';                  // Pro's turntable for the intro and ending cards
-import { sprayTitle } from './spray.js?v=1.6.4';                 // spray-paints the PRO title on the splash
-import { installJuice } from './juice.js?v=1.6.4';
-import { initInstall, onInstallChange, isInstalled, canPrompt, installSteps, promptInstall, offlineStatus, checkLatest, updateNow, APP_VERSION } from './install.js?v=1.6.4';   // 1.6.1: Play Online / Install App               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
+import { createRuntime } from '../dmbtech1.js?v=1.6.5';          // the DMB Tech 1 engine (same file the editor uses)
+import { mountPro } from './viewer.js?v=1.6.5';                  // Pro's turntable for the intro and ending cards
+import { sprayTitle } from './spray.js?v=1.6.5';                 // spray-paints the PRO title on the splash
+import { installJuice } from './juice.js?v=1.6.5';
+import { initInstall, onInstallChange, isInstalled, canPrompt, installSteps, promptInstall, offlineStatus, checkLatest, updateNow, APP_VERSION } from './install.js?v=1.6.5';   // 1.6.1: Play Online / Install App               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
 
 initInstall();                                           // 1.6.1: catch beforeinstallprompt early + register sw.js
 const RT = createRuntime();                              // one engine instance for the whole campaign

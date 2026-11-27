@@ -11,9 +11,9 @@
  *   3. wss://dembysoftwaresystems.com/ws   on https
  *   4. otherwise, same host as the page, path /ws
  */
-import { mountLobby } from './lobby.js?v=1.6.4';   // 1.6.1: ?v= so phones fetch the new lobby
-import { attachMultiplayer } from './mp-dmbtech1.js?v=1.6.4';
-import { makeAvatarPicker, thumbFor } from './avatar-picker.js?v=1.6.4';   // miniature previews (1.6.1: thumbs resolve from this file)
+import { mountLobby } from './lobby.js?v=1.6.5';   // 1.6.1: ?v= so phones fetch the new lobby
+import { attachMultiplayer } from './mp-dmbtech1.js?v=1.6.5';
+import { makeAvatarPicker, thumbFor } from './avatar-picker.js?v=1.6.5';   // miniature previews (1.6.1: thumbs resolve from this file)
 
 const NAME_KEY = 'retroengine.playerName';
 

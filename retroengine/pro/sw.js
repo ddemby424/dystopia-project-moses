@@ -1,4 +1,4 @@
-/* sw.js — Pro's service worker (1.6.4).
+/* sw.js — Pro's service worker (1.6.5).
    1. Makes Pro installable as an app (Chrome / Edge / Samsung Internet need a service worker for that).
    2. 1.6.3: an offline copy. Every file Pro loads is kept as it arrives (network first, so a phone never gets stuck on
       an old version: the network answer always wins and refreshes the copy). With no connection, the saved copy is used.
@@ -7,7 +7,7 @@
    The page asks { type: 'status' } and gets back how many files are saved, for the "Offline ready" badge.
    3. 1.6.4: updates. version.json is never cached (the install sheet fetches it fresh to compare versions), and
       { type: 'skipWaiting' } lets a waiting new worker take over at once when you tap Update now. */
-const VER = '1.6.4';
+const VER = '1.6.5';
 const SHELL = 'pro-shell-' + VER;                                   // the page itself (offline fallback for navigations)
 const FILES = 'pro-files-' + VER;                                   // everything else Pro fetched
 const KEEP_HOSTS = [self.location.host, 'cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];   // three.js + fonts too

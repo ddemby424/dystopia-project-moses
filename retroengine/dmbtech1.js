@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.3.4 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.3.5 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.3.4';
+export const VERSION = '1.3.5';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.3.4';
+const VERSION = '1.3.5';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 // Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
@@ -1249,8 +1249,8 @@ const LIGHT_PRESETS = {
 };
 
 const HOSTED_BASE = 'https://ddemby424.github.io/dystopia-project-moses/retroengine/';
-const ENEMY_CLIPS = { idle: ['Idle_Gun', 'Idle', 'idle'], move: ['Run', 'Walk', 'move', 'Move'], shoot: ['Gun_Shoot', 'Idle_Gun_Shoot', 'Shoot', 'Attack', 'attack'], hit: ['HitRecieve', 'HitReact', 'HitRecieve_1'], death: ['Death', 'Dead'] };
-const PLAYER_CLIPS = { idle: ['Idle_Gun', 'Idle_Gun_Pointing', 'Idle', 'Idle_Neutral'], move: ['Walk_Holding', 'Run_Holding', 'Walk', 'Run', 'Walk_Tall', 'Run_Tall'], shoot: ['Shoot', 'Gun_Shoot', 'Idle_Gun_Shoot', 'Punch'], hit: ['HitRecieve_1', 'HitRecieve', 'HitReact', 'HitRecieve_2'], death: ['Death', 'Dead'] };
+const ENEMY_CLIPS = { idle: ['Idle_Gun', 'Idle', 'idle'], move: ['Run', 'Walk', 'move', 'Move'], shoot: ['Gun_Shoot', 'Idle_Gun_Shoot', 'Shoot', 'Attack', 'attack'], hit: ['HitRecieve', 'HitReact', 'HitRecieve_1'], death: ['Death', 'Dead', 'die'], roar: ['roar', 'Roar'] };   // 1.3.5: + Pro's Mixamo names (idle / run / attack / roar / die)
+const PLAYER_CLIPS = { idle: ['Idle_Gun', 'Idle_Gun_Pointing', 'Idle', 'Idle_Neutral'], move: ['Walk_Holding', 'Run_Holding', 'Walk', 'Run', 'Walk_Tall', 'Run_Tall'], shoot: ['Shoot', 'Gun_Shoot', 'Idle_Gun_Shoot', 'Punch', 'attack'], hit: ['HitRecieve_1', 'HitRecieve', 'HitReact', 'HitRecieve_2'], death: ['Death', 'Dead', 'die'] };
 // Third-person roster. GLBs are lazy-loaded in createRemotePlayer (and the picker never prefetches them).
 const PLAYER_MODELS = {
   george: { id: 'george', name: 'George', src: 'assets/models/player_george.glb', h: 1.38, tintColor: '#3ec8ff', license: 'CC0 1.0' },
@@ -1298,15 +1298,41 @@ const ASSET_PACK = {
 };
 function cloneSkinned(o) { return (THREE.SkeletonUtils && THREE.SkeletonUtils.clone) ? THREE.SkeletonUtils.clone(o) : o.clone(true); }
 function findClip(anims, names) { for (const n of names) { const c = anims.find(a => a.name.split('|').pop().toLowerCase() === n.toLowerCase()); if (c) return c; } return null; }
-function playHolderAnim(holder, name) {
+function playHolderAnim(holder, name, ts) {
   const ud = holder.userData, acts = ud.acts; if (!acts) return;
   if (!acts[name]) name = name === 'death' ? '' : (acts.idle ? 'idle' : (acts.move ? 'move' : ''));
-  if (!name || ud.anim === name) return;
+  if (!name || ud.anim === name) { if (name && ts && acts[name]) acts[name].setEffectiveTimeScale(ts); return; }
   const next = acts[name], prev = acts[ud.anim];
-  next.reset(); next.setEffectiveWeight(1); next.setEffectiveTimeScale(name === 'move' ? 1.1 : 1); next.play();
-  if (prev) prev.crossFadeTo(next, name === 'death' ? 0.1 : 0.2, false);
+  next.reset(); next.setEffectiveWeight(1); next.setEffectiveTimeScale(ts || (name === 'move' ? 1.1 : 1)); next.play();
+  if (prev) prev.crossFadeTo(next, name === 'death' ? 0.18 : ud.skinned ? 0.3 : 0.2, false);   // 1.3.5: Mixamo bodies blend a little longer
   ud.anim = name;
 }
+/* 1.3.5: Pro's Mixamo-rigged GLBs. A point measured on the rest pose (a muzzle, the Minotaur's eyes) is pinned to the
+   bone that moves that part of the mesh, so effects ride the skeletal animation instead of floating where the rest
+   pose had them. Skinning in three.js: world = boneWorld * boneInverse * bindMatrix * vertex, so a point that moves
+   rigidly with bone j keeps local = boneInverse[j] * bindMatrix * vertex. */
+function skinnedOf(root) {
+  let best = null;
+  root.traverse(o => { if (o.isSkinnedMesh && o.skeleton && (!best || o.geometry.attributes.position.count > best.geometry.attributes.position.count)) best = o; });
+  return best;
+}
+const _pinM = new THREE.Matrix4();
+function pinToBone(space, p) {
+  const sm = skinnedOf(space); if (!sm) return null;
+  space.updateMatrixWorld(true);
+  const v = p.clone().applyMatrix4(space.matrixWorld).applyMatrix4(_pinM.copy(sm.matrixWorld).invert());   // -> the mesh's own space
+  const pos = sm.geometry.attributes.position, si = sm.geometry.attributes.skinIndex, sw = sm.geometry.attributes.skinWeight;
+  if (!pos || !si || !sw) return null;
+  let bi = -1, bd = Infinity;
+  for (let i = 0; i < pos.count; i++) { const dx = pos.getX(i) - v.x, dy = pos.getY(i) - v.y, dz = pos.getZ(i) - v.z, d = dx * dx + dy * dy + dz * dz; if (d < bd) { bd = d; bi = i; } }
+  if (bi < 0) return null;
+  const ws = [sw.getX(bi), sw.getY(bi), sw.getZ(bi), sw.getW(bi)], js = [si.getX(bi), si.getY(bi), si.getZ(bi), si.getW(bi)];
+  const j = js[ws.indexOf(Math.max.apply(null, ws))], bone = sm.skeleton.bones[j];
+  if (!bone || !sm.skeleton.boneInverses[j]) return null;
+  return { bone, space, local: v.applyMatrix4(sm.bindMatrix).applyMatrix4(sm.skeleton.boneInverses[j]) };
+}
+function pinNode(space, node) { return node ? { bone: node, space, local: new THREE.Vector3() } : null; }   // a GLB anchor node already rides its bone
+function pinnedPoint(pin, out) { out.copy(pin.local).applyMatrix4(pin.bone.matrixWorld); return pin.space.worldToLocal(out); }
 function applyTeamTint(root, hex) {
   const team = new THREE.Color(hex || '#ffffff');
   root.traverse(o => {
@@ -1804,7 +1830,7 @@ function buildGunFromGlb(scene, spec) {
 const GAME_CSS = `
 .dfg-root{position:absolute;inset:0;overflow:hidden;background:#000;font-family:'Chakra Petch','Segoe UI',system-ui,sans-serif;color:#e8edf5;user-select:none;-webkit-user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent}
 .dfg-root canvas.dfg-view{position:absolute;inset:0;width:100%;height:100%;display:block}
-.dfg-boss{position:absolute;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);width:min(520px,76%);text-align:center;display:none}.dfg-boss-name{font-size:11px;letter-spacing:.22em;color:#f0d0a0;text-shadow:0 1px 6px #000;margin-bottom:4px}.dfg-boss-track{height:10px;border-radius:3px;background:rgba(20,10,8,.75);border:1px solid rgba(220,160,80,.45);overflow:hidden}.dfg-boss-hp{display:block;height:100%;width:100%;background:linear-gradient(90deg,#7a1510,#c43a1a 55%,#e8a030);transform-origin:left center}.dfg-hud{position:absolute;inset:0;pointer-events:none}.dfg-root .dfg-hud,.dfg-root .dfg-touch{top:env(safe-area-inset-top,0px);right:env(safe-area-inset-right,0px);bottom:env(safe-area-inset-bottom,0px);left:env(safe-area-inset-left,0px)}.dfg-root .dfg-topbtns{top:calc(12px + env(safe-area-inset-top,0px));right:calc(154px + env(safe-area-inset-right,0px))}.dfg-root .dfg-menu{padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}.dfg-rot{display:none;margin-top:10px;font-size:12px;color:#ffc21a;opacity:.9}.dfg-root.nogl .dfg-panel{max-width:440px;padding:20px;background:rgba(14,18,26,.92);border-radius:16px}.dfg-root,.dfg-root *{-webkit-touch-callout:none}
+.dfg-boss.dormant{opacity:.62;animation:dfgDorm 2.6s ease-in-out infinite}.dfg-boss.dormant .dfg-boss-name{color:#ff9a70}@keyframes dfgDorm{50%{opacity:.9}}.dfg-boss{position:absolute;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);width:min(520px,76%);text-align:center;display:none}.dfg-boss-name{font-size:11px;letter-spacing:.22em;color:#f0d0a0;text-shadow:0 1px 6px #000;margin-bottom:4px}.dfg-boss-track{height:10px;border-radius:3px;background:rgba(20,10,8,.75);border:1px solid rgba(220,160,80,.45);overflow:hidden}.dfg-boss-hp{display:block;height:100%;width:100%;background:linear-gradient(90deg,#7a1510,#c43a1a 55%,#e8a030);transform-origin:left center}.dfg-hud{position:absolute;inset:0;pointer-events:none}.dfg-root .dfg-hud,.dfg-root .dfg-touch{top:env(safe-area-inset-top,0px);right:env(safe-area-inset-right,0px);bottom:env(safe-area-inset-bottom,0px);left:env(safe-area-inset-left,0px)}.dfg-root .dfg-topbtns{top:calc(12px + env(safe-area-inset-top,0px));right:calc(154px + env(safe-area-inset-right,0px))}.dfg-root .dfg-menu{padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}.dfg-rot{display:none;margin-top:10px;font-size:12px;color:#ffc21a;opacity:.9}.dfg-root.nogl .dfg-panel{max-width:440px;padding:20px;background:rgba(14,18,26,.92);border-radius:16px}.dfg-root,.dfg-root *{-webkit-touch-callout:none}
 .dfg-glass{background:rgba(10,14,22,.62);border:1px solid rgba(255,255,255,.09);border-radius:12px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 6px 24px rgba(0,0,0,.35)}
 .dfg-tl{position:absolute;left:12px;top:10px;padding:8px 12px;max-width:46%}
 .dfg-lvl{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#ffb35c}
@@ -2177,7 +2203,7 @@ function play(container, project, opts) {
   miniCv.addEventListener('click', ev => { ev.stopPropagation(); if (G && state === 'playing') showBigMap(bigMap.style.display !== 'flex'); });
   const menu = el('div', 'dfg-menu'); root.appendChild(menu);
   const $ = s => root.querySelector(s);
-  const H_ = { lvl: $('.dfg-lvl'), obj: $('.dfg-obj'), msgs: $('.dfg-msgs'), hit: $('.dfg-hit'), hp: $('.hp'), ar: $('.ar'), hpb: $('.hpb'), arb: $('.arb'), keys: root.querySelectorAll('.dfg-keys b'), wn: $('.wn'), am: $('.am'), ws: $('.dfg-wslots'), vig: $('.dfg-vig'), pick: $('.dfg-pick'), fps: $('.dfg-fps'), mini: $('.dfg-mini'), boss: $('.dfg-boss'), bossHp: $('.dfg-boss-hp'), packN: root.querySelector('.dfg-packn') };
+  const H_ = { lvl: $('.dfg-lvl'), obj: $('.dfg-obj'), msgs: $('.dfg-msgs'), hit: $('.dfg-hit'), hp: $('.hp'), ar: $('.ar'), hpb: $('.hpb'), arb: $('.arb'), keys: root.querySelectorAll('.dfg-keys b'), wn: $('.wn'), am: $('.am'), ws: $('.dfg-wslots'), vig: $('.dfg-vig'), pick: $('.dfg-pick'), fps: $('.dfg-fps'), mini: $('.dfg-mini'), boss: $('.dfg-boss'), bossHp: $('.dfg-boss-hp'), bossName: $('.dfg-boss-name'), packN: root.querySelector('.dfg-packn') };
   H_.ws.innerHTML = WEAPON_DEFS.map((w, i) => `<span>${i + 1}</span>`).join('');
   if (isTouch) touch.querySelectorAll('.dfg-tb').forEach(b => { b.style.transform = `scale(${S.touchScale})`; });
 
@@ -2382,9 +2408,11 @@ function play(container, project, opts) {
       const m = normalizeModel(gltf.scene, spec.h || height || 1, centered, spec); if (!m) return;
       const mats = grittify(m, spec.tint || 1, 0.3);
       // Enemies: cool fresnel rim + soft top key light + a fake overhead glint so metal plates catch light.
+      const rimC = spec.rim ? new THREE.Color(spec.rim).getHex() : 0x9fc4ff, rimK = spec.rimK != null ? spec.rimK : 0.42;   // 1.3.5: a boss can carry a warm rim
       if (/^enemy_/.test(slot)) mats.forEach(mm => { if (mm.isMeshStandardMaterial || mm.isMeshPhysicalMaterial) {
-        addRim(mm, 0x9fc4ff, 0.42, { key: 0.22, spec: 0.32 * Math.min(1, 0.4 + mm.metalness) });   // shinier = more glint
+        addRim(mm, rimC, rimK, spec.crisp ? { key: 0.05, spec: 0.12 } : { key: 0.22, spec: 0.32 * Math.min(1, 0.4 + mm.metalness) });   // shinier = more glint (1.3.5: a crisp boss keeps his blacks)
       } });
+      if (spec.crisp) mats.forEach(mm => { mm.fog = false; mm.needsUpdate = true; });   // 1.3.5: no haze on him: dark armour stays dark down a long bright hall
       if (holder.userData.proc) holder.userData.proc.visible = false; else holder.children.forEach(c => { c.visible = false; });
       holder.add(m); holder.userData.glb = m; holder.userData.glbMats = mats;
       holder.userData.glbH = spec.h || height || 1;               // 1.3.2: model height, so gunAnim's muzzle point scales with it
@@ -2396,9 +2424,11 @@ function play(container, project, opts) {
         const mixer = new THREE.AnimationMixer(m.children[0]), acts = {};
         Object.keys(ENEMY_CLIPS).forEach(k => { const c = findClip(gltf.animations, ENEMY_CLIPS[k]); if (c) acts[k] = mixer.clipAction(c); });
         if (!acts.idle && !acts.move) acts.move = mixer.clipAction(gltf.animations.find(a => /walk|run|move/i.test(a.name)) || gltf.animations[0]);
-        ['shoot', 'hit', 'death'].forEach(k => { if (acts[k]) { acts[k].setLoop(THREE.LoopOnce, 1); acts[k].clampWhenFinished = true; } });
+        ['shoot', 'hit', 'death', 'roar'].forEach(k => { if (acts[k]) { acts[k].setLoop(THREE.LoopOnce, 1); acts[k].clampWhenFinished = true; } });
         holder.userData.mixer = mixer; holder.userData.acts = acts; holder.userData.anim = '';
+        holder.userData.skinned = !!skinnedOf(m);                 // 1.3.5: a real skeleton: the procedural body sway steps back
         playAnim(holder, acts.idle ? 'idle' : 'move');
+        const a0 = acts[holder.userData.anim]; if (a0 && holder.userData.skinned) a0.time = Math.random() * a0.getClip().duration;   // nobody breathes in step
       }
     });
   }
@@ -2967,8 +2997,11 @@ function play(container, project, opts) {
       : autoMuzzle(body, ga.my != null ? ga.my : 0.56);         // 1.3.3: no hand-measured muzzle: the front of the body at gun height
     glow.position.copy(tip); flash.position.copy(tip); body.add(glow); body.add(flash);
     (G.gunFx = G.gunFx || []).push(glow.material, flash.material);   // disposed with the level
-    return (ud.gunFx = { glow, flash, tip, H, body });
+    // 1.3.5: on a skinned model the muzzle rides its bone (the GLB's own muzzle_anchor if it has one)
+    const pin = ud.skinned ? (pinNode(body, body.getObjectByName('muzzle_anchor')) || pinToBone(body, tip)) : null;
+    return (ud.gunFx = { glow, flash, tip, H, body, pin });
   }
+  function tipOf(fx, out) { return fx.pin ? pinnedPoint(fx.pin, out) : out.copy(fx.tip); }   // the muzzle now, in the body's space
   // 1.3.3: a muzzle point for any model: the front face of its solid body box, at height fraction my (in ud.glb's own space).
   function autoMuzzle(glb, my) {
     const box = new THREE.Box3(), inv = new THREE.Matrix4(), mtx = new THREE.Matrix4();
@@ -2986,7 +3019,8 @@ function play(container, project, opts) {
     const ud = e.mesh.userData, ga = animOf(e), body = bodyOf(ud); if (!body || !ga) return null;
     const fx = gunFx(ud, ga);
     e.recoilT = 1; fx.flash.material.rotation = Math.random() * Math.PI;   // fresh flash angle every shot
-    e.mesh.updateMatrixWorld(true); _tip.copy(fx.tip); body.localToWorld(_tip);   // three.js: x, height, y
+    if (ud.skinned && ud.acts && ud.acts.shoot && ud.anim === 'shoot' && !e.def.boss) ud.acts.shoot.reset().play();   // 1.3.5: every shot of a burst kicks the rifle clip again
+    e.mesh.updateMatrixWorld(true); tipOf(fx, _tip); body.localToWorld(_tip);   // three.js: x, height, y
     const p = { x: _tip.x, y: _tip.z, z: _tip.y };
     if (cellIsSolidStatic(G.L, Math.floor(p.x), Math.floor(p.y))) { p.x = e.x; p.y = e.y; }   // rifle poking into a wall: fire from the body
     if (G.fxLight) {                                             // the idle explosion light becomes the muzzle flash (no extra light)
@@ -3051,7 +3085,7 @@ function play(container, project, opts) {
     // gait, driven by how fast the body really moves (ud.spd, from the smoothed position)
     const spdK = opts.lively ? clamp((ud.spd || 0) / Math.max(0.3, e.def.speed || 1), 0, 1.3) : 0;
     ud.stride = (ud.stride || 0) + dt * A.stride * spdK;
-    const st = ud.stride, skel = ud.acts && ud.acts.move ? 0.35 : 1;   // a skinned walk cycle already swings the legs: less bounce on top
+    const st = ud.stride, skel = ud.skinned ? 0 : ud.acts && ud.acts.move ? 0.35 : 1;   // 1.3.5: a Mixamo run already bounces the whole body   // a skinned walk cycle already swings the legs: less bounce on top
     let y = 0, z = 0, rx = 0, ry = 0, rz = 0;
     if (A.stride) {
       if (style === 'walker' || style === 'beast') {             // heavy feet: a sharp dip as each foot plants, the chassis rolls side to side
@@ -3073,12 +3107,14 @@ function play(container, project, opts) {
     y -= A.squat * H * wE;
     z += (0.03 * wE - jolt * k - 0.05 * f) * H;
     rz += 0.05 * f * (ud.phase % 2 > 1 ? 1 : -1);
+    if (ud.skinned) { rx *= 0.3; ry *= 0.3; rz *= 0.3; y *= 0.3; z *= 0.4; }   // 1.3.5: the skeleton breathes, aims and recoils on its own: only a light touch on top
     g.position.set(R.p.x, R.p.y + y, R.p.z + z);
     g.rotation.set(R.r.x + rx, R.r.y + ry, R.r.z + rz);
-    const bs = style === 'turret' ? 0.3 : 1;                     // machines barely breathe
+    const bs = ud.skinned ? 0 : style === 'turret' ? 0.3 : 1;     // machines barely breathe (1.3.5: skinned chests breathe in the idle clip)
     g.scale.set(R.s.x * (1 - 0.005 * br * bs), R.s.y * (1 + 0.012 * br * bs * (0.4 + 0.6 * calm)), R.s.z * (1 - 0.005 * br * bs));   // chest rises and falls
     if (w > 0 || e.recoilT > 0 || ud.gunFx) {
       const fx = gunFx(ud, ga), gm = ga.glow || 1;
+      if (fx.pin && (w > 0 || e.recoilT > 0)) { pinnedPoint(fx.pin, fx.glow.position); fx.flash.position.copy(fx.glow.position); }   // 1.3.5: rides the gun arm
       const flick = 0.85 + Math.sin(time * 47) * 0.15;
       const hot = Math.max(w, e.recoilT * 0.8);                  // charge builds at the tip, the barrel stays hot after the shot
       fx.glow.visible = hot > 0.02; fx.glow.material.opacity = hot * flick;
@@ -3087,7 +3123,7 @@ function play(container, project, opts) {
       fx.flash.visible = fl > 0; fx.flash.material.opacity = Math.min(1, fl * 1.4);
       fx.flash.scale.setScalar((0.3 + 0.25 * fl) * H * gm);
       if (w > 0.25 && e.def.proj === 'zap' && Math.random() < dt * 22) {   // lightning soldiers crackle at the muzzle while charging
-        e.mesh.updateMatrixWorld(true); _tip.copy(fx.tip); fx.body.localToWorld(_tip); crackle(_tip.x, _tip.y, _tip.z, 1, 0.09 + 0.1 * w);
+        e.mesh.updateMatrixWorld(true); tipOf(fx, _tip); fx.body.localToWorld(_tip); crackle(_tip.x, _tip.y, _tip.z, 1, 0.09 + 0.1 * w);
       }
     }
   }
@@ -3103,7 +3139,19 @@ function play(container, project, opts) {
     const head = autoMuzzle(body, 0.86), chestP = autoMuzzle(body, 0.6);
     const eyes = [-1, 1].map(sd => { const sp = mk(0xff3a14, 0.07); sp.position.set(head.x + sd * 0.05 * H, head.y, head.z + 0.01 * H); return sp; });
     const chest = mk(0xff6a1e, 0.22); chest.position.copy(chestP);
-    return (ud.bossFx = { body, eyes, chest, H });
+    // 1.3.5: on the rigged Minotaur the eyes ride his head bone and the chest flare his upper spine
+    const pins = ud.skinned ? eyes.concat([chest]).map(sp => pinToBone(body, sp.position)) : null;
+    return (ud.bossFx = { body, eyes, chest, H, pins });
+  }
+  function bossFxFollow(fx) { if (fx && fx.pins) fx.eyes.concat([fx.chest]).forEach((sp, i) => { if (fx.pins[i]) pinnedPoint(fx.pins[i], sp.position); }); }
+  // 1.3.5: dormant on his throne: slow-pulsing ember eyes so you spot him from the far end of the hall
+  function bossDormant(e, ud, time) {
+    const fx = bossFx(e, ud); if (!fx) return;
+    bossFxFollow(fx);
+    const p = 0.5 + 0.5 * Math.sin(time * 1.7);
+    fx.eyes.forEach(sp => { sp.visible = true; sp.material.opacity = 0.55 + 0.4 * p; sp.scale.setScalar((0.1 + 0.07 * p) * fx.H); });
+    fx.chest.visible = true; fx.chest.material.opacity = 0.12 + 0.18 * p; fx.chest.scale.setScalar((0.2 + 0.08 * p) * fx.H);
+    ud.bossGlow = 0.4 + p;                                        // test hook
   }
   function bossPose(e, ud, dt, time) {
     const g = bodyOf(ud); if (!g || !g.userData.rest) return;
@@ -3121,7 +3169,9 @@ function play(container, project, opts) {
       rx += 0.6 * l * big; z += 0.34 * H * l * big; y -= 0.07 * H * l * big; ry -= (e.lungeKind === 'slam' ? 0.45 : 0) * l; glow += 0.8 * l; chest += (e.lungeKind === 'palm' ? 1.4 : 0.5) * l;
     }
     if (e.flashT > 0) glow += 0.6;
+    if (ud.skinned) { rx *= 0.3; ry *= 0.3; rz *= 0.3; y *= 0.35; z *= 0.5; }   // 1.3.5: the Mixamo roar / swipe / run carry the drama; the whole-body tilt only accents it
     g.rotation.x += rx; g.rotation.y += ry; g.rotation.z += rz; g.position.y += y; g.position.z += z;
+    bossFxFollow(fx);
     if (fx) {
       const fl = 0.9 + 0.1 * Math.sin(time * 41);
       fx.eyes.forEach(sp => { sp.visible = true; sp.material.opacity = Math.min(1, 0.35 + glow * 0.45) * fl; sp.scale.setScalar((0.08 + 0.07 * Math.min(2, glow)) * fx.H); });
@@ -3136,7 +3186,9 @@ function play(container, project, opts) {
     if (t < 0.6) { const k = ease(t / 0.6); rx = -0.32 * k; rz = 0.06 * Math.sin(t * 30) * (1 - k); }
     else if (t < 1.3) { const k = ease((t - 0.6) / 0.7); rx = -0.32 + 0.4 * k; y = -0.22 * H * k; rz = 0.1 * k; }
     else { const k = Math.min(1, (t - 1.3) / 0.9), f = k * k; rx = 0.08 + 1.42 * f; y = -0.22 * H - 0.12 * H * f; z = 0.25 * H * f; rz = 0.1 + 0.12 * f; }
+    if (ud.skinned && ud.acts && ud.acts.death) { rx = 0; y = 0; z = 0; rz = 0; }   // 1.3.5: the Mutant Dying clip does the whole collapse
     g.position.set(R.p.x, R.p.y + y, R.p.z + z); g.rotation.set(R.r.x + rx, R.r.y, R.r.z + rz);
+    if (ud.bossFx) bossFxFollow(ud.bossFx);
     if (t0 < 2.2 && t >= 2.2) {                                    // the impact
       G.shake = Math.max(G.shake || 0, Math.max(0, 1 - Math.hypot(G.px - e.x, G.py - e.y) * 0.06)); Sound.play('quake', distVol(e.x, e.y));
       smoke(e.x + Math.cos(e.ang) * 1.2, e.z + 0.2, e.y + Math.sin(e.ang) * 1.2, 14); sparks(e.x, e.z + 0.3, e.y, 26, 0xff8030);
@@ -3756,19 +3808,32 @@ function play(container, project, opts) {
       if (m.state && boss.state !== 'dead' && m.state !== 'seated') boss.state = m.state;
     }
   }
+  function wakeBoss(e, why) {
+    if (e.state !== 'seated') return;
+    e.state = 'rising'; e.t = 0; e.wokeBy = why; msg('THE MINOTAUR AWAKENS');
+    Sound.play('alert', distVol(e.x, e.y)); G.shake = Math.max(G.shake || 0, 0.35);
+    fire('boss_rise', { x: e.x, y: e.y, z: e.z, why });
+    meetBoss(e);                                                  // the boss track starts with his roar
+  }
   function updateMinotaur(e, dt, time) {
     const def = e.def, m = e.mesh, drive = !opts.multiplayer || opts.driveBoss;
     e.flashT = Math.max(0, e.flashT - dt); e.cd -= dt; if (e.warpCd > 0) e.warpCd -= dt;
     updateBossFx(dt);
     if (e.state === 'seated') {
       m.position.set(e.x, e.z, e.y);
-      m.rotation.x = 0.18;
-      if (drive && G.combat !== false && !minionsLeft()) { e.state = 'rising'; e.t = 0; msg('THE MINOTAUR AWAKENS'); fire('boss_rise', { x: e.x, y: e.y, z: e.z }); }
+      m.rotation.x = m.userData.skinned ? 0 : 0.18;
+      if (opts.lively && m.userData.glb) bossDormant(e, m.userData, time);
+      // 1.3.5: he wakes when you come within def.wakeR (~25 m) of the throne, climb onto his dais, hurt him, or clear the hall
+      const near = Math.hypot(G.px - e.x, G.py - e.y), dais = near < (def.daisR || 5) && G.pz > e.z - 0.12;
+      const why = near < (def.wakeR || 14) ? 'near' : dais ? 'dais' : e.hurtT > 0 ? 'hurt' : !minionsLeft() ? 'clear' : '';
+      if (drive && G.combat !== false && why) wakeBoss(e, why);
       return;
     }
     if (e.state === 'rising') {
       e.t += dt; const k = Math.min(1, e.t / 2.15);
-      m.rotation.x = 0.18 * (1 - k);
+      m.rotation.x = m.userData.skinned ? 0 : 0.18 * (1 - k);
+      if (opts.lively && m.userData.glb) { bossDormant(e, m.userData, time * 3); const tg = nearestTarget(e.x, e.y); e.ang = Math.atan2(tg.y - e.y, tg.x - e.x); }   // eyes flare as he roars and turns to you
+      const want = Math.atan2(Math.cos(e.ang), Math.sin(e.ang)); let dA = want - m.rotation.y; while (dA > Math.PI) dA -= Math.PI * 2; while (dA < -Math.PI) dA += Math.PI * 2; m.rotation.y += dA * Math.min(1, dt * 3);
       m.position.set(e.x, e.z + 0.15 * Math.sin(k * Math.PI), e.y);
       if (k >= 1) { e.state = 'chase'; e.cd = 0.6; e.warpCd = 3; e.chargeCd = 2.5; }
       return;
@@ -3884,11 +3949,20 @@ function play(container, project, opts) {
     for (const e of G.enemies) {
       const m = e.mesh, ud = m.userData, def = e.def;
       if (ud.acts) {
-        playAnim(m, e.state === 'dead' ? 'death' : e.state === 'attack' ? 'shoot' : e.state === 'pain' ? 'hit' : e.moving ? 'move' : 'idle');
+        let an = e.state === 'dead' ? 'death' : e.state === 'attack' ? 'shoot' : e.state === 'pain' ? 'hit' : e.moving ? 'move' : 'idle', ts = 0;
+        if (def.boss && e.state !== 'dead') {                      // 1.3.5: the Minotaur's Mixamo set: roar to wake and before a charge, swipe to attack
+          if (e.state === 'rising' || (e.state === 'charge' && e.phase === 'wind')) { an = 'roar'; ts = e.state === 'rising' ? 1.25 : 2.4; }
+          else if (e.state === 'charge') { an = 'move'; ts = 1.45; }
+          else if (e.state === 'attack') { an = 'shoot'; ts = e.attackKind === 'melee' ? 1.75 : 2.1; }
+          else if (e.state === 'stagger') an = 'hit';
+          else if (e.state === 'seated') an = 'idle';
+        } else if (ud.skinned && an === 'move') { if (def.lift || def.hover) an = 'idle'; else ts = 0.85; }   // hover troopers keep aiming while their jets carry them
+        else if (ud.skinned && an === 'shoot') ts = 1.2;
+        playHolderAnim(m, an, ts);
         // animation LOD (phones): skinning is CPU work, so far/idle enemies update less often and corpses freeze
         const d2 = (e.x - G.px) * (e.x - G.px) + (e.y - G.py) * (e.y - G.py);
         ud.animAcc = (ud.animAcc || 0) + dt;
-        const every = e.state === 'dead' && e.deadT > 2.5 ? 1e9 : d2 > 400 && e.state === 'idle' ? 0.25 : d2 > 144 ? 0.033 : 0;
+        const every = e.state === 'dead' && e.deadT > (ud.skinned ? 5 : 2.5) ? 1e9 : d2 > 400 && e.state === 'idle' ? 0.25 : d2 > 144 ? 0.033 : 0;
         const pace = opts.lively && e.moving ? clamp((ud.spd || 0) / Math.max(0.3, def.speed || 1), 0.5, 1.25) : 1;   // 1.3.3: walk cycle speed follows the real speed (no foot sliding)
         if (ud.animAcc >= every) { ud.mixer.update(ud.animAcc * pace); ud.animAcc = 0; }
       }
@@ -3899,7 +3973,7 @@ function play(container, project, opts) {
       if (e.state === 'dead') {   // death animation: tip over and sink a little
         e.deadT += dt; const k = Math.min(1, e.deadT / 0.6);
         if (def.hover) { m.position.y = Math.max(e.z + 0.1, e.z + def.hover - e.deadT * 2.5); m.rotation.z = k * 1.2; }
-        else if (def.lift) { m.position.y = Math.max(e.z, e.z + def.lift - e.deadT * 1.8); m.rotation.x = -k * 1.2; if (ud.jets) ud.jets.forEach(j => { j.visible = false; }); }  // thruster dies, it drops
+        else if (def.lift) { m.position.y = Math.max(e.z, e.z + def.lift - e.deadT * 1.8); m.rotation.x = ud.skinned && ud.acts.death ? 0 : -k * 1.2; if (ud.jets) ud.jets.forEach(j => { j.visible = false; }); }  // thruster dies, it drops
         else { ud.proc.rotation.x = -k * 1.35 * (e.sub === 'turret' ? 0.3 : 1); m.position.y = e.z - k * 0.05; if (ud.glb && !(ud.acts && ud.acts.death)) ud.glb.rotation.x = -k * 1.35; }
         ud.mats.forEach(mm => mm.color.lerp(new THREE.Color(0x1a1a1a), dt * 1.5));
         continue;
@@ -4029,7 +4103,7 @@ function play(container, project, opts) {
       ud.mats.forEach(mm => mm.emissive.setRGB(e.flashT > 0 ? 0.9 : charge * 0.35, e.flashT > 0 ? 0.9 : charge * 0.08, e.flashT > 0 ? 0.9 : 0));
       const gl = 0.75 + Math.sin(time * 5 + ud.phase) * 0.25;           // models with a glow map (red visor/coils) keep it lit and pulsing
       // 1.3.3: winding up, the armour flares with the charge colour (blue lightning, red laser, orange shells)
-      const fw = opts.lively && e.state === 'attack' && e.t0 ? clamp(1 - e.t / e.t0, 0, 1) * 0.42 : 0, fc = fw ? (ga && ga.color) || 0xff8a30 : 0;
+      const fw = opts.lively && e.state === 'attack' && e.t0 ? clamp(1 - e.t / e.t0, 0, 1) * (ud.skinned ? 0.16 : 0.42) : 0, fc = fw ? (ga && ga.color) || 0xff8a30 : 0;
       const fr = ((fc >> 16) & 255) / 255 * fw, fg = ((fc >> 8) & 255) / 255 * fw, fb = (fc & 255) / 255 * fw;
       if (ud.glbMats) ud.glbMats.forEach(mm => mm.emissive && (mm.emissiveMap && !(e.flashT > 0) ? mm.emissive.setRGB(gl + fr, gl + fg, gl + fb) : mm.emissive.setRGB(e.flashT > 0 ? 0.55 : fr, e.flashT > 0 ? 0.35 : fg, e.flashT > 0 ? 0.3 : fb)));
     }
@@ -4139,8 +4213,10 @@ function play(container, project, opts) {
     setT('obj', H_.obj, `Hostiles ${left}/${G.totalEnemies}` + (G.totalSecrets ? ` · Secrets ${G.secrets}/${G.totalSecrets}` : '') + ` · ${fmtTime(G.time)}`);
     const boss = G.enemies.find(e => e.def && e.def.boss);
     if (H_.boss) {
-      const show = !!(boss && boss.state !== 'seated');
+      // 1.3.5: the bar is up from the start: dimmed "DORMANT" while he sits on his throne, full colour once he wakes
+      const show = !!(boss && boss.state !== 'dead' || boss && boss.deadT < 2), dorm = !!(boss && boss.state === 'seated');
       H_.boss.style.display = show ? 'block' : 'none';
+      if (hudCache.bossDorm !== dorm) { hudCache.bossDorm = dorm; H_.boss.classList.toggle('dormant', dorm); if (H_.bossName) H_.bossName.textContent = dorm ? 'MINOTAUR · DORMANT ON HIS THRONE' : 'MINOTAUR'; }
       if (show && H_.bossHp) H_.bossHp.style.transform = 'scaleX(' + Math.max(0, boss.hp / (boss.maxHp || boss.def.hp)) + ')';
     }
     G.dmgFlash = Math.max(0, G.dmgFlash - dt * 1.5); H_.vig.style.opacity = Math.max(G.dmgFlash, G.hp < 25 ? 0.35 + Math.sin(G.time * 5) * 0.1 : 0);

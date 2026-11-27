@@ -1,7 +1,7 @@
 {
   "id": "pro",
   "name": "PRO",
-  "version": "1.6.4",
+  "version": "1.6.5",
   "saveKey": "retroengine.pro.campaign.v2",
   "legacySaveKeys": ["retroengine.pro.campaign.v1"],
   "_survival": "1.6.3: points / score (kills by tier, pickups, chapter clears; shown on the HUD and every chapter summary). Pro runs points only: inventory false = no Pack, Suit Rebuild or item drops; regen false = no health regeneration (set either to true to turn it back on). safeSpawn moves anyone who could see the start out of sight and gives a short get-ready window.",
@@ -11,7 +11,7 @@
   "toughness": { "hp": 1.3, "dmg": 1.25, "cd": 0.8, "speed": 1.1, "react": 0.65, "flank": 0.15, "projSpeed": 1.15, "bossHp": 1, "perChapter": { "hp": 0.035, "dmg": 0.03, "cd": -0.02 } },
   "_lighting": "1.6.4: brighter, easier-to-read rooms in every chapter (multipliers on each map's own lighting, so every chapter keeps its mood): ambient sky light x1.9, floor / wall bounce +0.18, moonlight x1.4, the light around you x2 reaching 1.8x as far, room fixtures x1.35 reaching 1.35x as far, exposure x1.15, glowing panels / strips x1.4, fog 30% thinner with its colour lifted a touch (corridors no longer fade to black).",
   "lighting": { "ambient": 1.9, "bounce": 0.18, "sun": 1.4, "body": 2.0, "bodyRange": 1.8, "fixtures": 1.35, "fixtureRange": 1.35, "exposure": 1.15, "glow": 1.4, "fog": 0.7, "fogLift": 0.18 },
-  "_sizes": "1.6.2 enemy sizes. A DMB Tech 1 map unit is about 1.76 m: Pro's chapters have 1.55-1.9 unit ceilings (about 2.7-3.3 m) and the player's eye is 0.62. Model 'h' is the height in units: sentinel 1.02 (1.8 m), trooper 0.99 (1.75 m) floating 0.2 up, drone 0.42 (0.74 m), Warden 1.25 (2.2 m), Minotaur 1.75 (3.1 m, towering over his throne; closeR 2.3 makes him stop 2.3 away, where the 75-degree view fits his horns below the HUD even on his dais, and meleeR 2.4 lets his long arms still reach you). 'maxW' caps the width so nothing is wider than a corridor.",
+  "_sizes": "1.6.2 enemy sizes. A DMB Tech 1 map unit is about 1.76 m: Pro's chapters have 1.55-1.9 unit ceilings (about 2.7-3.3 m) and the player's eye is 0.62. Model 'h' is the height in units: sentinel 1.02 (1.8 m), trooper 0.99 (1.75 m) floating 0.2 up, drone 0.42 (0.74 m), Warden 1.25 (2.2 m), Minotaur 2.8 (1.6.5, about 4.9 m: he towers over the 1.95-unit marble statues; closeR 3.3 makes him stop 3.3 away, where the 75-degree view still fits his horns, and meleeR 3.4 lets his long arms reach you). 'maxW' caps the width so nothing is wider than a corridor.",
   "viewModel": {
     "slot": "weapon_1",
     "src": "assets/pro_cannon.glb",
@@ -372,15 +372,21 @@
       }
     },
     "minotaur": {
-      "h": 1.7,
-      "r": 0.55,
-      "closeR": 2.3,
-      "meleeR": 2.4,
+      "_why": "1.6.5: rigged on the Mixamo skeleton (idle / run / swipe / roar / die) and 2.8 units tall, clearly over the 1.95-unit marble statues. He wakes when you come within wakeR (14 units, about 25 m) of his throne, step onto his dais (daisR), hurt him, or clear the hall. crisp: no fog haze on him, and a warm ember rim instead of the cool one, so his dark armour reads against the white marble.",
+      "h": 2.7,
+      "r": 0.62,
+      "closeR": 3.3,
+      "meleeR": 3.4,
+      "wakeR": 14,
+      "daisR": 5,
       "model": {
         "src": "pro/assets/pro_minotaur.glb",
-        "h": 1.75,
-        "tint": 0.95,
-        "maxW": 1.6
+        "h": 2.8,
+        "tint": 0.72,
+        "maxW": 2.6,
+        "crisp": true,
+        "rim": "#ff6a3a",
+        "rimK": 0.24
       }
     }
   },

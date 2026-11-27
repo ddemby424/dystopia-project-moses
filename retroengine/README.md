@@ -98,7 +98,11 @@ From 1.6.4:
 - **A tougher campaign.** Enemies have more HP, hit harder, fire more often, react faster and flank more, and it ramps up chapter by chapter (`campaign.json` `toughness`). The GET READY window is unchanged.
 - **The Minotaur is 4× stronger** (3600 HP, harder fireballs and cleaves) and fights like a final boss: glowing eyes and chest, a rear-back roar into a bull charge, a cleave that slams a shockwave ring across the floor, a reel after heavy hits, a fan of three fireballs below half HP, and a long collapse when he dies.
 - **Brighter lighting** in every chapter: more ambient and bounce light, stronger, wider room fixtures and glowing accents, thinner fog (`campaign.json` `lighting`; a chapter can override it with its own `lighting`, as the already-bright marble shrine does).
-- **Download / Install App checks for updates:** the sheet fetches `pro/version.json` fresh (never cached), shows **Up to date · v1.6.4** or **Update available**, and **Update now** activates the new service worker, clears old caches and reloads the newest build. Bump `pro/version.json` with every release.
+- **Download / Install App checks for updates:** the sheet fetches `pro/version.json` fresh (never cached), shows **Up to date · v1.6.5** or **Update available**, and **Update now** activates the new service worker, clears old caches and reloads the newest build. Bump `pro/version.json` with every release.
+
+From 1.6.5:
+- **Real skeletal animation.** The suit, sentinel, trooper and Minotaur are Mixamo-rigged GLBs (idle / run / attack / die, plus a roar for the Minotaur), played by a per-entity `THREE.AnimationMixer` with crossfades. This covers enemies, remote multiplayer suits and the 3D preview.
+- **The Minotaur wakes** when you come within about 25 m of his throne, step onto the dais or hit him, instead of waiting for every minion to die. A dimmed boss bar and slow-pulsing eyes show him while he sits. He is 2.8 units tall, well above the statues.
 
 | File | What it is |
 |---|---|
@@ -106,18 +110,18 @@ From 1.6.4:
 | `pro/pro.js` | campaign host: loads the maps, story cards, exit seals, save/resume |
 | `pro/juice.js` | 1.6.0 feel layer: Pro HUD, compass + waypoint, hitmarkers, dash, streaks, orbs, Web Audio SFX |
 | `pro/install.js`, `pro/sw.js` | Install App button (`beforeinstallprompt` or per-browser steps) + the service worker (1.6.3: offline copy, `offlineStatus()`; 1.6.4: `checkLatest()` / `updateNow()`) |
-| `pro/version.json` | 1.6.4: the deployed version the install sheet compares against (bump it with every release) |
+| `pro/version.json` | 1.6.5: the deployed version the install sheet compares against (bump it with every release) |
 | `pro/assets/thumbs/pro_*.webp` | 1.6.3 lobby miniatures of the 4 suit colours |
 | `pro/viewer.js` | small turntable for Pro's model (cards + preview) |
-| `pro/assets/pro_suit.glb` | Pro's suit with glowing Sgt. chevrons on both shoulders, 31,232 triangles, 1.83 MB |
+| `pro/assets/pro_suit.glb` | Pro's suit with glowing Sgt. chevrons on both shoulders, 31,232 triangles; 1.6.5: Mixamo-rigged (idle / run / attack / die), 2.48 MB |
 | `pro/manifest.webmanifest`, `pro/assets/icon-*.png` | home-screen install as "Pro" |
 | `pro/spray.js` | spray-paint title animation (overspray, speckle, drips) |
 | `pro/assets/pro_splash.webp` | still render of the slim suit, shown while the 3D model loads |
 | `pro/assets/pro_cannon.glb` | his right-arm cannon, 5,034 triangles, 390 KB (first-person gun) |
-| `pro/assets/pro_enemy.glb` | twin-cannon trooper, 19,865 triangles, 1.08 MB (1.6.0) |
+| `pro/assets/pro_enemy.glb` | twin-cannon trooper, 19,865 triangles (1.6.0); 1.6.5: rigged + 4 clips, 1.59 MB |
 | `pro/assets/bot_drone.glb` | Dystopia drone, 104 KB (1.6.0) |
-| `pro/assets/pro_sentinel.glb` | Ballisticus sentinel / Warden, 14,986 triangles, 1.16 MB (1.6.0) |
-| `pro/assets/pro_minotaur.glb` | the Minotaur (AntiLegend), 21,708 triangles, 1.06 MB (1.6.0) |
+| `pro/assets/pro_sentinel.glb` | Ballisticus sentinel / Warden, 14,986 triangles (1.6.0); 1.6.5: rigged + 4 clips, 1.66 MB |
+| `pro/assets/pro_minotaur.glb` | the Minotaur (AntiLegend), 21,708 triangles (1.6.0); 1.6.5: rigged, idle / run / attack / roar / die, 1.66 MB |
 | `pro/assets/pro_prop.glb` | optional: drop a model here and it appears in the Catacomb Relay |
 | `maps/catacomb-relay.retro` | chapter 6 map, 64×64 (1.6.0) |
 

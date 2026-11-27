@@ -5,10 +5,10 @@
               2) Data       — room/building templates + starter levels
               3) Editor     — 2D map editor UI
    ===================================================================== */
-import { createRuntime } from './dmbtech1.js?v=1.6.4';   // 1.6.1: ?v= busts phone caches
-import { installMultiplayer } from './mp/mp-app.js?v=1.6.4';
+import { createRuntime } from './dmbtech1.js?v=1.6.5';   // 1.6.1: ?v= busts phone caches
+import { installMultiplayer } from './mp/mp-app.js?v=1.6.5';
 
-const VERSION = '1.6.4';
+const VERSION = '1.6.5';
 function DFRuntime() { return createRuntime(); }
 
 /* =====================================================================
