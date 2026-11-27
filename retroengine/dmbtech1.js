@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.3.3 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.3.4 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.3.3';
+export const VERSION = '1.3.4';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.3.3';
+const VERSION = '1.3.4';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 // Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
@@ -2061,7 +2061,19 @@ function play(container, project, opts) {
   const assetBase = opts.assetBase !== undefined ? opts.assetBase : (project.assetBase || (location.protocol === 'file:' ? HOSTED_BASE : ''));
   const usePack = opts.assets !== false && project.useAssetPack !== false && !!THREE.GLTFLoader;
   const DIFF = { easy: { hp: 0.75, dmg: 0.55, cd: 1.35, speed: 0.9, react: 1.5, flank: 0.15 }, normal: { hp: 1, dmg: 1, cd: 1, speed: 1, react: 1, flank: 0.4 }, hard: { hp: 1.3, dmg: 1.45, cd: 0.72, speed: 1.15, react: 0.6, flank: 0.65 } };
-  const diff = () => DIFF[S.difficulty] || DIFF.normal;
+  // 1.3.4: opts.toughness = a host's own difficulty on top of the player's setting (Pro uses it; the editor passes none).
+  //   { hp, dmg, cd, speed, react, flank: multipliers (flank adds), perChapter: { hp, dmg, cd, ... } added per chapter index, bossHp: boss HP multiplier instead of hp }
+  let curLevel = 0; const _dc = {};
+  const FIXI = (opts.lighting && opts.lighting.fixtures) || 1, FIXR = (opts.lighting && opts.lighting.fixtureRange) || 1;   // 1.3.4: room fixtures
+  const diff = () => {
+    const b = DIFF[S.difficulty] || DIFF.normal, T = opts.toughness; if (!T) return b;
+    const key = S.difficulty + '|' + curLevel; if (_dc[key]) return _dc[key];
+    const P = T.perChapter || {}, k = curLevel, f = n => (T[n] == null ? 1 : T[n]) + (P[n] || 0) * k;
+    const d = { hp: b.hp * f('hp'), dmg: b.dmg * f('dmg'), cd: b.cd * Math.max(0.35, f('cd')), speed: b.speed * f('speed'), react: b.react * Math.max(0.2, f('react')),
+      flank: Math.min(0.95, b.flank + (T.flank || 0) + (P.flank || 0) * k), bossHp: b.hp * (T.bossHp == null ? f('hp') : T.bossHp) };
+    return (_dc[key] = d);
+  };
+  const hpMul = def => (def && def.boss ? (diff().bossHp || diff().hp) : diff().hp);   // a boss can keep its own HP (Pro: the Minotaur's 4x is in his stats)
   /* ---------- music player: streams tracks from assets/music, synth ambient as fallback ---------- */
   const TP = { audio: null, i: Math.floor(Math.random() * MUSIC_TRACKS.length), cur: null, failed: false, pick: null };
   function music(on) {
@@ -2206,11 +2218,14 @@ function play(container, project, opts) {
 
   /* ---------- level loading ---------- */
   function loadLevel(index, keepInventory) {
+    curLevel = index | 0;                                         // 1.3.4: toughness ramps per chapter
     if (G) disposeLevel();
     const L = levels[clamp(index, 0, levels.length - 1)], W = L.w, Hh = L.h, P = L.props;
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(new THREE.Color(P.fogColor), P.fog);
-    scene.background = new THREE.Color(P.fogColor);
+    const LXo = opts.lighting || {}, fogC = new THREE.Color(P.fogColor);   // 1.3.4: lighting.fog thins the fog (see further), fogLift lifts its colour a touch
+    if (LXo.fogLift) fogC.lerp(new THREE.Color(P.ambient || '#808080'), Math.min(0.6, +LXo.fogLift));
+    scene.fog = new THREE.FogExp2(fogC, P.fog * (LXo.fog != null ? +LXo.fog : 1));
+    scene.background = fogC.clone();
     const world = new THREE.Group(); scene.add(world);
     buildLevelMeshes(L, world);
     const sky = makeSky(P.sky); scene.add(sky);
@@ -2219,18 +2234,21 @@ function play(container, project, opts) {
     const amb = new THREE.Color(P.ambient).convertSRGBToLinear();   // editor colors are sRGB; lights work in linear
     const preset = P.lightPreset || '';
     const lab = preset === 'lab' || P.sky === 'lab';
-    const hemiGround = P.hemiGround != null ? +P.hemiGround : (lab ? 0.78 : preset === 'clean' ? 0.42 : 0.3);
+    const LX = opts.lighting || {}, lx = (k, d) => (LX[k] == null ? d : +LX[k]);   // 1.3.4: a host's brighter lighting (Pro); none = as before
+    const hemiGround = Math.min(1, (P.hemiGround != null ? +P.hemiGround : (lab ? 0.78 : preset === 'clean' ? 0.42 : 0.3)) + lx('bounce', 0));   // ground colour = the bounce off floors and walls
     const hemiCap = lab ? 2.2 : preset === 'clean' ? 1.25 : 1.2;
-    const hemiI = P.hemiI != null ? +P.hemiI : Math.min(P.ambientI, hemiCap) * (lab ? 1.85 : 1.75);
+    const hemiI = (P.hemiI != null ? +P.hemiI : Math.min(P.ambientI, hemiCap) * (lab ? 1.85 : 1.75)) * lx('ambient', 1);
     const hemi = new THREE.HemisphereLight(amb, amb.clone().multiplyScalar(hemiGround), hemiI); scene.add(hemi);
-    const moonI = P.sunI != null ? +P.sunI : (lab ? 0.95 : preset === 'clean' ? 0.28 : 0.25);
+    const moonI = (P.sunI != null ? +P.sunI : (lab ? 0.95 : preset === 'clean' ? 0.28 : 0.25)) * lx('sun', 1);
     const moon = new THREE.DirectionalLight(new THREE.Color(SKIES[P.sky] ? SKIES[P.sky].glow : '#ffffff'), moonI);
     moon.position.set(lab ? 0.15 : -0.4, lab ? 1.2 : 1, lab ? -0.55 : 0.3); scene.add(moon);
     const pool = []; for (let i = 0; i < Q().lights; i++) { const pl = new THREE.PointLight(0xffffff, 0, 6, 2); scene.add(pl); pool.push(pl); }
     const bodyCol = preset === 'emergency' ? 0xff4030 : (lab ? 0xf4f6fa : (preset === 'clean' ? 0xd0d8e4 : 0xc8d4ff));
-    const bodyI = lab ? 0.55 : (preset === 'clean' ? 0.28 : (preset === 'emergency' ? 0.4 : 0.22));
-    const bodyLight = new THREE.PointLight(bodyCol, bodyI, lab ? 8 : (preset === 'clean' ? 5 : 3), 2); scene.add(bodyLight);     // keeps your surroundings readable
-    renderer.toneMappingExposure = P.exposure != null ? +P.exposure : 1.0;
+    const bodyI = (lab ? 0.55 : (preset === 'clean' ? 0.28 : (preset === 'emergency' ? 0.4 : 0.22))) * lx('body', 1);
+    const bodyLight = new THREE.PointLight(bodyCol, bodyI, (lab ? 8 : (preset === 'clean' ? 5 : 3)) * lx('bodyRange', 1), 2); scene.add(bodyLight);     // keeps your surroundings readable
+    renderer.toneMappingExposure = (P.exposure != null ? +P.exposure : 1.0) * lx('exposure', 1);
+    if (LX.glow != null) world.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; ms.forEach(mm => {   // glowing accents (panels, strips, signs) burn brighter
+      if (!mm || !mm.emissive || !(mm.emissiveIntensity > 0)) return; if (mm.userData.ei0 == null) mm.userData.ei0 = mm.emissiveIntensity; mm.emissiveIntensity = mm.userData.ei0 * +LX.glow; }); });
     const muzzle = new THREE.PointLight(0xffb060, 0, 2.4, 2); scene.add(muzzle);
     const fxLight = new THREE.PointLight(0xff8a30, 0, 7, 2); scene.add(fxLight);
     const flash = new THREE.SpotLight(0xfff1d6, 0, 14, 0.42, 0.45, 1.4); scene.add(flash); scene.add(flash.target);
@@ -2286,7 +2304,7 @@ function play(container, project, opts) {
         if (opts.lively) mesh.rotation.order = 'YXZ';               // 1.3.3: yaw first, so banking / pitch happen in the body's own frame
         mesh.position.set(e.x, fh + (def.hover || 0) + liftOf(def), e.y); world.add(mesh);
         const seated = def.boss === true;
-        const en = { sub: e.s in ENEMY_DEFS ? e.s : 'grunt', def, x: e.x, y: e.y, z: fh, hp: def.hp * diff().hp, state: seated ? 'seated' : 'idle', t: 0, cd: rand(0.5, 1.5), ang: e.r || 0, mesh, moving: false, deadT: 0, flashT: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rand(0.8, 2), flank: def.speed > 0 && e.s !== 'titan' && e.s !== 'minotaur' && Math.random() < diff().flank ? (Math.random() < 0.5 ? 1 : -1) : 0, coverT: 0, hurtT: 0, warpCd: 2, fade: 1, maxHp: def.hp * diff().hp };
+        const en = { sub: e.s in ENEMY_DEFS ? e.s : 'grunt', def, x: e.x, y: e.y, z: fh, hp: def.hp * hpMul(def), state: seated ? 'seated' : 'idle', t: 0, cd: rand(0.5, 1.5), ang: e.r || 0, mesh, moving: false, deadT: 0, flashT: 0, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rand(0.8, 2), flank: def.speed > 0 && e.s !== 'titan' && e.s !== 'minotaur' && Math.random() < diff().flank ? (Math.random() < 0.5 ? 1 : -1) : 0, coverT: 0, hurtT: 0, warpCd: 2, fade: 1, maxHp: def.hp * hpMul(def) };
         g.enemies.push(en); attachModel(mesh, 'enemy_' + en.sub, def.h, !!def.hover);
         // 1.6.2: an enemy placed on a raised floor under a low ceiling is shrunk to fit (never below 70%), so heads don't poke through.
         const mh = ((ASSET_PACK['enemy_' + en.sub] && ASSET_PACK['enemy_' + en.sub].h) || def.h) * (def.hover ? 0.5 : 1);   // model height above the mesh origin (hover models are centred)
@@ -2731,6 +2749,10 @@ function play(container, project, opts) {
     if (byPlayer && (e.def.bossMusic || e.def.boss)) meetBoss(e);   // 1.3.2: shooting a boss counts as meeting it
     // 1.3.0: hosts hear about the player's hits (hitmarkers, kill streaks); the engine itself doesn't use it
     if (byPlayer) fire('hit', { sub: e.sub, x: e.x, y: e.y, z: e.z + liftOf(e.def) + (e.def.hover || 0) + (e.def.hover ? 0 : e.def.h * 0.6), dmg, kill: e.hp <= 0, boss: !!(e.def && e.def.boss), floor: e.z });
+    if (e.def.boss && e.def.stagger && e.hp > 0 && (e.state === 'chase' || e.state === 'attack' || e.state === 'charge')) {   // 1.3.4: heavy hits make the boss reel
+      e.stagAcc = (e.stagAcc || 0) + dmg;
+      if (e.stagAcc >= (e.maxHp || e.def.hp) * e.def.stagger) { e.stagAcc = 0; e.state = 'stagger'; e.t = e.t0 = 0.62; e.moving = false; Sound.play('pain', distVol(e.x, e.y)); fire('boss_stagger', { x: e.x, y: e.y, z: e.z }); }
+    }
     if (e.state === 'idle') alert(e);
     if (e.hp <= 0) {
       e.state = 'dead'; e.deadT = 0; G.kills++; Sound.play('edie', distVol(e.x, e.y));
@@ -2744,7 +2766,7 @@ function play(container, project, opts) {
         if (e.def && e.def.boss) { msg('THE MINOTAUR FALLS — the shrine is quiet'); fire('boss_die', e); }
         else msg('AREA CLEAR — all hostiles down');
       }
-    } else if (e.sub !== 'titan' && e.sub !== 'turret' && Math.random() < 0.35) { e.state = 'pain'; e.t = 0.22; Sound.play('pain', distVol(e.x, e.y) * 0.6); }
+    } else if (!e.def.boss && e.sub !== 'titan' && e.sub !== 'turret' && Math.random() < 0.35) { e.state = 'pain'; e.t = 0.22; Sound.play('pain', distVol(e.x, e.y) * 0.6); }
   }
   function damageProp(p, dmg) {
     p.hp -= dmg; if (p.hp > 0 || p.dead) return;
@@ -3069,6 +3091,62 @@ function play(container, project, opts) {
       }
     }
   }
+  /* ---------- 1.3.4: the boss's dramatic layer (on top of bodyPose): glowing eyes + chest flare, a deep rear-back roar
+     before every attack, a cleave lunge, a head-down charge, a reel on heavy hits, and a long collapse when he dies. ---------- */
+  const ease = w => w * w * (3 - 2 * w);
+  function bossFx(e, ud) {
+    const body = bodyOf(ud); if (!body) return null;
+    if (ud.bossFx && ud.bossFx.body === body) return ud.bossFx;
+    if (!glowTex) gunTextures();
+    const H = ud.glbH || 1, mk = (col, sc) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
+      sp.renderOrder = 3; sp.scale.setScalar(sc * H); body.add(sp); (G.gunFx = G.gunFx || []).push(sp.material); return sp; };
+    const head = autoMuzzle(body, 0.86), chestP = autoMuzzle(body, 0.6);
+    const eyes = [-1, 1].map(sd => { const sp = mk(0xff3a14, 0.07); sp.position.set(head.x + sd * 0.05 * H, head.y, head.z + 0.01 * H); return sp; });
+    const chest = mk(0xff6a1e, 0.22); chest.position.copy(chestP);
+    return (ud.bossFx = { body, eyes, chest, H });
+  }
+  function bossPose(e, ud, dt, time) {
+    const g = bodyOf(ud); if (!g || !g.userData.rest) return;
+    const H = ud.glbH || 1, fx = bossFx(e, ud);
+    e.lungeT = Math.max(0, (e.lungeT || 0) - dt * 2.4); const l = Math.pow(e.lungeT, 1.5);
+    let rx = 0, ry = 0, rz = 0, y = 0, z = 0, glow = 0.45 + 0.15 * Math.sin(time * 3.1), chest = 0.15;
+    const w = e.t0 ? clamp(1 - e.t / e.t0, 0, 1) : 0, wE = ease(w);
+    if (e.state === 'attack' && e.attackKind === 'melee') { rx -= 0.62 * wE; y += 0.09 * H * wE; ry += 0.32 * wE; glow += 1.1 * wE; chest += 0.6 * wE; }   // rears up, axe arm back
+    else if (e.state === 'attack') { rx -= 0.26 * wE; z -= 0.05 * H * wE; glow += 0.9 * wE; chest += 1.3 * wE; }                                        // draws the fireball into his chest
+    else if (e.state === 'charge' && e.phase === 'wind') { rx -= 0.34 * wE; y += 0.05 * H * wE; rz += 0.05 * Math.sin(time * 38) * wE; glow += 1.5 * wE; chest += 0.9 * wE; }   // the roar: rear back and shudder
+    else if (e.state === 'charge') { rx += 0.42; z += 0.06 * H; rz += 0.07 * Math.sin(time * 16); glow = 1.7; chest = 0.8; }                            // head down, horns first
+    else if (e.state === 'stagger') { const s = e.t0 ? clamp(e.t / e.t0, 0, 1) : 0; rx -= 0.34 * Math.sin(s * Math.PI); rz += 0.14 * Math.sin(time * 24) * s; y -= 0.05 * H * s; z -= 0.08 * H * s; glow = 0.25; }
+    if (l > 0) {                                                   // the release: a lunge forward (slam: deeper, with a twist back through the cleave)
+      const big = e.lungeKind === 'slam' ? 1 : e.lungeKind === 'stop' ? 0.7 : 0.45;
+      rx += 0.6 * l * big; z += 0.34 * H * l * big; y -= 0.07 * H * l * big; ry -= (e.lungeKind === 'slam' ? 0.45 : 0) * l; glow += 0.8 * l; chest += (e.lungeKind === 'palm' ? 1.4 : 0.5) * l;
+    }
+    if (e.flashT > 0) glow += 0.6;
+    g.rotation.x += rx; g.rotation.y += ry; g.rotation.z += rz; g.position.y += y; g.position.z += z;
+    if (fx) {
+      const fl = 0.9 + 0.1 * Math.sin(time * 41);
+      fx.eyes.forEach(sp => { sp.visible = true; sp.material.opacity = Math.min(1, 0.35 + glow * 0.45) * fl; sp.scale.setScalar((0.08 + 0.07 * Math.min(2, glow)) * fx.H); });
+      fx.chest.visible = chest > 0.05; fx.chest.material.opacity = Math.min(1, chest * 0.6) * fl; fx.chest.scale.setScalar((0.16 + 0.22 * Math.min(1.5, chest)) * fx.H);
+    }
+    ud.bossGlow = glow;                                           // test hook
+  }
+  function bossDeath(e, ud, dt) {                                 // 2.6 s: reels back, knees buckle, crashes forward; eyes go dark
+    const g = ud.glb, R = g.userData.rest || { p: g.position.clone(), r: g.rotation.clone(), s: g.scale.clone() }, m = e.mesh, H = ud.glbH || 1;
+    const t0 = e.deadT; e.deadT += dt; const t = e.deadT;
+    let rx = 0, y = 0, z = 0, rz = 0;
+    if (t < 0.6) { const k = ease(t / 0.6); rx = -0.32 * k; rz = 0.06 * Math.sin(t * 30) * (1 - k); }
+    else if (t < 1.3) { const k = ease((t - 0.6) / 0.7); rx = -0.32 + 0.4 * k; y = -0.22 * H * k; rz = 0.1 * k; }
+    else { const k = Math.min(1, (t - 1.3) / 0.9), f = k * k; rx = 0.08 + 1.42 * f; y = -0.22 * H - 0.12 * H * f; z = 0.25 * H * f; rz = 0.1 + 0.12 * f; }
+    g.position.set(R.p.x, R.p.y + y, R.p.z + z); g.rotation.set(R.r.x + rx, R.r.y, R.r.z + rz);
+    if (t0 < 2.2 && t >= 2.2) {                                    // the impact
+      G.shake = Math.max(G.shake || 0, Math.max(0, 1 - Math.hypot(G.px - e.x, G.py - e.y) * 0.06)); Sound.play('quake', distVol(e.x, e.y));
+      smoke(e.x + Math.cos(e.ang) * 1.2, e.z + 0.2, e.y + Math.sin(e.ang) * 1.2, 14); sparks(e.x, e.z + 0.3, e.y, 26, 0xff8030);
+      startQuake({ x: e.x, y: e.y, z: e.z, state: 'fx' }, { radius: 3.2, speed: 4, dmg: 0, charge: 0.02, color: 0xffa060 });   // a dust ring, harmless
+    }
+    if (ud.bossFx) { const k = clamp(1 - t / 2.2, 0, 1); ud.bossFx.eyes.forEach(sp => { sp.material.opacity = 0.9 * k; sp.visible = k > 0.01; }); ud.bossFx.chest.visible = false; }
+    if (t > 2.6 && ud.mats) ud.mats.forEach(mm => mm.color && mm.color.lerp(_dark, dt * 1.5));
+    m.position.set(e.x, e.z, e.y);
+  }
+  const _dark = new THREE.Color(0x1a1a1a);
   const gunPose = bodyPose;                                      // 1.3.2 name (the Warden and sentinels): same function
   function gunRest(e) {                                          // death: back to the rest pose, hide the muzzle sprites
     const ud = e.mesh.userData, b = bodyOf(ud); if (!b) return;
@@ -3265,7 +3343,7 @@ function play(container, project, opts) {
       const d = Math.hypot(G.px - w.x, G.py - w.y);
       if (!w.hit && Math.abs(d - w.r) < 0.32 && state === 'playing') {   // the ring is passing under you
         const grounded = G.onGround && Math.abs(G.pz - w.z) < 0.3, dashing = G.dashT > 0;
-        if (grounded && !dashing && los(w.x, w.y, G.px, G.py)) { w.hit = true; damagePlayer(w.dmg * diff().dmg, w.x, w.y); fire('quakeHit', { dmg: w.dmg }); }
+        if (grounded && !dashing && w.dmg > 0 && los(w.x, w.y, G.px, G.py)) { w.hit = true; damagePlayer(w.dmg * diff().dmg, w.x, w.y); fire('quakeHit', { dmg: w.dmg }); }
         else if (d < w.r) w.hit = true;                           // cleared it (jumped / dashed): it can't hit you on the way out
       }
       if (w.r >= w.max) { G.world.remove(m); m.material.dispose(); G.waves.splice(i, 1); }
@@ -3692,7 +3770,7 @@ function play(container, project, opts) {
       e.t += dt; const k = Math.min(1, e.t / 2.15);
       m.rotation.x = 0.18 * (1 - k);
       m.position.set(e.x, e.z + 0.15 * Math.sin(k * Math.PI), e.y);
-      if (k >= 1) { e.state = 'chase'; e.cd = 0.6; e.warpCd = 3; }
+      if (k >= 1) { e.state = 'chase'; e.cd = 0.6; e.warpCd = 3; e.chargeCd = 2.5; }
       return;
     }
     if (e.state === 'warping') {
@@ -3715,7 +3793,36 @@ function play(container, project, opts) {
       m.rotation.y += dAng * Math.min(1, dt * 10);
       return;
     }
-    if (e.state === 'attack') {
+    if (e.chargeCd != null) e.chargeCd -= dt;
+    if (e.state === 'stagger') {                                  // 1.3.4: reeling from a heavy hit: no attacks for a moment
+      e.t -= dt; e.moving = false; if (e.t <= 0) { e.state = 'chase'; e.cd = Math.max(e.cd, 0.2); }
+    } else if (e.state === 'charge') {                            // 1.3.4: roar, then a head-down bull rush
+      const C = def.charge || {}; e.t -= dt;
+      if (e.phase === 'wind') {
+        e.moving = false;
+        if (e.t <= 0) { e.phase = 'rush'; e.t = C.dur || 1.0; e.cdir = Math.atan2(dy, dx); Sound.play('quake', distVol(e.x, e.y)); fire('boss_charge', { x: e.x, y: e.y, z: e.z }); }
+      } else {
+        let da = Math.atan2(dy, dx) - e.cdir; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+        e.cdir += clamp(da, -dt * (C.turn || 0.9), dt * (C.turn || 0.9)); e.ang = e.cdir;   // a little homing, easy to sidestep late
+        const sp = def.speed * diff().speed * (C.speed || 3.2) * dt, nx = e.x + Math.cos(e.cdir) * sp, ny = e.y + Math.sin(e.cdir) * sp;
+        let wall = false;
+        if (!blocked(nx, e.y, e.z, def.r * 0.85, false, e)) e.x = nx; else wall = true;
+        if (!blocked(e.x, ny, e.z, def.r * 0.85, false, e)) e.y = ny; else wall = true;
+        e.moving = true; e.rushK = C.speed || 3.2;
+        if (Math.random() < dt * 14) smoke(e.x, e.z + 0.1, e.y, 1);
+        const reach = Math.hypot(tgt.x - e.x, tgt.y - e.y);
+        if (!e.chHit && reach < def.r + 0.8 && Math.abs((tgt.z || 0) - e.z) < 1.2) {
+          e.chHit = true; const dmg = (C.dmg || 30) * diff().dmg;
+          if (tgt.local) { damagePlayer(dmg, e.x, e.y); G.vx += Math.cos(e.cdir) * 7; G.vy += Math.sin(e.cdir) * 7; G.shake = Math.max(G.shake || 0, 0.9); }
+          else fire('boss_hit', { targetId: tgt.id, dmg: Math.round(dmg) });
+        }
+        if (wall || e.t <= 0 || e.chHit) {
+          e.state = 'chase'; e.phase = null; e.rushK = 0; e.cd = def.cd * diff().cd * 0.6; e.lungeT = 1; e.lungeKind = 'stop';
+          e.chargeCd = rand((C.every || [6, 9])[0], (C.every || [6, 9])[1]);
+          if (wall) { sparks(e.x + Math.cos(e.cdir) * 0.6, e.z + def.h * 0.5, e.y + Math.sin(e.cdir) * 0.6, 24, 0xffb060); G.shake = Math.max(G.shake || 0, Math.max(0, 0.7 - dist * 0.06)); Sound.play('quake', distVol(e.x, e.y)); }
+        }
+      }
+    } else if (e.state === 'attack') {
       e.t -= dt;
       if (e.t <= 0) {
         if (e.attackKind === 'melee') {
@@ -3724,11 +3831,16 @@ function play(container, project, opts) {
             if (tgt.local) damagePlayer(dmg, e.x, e.y);
             else fire('boss_hit', { targetId: tgt.id, dmg: Math.round(dmg) });
           }
+          e.lungeT = 1; e.lungeKind = 'slam';                       // 1.3.4: the cleave lands: lunge, and the floor ripples out
+          if (def.slam) { startQuake(e, Object.assign({ charge: 0.05, color: 0xff5a1e }, def.slam)); G.shake = Math.max(G.shake || 0, Math.max(0, 0.8 - dist * 0.07)); }
         } else {
           const mz = e.z + def.h * 0.62, tz = tgt.z + 0.5, d3 = Math.max(0.2, Math.hypot(dx, dy, tz - mz));
           const ox = e.x + Math.cos(e.ang) * 0.7, oy = e.y + Math.sin(e.ang) * 0.7;
           const vx = dx / d3, vy = dy / d3, vz = (tz - mz) / d3, sp = def.palmSpeed || 7.5;
           spawnProj('enemy', 'palm', ox, oy, mz, vx, vy, vz, sp, def.dmg * diff().dmg, 0);
+          if (def.enrage && e.hp < (e.maxHp || def.hp) * def.enrage) [-0.24, 0.24].forEach(a => {   // 1.3.4: enraged (low HP): a fan of three fireballs
+            const c = Math.cos(a), s2 = Math.sin(a); spawnProj('enemy', 'palm', ox, oy, mz, vx * c - vy * s2, vx * s2 + vy * c, vz, sp, def.dmg * diff().dmg * 0.7, 0); });
+          e.lungeT = 0.7; e.lungeKind = 'palm';
           if (animOf(e)) gunFire(e);                               // 1.3.3: the palm blast flashes at his chest and kicks him back
           fire('proj', { kind: 'palm', x: ox, y: oy, z: mz, dx: vx, dy: vy, dz: vz });
           Sound.play('bolt', distVol(e.x, e.y));
@@ -3737,8 +3849,10 @@ function play(container, project, opts) {
       }
     } else {
       // chase / combat
-      if (see && dist <= def.meleeR && e.cd <= 0) { e.state = 'attack'; e.attackKind = 'melee'; e.t = e.t0 = 0.38; e.moving = false; }   // t0: windup length for the 1.3.3 pose
-      else if (see && dist < def.range && e.cd <= 0) { e.state = 'attack'; e.attackKind = 'palm'; e.t = e.t0 = def.windup || 0.42; e.moving = false; }
+      if (see && dist <= def.meleeR && e.cd <= 0) { e.state = 'attack'; e.attackKind = 'melee'; e.t = e.t0 = def.meleeWindup || 0.38; e.moving = false; fire('boss_windup', { kind: 'melee' }); }
+      else if (def.charge && see && e.cd <= 0 && (e.chargeCd || 0) <= 0 && dist > 3.0 && dist < (def.charge.range || 12)) {   // 1.3.4: a roar, then the bull rush
+        e.state = 'charge'; e.phase = 'wind'; e.t = e.t0 = def.charge.windup || 0.8; e.chHit = false; e.moving = false; Sound.play('alert', distVol(e.x, e.y)); fire('boss_roar', { x: e.x, y: e.y, z: e.z }); }   // t0: windup length for the 1.3.3 pose
+      else if (see && dist < def.range && e.cd <= 0) { e.state = 'attack'; e.attackKind = 'palm'; e.t = e.t0 = def.windup || 0.42; e.moving = false; fire('boss_windup', { kind: 'palm' }); }
       else if (e.warpCd <= 0 && dist > 2.2) {
         const dest = pickWarpNear(tgt.x, tgt.y, 3.4);
         showWarpTelegraph(dest.x, dest.y, dest.z + 0.02);
@@ -3761,8 +3875,8 @@ function play(container, project, opts) {
     if (e.poseT <= 0) { e.poseT = 0.28; fire('boss_pose', { x: e.x, y: e.y, z: e.z, hp: e.hp, yaw: e.ang, state: e.state }); }
     const ud = m.userData;
     if (e.attackKind === 'melee' && e.state === 'attack' && e.t <= dt * 1.5 && animOf(e)) e.recoilT = Math.max(e.recoilT || 0, 0.7);   // 1.3.3: the swing lands
-    ud.spd = e.moving ? def.speed * diff().speed : lerp(ud.spd || 0, 0, Math.min(1, dt * 6));   // his gait follows his walk
-    const ga = animOf(e); if (ga && ud.glb) bodyPose(e, ud, ga, dt, time);   // 1.3.3: stomping walk, lean + lunge on attacks, breathing
+    ud.spd = e.moving ? def.speed * diff().speed * (e.state === 'charge' && e.rushK ? Math.min(1.8, e.rushK * 0.55) : 1) : lerp(ud.spd || 0, 0, Math.min(1, dt * 6));   // his gait follows his walk (a charge gallops)
+    const ga = animOf(e); if (ga && ud.glb) { bodyPose(e, ud, ga, dt, time); if (opts.lively) bossPose(e, ud, dt, time); }   // 1.3.3 stomp + lean; 1.3.4 roar / cleave / charge / stagger
     if (ud.glbMats) ud.glbMats.forEach(mm => mm.emissive && mm.emissive.setRGB(e.flashT > 0 ? 0.55 : 0, e.flashT > 0 ? 0.28 : 0, e.flashT > 0 ? 0.12 : 0));
   }
   function updateEnemies(dt, time) {
@@ -3781,6 +3895,7 @@ function play(container, project, opts) {
       else if (ud.mixer) ud.mixer.update(dt * (e.moving ? 1 : 0.3));
       if (e.alertT > 0) { e.alertT -= dt; if (e.alertT <= 0) alert(e); }
       if (def.boss && e.state !== 'dead') { updateMinotaur(e, dt, time); continue; }
+      if (e.state === 'dead' && def.boss && opts.lively && ud.glb) { bossDeath(e, ud, dt); continue; }   // 1.3.4: the Minotaur's long collapse
       if (e.state === 'dead') {   // death animation: tip over and sink a little
         e.deadT += dt; const k = Math.min(1, e.deadT / 0.6);
         if (def.hover) { m.position.y = Math.max(e.z + 0.1, e.z + def.hover - e.deadT * 2.5); m.rotation.z = k * 1.2; }
@@ -3820,7 +3935,7 @@ function play(container, project, opts) {
             const a = Math.atan2(dy, dx); fireBeam(e, def.proj, mp ? mp.x : e.x + Math.cos(a) * 0.3, mp ? mp.y : e.y + Math.sin(a) * 0.3, mz);
           } else for (let s = 0; s < def.shots; s++) {
             const ox = mp ? mp.x : e.x, oy = mp ? mp.y : e.y, ddx = G.px - ox, ddy = G.py - oy, dd = Math.hypot(ddx, ddy) || 1;   // aim from where the shot starts
-            const tz = G.pz + 0.45, d3 = Math.hypot(ddx, ddy, tz - mz), sp = def.proj === 'rocket' ? 5.5 : 6.5;
+            const tz = G.pz + 0.45, d3 = Math.hypot(ddx, ddy, tz - mz), sp = (def.proj === 'rocket' ? 5.5 : 6.5) * ((opts.toughness && opts.toughness.projSpeed) || 1);
             const spr = def.shots > 1 ? (s - (def.shots - 1) / 2) * 0.12 : rand(-0.04, 0.04), a = Math.atan2(ddy, ddx) + spr;
             const off = e.sub === 'titan' ? (s ? 0.45 : -0.45) : 0;
             const fwd = mp ? 0 : 0.35;                                // the rifle tip is already in front of the body
@@ -3832,7 +3947,7 @@ function play(container, project, opts) {
       } else if (e.state === 'chase') {
         if (see) e.ang = Math.atan2(dy, dx);
         // badly hurt (or just took a big hit on Hard) -> look for cover
-        if (def.speed > 0 && e.sub !== 'titan' && e.hurtT > def.hp * diff().hp * (S.difficulty === 'hard' ? 0.25 : 0.4)) { e.hurtT = 0; const c = findCover(e); if (c) { e.state = 'cover'; e.recover = false; e.cover = c; e.coverT = rand(1.4, 2.6); } }
+        if (def.speed > 0 && e.sub !== 'titan' && e.hurtT > def.hp * hpMul(def) * (S.difficulty === 'hard' ? 0.25 : 0.4)) { e.hurtT = 0; const c = findCover(e); if (c) { e.state = 'cover'; e.recover = false; e.cover = c; e.coverT = rand(1.4, 2.6); } }
         e.strafeT -= dt; if (e.strafeT <= 0) { if (!e.flank) e.strafe = -e.strafe; e.strafeT = rand(0.7, 1.8); }
         if (e.flank && e.strafe !== e.flank && e.strafeT > 0.3) e.strafe = e.flank;
         if (see && dist < def.range && e.cd <= 0) { e.state = 'attack'; e.t = def.windup || (def.proj === 'rocket' ? 0.6 : 0.4); e.t0 = e.t;   // 1.3.3: def.windup = telegraph length
@@ -3931,8 +4046,8 @@ function play(container, project, opts) {
     G.pool.forEach((pl, i) => {
       const l = act[i];
       if (!l) { pl.intensity = 0; return; }
-      pl.position.set(l.x, l.z, l.y); pl.color.copy(l.color); pl.distance = l.radius;
-      let k = Math.min(l.intensity, 2.2) * 1.45;   // capped: close-up walls never blow out to white
+      pl.position.set(l.x, l.z, l.y); pl.color.copy(l.color); pl.distance = l.radius * FIXR;
+      let k = Math.min(l.intensity, 2.2) * 1.45 * FIXI;   // (1.3.4: opts.lighting.fixtures / fixtureRange)   // capped: close-up walls never blow out to white
       if (l.flicker) { const f = Math.sin(time * 13 + l.seed) * Math.sin(time * 7.3 + l.seed * 2); k *= f > 0.75 ? 0.25 : 0.85 + f * 0.15; }
       pl.intensity = k;
     });
@@ -4311,7 +4426,7 @@ function play(container, project, opts) {
   function frame(now) {
     if (destroyed) return;
     raf = requestAnimationFrame(frame);
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;   // 1.3.4: never negative (begin() stamps last after this frame started: slow phones got an orange / red haze)
     const time = now / 1000;
     if (G && state === 'playing') {
       G.time += dt;

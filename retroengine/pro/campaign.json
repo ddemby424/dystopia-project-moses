@@ -1,12 +1,16 @@
 {
   "id": "pro",
   "name": "PRO",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "saveKey": "retroengine.pro.campaign.v2",
   "legacySaveKeys": ["retroengine.pro.campaign.v1"],
   "_survival": "1.6.3: points / score (kills by tier, pickups, chapter clears; shown on the HUD and every chapter summary). Pro runs points only: inventory false = no Pack, Suit Rebuild or item drops; regen false = no health regeneration (set either to true to turn it back on). safeSpawn moves anyone who could see the start out of sight and gives a short get-ready window.",
   "pack": { "inventory": false, "regen": false, "pickupPts": 25, "clearPts": 1000 },
   "safeSpawn": { "grace": 4 },
+  "_toughness": "1.6.4: Pro is harder than the editor's Normal. On top of the player's difficulty setting: enemies have 30% more HP, hit 25% harder, fire 20% more often, react 35% faster, run 10% faster, flank more, and their shots fly 15% faster. Every chapter adds a little more (chapter 7: about 1.5x HP, 1.43x damage). bossHp 1 = the Minotaur keeps exactly his own HP (his 4x is in enemyMods). The get-ready window at each chapter start is unchanged.",
+  "toughness": { "hp": 1.3, "dmg": 1.25, "cd": 0.8, "speed": 1.1, "react": 0.65, "flank": 0.15, "projSpeed": 1.15, "bossHp": 1, "perChapter": { "hp": 0.035, "dmg": 0.03, "cd": -0.02 } },
+  "_lighting": "1.6.4: brighter, easier-to-read rooms in every chapter (multipliers on each map's own lighting, so every chapter keeps its mood): ambient sky light x1.9, floor / wall bounce +0.18, moonlight x1.4, the light around you x2 reaching 1.8x as far, room fixtures x1.35 reaching 1.35x as far, exposure x1.15, glowing panels / strips x1.4, fog 30% thinner with its colour lifted a touch (corridors no longer fade to black).",
+  "lighting": { "ambient": 1.9, "bounce": 0.18, "sun": 1.4, "body": 2.0, "bodyRange": 1.8, "fixtures": 1.35, "fixtureRange": 1.35, "exposure": 1.15, "glow": 1.4, "fog": 0.7, "fogLift": 0.18 },
   "_sizes": "1.6.2 enemy sizes. A DMB Tech 1 map unit is about 1.76 m: Pro's chapters have 1.55-1.9 unit ceilings (about 2.7-3.3 m) and the player's eye is 0.62. Model 'h' is the height in units: sentinel 1.02 (1.8 m), trooper 0.99 (1.75 m) floating 0.2 up, drone 0.42 (0.74 m), Warden 1.25 (2.2 m), Minotaur 1.75 (3.1 m, towering over his throne; closeR 2.3 makes him stop 2.3 away, where the 75-degree view fits his horns below the HUD even on his dais, and meleeR 2.4 lets his long arms still reach you). 'maxW' caps the width so nothing is wider than a corridor.",
   "viewModel": {
     "slot": "weapon_1",
@@ -225,6 +229,7 @@
     },
     {
       "slug": "marble-shrine",
+      "lighting": { "ambient": 1.0, "bounce": 0, "sun": 1.0, "exposure": 1.0, "fog": 1.0, "fogLift": 0, "_why": "1.6.4: the white marble shrine is already bright: it keeps its own daylight (only the fixtures, the light around you and the glows get the boost), so it never washes out" },
       "file": "marble-shrine.retro",
       "name": "7 · The Marble Shrine",
       "brief": "THE MARBLE SHRINE. The cult's altar. The minotaur on the throne is AntiLegend's avatar. Clear the minions and kill the beast. The exit stays sealed until it falls.",
@@ -381,6 +386,13 @@
   },
   "enemyMods": {
     "_about": "1.6.2 powers for the stock enemies in Pro's maps (Pro's runtime only; the editor's enemies are unchanged).",
+    "minotaur": {
+      "_why": "1.6.4: the final boss, 4x stronger: 4x HP (900 -> 3600), harder fireballs and cleaves, faster, a roaring bull charge, a floor-shaking slam ring on every cleave, he reels (staggers) after every 7% of his HP, and below half HP he throws three fireballs at once.",
+      "hp": 3600, "dmg": 22, "melee": 36, "cd": 1.3, "speed": 1.6, "palmSpeed": 9, "warpCd": 5.5, "windup": 0.7, "meleeWindup": 0.62,
+      "charge": { "windup": 0.8, "dur": 1.1, "speed": 3.2, "dmg": 28, "every": [6, 9], "range": 12, "turn": 0.9 },
+      "slam": { "radius": 4.4, "speed": 4.2, "dmg": 16 },
+      "stagger": 0.07, "enrage": 0.5
+    },
     "grunt": {
       "proj": "zap"
     },

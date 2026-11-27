@@ -94,13 +94,19 @@ From 1.6.3:
 - Every enemy walks, hovers, stomps, breathes, leans into a charge-up and recoils with a flash when it fires; soldiers fire a jagged, crackling blue lightning bolt.
 - Each chapter starts out of every enemy's sight with a 4-second GET READY window.
 - **Points / score** for kills (by tier), pickups and chapter clears, on the HUD and each chapter summary. Pro plays points only: no health regen, armor rebuild or inventory Pack (engine switches `pack.inventory` / `pack.regen`, both off in `campaign.json`).
+From 1.6.4:
+- **A tougher campaign.** Enemies have more HP, hit harder, fire more often, react faster and flank more, and it ramps up chapter by chapter (`campaign.json` `toughness`). The GET READY window is unchanged.
+- **The Minotaur is 4× stronger** (3600 HP, harder fireballs and cleaves) and fights like a final boss: glowing eyes and chest, a rear-back roar into a bull charge, a cleave that slams a shockwave ring across the floor, a reel after heavy hits, a fan of three fireballs below half HP, and a long collapse when he dies.
+- **Brighter lighting** in every chapter: more ambient and bounce light, stronger, wider room fixtures and glowing accents, thinner fog (`campaign.json` `lighting`; a chapter can override it with its own `lighting`, as the already-bright marble shrine does).
+- **Download / Install App checks for updates:** the sheet fetches `pro/version.json` fresh (never cached), shows **Up to date · v1.6.4** or **Update available**, and **Update now** activates the new service worker, clears old caches and reloads the newest build. Bump `pro/version.json` with every release.
 
 | File | What it is |
 |---|---|
 | `pro/campaign.json` | chapter order, story text, exit goals, view-model sizing |
 | `pro/pro.js` | campaign host: loads the maps, story cards, exit seals, save/resume |
 | `pro/juice.js` | 1.6.0 feel layer: Pro HUD, compass + waypoint, hitmarkers, dash, streaks, orbs, Web Audio SFX |
-| `pro/install.js`, `pro/sw.js` | Install App button (`beforeinstallprompt` or per-browser steps) + the service worker (1.6.3: offline copy, `offlineStatus()`) |
+| `pro/install.js`, `pro/sw.js` | Install App button (`beforeinstallprompt` or per-browser steps) + the service worker (1.6.3: offline copy, `offlineStatus()`; 1.6.4: `checkLatest()` / `updateNow()`) |
+| `pro/version.json` | 1.6.4: the deployed version the install sheet compares against (bump it with every release) |
 | `pro/assets/thumbs/pro_*.webp` | 1.6.3 lobby miniatures of the 4 suit colours |
 | `pro/viewer.js` | small turntable for Pro's model (cards + preview) |
 | `pro/assets/pro_suit.glb` | Pro's suit with glowing Sgt. chevrons on both shoulders, 31,232 triangles, 1.83 MB |

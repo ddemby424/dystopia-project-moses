@@ -1,4 +1,4 @@
-/* install.js — 1.6.1 (1.6.3: always-visible button + install sheet + offline status): "Play Online" or "Download / Install App" for Pro.
+/* install.js — 1.6.1 (1.6.3: always-visible button + install sheet + offline status; 1.6.4: live version check + Update now): "Play Online" or "Download / Install App" for Pro.
    - Registers sw.js (a tiny network-first service worker) so Chrome / Edge / Samsung Internet treat Pro as
      an installable app and fire `beforeinstallprompt`.
    - Catches that event early, so the Install button can open the browser's own one-tap install dialog.
@@ -65,5 +65,43 @@ export function offlineStatus() {
   });
 }
 
+// 1.6.4: the version of the code that is running right now (this file is loaded with the same ?v= as the rest of Pro).
+export const APP_VERSION = '1.6.4';
+function cmpVer(a, b) {                                            // '1.6.10' > '1.6.9'
+  const x = String(a).split('.').map(n => parseInt(n, 10) || 0), y = String(b).split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0 ? 1 : -1; }
+  return 0;
+}
+// Fetch the deployed version.json fresh (cache-busted, never from any cache) and ask the service worker to look for a
+// new sw.js too. Resolves { state: 'current' | 'update' | 'offline', running, latest, engine, notes }.
+export async function checkLatest() {
+  let reg = null;
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    try { reg = await navigator.serviceWorker.getRegistration(); if (reg) reg.update().catch(() => {}); } catch (e) { reg = null; }
+  }
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json(), latest = String(j.version || '');
+    const newer = cmpVer(latest, APP_VERSION) > 0;
+    return { state: newer ? 'update' : 'current', running: APP_VERSION, latest, engine: j.engine || '', notes: j.notes || '', sw: !!reg };
+  } catch (e) {
+    return { state: 'offline', running: APP_VERSION, latest: '', engine: '', notes: '', sw: !!reg };
+  }
+}
+// Update now: let a waiting new service worker take over, drop every older Pro cache, and reload the newest build
+// (?v=<latest> on the page URL also skips the browser's own HTTP cache of index.html).
+export async function updateNow(latest) {
+  const want = latest || String(Date.now());
+  try {
+    const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+    if (reg) { await reg.update().catch(() => {}); const w = reg.waiting || reg.installing; if (w) w.postMessage({ type: 'skipWaiting' }); }
+  } catch (e) {}
+  try { if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.filter(k => /^pro-/.test(k) && !k.endsWith('-' + want)).map(k => caches.delete(k))); } } catch (e) {}
+  const u = new URL(location.href); u.searchParams.set('v', want);
+  window.PRO_UPDATE_RELOAD = u.href;                               // test hook
+  location.replace(u.href);
+}
+
 // Test hook: lets the automated checks fake a beforeinstallprompt event.
-window.PRO_INSTALL = { get deferred() { return deferred; }, set deferred(v) { deferred = v; listeners.forEach(f => f()); }, installSteps, isInstalled, offlineStatus };
+window.PRO_INSTALL = { get deferred() { return deferred; }, set deferred(v) { deferred = v; listeners.forEach(f => f()); }, installSteps, isInstalled, offlineStatus, checkLatest, updateNow, APP_VERSION };

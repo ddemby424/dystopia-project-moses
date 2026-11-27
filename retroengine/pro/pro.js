@@ -1,12 +1,12 @@
 // PRO — a standalone game powered by DMB Tech 1 (seven chapters, Lab -> Marble Shrine -> broadcast).
-// 1.6.1: every local import carries ?v=1.6.3 so phones never mix a cached old module with new ones.
+// 1.6.1: every local import carries ?v=1.6.4 so phones never mix a cached old module with new ones.
 // This page only *hosts* DMB Tech 1: it loads the seven chapter maps, adds story cards between them,
 // seals each exit until that level's goal is met, and saves how far you got in localStorage.
-import { createRuntime } from '../dmbtech1.js?v=1.6.3';          // the DMB Tech 1 engine (same file the editor uses)
-import { mountPro } from './viewer.js?v=1.6.3';                  // Pro's turntable for the intro and ending cards
-import { sprayTitle } from './spray.js?v=1.6.3';                 // spray-paints the PRO title on the splash
-import { installJuice } from './juice.js?v=1.6.3';
-import { initInstall, onInstallChange, isInstalled, canPrompt, installSteps, promptInstall, offlineStatus } from './install.js?v=1.6.3';   // 1.6.1: Play Online / Install App               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
+import { createRuntime } from '../dmbtech1.js?v=1.6.4';          // the DMB Tech 1 engine (same file the editor uses)
+import { mountPro } from './viewer.js?v=1.6.4';                  // Pro's turntable for the intro and ending cards
+import { sprayTitle } from './spray.js?v=1.6.4';                 // spray-paints the PRO title on the splash
+import { installJuice } from './juice.js?v=1.6.4';
+import { initInstall, onInstallChange, isInstalled, canPrompt, installSteps, promptInstall, offlineStatus, checkLatest, updateNow, APP_VERSION } from './install.js?v=1.6.4';   // 1.6.1: Play Online / Install App               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
 
 initInstall();                                           // 1.6.1: catch beforeinstallprompt early + register sw.js
 const RT = createRuntime();                              // one engine instance for the whole campaign
@@ -93,6 +93,8 @@ function startAt(index) {
     lively: true,                                             // 1.6.3: every enemy strides / hovers / recoils / flashes (no cardboard cut-outs)
     pack: CFG.pack || { inventory: false, regen: false },    // 1.6.3: points / score only (campaign.json can turn regen or the Pack on)
     safeSpawn: CFG.safeSpawn || { grace: 4 },                 // 1.6.3: start every chapter out of sight with a short "get ready" window
+    toughness: CFG.toughness || null,                         // 1.6.4: Pro's harder campaign (HP / damage / fire rate / reactions, ramping per chapter)
+    lighting: CFG.lighting ? Object.assign({}, CFG.lighting, CFG.levels[index].lighting || {}) : null,   // 1.6.4: brighter ambient, bounce, fixtures and glowing accents (a chapter can tune its own)
     pauseExtras: [{ id: 'install', label: isInstalled() ? 'App installed · offline status' : 'Download / Install App' }, { id: 'multiplayer', label: 'Multiplayer lobby' }],
     onMenu: id => { if (id === 'install') installClick(); else if (id === 'multiplayer') openMultiplayer(); },
     onQuit: () => { if (handle) { JUICE.detach(); handle.destroy(); handle = null; } titleCard(); },
@@ -146,12 +148,11 @@ function titleCard() {
 // 1.6.3 Install button (title card, splash corner and the pause menu): the browser's one-tap dialog when it offered one,
 // otherwise a friendly sheet with this browser's steps, an "Install to Home Screen" button and the offline-ready badge.
 async function installClick() {
-  if (!isInstalled() && canPrompt()) {
+  installSheet();                                                            // 1.6.4: the sheet opens first and checks for the latest version
+  if (!isInstalled() && canPrompt()) {                                       // the browser's own one-tap dialog (still inside this tap)
     const r = await promptInstall();
-    if (r === 'accepted') return installSheet('Installing Pro…');
-    if (r === 'dismissed') return;                                           // they said no: leave it
+    installSheet(r === 'accepted' ? 'Installing Pro…' : undefined);
   }
-  installSheet();                                                            // Safari / iOS / Firefox / not offered yet / installed
 }
 function installSheet(head) {
   let m = $('install-sheet');
@@ -159,13 +160,17 @@ function installSheet(head) {
     m = document.createElement('div'); m.id = 'install-sheet'; m.className = 'isheet'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
     m.innerHTML = '<div class="isheet-box"><button class="isheet-x" aria-label="Close">×</button>'
       + '<img src="assets/icon-192.png" alt="" class="isheet-ico"><div class="isheet-k">PRO · DMB TECH 1</div><h2></h2>'
-      + '<ol class="isheet-steps"></ol><div class="isheet-off"><i></i><span></span></div>'
+      + '<ol class="isheet-steps"></ol>'
+      + '<div class="isheet-ver wait"><i></i><span>Checking for the latest version…</span><button data-ib="check" class="mini">Check again</button><button data-ib="update" class="upd">Update now</button></div>'
+      + '<div class="isheet-off"><i></i><span></span></div>'
       + '<div class="isheet-btns"><button class="pri" data-ib="go"></button><button data-ib="close">Not now</button></div></div>';
     m.addEventListener('click', ev => {                                      // tap outside the box or × / Not now closes it
       ev.stopPropagation();                                                  // never reaches the splash's tap-to-continue
       const b = ev.target.closest('button');
       if (ev.target === m || (b && (b.classList.contains('isheet-x') || b.dataset.ib === 'close'))) return closeSheet();
       if (b && b.dataset.ib === 'go') sheetGo();
+      if (b && b.dataset.ib === 'check') refreshVersion();
+      if (b && b.dataset.ib === 'update') { b.disabled = true; b.textContent = 'Updating…'; updateNow(m.dataset.latest); }
     });
     document.body.appendChild(m);
   }
@@ -179,7 +184,7 @@ function installSheet(head) {
   go.textContent = inst ? 'Done' : 'Install to Home Screen';
   go.dataset.mode = inst ? 'done' : canPrompt() ? 'prompt' : 'steps';
   m.classList.add('on');
-  refreshOffline();
+  refreshOffline(); refreshVersion();
   window.PRO_INSTALL_SHEET = { open: true, steps, mode: go.dataset.mode };   // test hook
 }
 async function sheetGo() {
@@ -189,6 +194,23 @@ async function sheetGo() {
   closeSheet();
 }
 function closeSheet() { const m = $('install-sheet'); if (m) m.classList.remove('on'); if (window.PRO_INSTALL_SHEET) window.PRO_INSTALL_SHEET.open = false; }
+// 1.6.4: the live version check (fresh version.json from the server vs the code running now).
+let verBusy = null;
+function refreshVersion() {
+  const m = $('install-sheet'); if (!m) return Promise.resolve();
+  if (verBusy) return verBusy;
+  const box = m.querySelector('.isheet-ver'), txt = box.querySelector('span'), upd = box.querySelector('[data-ib="update"]');
+  box.className = 'isheet-ver wait'; txt.textContent = 'Checking for the latest version…'; upd.disabled = false; upd.textContent = 'Update now';
+  window.PRO_VERSION_CHECK = { state: 'checking', running: APP_VERSION };
+  verBusy = checkLatest().then(v => {
+    verBusy = null;
+    if (v.state === 'current') { box.className = 'isheet-ver ok'; txt.textContent = 'Up to date · v' + v.running + (v.engine ? ' · DMB Tech 1 ' + v.engine : ''); }
+    else if (v.state === 'update') { box.className = 'isheet-ver upd'; txt.textContent = 'Update available · v' + v.latest + ' (you have v' + v.running + ')'; m.dataset.latest = v.latest; }
+    else { box.className = 'isheet-ver no'; txt.textContent = 'Can’t reach the server right now · running v' + v.running; }
+    window.PRO_VERSION_CHECK = Object.assign({ text: txt.textContent }, v);   // test hook
+  });
+  return verBusy;
+}
 // The offline badge: green "Offline ready" once the service worker holds the engine, the campaign and some maps.
 async function refreshOffline() {
   const m = $('install-sheet'); if (!m) return;

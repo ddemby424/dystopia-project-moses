@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.6.4 (2026-11-26): tougher campaign, a 4× Minotaur with boss animations, brighter lighting, live update check
+
+Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
+
+Editor (RetroEngine **1.6.4**), powered by DMB Tech 1 **1.3.4**.
+
+- **Tougher campaign** (Pro only, new engine option `opts.toughness`, set in `campaign.json`). On top of the player's difficulty setting, enemies get 1.3× HP, 1.25× damage, fire 20% more often, react 35% faster, move 10% faster, flank more, and their shots fly 15% faster. Each chapter adds a little more, up to about 1.5× HP and 1.43× damage in chapter 7. The safe GET READY window at each chapter start is unchanged.
+- **The Minotaur, 4× stronger:** 3600 HP (was 900), harder fireballs (22) and cleaves (36), faster, with a shorter cooldown and more frequent warps. New attacks and animations (engine 1.3.4, `opts.lively`):
+  - glowing eyes and a chest flare that burn brighter before every attack;
+  - a **roar** (he rears back and shudders) into a head-down **bull charge** that knocks you back and crashes into walls;
+  - a deep rear-up **cleave** that lunges forward and **slams a shockwave ring** across the floor (jump or dash it);
+  - he **staggers** after every 7% of his HP;
+  - below half HP he throws **three fireballs at once**;
+  - a 2.6-second **death collapse**: he reels back, his knees buckle and he crashes forward with a shake and a dust ring.
+- **Brighter lighting** in all 7 chapters (new engine option `opts.lighting`, multipliers on each map's own light, so every chapter keeps its mood): ambient ×1.9, floor/wall bounce +0.18, moonlight ×1.4, the light around you ×2 reaching 1.8× as far, room fixtures ×1.35 reaching 1.35× as far, exposure ×1.15, glowing panels / strips ×1.4, and fog 30% thinner with its colour lifted a touch, so corridors no longer fade to black. A chapter can tune its own (`levels[i].lighting`): the white marble shrine (chapter 7) keeps its own daylight and only gets the fixture / glow boost, so it never washes out. Measured on screen: chapter 1 about 2.4× brighter, the chapter 6 corridors about 2×.
+- **Download / Install App checks for the latest version.** The sheet fetches `pro/version.json?t=…` (no-store, and the service worker never caches it) and asks the service worker to look for a new `sw.js`. It then shows **Up to date · v1.6.4** or **Update available · vX (you have v1.6.4)**. **Update now** lets the new service worker take over, deletes older Pro caches and reloads the page as `?v=<latest>`. With no connection it says so and keeps playing the saved copy.
+- **Fixes:** the frame timer could run backwards for a few frames after a chapter started on a slow device (`begin()` stamped the clock after the frame had begun), which built up a fake orange explosion glow and a red hurt vignette over the first seconds of a chapter; the step is now never negative. The Minotaur's charge can start from 3 m (warps that land him right at the old 3.4 m minimum never charged).
+- **Cache-busting:** every page, stylesheet and local module import carries `?v=1.6.4`.
+
 ## 1.6.3 (2026-11-26): install button, lively enemies, crackling lightning, safe starts, points / score, Pro multiplayer, visor HUD
 
 Darcy D. Demby, Chief Software Architect, DembySoftwareSystems.
