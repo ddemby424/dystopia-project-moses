@@ -269,6 +269,8 @@ const TEX_DEFS = {
   chevron:         { name: 'Hazard Chevrons',   rough: 0.7,  metal: 0.25, bump: 1.8 },
   lab_panel:       { name: 'Lab Wall Panels',   rough: 0.42, metal: 0.08, bump: 1.2, clean: true },
   office_wall:     { name: 'Office Wall',       rough: 0.55, metal: 0.0,  bump: 1.0, clean: true },
+  office_dark:     { name: 'Dark Office Panels', rough: 0.7, metal: 0.0,  bump: 1.3 },
+  carpet:          { name: 'Office Carpet',      rough: 0.92, metal: 0.0,  bump: 1.6 },
   med_wall:        { name: 'Med-Bay Wall',      rough: 0.45, metal: 0.05, bump: 1.3, clean: true },
   polished_tile:   { name: 'Polished Tile',     rough: 0.22, metal: 0.05, bump: 1.4, clean: true },
   clean_metal:     { name: 'Brushed Aluminium', rough: 0.35, metal: 0.7,  bump: 1.6, clean: true },
@@ -279,8 +281,8 @@ const TEX_DEFS = {
   marble_dark:     { name: 'Dark Marble',       rough: 0.46, metal: 0.05, bump: 2.2, clean: true },
   water:           { name: 'Shrine Water',      rough: 0.08, metal: 0.15, bump: 0.6, clean: true }
 };
-const WALL_TEXTURES = ['concrete', 'concrete_dark', 'brick', 'brick_weathered', 'metal_panel', 'tech', 'rust', 'hazard', 'tile', 'tile_dark', 'wood', 'server', 'grate', 'plate', 'fence', 'sidewalk', 'curb', 'riveted', 'vent', 'stained', 'lab_panel', 'office_wall', 'med_wall', 'clean_metal', 'marble', 'marble_veined', 'marble_stained', 'marble_dark'];
-const FLOOR_TEXTURES = ['concrete', 'tile', 'tile_dark', 'plate', 'grate', 'asphalt', 'asphalt_lines', 'sidewalk', 'curb', 'wood', 'rust', 'metal_panel', 'hazard', 'concrete_dark', 'brick', 'brick_weathered', 'stained', 'chevron', 'polished_tile', 'clean_metal', 'lab_panel', 'marble', 'marble_veined', 'marble_stained', 'marble_dark', 'water'];
+const WALL_TEXTURES = ['concrete', 'concrete_dark', 'brick', 'brick_weathered', 'metal_panel', 'tech', 'rust', 'hazard', 'tile', 'tile_dark', 'wood', 'server', 'grate', 'plate', 'fence', 'sidewalk', 'curb', 'riveted', 'vent', 'stained', 'lab_panel', 'office_wall', 'office_dark', 'med_wall', 'clean_metal', 'marble', 'marble_veined', 'marble_stained', 'marble_dark'];
+const FLOOR_TEXTURES = ['concrete', 'tile', 'tile_dark', 'plate', 'grate', 'asphalt', 'asphalt_lines', 'sidewalk', 'curb', 'wood', 'rust', 'metal_panel', 'hazard', 'concrete_dark', 'brick', 'brick_weathered', 'stained', 'chevron', 'polished_tile', 'clean_metal', 'lab_panel', 'marble', 'marble_veined', 'marble_stained', 'marble_dark', 'water', 'carpet'];
 const CEIL_TEXTURES = ['ceiling', 'light_panel', 'bright_panel', 'concrete', 'metal_panel', 'grate', 'rust', 'concrete_dark', 'clean_metal', 'lab_panel', 'sky', 'marble', 'marble_dark'];
 
 // Paints one texture. Returns { color: canvas, glow: canvas|null }.
@@ -301,7 +303,7 @@ function paintTexture(id, S) {
     fence: [70, 74, 76], brick_weathered: [118, 48, 36], wood: [112, 78, 46], ceiling: [128, 128, 122], light_panel: [100, 102, 104], server: [26, 28, 32],
     door: [84, 88, 92], door_red: [84, 80, 80], door_blue: [78, 84, 92], door_yellow: [88, 86, 76],
     riveted: [86, 90, 96], vent: [58, 62, 66], stained: [86, 80, 70], chevron: [64, 64, 62],
-    lab_panel: [214, 218, 222], office_wall: [208, 206, 200], med_wall: [214, 222, 228],
+    lab_panel: [214, 218, 222], office_wall: [208, 206, 200], office_dark: [78, 74, 68], med_wall: [214, 222, 228], carpet: [86, 72, 58],
     polished_tile: [200, 206, 212], clean_metal: [168, 174, 180], bright_panel: [230, 234, 238],
     marble: [238, 236, 232], marble_veined: [228, 226, 222], marble_stained: [214, 208, 200], marble_dark: [168, 164, 158], water: [36, 56, 58]
   }[id] || [100, 100, 100];
@@ -523,11 +525,20 @@ function paintTexture(id, S) {
         rivet(x + 3, y + 3); rivet(x + 29, y + 3); rivet(x + 3, y + 13); rivet(x + 29, y + 13);
       }
       break;
-    case 'office_wall':
-      // Clean painted wall with a subtle dado rail and faint vertical joins.
+    case 'office_wall': case 'office_dark':
+      // Painted wall with a dado rail and faint vertical joins. office_dark gets the shared grime pass.
       line(0, 44, 64, 44, 'rgba(150,148,142,.45)', 1.2);
       rect(0, 45, 64, 19, 'rgba(20,18,16,.06)');
       for (let i = 1; i < 4; i++) line(i * 16, 0, i * 16, 64, 'rgba(130,128,122,.2)', 0.6);
+      if (id === 'office_dark') {
+        for (let i = 0; i < 14; i++) rect(R() * 64, R() * 64, 2 + R() * 10, 0.8 + R() * 2, 'rgba(20,16,12,.18)'); // scuffs
+      }
+      break;
+    case 'carpet':
+      // Commercial carpet squares: tight fibre noise and a faint 16px grid, already a dirty brown-grey.
+      for (let i = 0; i <= 4; i++) { line(i * 16, 0, i * 16, 64, 'rgba(30,22,16,.35)', 0.8); line(0, i * 16, 64, i * 16, 'rgba(30,22,16,.35)', 0.8); }
+      for (let i = 0; i < 280; i++) rect(R() * 64, R() * 64, 1.2, 0.7, `rgba(${20 + R() * 40 | 0},${12 + R() * 24 | 0},8,${0.08 + R() * 0.16})`);
+      rect(R() * 40, R() * 40, 12 + R() * 18, 8 + R() * 14, 'rgba(40,24,16,.12)'); // a worn patch
       break;
     case 'med_wall':
       // Pale clinical wall: large clean tiles above a darker wipe-down dado.
