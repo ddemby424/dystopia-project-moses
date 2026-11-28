@@ -28,7 +28,7 @@
  *   session.disconnect();
  */
 
-import { connect } from './mp.js?v=1.6.5';   // 1.6.1: cache-busted, same URL as lobby.js
+import { connect } from './mp.js?v=1.6.6';   // 1.6.1: cache-busted, same URL as lobby.js
 
 function findCreate(engine) {
   if (!engine) return null;

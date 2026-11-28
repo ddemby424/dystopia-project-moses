@@ -11,6 +11,8 @@ Six maps for early trial users of RetroEngine: four escape-pad campaigns, one 12
 | Site 12: Dataworks | `site12-dataworks.retro` | 128×128 factory and data-center compound. Outdoor yard, indoor halls, raised catwalks, clean bright lab wing, eight spread-out spawns, and a single-player fight with stock Heavy Walkers, Gun Drones and other built-in enemies (disabled in multiplayer rooms). Music: Industrial Revolution (Kevin MacLeod, CC BY 4.0). |
 | The Marble Shrine | `marble-shrine.retro` | 80×96 white-marble shrine. Tall stair to a high plaza, sunken pool and throne. Single-player: clear stock minions, then a minotaur boss rises from the throne (warp and palm shot). The exit pad behind the throne stays sealed until the minotaur is defeated (a seated or rising boss still counts). Eight spawns; in shared rooms minion bots stay off and the host drives the boss — the exit still waits for the boss. Music: Crypto (Kevin MacLeod, CC BY 4.0). |
 
+Pro 1.6.6 adds three office-floor maps used only by the Pro campaign (`tower-lobby.retro`, `tower-bullpen.retro`, `tower-executive.retro`). They hold the geometry, lights, pickups, keys and exit pads; Pro adds the props, security guards and drones from `pro/campaign.json`.
+
 Each map is beatable: the exit pad is reachable from the start once you have the keys, stairs are stepable, and ammo, health and a rocket launcher sit in front of the boss.
 
 ## Play

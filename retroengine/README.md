@@ -79,14 +79,30 @@ Your work **autosaves** in the browser. Use **Menu → Projects** for named save
 
 Open `retroengine/pro/` (for example `http://localhost:8765/retroengine/pro/`).
 From 1.5.1, Pro is its own game. It has a splash screen with a spray-painted PRO title, Sgt. Protagonist spinning with an ion charge building in his cannon, a loading bar and a **Powered by DMB Tech 1** badge (tap to continue), and none of the editor's branding. From 1.6.1, the title card offers **Play Online** or **Download / Install App**. The install button opens the browser's own install dialog on Chrome, Edge and Android, and shows the exact steps on Safari/iOS and Firefox. `pro/sw.js` is a network-first service worker that exists only to make Pro installable.
-You play Sgt. Protagonist (nicknamed Protag, Pro or Sgt Taggs) through seven linked chapters (from 1.6.0): Lab → Yard → Drains → Factory → Roof → Catacomb Relay → Marble Shrine. After that comes the ending broadcast.
-You fight hovering red-and-black twin-cannon troopers, Dystopia drones, Ballisticus sentinels, and AntiLegend's Minotaur at the end.
-Each exit pad stays sealed until that chapter's goal is met. Your progress is saved in the browser by chapter name (1.6.1 save format, so older saves start fresh on Chapter 1). A reload offers **Continue**, and the **Chapter Select** dropdown opens any of the seven chapters.
+You play Sgt. Protagonist (nicknamed Protag, Pro or Sgt Taggs) through ten linked chapters (seven from 1.6.0, ten from 1.6.6): Lab → Yard → Drains → Factory → Roof → Catacomb Relay → Lobby → Bullpen → Executive Floor → Marble Shrine. After that comes the ending broadcast.
+You fight hovering red-and-black twin-cannon troopers, Dystopia drones, Ballisticus sentinels, rifle-armed security guards (1.6.6) and AntiLegend's Minotaur at the end.
+Each exit pad stays sealed until that chapter's goal is met. Your progress is saved in the browser by chapter name (1.6.1 save format, so older saves start fresh on Chapter 1). A reload offers **Continue**, and the **Chapter Select** dropdown opens any of the ten chapters (1.6.6: the save is by map name, so an older save still opens the right chapter).
 Pro's arm cannon is your gun, and it fires cyan energy rings.
 From 1.6.0 you can **dash** with Shift or Q, or the DASH button on a phone. Pro also has its own HUD with a compass, a waypoint arrow and distance, hitmarkers, kill streaks, health and shield orbs, and Web Audio sound effects (`pro/juice.js`).
 You can spin the slim suit at `retroengine/pro/preview.html`.
 From 1.6.2, enemies are life-sized for the rooms (about 1 unit = 1.76 m, so a 1.7 ceiling is about 3 m): troopers and sentinels are about 1.8 m, drones about 0.75 m, the Warden about 2.2 m and the Minotaur about 3.1 m, towering over his throne in the open-sky Shrine. He stops about 2.3 units away when he walks up, so his horns stay on screen. The Warden and sentinels lean in, charge a glow, then kick back with a muzzle flash and tracer; they also breathe when idle and flinch when hit. Grunts throw blue lightning, turrets fire red lasers, and heavy/titan walkers send out a glowing floor shockwave that you clear by jumping or dashing. Pro's arm cannon stays on the right, and every other gun is held left-handed.
-Music (all by **Darcy D. Demby, DembySoftwareSystems**): Old School Flavor plays on chapters 1, 3 and 5, and **Bass Angel** takes over when you meet a boss in chapters 1–6, with a toast naming the track. Chapter 7 keeps Jungle Slap.
+Music (1.6.6): Darcy D. Demby's three songs (Old School Flavor, Bass Angel, Jungle Slap) play about **1 track in every 4 to 5** in a shuffled rotation that never repeats a track back to back, mixed with ten gritty CC0 / CC BY tracks. Boss fights keep their own music: Bass Angel on the Chapter 4 Warden, Jungle Slap on the Minotaur in Chapter 10. The tracks and licenses:
+
+| Track | Artist | License | Source |
+|---|---|---|---|
+| Old School Flavor, Bass Angel, Jungle Slap | Darcy D. Demby (DembySoftwareSystems) | © Darcy D. Demby, used in Pro with permission | his own songs |
+| Pyro, endochde | cinameng (James Gargette) | CC0 | https://opengameart.org/content/pyro · https://opengameart.org/content/endochde |
+| Corrupt Data Stream | Tsorthan Grove | CC0 | https://opengameart.org/content/corrupt-data-stream |
+| Seismic | Shane Ivers (silvermansound.com) | CC BY 4.0 | https://www.silvermansound.com/free-music/seismic |
+| Lewis and Dekalb, Griphop, Hitman, Volatile Reaction, Industrial Revolution, Danger Storm | Kevin MacLeod (incompetech.com) | CC BY 4.0 | https://incompetech.com/music/royalty-free/ |
+
+CC BY credits: "Seismic" by Shane Ivers; "Lewis and Dekalb", "Griphop", "Hitman", "Volatile Reaction", "Industrial Revolution" and "Danger Storm" by Kevin MacLeod (incompetech.com), licensed under Creative Commons: By Attribution 4.0 (http://creativecommons.org/licenses/by/4.0/). The three CC0 tracks were re-encoded to 56 kbps mono MP3 (about 1.4 MB each). Full details are in `CREDITS.md`.
+From 1.6.6:
+- **Ten chapters:** three office floors (Lobby, Bullpen, Executive Floor, `maps/tower-*.retro`) before the Minotaur, who is now Chapter 10.
+- **Security guards** (`pro/assets/pro_guard.glb`): a rigged human with a two-handed semi-auto rifle who patrols a short beat, then aims and fires 3-round bursts when he sees you. Engine 1.3.6 enemy options: `burst`, `burstGap`, `patrol`, `patrolSpeed`, `sfx`; projectile `bullet`.
+- **Props** (`pro/assets/props/*.glb`, CC0): benches, counters, cabinets, vending machines, chairs, footlockers and tarp crates in chapters 1 to 9, placed on flat floor beside walls so no route is blocked. Declared in `campaign.json` `props` and per chapter in `add` lists, which also place the guards and office enemies.
+- **Shuffled music** (`opts.musicShuffle`, tracks flagged `rare` come up about 1 in 4-5, never the same track twice in a row).
+
 From 1.6.2 there is no separate Map button: tap or click the top-right minimap (or press M) to open the full map, and again to close it.
 From 1.6.3:
 - **Download / Install App** is always visible (splash corner, title card, pause menu): it opens the browser's install dialog, or a sheet with 1-tap steps and an offline-ready badge. After one online session the installed app plays offline.
@@ -98,7 +114,7 @@ From 1.6.4:
 - **A tougher campaign.** Enemies have more HP, hit harder, fire more often, react faster and flank more, and it ramps up chapter by chapter (`campaign.json` `toughness`). The GET READY window is unchanged.
 - **The Minotaur is 4× stronger** (3600 HP, harder fireballs and cleaves) and fights like a final boss: glowing eyes and chest, a rear-back roar into a bull charge, a cleave that slams a shockwave ring across the floor, a reel after heavy hits, a fan of three fireballs below half HP, and a long collapse when he dies.
 - **Brighter lighting** in every chapter: more ambient and bounce light, stronger, wider room fixtures and glowing accents, thinner fog (`campaign.json` `lighting`; a chapter can override it with its own `lighting`, as the already-bright marble shrine does).
-- **Download / Install App checks for updates:** the sheet fetches `pro/version.json` fresh (never cached), shows **Up to date · v1.6.5** or **Update available**, and **Update now** activates the new service worker, clears old caches and reloads the newest build. Bump `pro/version.json` with every release.
+- **Download / Install App checks for updates:** the sheet fetches `pro/version.json` fresh (never cached), shows **Up to date · v1.6.6** or **Update available**, and **Update now** activates the new service worker, clears old caches and reloads the newest build. Bump `pro/version.json` with every release.
 
 From 1.6.5:
 - **Real skeletal animation.** The suit, sentinel, trooper and Minotaur are Mixamo-rigged GLBs (idle / run / attack / die, plus a roar for the Minotaur), played by a per-entity `THREE.AnimationMixer` with crossfades. This covers enemies, remote multiplayer suits and the 3D preview.
@@ -110,7 +126,7 @@ From 1.6.5:
 | `pro/pro.js` | campaign host: loads the maps, story cards, exit seals, save/resume |
 | `pro/juice.js` | 1.6.0 feel layer: Pro HUD, compass + waypoint, hitmarkers, dash, streaks, orbs, Web Audio SFX |
 | `pro/install.js`, `pro/sw.js` | Install App button (`beforeinstallprompt` or per-browser steps) + the service worker (1.6.3: offline copy, `offlineStatus()`; 1.6.4: `checkLatest()` / `updateNow()`) |
-| `pro/version.json` | 1.6.5: the deployed version the install sheet compares against (bump it with every release) |
+| `pro/version.json` | 1.6.6: the deployed version the install sheet compares against (bump it with every release) |
 | `pro/assets/thumbs/pro_*.webp` | 1.6.3 lobby miniatures of the 4 suit colours |
 | `pro/viewer.js` | small turntable for Pro's model (cards + preview) |
 | `pro/assets/pro_suit.glb` | Pro's suit with glowing Sgt. chevrons on both shoulders, 31,232 triangles; 1.6.5: Mixamo-rigged (idle / run / attack / die), 2.48 MB |

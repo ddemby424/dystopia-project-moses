@@ -1,12 +1,12 @@
-// PRO — a standalone game powered by DMB Tech 1 (seven chapters, Lab -> Marble Shrine -> broadcast).
-// 1.6.1: every local import carries ?v=1.6.5 so phones never mix a cached old module with new ones.
-// This page only *hosts* DMB Tech 1: it loads the seven chapter maps, adds story cards between them,
+// PRO — a standalone game powered by DMB Tech 1 (ten chapters, Lab -> Offices -> Marble Shrine -> broadcast).
+// 1.6.1: every local import carries ?v=1.6.6 so phones never mix a cached old module with new ones.
+// This page only *hosts* DMB Tech 1: it loads the ten chapter maps, adds story cards between them,
 // seals each exit until that level's goal is met, and saves how far you got in localStorage.
-import { createRuntime } from '../dmbtech1.js?v=1.6.5';          // the DMB Tech 1 engine (same file the editor uses)
-import { mountPro } from './viewer.js?v=1.6.5';                  // Pro's turntable for the intro and ending cards
-import { sprayTitle } from './spray.js?v=1.6.5';                 // spray-paints the PRO title on the splash
-import { installJuice } from './juice.js?v=1.6.5';
-import { initInstall, onInstallChange, isInstalled, canPrompt, installSteps, promptInstall, offlineStatus, checkLatest, updateNow, APP_VERSION } from './install.js?v=1.6.5';   // 1.6.1: Play Online / Install App               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
+import { createRuntime } from '../dmbtech1.js?v=1.6.6';          // the DMB Tech 1 engine (same file the editor uses)
+import { mountPro } from './viewer.js?v=1.6.6';                  // Pro's turntable for the intro and ending cards
+import { sprayTitle } from './spray.js?v=1.6.6';                 // spray-paints the PRO title on the splash
+import { installJuice } from './juice.js?v=1.6.6';
+import { initInstall, onInstallChange, isInstalled, canPrompt, installSteps, promptInstall, offlineStatus, checkLatest, updateNow, APP_VERSION } from './install.js?v=1.6.6';   // 1.6.1: Play Online / Install App               // 1.6.0: hitmarkers, dash, streaks, orbs, Pro HUD, Web Audio SFX
 
 initInstall();                                           // 1.6.1: catch beforeinstallprompt early + register sw.js
 const RT = createRuntime();                              // one engine instance for the whole campaign
@@ -88,7 +88,8 @@ function startAt(index) {
     exitGate,                                                 // our per-level seal (see above)
     ringShots: true,                                          // Pro's cannon fires glowing cyan energy rings
     offHand: 1,                                               // 1.6.2: the arm cannon is his right arm; every other weapon is held left-handed
-    musicNote: 'Music © Darcy D. Demby (DembySoftwareSystems). All rights reserved; used in Pro with permission.',   // 1.6.2: music player footer credits Darcy, not the editor's CC BY pack
+    musicNote: "Darcy D. Demby's tracks © DembySoftwareSystems, used in Pro with permission. Other tracks: CC0 or CC BY 4.0 (Kevin MacLeod, Shane Ivers, cinameng, Tsorthan Grove); see CREDITS.",   // 1.6.6: the list now mixes Darcy's songs with CC0 / CC BY tracks, each credited in the player
+    musicShuffle: true,                                       // 1.6.6: shuffled rotation: Darcy's songs about 1 in 4-5, never the same track twice in a row
     quitLabel: 'Campaign menu',
     lively: true,                                             // 1.6.3: every enemy strides / hovers / recoils / flashes (no cardboard cut-outs)
     pack: CFG.pack || { inventory: false, regen: false },    // 1.6.3: points / score only (campaign.json can turn regen or the Pack on)
@@ -143,7 +144,7 @@ function titleCard() {
   if (s.done) btns.push({ id: 'ending', label: 'Watch the broadcast', go: endingCard });
   btns.push({ id: 'preview', label: 'Inspect the suit', go: () => { location.href = 'preview.html'; } });
   showCard({ kind: 'title', kicker: i.kicker, title: i.title, lines: i.lines, hero: true, buttons: btns });
-  chapterSelect(resume ? at : 0);                                            // 1.6.1: pick any chapter 1–7
+  chapterSelect(resume ? at : 0);                                            // 1.6.1: pick any chapter 1–10
 }
 // 1.6.3 Install button (title card, splash corner and the pause menu): the browser's one-tap dialog when it offered one,
 // otherwise a friendly sheet with this browser's steps, an "Install to Home Screen" button and the offline-ready badge.
@@ -216,7 +217,7 @@ async function refreshOffline() {
   const m = $('install-sheet'); if (!m) return;
   const box = m.querySelector('.isheet-off'), txt = box.querySelector('span');
   const st = await offlineStatus();
-  const total = CFG ? CFG.levels.length : 7;
+  const total = CFG ? CFG.levels.length : 10;
   let cls = 'wait', msg;
   if (st.sw === 'none') { cls = 'no'; msg = 'Offline play needs the https page (open the online link once).'; }
   else if (st.sw === 'starting') msg = 'Saving an offline copy… (ready after this load)';
@@ -237,7 +238,7 @@ function chapterSelect(def) {
   const lab = document.createElement('label'); lab.htmlFor = 'chsel'; lab.textContent = 'Chapter select';
   const wrap = document.createElement('span'); wrap.className = 'chsel-box';  // holds the chevron icon
   const sel = document.createElement('select'); sel.id = 'chsel'; sel.setAttribute('aria-label', 'Chapter select');  // label is hidden on short screens
-  CFG.levels.forEach((lv, k) => {                                            // "Chapter 1 · The Lab" … "Chapter 7 · The Marble Shrine"
+  CFG.levels.forEach((lv, k) => {                                            // "Chapter 1 · The Lab" … "Chapter 10 · The Marble Shrine"
     const o = document.createElement('option'); o.value = k;
     o.textContent = 'Chapter ' + (k + 1) + ' · ' + lv.name.replace(/^\d+ · /, ''); sel.appendChild(o);
   });
@@ -264,7 +265,13 @@ function registerProEnemies() {
   // RT is Pro's own runtime copy, so the editor's enemies never change.
   for (const [id, mod] of Object.entries(CFG.enemyMods || {})) if (id[0] !== '_' && RT.ENEMY_DEFS[id]) Object.assign(RT.ENEMY_DEFS[id], mod);
   if (!RT.PROP_DEFS.pro_prop) RT.PROP_DEFS.pro_prop = { name: 'Community model', solid: 0.3 };  // slot used by chapter 6
-  // 1.6.2: Pro's music player is Darcy's tracks only (Bass Angel, Old School Flavor, Jungle Slap).
+  // 1.6.6: set dressing (benches, counters, vending machines...). Registered at runtime, so the editor's palette never sees them.
+  for (const [id, d] of Object.entries(CFG.props || {})) {
+    if (id[0] === '_') continue;
+    RT.PROP_DEFS[id] = { name: d.name, solid: d.solid, hp: d.hp };
+    if (d.model) RT.ASSET_PACK['prop_' + id] = Object.assign({}, d.model);   // src is relative to assetBase '../'
+  }
+  // 1.6.2: Pro's own music list (1.6.6: Darcy's three flagged rare + 10 CC0 / CC BY tracks).
   // This runtime has its own MUSIC_TRACKS array, so the editor's CC BY list is untouched.
   const proTracks = ((CFG.music && CFG.music.tracks) || []).map(t => Object.assign({}, t));   // copies, in campaign.json order
   if (proTracks.length) RT.MUSIC_TRACKS.splice(0, RT.MUSIC_TRACKS.length, ...proTracks);       // replace the list in place (the runtime holds this array)
@@ -336,6 +343,7 @@ async function boot() {
       const level = RT.unpackLevel(await r.json()).level;     // DMB Tech 1's own .retro reader
       level.name = lv.name;                                   // show the chapter name in the HUD
       if (lv.swap) swapEnemies(level, lv.swap);               // put Pro's enemies into the stock maps
+      if (lv.add) level.ents.push(...lv.add.map(e => Object.assign({}, e)));   // 1.6.6: Pro's props and security guards (planned on flat, connected floor beside walls)
       if (lv.track) level.props = Object.assign({}, level.props, { track: lv.track });   // e.g. Jungle Slap for the Minotaur
       if (lv.bossTrack) level.props = Object.assign({}, level.props, { bossTrack: lv.bossTrack });   // 1.6.2: Bass Angel takes over when you meet a boss
       (lv.nudge || []).forEach(n => level.ents.forEach(e => {  // move an entity a little, e.g. the tall Minotaur steps off his throne

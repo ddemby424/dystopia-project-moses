@@ -127,14 +127,39 @@ The glowing Sgt. chevrons on Pro's suit, the trooper's thruster flame, the crims
 
 The ring projectiles, story cards, broadcast screen, splash screen, spray-paint title animation, ion-charge effect, splash art (rendered from the suit above) and home-screen icons are original work. The splash title and engine badge use **Black Ops One** (James Grieshaber, SIL Open Font License 1.1, Google Fonts: https://fonts.google.com/specimen/Black+Ops+One).
 
-## PRO campaign music (1.6.2)
-| Track | File | Artist | License |
-|---|---|---|---|
-| Bass Angel (boss music: takes over when you meet a boss in chapters 1–6, such as the Warden) | `pro/assets/music/bass_angel.mp3` | **Darcy D. Demby (DembySoftwareSystems)** | © Darcy D. Demby. All rights reserved, used in Pro with his permission |
-| Old School Flavor (plays in chapters 1, 3 and 5) | `pro/assets/music/old_school_flavor.mp3` | **Darcy D. Demby (DembySoftwareSystems)** | © Darcy D. Demby. All rights reserved, used in Pro with his permission |
-| Jungle Slap (plays in chapter 7, The Marble Shrine) | `pro/assets/music/jungle_slap.mp3` | **Darcy D. Demby (DembySoftwareSystems)** | © Darcy D. Demby. All rights reserved, used in Pro with his permission |
+## PRO campaign music (1.6.2, expanded in 1.6.6)
+Pro's music list is Darcy's three songs plus ten CC0 / CC BY tracks. Darcy's songs are flagged `rare` and come up about once in every 4 to 5 tracks; nothing plays twice in a row.
 
-All three are re-encoded to 128 kbps MP3 for the web, and all three can be picked any time in Pro's music player. They are only in Pro's music list, not the editor's.
+| Track | File | Artist | License | Source |
+|---|---|---|---|---|
+| Bass Angel (boss music for the Chapter 4 Warden) | `pro/assets/music/bass_angel.mp3` | **Darcy D. Demby (DembySoftwareSystems)** | © Darcy D. Demby. All rights reserved, used in Pro with his permission | his own song |
+| Old School Flavor | `pro/assets/music/old_school_flavor.mp3` | **Darcy D. Demby (DembySoftwareSystems)** | © Darcy D. Demby. All rights reserved, used in Pro with his permission | his own song |
+| Jungle Slap (boss music for the Minotaur, Chapter 10) | `pro/assets/music/jungle_slap.mp3` | **Darcy D. Demby (DembySoftwareSystems)** | © Darcy D. Demby. All rights reserved, used in Pro with his permission | his own song |
+| "Pyro" (1.6.6) | `pro/assets/music/pyro.mp3` | **cinameng (James Gargette)** | CC0 1.0 | https://opengameart.org/content/pyro |
+| "endochde" (1.6.6) | `pro/assets/music/endochde.mp3` | **cinameng (James Gargette)** | CC0 1.0 | https://opengameart.org/content/endochde |
+| "Corrupt Data Stream" (1.6.6) | `pro/assets/music/corrupt_data_stream.mp3` | **Tsorthan Grove** | CC0 1.0 | https://opengameart.org/content/corrupt-data-stream |
+| "Seismic" | `assets/music/seismic.mp3` | **Shane Ivers** (silvermansound.com) | CC BY 4.0 | https://www.silvermansound.com/free-music/seismic |
+| "Lewis and Dekalb" | `assets/music/lewis_and_dekalb.mp3` | **Kevin MacLeod** (incompetech.com) | CC BY 4.0 | https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1600027 |
+| "Griphop" | `assets/music/griphop.mp3` | **Kevin MacLeod** | CC BY 4.0 | https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100413 |
+| "Hitman" | `assets/music/hitman.mp3` | **Kevin MacLeod** | CC BY 4.0 | https://incompetech.com/music/royalty-free/index.html?Search=Hitman |
+| "Volatile Reaction" (boss music for the Chapter 1 Warden) | `assets/music/volatile_reaction.mp3` | **Kevin MacLeod** | CC BY 4.0 | https://incompetech.com/music/royalty-free/index.html?Search=Volatile+Reaction |
+| "Industrial Revolution" (boss music for the Chapter 9 Warden) | `assets/music/industrial_revolution.mp3` | **Kevin MacLeod** | CC BY 4.0 | https://incompetech.com/music/royalty-free/index.html?Search=Industrial+Revolution |
+| "Danger Storm" | `assets/music/danger_storm.mp3` | **Kevin MacLeod** | CC BY 4.0 | https://incompetech.com/music/royalty-free/index.html?Search=Danger+Storm |
+
+CC BY attribution (required): "Lewis and Dekalb", "Griphop", "Hitman", "Volatile Reaction", "Industrial Revolution" and "Danger Storm" by Kevin MacLeod (incompetech.com), and "Seismic" by Shane Ivers (silvermansound.com), licensed under Creative Commons: By Attribution 4.0 License, http://creativecommons.org/licenses/by/4.0/ . The CC BY files are the same ones the editor already ships. The three CC0 files were downloaded from OpenGameArt on 2026-11-28 and re-encoded with ffmpeg to 56 kbps mono MP3, loudness-normalised (loudnorm, -15 LUFS) to sit with the others (1.33 to 1.50 MB each).
+
+## PRO 1.6.6: security guard and office props (all CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/)
+| Asset | File | Author and source | License |
+|---|---|---|---|
+| Security guard body and rig | `pro/assets/pro_guard.glb` | Quaternius SWAT (`assets/models/soldier_swat.glb`, https://poly.pizza/m/Btfn3G5Xv4), recoloured navy, re-rigged with Blender 4.2 | CC0 1.0 |
+| Guard's semi-auto rifle (sniper-style) | in `pro/assets/pro_guard.glb` | Quaternius, Sci-Fi Essentials Kit, `Gun_Sniper` (https://quaternius.com/packs/scifiessentialskit.html · https://opengameart.org/content/sci-fi-essentials-kit), rigid-skinned to the right hand | CC0 1.0 |
+| Guard's idle / run / fire / die clips | in `pro/assets/pro_guard.glb` | Mixamo "Rifle Aiming Idle", "Rifle Run", "Firing Rifle", "Dying" (https://www.mixamo.com, the same clips and terms as the 1.6.5 models), retargeted onto the SWAT skeleton; hit-react is the SWAT's own | Mixamo terms (free for use in projects) |
+| Bench, reception counter, cabinet | `pro/assets/props/prop_bench.glb`, `prop_counter.glb`, `prop_cabinet.glb` | **Kenney**, Furniture Kit (1.0) (https://kenney.nl/assets/furniture-kit · https://opengameart.org/content/furniture-kit), models `bench`, `kitchenBar`, `kitchenCabinet` | CC0 1.0 |
+| Drink and food vending machines | `pro/assets/props/prop_vending.glb`, `prop_vending_food.glb` | **tiko479**, "Vending Machines (Low Poly Style)" (https://opengameart.org/content/vending-machines-low-poly-style) | CC0 1.0 |
+| Chair, footlocker (chest), tarp crate | `pro/assets/props/prop_chair.glb`, `prop_footlocker.glb`, `prop_crate_tarp.glb` | **Quaternius**, Sci-Fi Essentials Kit, `Prop_Chair`, `Prop_Chest`, `Prop_Crate_Tarp` (https://quaternius.com/packs/scifiessentialskit.html · https://opengameart.org/content/sci-fi-essentials-kit) | CC0 1.0 |
+| Office floors (Lobby, Bullpen, Executive Floor) | `maps/tower-lobby.retro`, `tower-bullpen.retro`, `tower-executive.retro` | Original work (built with the trial-map builder) | Original |
+
+Every prop was converted with Blender 4.2 (glTF export, JPEG textures) and tinted darker in-engine so it fits Pro's gritty look. The Dystopia drones on the office floors are the existing `pro/assets/bot_drone.glb` (see above).
 
 ## Props, pickups, turret, effects and sound: original
 The **med cabinet**, **extinguisher**, **generator**, **floor lamp**, traffic cone, debris and sandbags, plus every pickup, keycard, the Sentry Turret, the fallback enemy robots, particles and every sound effect, are built or synthesized by DMB Tech 1 (WebAudio for sound). Those procedural prop meshes also stay on screen if a GLB above fails to load. No sound files are used except the music above.

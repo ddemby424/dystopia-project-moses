@@ -1,5 +1,5 @@
 /* =====================================================================
-   DMB Tech 1 v1.3.5 — standalone first-person engine for the browser.
+   DMB Tech 1 v1.3.6 — standalone first-person engine for the browser.
    ES module. Peer dependency: Three.js r128 (do not bundle).
    See README.md for the public API, .retro format, and import map.
    DMB Tech 1 — Darcy D. Demby, Chief Software Architect,
@@ -11,11 +11,11 @@ import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 // Module namespace objects are immutable; the runtime attaches loaders on THREE like the classic build did.
 const THREE = Object.assign({}, THREE_NS, { GLTFLoader, SkeletonUtils });
 
-export const VERSION = '1.3.5';
+export const VERSION = '1.3.6';
 
 export function createRuntime() {
 'use strict';
-const VERSION = '1.3.5';
+const VERSION = '1.3.6';
 const EYE = 0.62;            // eye height above the floor
 const PLAYER_R = 0.22;       // player collision radius (in cells)
 // Remote players: body height to match a real player's eye (EYE / 0.73, the Doom view-to-body ratio),
@@ -1229,6 +1229,20 @@ function normalizeModel(scene, height, centered, spec) {
    OWN skeleton (a plain clone would make every copy share one set of bones).
    If a file can't load (offline / opened from file://) the procedural model stays. */
 // Music player playlist (assets/music). All CC BY 4.0 — credits are shown in-game and in CREDITS.md.
+// 1.3.6: Pro's shuffle (opts.musicShuffle). A track flagged `rare` (Pro: Darcy's three) comes up about once every 4-5 tracks,
+// and no track ever plays twice in a row. Each group is dealt from its own shuffled deck, so every track gets a turn.
+// The state lives here (not inside play()) so it carries from chapter to chapter.
+const MUSIC_MIX = { since: Math.floor(Math.random() * 3), gap: 3 + Math.floor(Math.random() * 2), last: '', bag: { rare: [], main: [] } };
+function mixNext(tracks) {
+  const M = MUSIC_MIX, rare = tracks.filter(t => t.rare), main = tracks.filter(t => !t.rare);
+  const kind = rare.length && (!main.length || M.since >= M.gap) ? 'rare' : 'main', pool = kind === 'rare' ? rare : main;
+  let bag = M.bag[kind].filter(id => pool.some(t => t.id === id));
+  if (!bag.length) { bag = pool.map(t => t.id); for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; } }
+  if (bag.length > 1 && bag[0] === M.last) bag.push(bag.shift());           // a fresh deck must not open with the track that just played
+  const id = bag.shift(); M.bag[kind] = bag;
+  if (kind === 'rare') { M.since = 0; M.gap = 3 + Math.floor(Math.random() * 2); } else M.since++;   // 3 or 4 others between = 1 in 4-5
+  return tracks.findIndex(t => t.id === id);
+}
 const MUSIC_TRACKS = [
   { id: 'metalmania', file: 'assets/music/metalmania.mp3', title: 'Metalmania', artist: 'Kevin MacLeod', genre: 'Metal', license: 'CC BY 4.0', url: 'https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1700023' },
   { id: 'seismic', file: 'assets/music/seismic.mp3', title: 'Seismic', artist: 'Shane Ivers', genre: 'Trap', license: 'CC BY 4.0', url: 'https://www.silvermansound.com/free-music/seismic' },
@@ -2101,7 +2115,7 @@ function play(container, project, opts) {
   };
   const hpMul = def => (def && def.boss ? (diff().bossHp || diff().hp) : diff().hp);   // a boss can keep its own HP (Pro: the Minotaur's 4x is in his stats)
   /* ---------- music player: streams tracks from assets/music, synth ambient as fallback ---------- */
-  const TP = { audio: null, i: Math.floor(Math.random() * MUSIC_TRACKS.length), cur: null, failed: false, pick: null };
+  const TP = { audio: null, i: opts.musicShuffle ? Math.max(0, mixNext(MUSIC_TRACKS)) : Math.floor(Math.random() * MUSIC_TRACKS.length), cur: null, failed: false, pick: null };
   function music(on) {
     const want = !!on && !!G && G.L.props.music !== false;
     // a track picked in the music player wins; else the boss track once you've met a boss (1.3.2); else the level's own
@@ -2147,8 +2161,9 @@ function play(container, project, opts) {
     if (!opts.onEvent && t) msg('♪ ' + t.title + (t.artist ? ' — ' + t.artist : ''));   // hosts (Pro) show their own toast
     if (TP.pick === null && state === 'playing') fadeMusic(() => music(true));   // a hand-picked track keeps playing
   }
-  function loadTrack(i) { TP.i = (i + MUSIC_TRACKS.length) % MUSIC_TRACKS.length; const t = MUSIC_TRACKS[TP.i]; TP.cur = t.id; TP.audio.src = assetBase + t.file; }
-  function nextTrack(d) { if (!TP.audio || TP.failed) return; loadTrack(TP.i + d); TP.pick = TP.pick === 'synth' ? null : TP.pick !== null ? MUSIC_TRACKS[TP.i].id : null; const pr = TP.audio.play(); if (pr && pr.catch) pr.catch(() => {}); }
+  function loadTrack(i) { TP.i = (i + MUSIC_TRACKS.length) % MUSIC_TRACKS.length; const t = MUSIC_TRACKS[TP.i]; TP.cur = t.id; MUSIC_MIX.last = t.id; if (t.rare) MUSIC_MIX.since = 0; TP.audio.src = assetBase + t.file; }
+  function nextTrack(d) { if (!TP.audio || TP.failed) return; loadTrack(opts.musicShuffle && d > 0 ? mixNext(MUSIC_TRACKS) : TP.i + d);   // 1.3.6: Next / track end = the shuffle; Previous steps back through the list
+    TP.pick = TP.pick === 'synth' ? null : TP.pick !== null ? MUSIC_TRACKS[TP.i].id : null; const pr = TP.audio.play(); if (pr && pr.catch) pr.catch(() => {}); }
   function slotSrc(slot) { if (models[slot]) return typeof models[slot] === 'object' ? Object.assign({}, models[slot]) : { src: models[slot] }; const p = usePack && ASSET_PACK[slot]; return p ? Object.assign({}, p, { src: assetBase + p.src }) : null; }
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   const remotes = [];
@@ -3462,9 +3477,9 @@ function play(container, project, opts) {
   function spawnProj(owner, kind, x, y, z, dx, dy, dz, speed, dmg, splash) {
     const ring = (!!opts.ringShots && owner === 'player' && kind === 'pulse') || kind === 'redring';   // Pro's cyan rings, or a trooper's crimson ring
     if (ring && !ringGeo) ringGeo = new THREE.TorusGeometry(0.07, 0.014, 6, 18);  // made once, reused by every ring
-    const color = kind === 'redring' ? 0xff2436 : ring ? 0x4fe8ff : kind === 'plasma' ? 0x7cff4f : kind === 'pulse' ? 0x38bdf8 : kind === 'rocket' ? 0xffa040 : kind === 'palm' ? 0xffcc55 : 0xff3b1f;
+    const color = kind === 'redring' ? 0xff2436 : ring ? 0x4fe8ff : kind === 'plasma' ? 0x7cff4f : kind === 'bullet' ? 0xffc23a : kind === 'pulse' ? 0x38bdf8 : kind === 'rocket' ? 0xffa040 : kind === 'palm' ? 0xffcc55 : 0xff3b1f;
     const pm = projMats(color), mesh = new THREE.Mesh(ring ? ringGeo : projGeo, pm.core);
-    const baseScale = kind === 'rocket' ? 1.6 : kind === 'palm' ? 2.1 : kind === 'plasma' ? 1.3 : kind === 'pulse' ? 1.15 : 1.1;
+    const baseScale = kind === 'bullet' ? 0.8 : kind === 'rocket' ? 1.6 : kind === 'palm' ? 2.1 : kind === 'plasma' ? 1.3 : kind === 'pulse' ? 1.15 : 1.1;
     mesh.userData.baseScale = baseScale;
     mesh.scale.setScalar(baseScale);
     const halo = new THREE.Mesh(ring ? ringGeo : projGeo, pm.halo); halo.scale.setScalar(ring ? 1.35 : kind === 'pulse' ? 1.7 : 2.6); mesh.add(halo);
@@ -3944,6 +3959,21 @@ function play(container, project, opts) {
     const ga = animOf(e); if (ga && ud.glb) { bodyPose(e, ud, ga, dt, time); if (opts.lively) bossPose(e, ud, dt, time); }   // 1.3.3 stomp + lean; 1.3.4 roar / cleave / charge / stagger
     if (ud.glbMats) ud.glbMats.forEach(mm => mm.emissive && mm.emissive.setRGB(e.flashT > 0 ? 0.55 : 0, e.flashT > 0 ? 0.28 : 0, e.flashT > 0 ? 0.12 : 0));
   }
+  // 1.3.6: def.patrol = length of one leg (map units). He walks that far along his facing (or until something is in the way),
+  // pauses, turns round and walks it back. Alerting him (see / hear / get shot) ends the patrol for good.
+  function patrolStep(e, def, dt) {
+    const P = e.pat || (e.pat = { a: e.ang, x0: e.x, y0: e.y, wait: 0.6 + Math.random() * 1.6 });
+    if (P.wait > 0) { P.wait -= dt; return; }
+    const hx = Math.cos(P.a), hy = Math.sin(P.a), sp = (def.patrolSpeed || 0.5) * dt;
+    e.ang = P.a;
+    if (Math.hypot(e.x - P.x0, e.y - P.y0) >= def.patrol || blocked(e.x + hx * 0.55, e.y + hy * 0.55, e.z, def.r * 0.8, false, e)) {
+      P.a += Math.PI; P.x0 = e.x; P.y0 = e.y; P.wait = 1 + Math.random() * 1.4; return;   // end of the beat: stop, look around, turn
+    }
+    const nx = e.x + hx * sp, ny = e.y + hy * sp;
+    if (!blocked(nx, e.y, e.z, def.r * 0.8, false, e)) e.x = nx;
+    if (!blocked(e.x, ny, e.z, def.r * 0.8, false, e)) e.y = ny;
+    e.moving = true;
+  }
   function updateEnemies(dt, time) {
     updateFlow(dt);
     for (const e of G.enemies) {
@@ -3956,7 +3986,7 @@ function play(container, project, opts) {
           else if (e.state === 'attack') { an = 'shoot'; ts = e.attackKind === 'melee' ? 1.75 : 2.1; }
           else if (e.state === 'stagger') an = 'hit';
           else if (e.state === 'seated') an = 'idle';
-        } else if (ud.skinned && an === 'move') { if (def.lift || def.hover) an = 'idle'; else ts = 0.85; }   // hover troopers keep aiming while their jets carry them
+        } else if (ud.skinned && an === 'move') { if (def.lift || def.hover) an = 'idle'; else ts = e.state === 'idle' && def.patrol ? 0.5 : 0.85; }   // 1.3.6: a patrolling guard strolls   // hover troopers keep aiming while their jets carry them
         else if (ud.skinned && an === 'shoot') ts = 1.2;
         playHolderAnim(m, an, ts);
         // animation LOD (phones): skinning is CPU work, so far/idle enemies update less often and corpses freeze
@@ -3983,6 +4013,7 @@ function play(container, project, opts) {
       if (def.bossMusic && !G.bossMet && see && dist < def.range + 2) meetBoss(e);   // 1.3.2: boss spotted you -> boss music
       if (def.shockwave && e.state !== 'idle') updateQuakes(e, def.shockwave, dt, see, dist);   // 1.3.2: walkers slam a floor wave now and then
       e.flashT = Math.max(0, e.flashT - dt); e.cd -= dt; e.moving = false;
+      if (e.state === 'idle' && def.patrol && def.speed > 0 && G.graceT <= 0) patrolStep(e, def, dt);   // 1.3.6: guards walk a beat until they spot you
       if (e.state === 'idle') { if (G.graceT > 0) { /* 1.3.3: get-ready window: nobody notices you yet */ } else if ((dist < 2.5 + (input.run ? 2.5 : 0) && Math.hypot(G.vx, G.vy) > 1.1 && los(e.x, e.y, G.px, G.py) || dist < 1.5) || see && (dist < 6 || ((dx * Math.cos(e.ang) + dy * Math.sin(e.ang)) / dist > -0.2 && dist < 15))) alert(e); }
       else if (e.state === 'pain') { e.t -= dt; if (e.t <= 0) e.state = 'chase'; }
       else if (e.state === 'cover') {   // run to cover, wait, then pop out and fight again
@@ -4015,8 +4046,11 @@ function play(container, project, opts) {
             const fwd = mp ? 0 : 0.35;                                // the rifle tip is already in front of the body
             spawnProj('enemy', def.proj, ox + Math.cos(a) * fwd - Math.sin(a) * off, oy + Math.sin(a) * fwd + Math.cos(a) * off, mz + (e.sub === 'titan' ? 0.4 : 0), Math.cos(a) * dd / d3, Math.sin(a) * dd / d3, (tz - mz) / d3, sp, def.dmg * diff().dmg, def.proj === 'rocket' ? 1.4 : 0);
           }
-          if (!isBeam(def.proj)) Sound.play(def.proj === 'rocket' ? 'rocket' : 'bolt', distVol(e.x, e.y));   // beams play their own zap / zip
-          e.cd = def.cd * diff().cd * rand(0.8, 1.3); e.state = 'chase';
+          if (!isBeam(def.proj)) Sound.play(def.sfx || (def.proj === 'rocket' ? 'rocket' : 'bolt'), distVol(e.x, e.y));   // beams play their own zap / zip
+          if (def.burst && e.bl === undefined) e.bl = def.burst - 1;   // 1.3.6: semi-auto burst: the first shot sets the count, the rest follow after burstGap
+          else if (def.burst) e.bl--;
+          if (def.burst && e.bl > 0) { e.t = def.burstGap || 0.15; e.t0 = e.t; }   // stay in 'attack': aimed at you, the fire clip re-kicks each shot
+          else { e.bl = undefined; e.cd = def.cd * diff().cd * rand(0.8, 1.3); e.state = 'chase'; }
         }
       } else if (e.state === 'chase') {
         if (see) e.ang = Math.atan2(dy, dx);
@@ -4024,7 +4058,7 @@ function play(container, project, opts) {
         if (def.speed > 0 && e.sub !== 'titan' && e.hurtT > def.hp * hpMul(def) * (S.difficulty === 'hard' ? 0.25 : 0.4)) { e.hurtT = 0; const c = findCover(e); if (c) { e.state = 'cover'; e.recover = false; e.cover = c; e.coverT = rand(1.4, 2.6); } }
         e.strafeT -= dt; if (e.strafeT <= 0) { if (!e.flank) e.strafe = -e.strafe; e.strafeT = rand(0.7, 1.8); }
         if (e.flank && e.strafe !== e.flank && e.strafeT > 0.3) e.strafe = e.flank;
-        if (see && dist < def.range && e.cd <= 0) { e.state = 'attack'; e.t = def.windup || (def.proj === 'rocket' ? 0.6 : 0.4); e.t0 = e.t;   // 1.3.3: def.windup = telegraph length
+        if (see && dist < def.range && e.cd <= 0) { e.state = 'attack'; e.bl = undefined; e.t = def.windup || (def.proj === 'rocket' ? 0.6 : 0.4); e.t0 = e.t;   // 1.3.3: def.windup = telegraph length
            e.aim = { x: G.px, y: G.py, z: G.pz + 0.45 }; }   // t0: windup length (gunAnim); aim: beam lock
         else if (def.speed > 0 && see && dist < def.range && e.sub !== 'titan') {
           // in range but reloading: strafe sideways (and keep a little distance) instead of standing still

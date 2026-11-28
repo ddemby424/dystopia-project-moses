@@ -1,7 +1,7 @@
 {
   "_about": "Pro's live version check: the Download / Install App sheet fetches this file fresh (version.json?t=…, never cached) and compares it with the running build. Bump it with every release.",
-  "version": "1.6.5",
-  "engine": "1.3.5",
-  "date": "2026-11-27",
-  "notes": "Real skeletal animation: every Pro model is rigged on the Mixamo skeleton (idle, run, fire, roar, die), and the Chapter 7 Minotaur is taller, glows on his throne and wakes when you approach."
+  "version": "1.6.6",
+  "engine": "1.3.6",
+  "date": "2026-11-28",
+  "notes": "Set dressing and security guards: low-poly props through the chapters, rifle-armed guards who patrol and fire semi-auto bursts, and a bigger gritty soundtrack that shuffles with no repeats."
 }

@@ -26,7 +26,7 @@
  * which is what the 1.2 player models will use.
  */
 
-import { connect } from './mp.js?v=1.6.5';   // 1.6.1: same cache-busted URL as mp-dmbtech1.js (one shared module)
+import { connect } from './mp.js?v=1.6.6';   // 1.6.1: same cache-busted URL as mp-dmbtech1.js (one shared module)
 
 // Fallback lists so the menu works even if the caller passes nothing.
 const DEFAULT_LEVELS = [

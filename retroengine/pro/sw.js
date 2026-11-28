@@ -1,4 +1,4 @@
-/* sw.js — Pro's service worker (1.6.5).
+/* sw.js — Pro's service worker (1.6.6).
    1. Makes Pro installable as an app (Chrome / Edge / Samsung Internet need a service worker for that).
    2. 1.6.3: an offline copy. Every file Pro loads is kept as it arrives (network first, so a phone never gets stuck on
       an old version: the network answer always wins and refreshes the copy). With no connection, the saved copy is used.
@@ -7,7 +7,7 @@
    The page asks { type: 'status' } and gets back how many files are saved, for the "Offline ready" badge.
    3. 1.6.4: updates. version.json is never cached (the install sheet fetches it fresh to compare versions), and
       { type: 'skipWaiting' } lets a waiting new worker take over at once when you tap Update now. */
-const VER = '1.6.5';
+const VER = '1.6.6';
 const SHELL = 'pro-shell-' + VER;                                   // the page itself (offline fallback for navigations)
 const FILES = 'pro-files-' + VER;                                   // everything else Pro fetched
 const KEEP_HOSTS = [self.location.host, 'cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];   // three.js + fonts too
@@ -22,7 +22,7 @@ self.addEventListener('install', e => {
   e.waitUntil(Promise.all([
     caches.open(SHELL).then(c => c.addAll(['./', 'index.html'])).catch(() => {}),
     caches.open(FILES).then(c => Promise.all(CORE.map(u => c.add(u).catch(() => {})))
-      .then(() => c.match('campaign.json')).then(r => r ? r.json() : { levels: [] })              // then the 7 chapter maps (~170 KB)
+      .then(() => c.match('campaign.json')).then(r => r ? r.json() : { levels: [] })              // then the 10 chapter maps (~230 KB)
       .then(cfg => Promise.all((cfg.levels || []).map(lv => c.add('../maps/' + lv.file).catch(() => {})))).catch(() => {}))
   ]).then(() => self.skipWaiting()));
 });
